@@ -1,0 +1,36 @@
+# CachiBot - The Armored AI Agent
+# Docker Compose configuration
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cachibot-backend
+    environment:
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    volumes:
+      - cachibot-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6392/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cachibot-frontend
+    ports:
+      - "7493:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  cachibot-data:
