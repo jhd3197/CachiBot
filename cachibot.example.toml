@@ -1,0 +1,57 @@
+# Cachibot Configuration Example
+# Copy to ~/.cachibot.toml or ./cachibot.toml in your workspace
+
+[agent]
+# Model to use (format: provider/model-name)
+# Options: moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514, openai/gpt-4o, ollama/llama3.1:8b
+model = "moonshot/kimi-k2.5"
+
+# Maximum agent iterations per request
+max_iterations = 20
+
+# Require approval for each tool execution
+approve_actions = false
+
+# Temperature for LLM responses (0.0 - 1.0)
+# Moonshot recommends 0.6 for instant mode, 1.0 for thinking mode
+temperature = 0.6
+
+[sandbox]
+# Allowed Python imports (safe modules only)
+# Add more as needed, but be careful with security implications
+allowed_imports = [
+    "json", "csv", "re", "math", "datetime", "collections",
+    "itertools", "functools", "random", "statistics",
+    "base64", "hashlib", "copy", "pprint", "typing",
+]
+
+# Maximum execution time for Python code (seconds)
+timeout_seconds = 30
+
+# Maximum output length (characters)
+max_output_length = 10000
+
+[workspace]
+# Paths relative to workspace that are allowed
+allowed_paths = ["."]
+
+# Patterns to ignore when listing files
+ignore_patterns = [
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    ".env",
+    "venv",
+    ".venv",
+]
+
+[display]
+# Show agent's thinking process
+show_thinking = true
+
+# Show token usage and cost after each response
+show_cost = true
+
+# Output style: "detailed" or "compact"
+style = "detailed"

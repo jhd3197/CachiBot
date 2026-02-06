@@ -1,0 +1,890 @@
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Save,
+  Trash2,
+  AlertTriangle,
+  Palette,
+  Brain,
+  RotateCcw,
+  RefreshCw,
+  Download,
+  ExternalLink,
+  Search,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
+  X,
+} from 'lucide-react'
+import { useBotStore, DEFAULT_BOT_SETTINGS } from '../../stores/bots'
+import { useUIStore } from '../../stores/ui'
+import { BotIconRenderer, BOT_ICON_OPTIONS } from '../common/BotIconRenderer'
+import { ModelSelect } from '../common/ModelSelect'
+import { DocumentUploader, DocumentList, InstructionsEditor } from '../knowledge'
+import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
+import { cn } from '../../lib/utils'
+import * as skillsApi from '../../api/skills'
+import type { Bot as BotType, SkillDefinition } from '../../types'
+
+const COLOR_OPTIONS = [
+  '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
+  '#f59e0b', '#ef4444', '#06b6d4', '#84cc16',
+]
+
+export function SettingsView() {
+  const navigate = useNavigate()
+  const { getActiveBot, updateBot, deleteBot } = useBotStore()
+  const { settingsSection } = useUIStore()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const activeBot = getActiveBot()
+
+  const [form, setForm] = useState<Partial<BotType>>({
+    name: activeBot?.name || '',
+    description: activeBot?.description || '',
+    icon: activeBot?.icon,
+    color: activeBot?.color,
+    model: activeBot?.model || '',
+    systemPrompt: activeBot?.systemPrompt || '',
+  })
+
+  useEffect(() => {
+    if (activeBot) {
+      setForm({
+        name: activeBot.name,
+        description: activeBot.description,
+        icon: activeBot.icon,
+        color: activeBot.color,
+        model: activeBot.model,
+        systemPrompt: activeBot.systemPrompt,
+      })
+    }
+  }, [activeBot?.id])
+
+  if (!activeBot) return null
+
+  const handleSave = () => {
+    updateBot(activeBot.id, form)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleDelete = () => {
+    deleteBot(activeBot.id)
+    setShowDeleteConfirm(false)
+    navigate('/dashboard')
+  }
+
+  const sectionTitles = {
+    general: 'General',
+    knowledge: 'Knowledge',
+    skills: 'Skills',
+    connections: 'Connections',
+    advanced: 'Advanced',
+    danger: 'Danger Zone',
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-zinc-950">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
+        <h1 className="text-lg font-semibold text-zinc-100">
+          {sectionTitles[settingsSection]}
+        </h1>
+        {settingsSection !== 'danger' && (
+          <button
+            onClick={handleSave}
+            className={cn(
+              'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              saved
+                ? 'bg-green-600 text-white'
+                : 'bg-cachi-600 text-white hover:bg-cachi-500'
+            )}
+          >
+            <Save className="h-4 w-4" />
+            {saved ? 'Saved!' : 'Save'}
+          </button>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="mx-auto max-w-2xl">
+          {settingsSection === 'general' && (
+            <GeneralSection
+              form={form}
+              setForm={setForm}
+              onReset={() => {
+                setForm({
+                  name: DEFAULT_BOT_SETTINGS.name,
+                  description: DEFAULT_BOT_SETTINGS.description,
+                  icon: DEFAULT_BOT_SETTINGS.icon,
+                  color: DEFAULT_BOT_SETTINGS.color,
+                  model: DEFAULT_BOT_SETTINGS.model,
+                  systemPrompt: DEFAULT_BOT_SETTINGS.systemPrompt,
+                })
+              }}
+            />
+          )}
+          {settingsSection === 'knowledge' && (
+            <KnowledgeSection botId={activeBot.id} />
+          )}
+          {settingsSection === 'skills' && (
+            <SkillsSection botId={activeBot.id} />
+          )}
+          {settingsSection === 'connections' && (
+            <ConnectionsSection botId={activeBot.id} />
+          )}
+          {settingsSection === 'advanced' && (
+            <AdvancedSection />
+          )}
+          {settingsSection === 'danger' && (
+            <DangerSection
+              botId={activeBot.id}
+              botName={activeBot.name}
+              onDelete={() => setShowDeleteConfirm(true)}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-red-400">
+              <AlertTriangle className="h-6 w-6" />
+              <h2 className="text-lg font-bold">Delete Bot</h2>
+            </div>
+            <p className="mb-6 text-zinc-400">
+              Are you sure you want to delete <strong className="text-zinc-200">{activeBot.name}</strong>?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+              >
+                Delete Bot
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// SECTION COMPONENTS
+// =============================================================================
+
+interface GeneralSectionProps {
+  form: Partial<BotType>
+  setForm: (form: Partial<BotType>) => void
+  onReset: () => void
+}
+
+function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  return (
+    <div className="space-y-6">
+      {/* Reset to Default button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-300"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Reset to Default
+        </button>
+      </div>
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-amber-400">
+              <RotateCcw className="h-6 w-6" />
+              <h2 className="text-lg font-bold">Reset General Settings</h2>
+            </div>
+            <p className="mb-6 text-zinc-400">
+              This will reset the bot's name, description, icon, color, model, and system prompt to their default values.
+              <br /><br />
+              <strong className="text-zinc-200">Connections will not be affected.</strong>
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onReset()
+                  setShowResetConfirm(false)
+                }}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500"
+              >
+                Reset Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-zinc-300">Name</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-zinc-300">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            rows={2}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-zinc-100 outline-none focus:border-cachi-500"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-zinc-300">Model</label>
+          <ModelSelect
+            value={form.model || ''}
+            onChange={(model) => setForm({ ...form, model })}
+            placeholder="Use system default"
+            className="w-full"
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            Leave empty to use the system default model
+          </p>
+        </div>
+      </div>
+
+      {/* Appearance */}
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-200">
+          <Palette className="h-4 w-4 text-zinc-400" />
+          Appearance
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-xs text-zinc-500">Icon</label>
+            <div className="flex flex-wrap gap-2">
+              {BOT_ICON_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setForm({ ...form, icon: option.id })}
+                  title={option.label}
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-lg border transition-all',
+                    form.icon === option.id
+                      ? 'border-cachi-500 bg-cachi-500/20'
+                      : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                  )}
+                >
+                  <BotIconRenderer icon={option.id} size={20} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-xs text-zinc-500">Color</label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_OPTIONS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setForm({ ...form, color })}
+                  className={cn(
+                    'h-8 w-8 rounded-lg border-2 transition-all',
+                    form.color === color
+                      ? 'border-white scale-110'
+                      : 'border-transparent hover:scale-105'
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* System Prompt */}
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-200">
+          <Brain className="h-4 w-4 text-zinc-400" />
+          System Prompt
+        </h3>
+        <textarea
+          value={form.systemPrompt}
+          onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
+          rows={6}
+          placeholder="Define the bot's personality and behavior..."
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 font-mono text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+        />
+      </div>
+    </div>
+  )
+}
+
+function KnowledgeSection({ botId }: { botId: string }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="mb-2 text-sm font-medium text-zinc-200">Documents</h3>
+        <p className="mb-4 text-xs text-zinc-500">
+          Upload documents to give your bot specialized knowledge.
+        </p>
+        <DocumentUploader botId={botId} />
+        <div className="mt-4">
+          <DocumentList botId={botId} />
+        </div>
+      </div>
+      <div className="border-t border-zinc-800 pt-6">
+        <InstructionsEditor botId={botId} />
+      </div>
+    </div>
+  )
+}
+
+function SkillsSection({ botId }: { botId: string }) {
+  const [allSkills, setAllSkills] = useState<SkillDefinition[]>([])
+  const [activeSkillIds, setActiveSkillIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showInstallDialog, setShowInstallDialog] = useState(false)
+
+  // Load skills and bot's active skills
+  const loadData = useCallback(async () => {
+    try {
+      setError(null)
+      const [skills, botSkillIds] = await Promise.all([
+        skillsApi.getSkills(),
+        skillsApi.getBotSkillIds(botId),
+      ])
+      setAllSkills(skills)
+      setActiveSkillIds(new Set(botSkillIds))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load skills')
+    } finally {
+      setLoading(false)
+    }
+  }, [botId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Refresh skills from filesystem
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const skills = await skillsApi.refreshSkills()
+      setAllSkills(skills)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to refresh skills')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  // Toggle skill activation
+  const handleToggle = async (skillId: string, activate: boolean) => {
+    try {
+      if (activate) {
+        await skillsApi.activateSkill(botId, skillId)
+        setActiveSkillIds((prev) => new Set([...prev, skillId]))
+      } else {
+        await skillsApi.deactivateSkill(botId, skillId)
+        setActiveSkillIds((prev) => {
+          const next = new Set(prev)
+          next.delete(skillId)
+          return next
+        })
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to toggle skill')
+    }
+  }
+
+  // Delete skill
+  const handleDelete = async (skillId: string) => {
+    if (!confirm('Are you sure you want to delete this skill?')) return
+    try {
+      await skillsApi.deleteSkill(skillId)
+      setAllSkills((prev) => prev.filter((s) => s.id !== skillId))
+      setActiveSkillIds((prev) => {
+        const next = new Set(prev)
+        next.delete(skillId)
+        return next
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete skill')
+    }
+  }
+
+  // Handle skill installation
+  const handleInstalled = (skill: SkillDefinition) => {
+    setAllSkills((prev) => [...prev, skill])
+    setShowInstallDialog(false)
+  }
+
+  // Filter skills by search query
+  const filteredSkills = allSkills.filter((skill) => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      skill.name.toLowerCase().includes(query) ||
+      skill.description.toLowerCase().includes(query) ||
+      skill.tags.some((tag) => tag.toLowerCase().includes(query))
+    )
+  })
+
+  // Sort: active skills first, then by name
+  const sortedSkills = [...filteredSkills].sort((a, b) => {
+    const aActive = activeSkillIds.has(a.id)
+    const bActive = activeSkillIds.has(b.id)
+    if (aActive && !bActive) return -1
+    if (!aActive && bActive) return 1
+    return a.name.localeCompare(b.name)
+  })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-sm text-zinc-500">Loading skills...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Error display */}
+      {error && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {/* Header with actions */}
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-zinc-400">
+          Activate skills to give your bot specialized behaviors and capabilities.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
+            title="Rescan skill directories"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setShowInstallDialog(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-cachi-600 px-3 py-1.5 text-xs text-white hover:bg-cachi-500"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Install
+          </button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search skills..."
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cachi-500 focus:outline-none"
+        />
+      </div>
+
+      {/* Skills list */}
+      {sortedSkills.length > 0 ? (
+        <div className="space-y-3">
+          {sortedSkills.map((skill) => (
+            <SkillCard
+              key={skill.id}
+              skill={skill}
+              isActive={activeSkillIds.has(skill.id)}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              showDelete={skill.source === 'local' || skill.source === 'installed'}
+            />
+          ))}
+        </div>
+      ) : searchQuery ? (
+        <div className="rounded-lg border border-dashed border-zinc-700 p-8 text-center">
+          <p className="text-sm text-zinc-500">No skills match your search.</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-zinc-700 p-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800">
+            <Sparkles className="h-6 w-6 text-zinc-500" />
+          </div>
+          <h3 className="mb-2 font-medium text-zinc-300">No skills available</h3>
+          <p className="mb-4 text-sm text-zinc-500">
+            Create SKILL.md files in <code className="text-zinc-400">~/.claude/skills/</code>
+            {' '}or install from a URL.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setShowInstallDialog(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-cachi-600 px-4 py-2 text-sm text-white hover:bg-cachi-500"
+            >
+              <Download className="h-4 w-4" />
+              Install Skill
+            </button>
+            <a
+              href="https://skills.sh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Browse skills.sh
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Active skills count */}
+      {activeSkillIds.size > 0 && (
+        <div className="text-center text-xs text-zinc-500">
+          {activeSkillIds.size} skill{activeSkillIds.size !== 1 ? 's' : ''} active
+        </div>
+      )}
+
+      {/* Install dialog */}
+      {showInstallDialog && (
+        <SkillInstallDialog
+          onClose={() => setShowInstallDialog(false)}
+          onInstalled={handleInstalled}
+        />
+      )}
+    </div>
+  )
+}
+
+// Skill card component
+interface SkillCardProps {
+  skill: SkillDefinition
+  isActive: boolean
+  onToggle: (skillId: string, activate: boolean) => void
+  onDelete: (skillId: string) => void
+  showDelete: boolean
+}
+
+function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCardProps) {
+  return (
+    <div
+      className={cn(
+        'rounded-lg border p-4 transition-colors',
+        isActive
+          ? 'border-cachi-500/50 bg-cachi-500/5'
+          : 'border-zinc-700 bg-zinc-800/30'
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-zinc-200">{skill.name}</h3>
+            {skill.version && (
+              <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">
+                v{skill.version}
+              </span>
+            )}
+            <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-500">
+              {skill.source}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-zinc-400">{skill.description}</p>
+          {skill.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {skill.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+          {skill.requiresTools.length > 0 && (
+            <div className="mt-2 text-xs text-zinc-500">
+              Requires: {skill.requiresTools.join(', ')}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {showDelete && (
+            <button
+              onClick={() => onDelete(skill.id)}
+              className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-red-400"
+              title="Delete skill"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onToggle(skill.id, !isActive)}
+            className={isActive ? 'text-cachi-500' : 'text-zinc-600'}
+          >
+            {isActive ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Skill install dialog component
+interface SkillInstallDialogProps {
+  onClose: () => void
+  onInstalled: (skill: SkillDefinition) => void
+}
+
+function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleInstall = async () => {
+    if (!url.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const skill = await skillsApi.installSkill(url.trim())
+      onInstalled(skill)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to install skill')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-zinc-900 shadow-xl">
+        <div className="flex items-center justify-between border-b border-zinc-800 p-4">
+          <h2 className="text-lg font-semibold text-zinc-100">Install Skill</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-4 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
+              {error}
+            </div>
+          )}
+          <div>
+            <label className="mb-2 block text-sm font-medium text-zinc-300">
+              Skill URL or skills.sh identifier
+            </label>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://... or skills.sh/skill-name"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cachi-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Enter a URL to a skill markdown file or a skills.sh identifier.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 border-t border-zinc-800 p-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleInstall}
+            disabled={!url.trim() || loading}
+            className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white hover:bg-cachi-500 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Installing...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Install
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConnectionsSection({ botId }: { botId: string }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="mb-4 text-sm text-zinc-400">
+          Connect your bot to messaging platforms like Telegram and Discord to send and receive messages.
+        </p>
+        <BotConnectionsPanel botId={botId} />
+      </div>
+    </div>
+  )
+}
+
+function AdvancedSection() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-300">Temperature</label>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            defaultValue="0.7"
+            className="flex-1"
+          />
+          <span className="w-12 text-center text-sm text-zinc-400">0.7</span>
+        </div>
+        <p className="mt-1 text-xs text-zinc-500">Lower = focused, higher = creative</p>
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-300">Max Iterations</label>
+        <input
+          type="number"
+          defaultValue={20}
+          min={1}
+          max={50}
+          className="h-10 w-32 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+        />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-300">Approval Mode</label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <input type="radio" name="approval" defaultChecked className="text-cachi-500" />
+            <span className="text-sm text-zinc-300">Auto-approve safe actions</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="approval" className="text-cachi-500" />
+            <span className="text-sm text-zinc-300">Approve all actions</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DangerSection({
+  botId,
+  botName,
+  onDelete,
+}: {
+  botId: string
+  botName: string
+  onDelete: () => void
+}) {
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    setExportError(null)
+
+    try {
+      const { exportBot } = await import('../../api/client')
+      const data = await exportBot(botId)
+
+      // Create and download the file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${botName.toLowerCase().replace(/\s+/g, '-')}-export.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Failed to export bot')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Export section */}
+      <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-6">
+        <h3 className="text-lg font-semibold text-zinc-200">Export Bot</h3>
+        <p className="mt-2 text-sm text-zinc-400">
+          Download this bot's configuration as a JSON file. You can import it later to recreate the bot.
+        </p>
+        {exportError && (
+          <p className="mt-2 text-sm text-red-400">{exportError}</p>
+        )}
+        <button
+          onClick={handleExport}
+          disabled={isExporting}
+          className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" />
+          {isExporting ? 'Exporting...' : 'Export Configuration'}
+        </button>
+      </div>
+
+      {/* Delete section */}
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+        <h3 className="text-lg font-semibold text-red-400">Delete this bot</h3>
+        <p className="mt-2 text-sm text-zinc-400">
+          Once you delete <strong className="text-zinc-200">{botName}</strong>, there is no going back.
+          All chats, jobs, and tasks will be permanently deleted.
+        </p>
+        <button
+          onClick={onDelete}
+          className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Bot
+        </button>
+      </div>
+    </div>
+  )
+}
+

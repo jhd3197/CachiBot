@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+env
+*.egg-info
+.eggs
+dist
+build
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+
+# Documentation
+docs/_build
+*.md
+
+# Frontend (built separately)
+frontend/node_modules
+frontend/dist
+frontend/.git
+
+# Local config
+*.local
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Website (static, not needed in backend)
+website/

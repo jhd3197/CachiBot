@@ -1,0 +1,1764 @@
+import { useState, useEffect, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Settings,
+  Moon,
+  Sun,
+  Monitor,
+  Eye,
+  Keyboard,
+  Bell,
+  Shield,
+  Database,
+  Trash2,
+  Download,
+  Upload,
+  RefreshCw,
+  ExternalLink,
+  Info,
+  Palette,
+  Sliders,
+  FolderOpen,
+  Code,
+  AlertTriangle,
+  Brain,
+  Users,
+  UserPlus,
+  User as UserIcon,
+  MoreVertical,
+  Check,
+  X,
+  Mail,
+  AtSign,
+  Loader2,
+  ChevronRight,
+  ChevronDown,
+  Bot,
+  MessageSquare,
+  Briefcase,
+  CheckSquare,
+  BarChart3,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
+import { useConfigStore } from '../../stores/config'
+import { useModelsStore } from '../../stores/models'
+import { useAuthStore } from '../../stores/auth'
+import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
+import { useConnectionStore, useUsageStore } from '../../stores/connections'
+import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
+import { ModelSelect } from '../common/ModelSelect'
+import { Button } from '../common/Button'
+import { cn } from '../../lib/utils'
+import type { Config, User, UserRole } from '../../types'
+
+type SettingsTab = 'general' | 'appearance' | 'models' | 'advanced' | 'data' | 'users'
+
+const VALID_TABS: SettingsTab[] = ['general', 'appearance', 'models', 'advanced', 'data', 'users']
+
+export function AppSettingsView() {
+  const { settingsTab: urlTab } = useParams<{ settingsTab?: string }>()
+  const navigate = useNavigate()
+  const {
+    theme,
+    setTheme,
+    accentColor,
+    setAccentColor,
+    showThinking,
+    setShowThinking,
+    showCost,
+    setShowCost,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+  } = useUIStore()
+  const { config } = useConfigStore()
+  const { user: currentUser } = useAuthStore()
+
+  const isAdmin = currentUser?.role === 'admin'
+
+  // Determine active tab from URL, with validation
+  const getActiveTab = (): SettingsTab => {
+    if (!urlTab) return 'general'
+    if (!VALID_TABS.includes(urlTab as SettingsTab)) return 'general'
+    // Non-admins can't access users tab
+    if (urlTab === 'users' && !isAdmin) return 'general'
+    return urlTab as SettingsTab
+  }
+
+  const activeTab = getActiveTab()
+
+  // Redirect if URL tab is invalid or unauthorized
+  useEffect(() => {
+    if (urlTab && activeTab !== urlTab) {
+      navigate('/settings/general', { replace: true })
+    }
+  }, [urlTab, activeTab, navigate])
+
+  const handleTabChange = (tabId: SettingsTab) => {
+    navigate(`/settings/${tabId}`)
+  }
+
+  const tabs = [
+    { id: 'general' as SettingsTab, label: 'General', icon: Settings },
+    { id: 'appearance' as SettingsTab, label: 'Appearance', icon: Palette },
+    { id: 'models' as SettingsTab, label: 'Models', icon: Brain },
+    { id: 'advanced' as SettingsTab, label: 'Advanced', icon: Sliders },
+    { id: 'data' as SettingsTab, label: 'Data & Privacy', icon: Database },
+    ...(isAdmin ? [{ id: 'users' as SettingsTab, label: 'Users', icon: Users }] : []),
+  ]
+
+  return (
+    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-300 px-6 py-4 dark:border-zinc-800">
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h1>
+          <p className="text-sm text-zinc-500">Configure CachiBot preferences</p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <nav className="w-56 border-r border-zinc-300 p-4 dark:border-zinc-800">
+          <div className="space-y-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
+                    : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+                )}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mx-auto max-w-2xl space-y-8">
+            {activeTab === 'general' && (
+              <GeneralSettings
+                showThinking={showThinking}
+                setShowThinking={setShowThinking}
+                showCost={showCost}
+                setShowCost={setShowCost}
+                config={config}
+              />
+            )}
+            {activeTab === 'appearance' && (
+              <AppearanceSettings
+                theme={theme}
+                setTheme={setTheme}
+                accentColor={accentColor}
+                setAccentColor={setAccentColor}
+                sidebarCollapsed={sidebarCollapsed}
+                setSidebarCollapsed={setSidebarCollapsed}
+              />
+            )}
+            {activeTab === 'models' && <ModelsSettings />}
+            {activeTab === 'advanced' && <AdvancedSettings config={config} />}
+            {activeTab === 'data' && <DataSettings />}
+            {activeTab === 'users' && isAdmin && <UsersSettings currentUser={currentUser} />}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// GENERAL SETTINGS
+// =============================================================================
+
+function GeneralSettings({
+  showThinking,
+  setShowThinking,
+  showCost,
+  setShowCost,
+  config,
+}: {
+  showThinking: boolean
+  setShowThinking: (show: boolean) => void
+  showCost: boolean
+  setShowCost: (show: boolean) => void
+  config: Config | null
+}) {
+  return (
+    <>
+      <Section icon={Eye} title="Display Options">
+        <div className="space-y-4">
+          <ToggleField
+            label="Show Thinking Process"
+            description="Display the AI's reasoning and thought process"
+            checked={showThinking}
+            onChange={setShowThinking}
+          />
+          <ToggleField
+            label="Show Token Costs"
+            description="Display estimated costs for API calls"
+            checked={showCost}
+            onChange={setShowCost}
+          />
+        </div>
+      </Section>
+
+      <Section icon={Bell} title="Notifications">
+        <div className="space-y-4">
+          <ToggleField
+            label="Desktop Notifications"
+            description="Get notified when tasks complete"
+            checked={false}
+            onChange={() => {}}
+          />
+          <ToggleField
+            label="Sound Effects"
+            description="Play sounds for important events"
+            checked={false}
+            onChange={() => {}}
+          />
+        </div>
+      </Section>
+
+      <Section icon={FolderOpen} title="Workspace">
+        <div className="space-y-4">
+          <Field label="Workspace Path">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={config?.workspacePath || './workspace'}
+                readOnly
+                className="h-10 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none"
+              />
+              <button className="rounded-lg bg-zinc-800 px-4 text-sm text-zinc-300 hover:bg-zinc-700">
+                Browse
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              Directory where bots can read and write files
+            </p>
+          </Field>
+        </div>
+      </Section>
+    </>
+  )
+}
+
+// =============================================================================
+// APPEARANCE SETTINGS
+// =============================================================================
+
+function AppearanceSettings({
+  theme,
+  setTheme,
+  accentColor,
+  setAccentColor,
+  sidebarCollapsed,
+  setSidebarCollapsed,
+}: {
+  theme: Theme
+  setTheme: (theme: Theme) => void
+  accentColor: AccentColor
+  setAccentColor: (color: AccentColor) => void
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
+}) {
+  const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'system', label: 'System', icon: Monitor },
+  ]
+
+  const colorOptions = Object.entries(accentColors) as [AccentColor, typeof accentColors[AccentColor]][]
+
+  return (
+    <>
+      <Section icon={Palette} title="Theme">
+        <div className="space-y-4">
+          <Field label="Color Theme">
+            <div className="flex gap-2">
+              {themeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setTheme(option.value)}
+                  className={cn(
+                    'flex flex-1 items-center justify-center gap-2 rounded-lg border py-3 transition-all',
+                    theme === option.value
+                      ? 'border-accent-500 bg-accent-500/20 text-accent-600 dark:text-accent-400'
+                      : 'border-zinc-300 bg-zinc-100 text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600'
+                  )}
+                >
+                  <option.icon className="h-4 w-4" />
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Accent Color">
+            <div className="grid grid-cols-4 gap-2">
+              {colorOptions.map(([value, { name, palette }]) => (
+                <button
+                  key={value}
+                  onClick={() => setAccentColor(value)}
+                  className={cn(
+                    'flex items-center gap-2 rounded-lg border p-3 transition-all',
+                    accentColor === value
+                      ? 'border-2 ring-1 ring-offset-1 ring-offset-zinc-900'
+                      : 'border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600'
+                  )}
+                  style={{
+                    borderColor: accentColor === value ? palette[500] : undefined,
+                    // @ts-expect-error - Tailwind CSS variable
+                    '--tw-ring-color': accentColor === value ? palette[500] : undefined,
+                  }}
+                >
+                  <div
+                    className="h-5 w-5 rounded-full"
+                    style={{ backgroundColor: palette[500] }}
+                  />
+                  <span className="text-sm text-zinc-700 dark:text-zinc-300">{name}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+        </div>
+      </Section>
+
+      <Section icon={Sliders} title="Layout">
+        <div className="space-y-4">
+          <ToggleField
+            label="Collapse Sidebar by Default"
+            description="Start with sidebar in compact mode"
+            checked={sidebarCollapsed}
+            onChange={setSidebarCollapsed}
+          />
+          <Field label="Chat Message Style">
+            <select className="h-10 w-full rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+              <option value="detailed">Detailed (with metadata)</option>
+              <option value="compact">Compact</option>
+              <option value="minimal">Minimal</option>
+            </select>
+          </Field>
+        </div>
+      </Section>
+
+      <Section icon={Code} title="Code Display">
+        <div className="space-y-4">
+          <Field label="Code Font">
+            <select className="h-10 w-full rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+              <option value="jetbrains-mono">JetBrains Mono</option>
+              <option value="fira-code">Fira Code</option>
+              <option value="monaco">Monaco</option>
+              <option value="consolas">Consolas</option>
+            </select>
+          </Field>
+          <ToggleField
+            label="Enable Ligatures"
+            description="Display programming ligatures in code"
+            checked={true}
+            onChange={() => {}}
+          />
+        </div>
+      </Section>
+    </>
+  )
+}
+
+// =============================================================================
+// MODELS SETTINGS
+// =============================================================================
+
+function ModelsSettings() {
+  const { defaultModel, updateDefaultModel, refresh } = useModelsStore()
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const handleDefaultModelChange = async (model: string) => {
+    if (model) {
+      await updateDefaultModel(model)
+    }
+  }
+
+  return (
+    <>
+      <Section icon={Brain} title="Default Model">
+        <div className="space-y-4">
+          <Field label="System Default Model">
+            <ModelSelect
+              value={defaultModel}
+              onChange={handleDefaultModelChange}
+              placeholder="Select default model..."
+              className="w-full"
+            />
+            <p className="mt-2 text-xs text-zinc-500">
+              This model will be used when no specific model is configured for a bot.
+              Click the star icon on any model in the Models page to set it as default.
+            </p>
+          </Field>
+        </div>
+      </Section>
+
+      <Section icon={Info} title="Model Information">
+        <div className="space-y-4">
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <h4 className="font-medium text-zinc-200">Model Discovery</h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              CachiBot automatically discovers available models from your configured API keys.
+              Configure API keys for providers like OpenAI, Anthropic, Google, Groq, and more
+              to unlock their models.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <h4 className="font-medium text-zinc-200">Model Capabilities</h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              Each model has different capabilities including vision support, tool use,
+              structured output, and reasoning. Check the Models page for detailed information.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <h4 className="font-medium text-zinc-200">Custom Models</h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              You can enter custom model IDs manually using the "Enter manually" option
+              in the model selector. Use the format: provider/model-id
+            </p>
+          </div>
+        </div>
+      </Section>
+    </>
+  )
+}
+
+// =============================================================================
+// ADVANCED SETTINGS
+// =============================================================================
+
+function AdvancedSettings({
+  config,
+}: {
+  config: Config | null
+}) {
+  return (
+    <>
+      <Section icon={Shield} title="Security">
+        <div className="space-y-4">
+          <ToggleField
+            label="Require Approval for Actions"
+            description="Ask before executing potentially dangerous operations"
+            checked={config?.agent.approveActions ?? true}
+            onChange={() => {}}
+          />
+          <Field label="Sandbox Timeout">
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                value={config?.sandbox.timeoutSeconds ?? 30}
+                className="h-10 w-24 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+              />
+              <span className="text-sm text-zinc-400">seconds</span>
+            </div>
+          </Field>
+        </div>
+      </Section>
+
+      <Section icon={Sliders} title="AI Configuration">
+        <div className="space-y-4">
+          <Field label="Default Temperature">
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                defaultValue={config?.agent.temperature ?? 0.7}
+                className="flex-1"
+              />
+              <span className="w-12 text-center text-sm text-zinc-400">
+                {config?.agent.temperature ?? 0.7}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              Controls randomness in responses (0 = deterministic, 1 = creative)
+            </p>
+          </Field>
+
+          <Field label="Max Iterations">
+            <input
+              type="number"
+              value={config?.agent.maxIterations ?? 20}
+              min={1}
+              max={100}
+              className="h-10 w-32 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Maximum tool calls per conversation turn
+            </p>
+          </Field>
+        </div>
+      </Section>
+
+      <Section icon={Keyboard} title="Keyboard Shortcuts">
+        <div className="space-y-3">
+          <ShortcutItem label="New Chat" shortcut="Ctrl + N" />
+          <ShortcutItem label="Toggle Sidebar" shortcut="Ctrl + B" />
+          <ShortcutItem label="Command Palette" shortcut="Ctrl + K" />
+          <ShortcutItem label="Settings" shortcut="Ctrl + ," />
+          <ShortcutItem label="Send Message" shortcut="Enter" />
+          <ShortcutItem label="New Line" shortcut="Shift + Enter" />
+        </div>
+      </Section>
+    </>
+  )
+}
+
+// =============================================================================
+// DATA SETTINGS
+// =============================================================================
+
+function DataSettings() {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const handleExport = () => {
+    const data = {
+      bots: localStorage.getItem('cachibot-bots'),
+      chats: localStorage.getItem('cachibot-chats'),
+      jobs: localStorage.getItem('cachibot-jobs'),
+      tasks: localStorage.getItem('cachibot-tasks'),
+      connections: localStorage.getItem('cachibot-connections'),
+      ui: localStorage.getItem('cachibot-ui'),
+      usage: localStorage.getItem('cachibot-usage'),
+      exportedAt: new Date().toISOString(),
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `cachibot-backup-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleClearAll = () => {
+    localStorage.removeItem('cachibot-bots')
+    localStorage.removeItem('cachibot-chats')
+    localStorage.removeItem('cachibot-jobs')
+    localStorage.removeItem('cachibot-tasks')
+    localStorage.removeItem('cachibot-connections')
+    localStorage.removeItem('cachibot-usage')
+    window.location.reload()
+  }
+
+  return (
+    <>
+      <Section icon={Database} title="Data Management">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <div>
+              <h4 className="font-medium text-zinc-200">Export Data</h4>
+              <p className="text-sm text-zinc-500">
+                Download all your data as a JSON file
+              </p>
+            </div>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white hover:bg-cachi-500"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <div>
+              <h4 className="font-medium text-zinc-200">Import Data</h4>
+              <p className="text-sm text-zinc-500">
+                Restore from a previous backup
+              </p>
+            </div>
+            <button className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-600">
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      {/* Bot Data Manager */}
+      <BotDataManager />
+
+      <Section icon={RefreshCw} title="Cache">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+            <div>
+              <h4 className="font-medium text-zinc-200">Clear Cache</h4>
+              <p className="text-sm text-zinc-500">
+                Remove cached responses and temporary data
+              </p>
+            </div>
+            <button className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-600">
+              <RefreshCw className="h-4 w-4" />
+              Clear
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      <Section icon={AlertTriangle} title="Danger Zone" danger>
+        <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+          <h4 className="font-medium text-red-400">Delete All Data</h4>
+          <p className="mt-1 text-sm text-zinc-500">
+            Permanently delete all bots, chats, jobs, tasks, and settings. This
+            cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="mt-3 flex items-center gap-2 rounded-lg bg-red-600/20 px-4 py-2 text-sm text-red-400 hover:bg-red-600/30"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Everything
+          </button>
+        </div>
+      </Section>
+
+      <Section icon={Info} title="About">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">Version</span>
+            <span className="font-mono text-zinc-200">0.1.0</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">Build</span>
+            <span className="font-mono text-zinc-200">dev</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">Documentation</span>
+            <a
+              href="https://github.com/jhd3197/CachiBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-cachi-400 hover:text-cachi-300"
+            >
+              GitHub
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      </Section>
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-red-400">
+              <AlertTriangle className="h-6 w-6" />
+              <h2 className="text-lg font-bold">Delete All Data</h2>
+            </div>
+            <p className="mb-6 text-zinc-400">
+              Are you sure you want to delete all your data? This will remove all
+              bots, chats, jobs, tasks, connections, and settings.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearAll}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+              >
+                Delete Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// =============================================================================
+// BOT DATA MANAGER
+// =============================================================================
+
+type DataCategory = 'chats' | 'jobs' | 'tasks' | 'usage' | 'platform'
+
+interface BotDataInfo {
+  botId: string
+  botName: string
+  botColor: string
+  chatsCount: number
+  messagesCount: number
+  jobsCount: number
+  tasksCount: number
+  hasUsageData: boolean
+  platformChatsCount: number
+}
+
+function BotDataManager() {
+  const { bots } = useBotStore()
+  const { chats, messages } = useChatStore()
+  const { jobs } = useJobStore()
+  const { tasks } = useTaskStore()
+  const { connections } = useConnectionStore()
+  const { stats, clearBotStats } = useUsageStore()
+
+  const [expandedBots, setExpandedBots] = useState<Set<string>>(new Set())
+  const [selectedItems, setSelectedItems] = useState<Map<string, Set<DataCategory>>>(new Map())
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [platformCounts, setPlatformCounts] = useState<Record<string, number>>({})
+  const [loadingPlatform, setLoadingPlatform] = useState(false)
+
+  // Load platform chat counts from backend
+  useEffect(() => {
+    const loadPlatformCounts = async () => {
+      setLoadingPlatform(true)
+      const counts: Record<string, number> = {}
+
+      for (const bot of bots) {
+        try {
+          const { getPlatformChats } = await import('../../api/client')
+          const platformChats = await getPlatformChats(bot.id)
+          counts[bot.id] = platformChats.length
+        } catch {
+          counts[bot.id] = 0
+        }
+      }
+
+      setPlatformCounts(counts)
+      setLoadingPlatform(false)
+    }
+
+    loadPlatformCounts()
+  }, [bots])
+
+  // Compute data info for each bot
+  const botDataInfos = useMemo((): BotDataInfo[] => {
+    return bots.map((bot) => {
+      const allBotChats = chats.filter((c) => c.botId === bot.id)
+      // Local chats = chats WITHOUT platform field (pure local conversations)
+      const localChats = allBotChats.filter((c) => !c.platform)
+      // Platform chats in local storage (synced from Telegram/Discord)
+      const localPlatformChats = allBotChats.filter((c) => c.platform)
+
+      const localMessagesCount = localChats.reduce(
+        (acc, chat) => acc + (messages[chat.id]?.length || 0),
+        0
+      )
+      const botJobs = jobs.filter((j) => j.botId === bot.id)
+      const botTasks = tasks.filter((t) => t.botId === bot.id)
+      const hasUsageData = !!stats.byBot[bot.id]
+
+      // Platform count: max of backend count and local platform chats
+      // (they should be the same, but take max to ensure we show something)
+      const backendPlatformCount = platformCounts[bot.id] || 0
+      const effectivePlatformCount = Math.max(backendPlatformCount, localPlatformChats.length)
+
+      return {
+        botId: bot.id,
+        botName: bot.name,
+        botColor: bot.color || '#22c55e',
+        chatsCount: localChats.length,
+        messagesCount: localMessagesCount,
+        jobsCount: botJobs.length,
+        tasksCount: botTasks.length,
+        hasUsageData,
+        platformChatsCount: effectivePlatformCount,
+      }
+    })
+  }, [bots, chats, messages, jobs, tasks, stats.byBot, platformCounts])
+
+  // Get connection count for a bot (shown as preserved)
+  const getConnectionCount = (botId: string) =>
+    connections.filter((c) => c.botId === botId).length
+
+  // Toggle bot expansion
+  const toggleBot = (botId: string) => {
+    setExpandedBots((prev) => {
+      const next = new Set(prev)
+      if (next.has(botId)) {
+        next.delete(botId)
+      } else {
+        next.add(botId)
+      }
+      return next
+    })
+  }
+
+  // Toggle category selection for a bot
+  const toggleCategory = (botId: string, category: DataCategory) => {
+    setSelectedItems((prev) => {
+      const next = new Map(prev)
+      const botCategories = next.get(botId) || new Set()
+      const newBotCategories = new Set(botCategories)
+
+      if (newBotCategories.has(category)) {
+        newBotCategories.delete(category)
+      } else {
+        newBotCategories.add(category)
+      }
+
+      if (newBotCategories.size === 0) {
+        next.delete(botId)
+      } else {
+        next.set(botId, newBotCategories)
+      }
+      return next
+    })
+  }
+
+  // Select all categories for a bot
+  const selectAllForBot = (botId: string, info: BotDataInfo) => {
+    setSelectedItems((prev) => {
+      const next = new Map(prev)
+      const categories = new Set<DataCategory>()
+      if (info.chatsCount > 0) categories.add('chats')
+      if (info.jobsCount > 0) categories.add('jobs')
+      if (info.tasksCount > 0) categories.add('tasks')
+      if (info.hasUsageData) categories.add('usage')
+      if (info.platformChatsCount > 0) categories.add('platform')
+
+      if (categories.size > 0) {
+        next.set(botId, categories)
+      }
+      return next
+    })
+  }
+
+  // Clear selection for a bot
+  const clearSelectionForBot = (botId: string) => {
+    setSelectedItems((prev) => {
+      const next = new Map(prev)
+      next.delete(botId)
+      return next
+    })
+  }
+
+  // Check if anything is selected
+  const hasSelection = selectedItems.size > 0
+
+  // Get total items selected
+  const getTotalSelectedItems = () => {
+    let total = 0
+    selectedItems.forEach((categories, botId) => {
+      const info = botDataInfos.find((b) => b.botId === botId)
+      if (!info) return
+      if (categories.has('chats')) total += info.chatsCount
+      if (categories.has('jobs')) total += info.jobsCount
+      if (categories.has('tasks')) total += info.tasksCount
+      if (categories.has('usage')) total += 1
+      if (categories.has('platform')) total += info.platformChatsCount
+    })
+    return total
+  }
+
+  // Perform the actual deletion
+  const handleClearSelected = async () => {
+    setClearing(true)
+
+    // Get stores directly for mutations
+    const chatStore = useChatStore.getState()
+    const jobStore = useJobStore.getState()
+    const taskStore = useTaskStore.getState()
+
+    // Process each bot's selected categories
+    for (const [botId, categories] of selectedItems) {
+      // Clear local chats and messages (non-platform only)
+      if (categories.has('chats')) {
+        const localOnlyChats = chats.filter((c) => c.botId === botId && !c.platform)
+        localOnlyChats.forEach((chat) => {
+          chatStore.deleteChat(chat.id)
+        })
+      }
+
+      // Clear jobs
+      if (categories.has('jobs')) {
+        const botJobs = jobs.filter((j) => j.botId === botId)
+        botJobs.forEach((job) => {
+          jobStore.deleteJob(job.id)
+        })
+      }
+
+      // Clear tasks
+      if (categories.has('tasks')) {
+        const botTasks = tasks.filter((t) => t.botId === botId)
+        botTasks.forEach((task) => {
+          taskStore.deleteTask(task.id)
+        })
+      }
+
+      // Clear usage stats for this bot
+      if (categories.has('usage')) {
+        clearBotStats(botId)
+      }
+
+      // Clear platform data (Telegram/Discord messages from backend AND local synced copies)
+      if (categories.has('platform')) {
+        // First, delete local platform chats (synced copies)
+        const localPlatformChats = chats.filter((c) => c.botId === botId && c.platform)
+        localPlatformChats.forEach((chat) => {
+          chatStore.deleteChat(chat.id)
+        })
+
+        // Then, delete from backend database
+        try {
+          const { clearBotPlatformData } = await import('../../api/client')
+          await clearBotPlatformData(botId)
+          // Update local platform count
+          setPlatformCounts((prev) => ({ ...prev, [botId]: 0 }))
+        } catch (err) {
+          console.error('Failed to clear platform data:', err)
+          toast.error(`Failed to clear platform data for bot`)
+        }
+      }
+    }
+
+    // Small delay for UX
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    setClearing(false)
+    setShowConfirmModal(false)
+    setSelectedItems(new Map())
+    toast.success('Selected data cleared successfully')
+  }
+
+  // Category icons and labels
+  const categoryConfig: Record<DataCategory, { icon: typeof MessageSquare; label: string; color: string }> = {
+    chats: { icon: MessageSquare, label: 'Local Chats', color: 'text-blue-400' },
+    jobs: { icon: Briefcase, label: 'Jobs', color: 'text-purple-400' },
+    tasks: { icon: CheckSquare, label: 'Tasks', color: 'text-green-400' },
+    usage: { icon: BarChart3, label: 'Usage Stats', color: 'text-amber-400' },
+    platform: { icon: MessageSquare, label: 'Platform Messages', color: 'text-cyan-400' },
+  }
+
+  return (
+    <Section icon={Bot} title="Bot Data Manager">
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-500">
+          Clear specific data for each bot while keeping bot settings and connections intact.
+          {loadingPlatform && (
+            <span className="ml-2 text-zinc-400">
+              <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
+              Loading platform data...
+            </span>
+          )}
+        </p>
+
+        {/* Bot list */}
+        <div className="space-y-2">
+          {botDataInfos.map((info) => {
+            const isExpanded = expandedBots.has(info.botId)
+            const botSelected = selectedItems.get(info.botId)
+            const connectionCount = getConnectionCount(info.botId)
+            const hasData =
+              info.chatsCount > 0 ||
+              info.jobsCount > 0 ||
+              info.tasksCount > 0 ||
+              info.hasUsageData ||
+              info.platformChatsCount > 0
+
+            return (
+              <div
+                key={info.botId}
+                className="rounded-lg border border-zinc-700 bg-zinc-800/30 overflow-hidden"
+              >
+                {/* Bot header */}
+                <button
+                  onClick={() => toggleBot(info.botId)}
+                  className="flex w-full items-center gap-3 p-3 hover:bg-zinc-800/50 transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-zinc-500" />
+                  )}
+                  <div
+                    className="h-8 w-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: info.botColor + '20' }}
+                  >
+                    <Bot className="h-4 w-4" style={{ color: info.botColor }} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-medium text-zinc-200">{info.botName}</div>
+                    <div className="text-xs text-zinc-500">
+                      {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
+                      {info.platformChatsCount > 0 && (
+                        <span className="text-cyan-400"> · {info.platformChatsCount} platform chats</span>
+                      )}
+                      {connectionCount > 0 && (
+                        <span className="text-green-400"> · {connectionCount} connections (preserved)</span>
+                      )}
+                    </div>
+                  </div>
+                  {botSelected && botSelected.size > 0 && (
+                    <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
+                      {botSelected.size} selected
+                    </span>
+                  )}
+                </button>
+
+                {/* Expanded content */}
+                {isExpanded && (
+                  <div className="border-t border-zinc-700 p-3">
+                    {!hasData ? (
+                      <p className="text-sm text-zinc-500 text-center py-2">
+                        No data to clear for this bot
+                      </p>
+                    ) : (
+                      <>
+                        {/* Quick actions */}
+                        <div className="flex gap-2 mb-3">
+                          <button
+                            onClick={() => selectAllForBot(info.botId, info)}
+                            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                          >
+                            Select all
+                          </button>
+                          <span className="text-zinc-600">·</span>
+                          <button
+                            onClick={() => clearSelectionForBot(info.botId)}
+                            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                          >
+                            Clear selection
+                          </button>
+                        </div>
+
+                        {/* Data categories */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Chats */}
+                          {info.chatsCount > 0 && (
+                            <DataCategoryItem
+                              category="chats"
+                              config={categoryConfig.chats}
+                              count={info.chatsCount}
+                              detail={`${info.messagesCount} messages`}
+                              selected={botSelected?.has('chats') || false}
+                              onToggle={() => toggleCategory(info.botId, 'chats')}
+                            />
+                          )}
+
+                          {/* Jobs */}
+                          {info.jobsCount > 0 && (
+                            <DataCategoryItem
+                              category="jobs"
+                              config={categoryConfig.jobs}
+                              count={info.jobsCount}
+                              selected={botSelected?.has('jobs') || false}
+                              onToggle={() => toggleCategory(info.botId, 'jobs')}
+                            />
+                          )}
+
+                          {/* Tasks */}
+                          {info.tasksCount > 0 && (
+                            <DataCategoryItem
+                              category="tasks"
+                              config={categoryConfig.tasks}
+                              count={info.tasksCount}
+                              selected={botSelected?.has('tasks') || false}
+                              onToggle={() => toggleCategory(info.botId, 'tasks')}
+                            />
+                          )}
+
+                          {/* Usage */}
+                          {info.hasUsageData && (
+                            <DataCategoryItem
+                              category="usage"
+                              config={categoryConfig.usage}
+                              count={1}
+                              detail="statistics"
+                              selected={botSelected?.has('usage') || false}
+                              onToggle={() => toggleCategory(info.botId, 'usage')}
+                            />
+                          )}
+
+                          {/* Platform Messages (Telegram/Discord) */}
+                          {info.platformChatsCount > 0 && (
+                            <DataCategoryItem
+                              category="platform"
+                              config={categoryConfig.platform}
+                              count={info.platformChatsCount}
+                              detail="Telegram/Discord"
+                              selected={botSelected?.has('platform') || false}
+                              onToggle={() => toggleCategory(info.botId, 'platform')}
+                            />
+                          )}
+                        </div>
+
+                        {/* Preserved notice */}
+                        {connectionCount > 0 && (
+                          <div className="mt-3 flex items-center gap-2 text-xs text-green-400/80">
+                            <Shield className="h-3 w-3" />
+                            <span>
+                              {connectionCount} connection{connectionCount !== 1 ? 's' : ''} will be preserved
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Clear button */}
+        {hasSelection && (
+          <div className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+            <div className="text-sm">
+              <span className="text-red-400 font-medium">{getTotalSelectedItems()}</span>
+              <span className="text-zinc-400"> items selected for deletion</span>
+            </div>
+            <button
+              onClick={() => setShowConfirmModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear Selected
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-red-400">
+              <AlertTriangle className="h-6 w-6" />
+              <h2 className="text-lg font-bold">Clear Bot Data</h2>
+            </div>
+            <p className="mb-4 text-zinc-400">
+              Are you sure you want to clear the selected data? This action cannot be undone.
+            </p>
+
+            {/* Summary of what will be deleted */}
+            <div className="mb-6 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 space-y-2">
+              {Array.from(selectedItems.entries()).map(([botId, categories]) => {
+                const info = botDataInfos.find((b) => b.botId === botId)
+                if (!info) return null
+                return (
+                  <div key={botId} className="text-sm">
+                    <span className="font-medium text-zinc-200">{info.botName}:</span>
+                    <span className="text-zinc-400 ml-2">
+                      {Array.from(categories).map((cat) => categoryConfig[cat].label).join(', ')}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                disabled={clearing}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearSelected}
+                disabled={clearing}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {clearing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Clear Data
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// Data category item component
+interface DataCategoryItemProps {
+  category: DataCategory
+  config: { icon: typeof MessageSquare; label: string; color: string }
+  count: number
+  detail?: string
+  selected: boolean
+  onToggle: () => void
+}
+
+function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCategoryItemProps) {
+  const Icon = config.icon
+
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        'flex items-center gap-2 rounded-lg border p-2 transition-all text-left',
+        selected
+          ? 'border-red-500/50 bg-red-500/10'
+          : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+      )}
+    >
+      <div
+        className={cn(
+          'h-6 w-6 rounded flex items-center justify-center transition-colors',
+          selected ? 'bg-red-500/20' : 'bg-zinc-700'
+        )}
+      >
+        {selected ? (
+          <Check className="h-3.5 w-3.5 text-red-400" />
+        ) : (
+          <Icon className={cn('h-3.5 w-3.5', config.color)} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className={cn('text-sm font-medium', selected ? 'text-red-400' : 'text-zinc-200')}>
+          {config.label}
+        </div>
+        <div className="text-xs text-zinc-500">
+          {count} {detail || (count === 1 ? 'item' : 'items')}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// =============================================================================
+// USERS SETTINGS (Admin Only)
+// =============================================================================
+
+function UsersSettings({ currentUser }: { currentUser: User | null }) {
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [total, setTotal] = useState(0)
+
+  // Create user modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    username: '',
+    password: '',
+    role: 'user' as UserRole,
+  })
+  const [creating, setCreating] = useState(false)
+
+  // Edit user state
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editForm, setEditForm] = useState({
+    email: '',
+    username: '',
+    role: 'user' as UserRole,
+  })
+  const [updating, setUpdating] = useState(false)
+
+  // Context menu state
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const response = await listUsers()
+      setUsers(response.users)
+      setTotal(response.total)
+    } catch {
+      toast.error('Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!createForm.email || !createForm.username || !createForm.password) {
+      toast.error('All fields are required')
+      return
+    }
+    if (createForm.password.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+
+    setCreating(true)
+    try {
+      const newUser = await createUser(createForm)
+      setUsers([newUser, ...users])
+      setTotal(total + 1)
+      setShowCreateModal(false)
+      setCreateForm({ email: '', username: '', password: '', role: 'user' })
+      toast.success('User created successfully')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create user'
+      toast.error(message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+
+    setUpdating(true)
+    try {
+      const updated = await updateUser(editingUser.id, editForm)
+      setUsers(users.map((u) => (u.id === updated.id ? updated : u)))
+      setEditingUser(null)
+      toast.success('User updated successfully')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update user'
+      toast.error(message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleDeactivateUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to deactivate this user?')) return
+
+    try {
+      await deactivateUser(userId)
+      setUsers(users.map((u) => (u.id === userId ? { ...u, is_active: false } : u)))
+      toast.success('User deactivated')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to deactivate user'
+      toast.error(message)
+    }
+    setMenuOpen(null)
+  }
+
+  const startEditing = (user: User) => {
+    setEditingUser(user)
+    setEditForm({
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    })
+    setMenuOpen(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-cachi-500" />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <Section icon={Users} title="User Management">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-zinc-400">
+              {total} user{total !== 1 ? 's' : ''} total
+            </p>
+            <Button onClick={() => setShowCreateModal(true)} size="sm">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </div>
+
+          {/* Users Table */}
+          <div className="rounded-lg border border-zinc-700 overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2 bg-zinc-800/50 text-xs text-zinc-400 font-medium">
+              <div>User</div>
+              <div>Email</div>
+              <div>Role</div>
+              <div>Status</div>
+              <div></div>
+            </div>
+
+            {/* User Rows */}
+            {users.length === 0 ? (
+              <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+                No users found
+              </div>
+            ) : (
+              users.map((user) => (
+                <div
+                  key={user.id}
+                  className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 border-t border-zinc-700 items-center hover:bg-zinc-800/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                      <AtSign className="h-3.5 w-3.5 text-zinc-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{user.username}</div>
+                      {user.id === currentUser?.id && (
+                        <div className="text-xs text-cachi-400">You</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-zinc-400 text-sm truncate">{user.email}</div>
+                  <div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
+                        user.role === 'admin'
+                          ? 'bg-purple-500/20 text-purple-300'
+                          : 'bg-zinc-700 text-zinc-300'
+                      )}
+                    >
+                      {user.role === 'admin' ? (
+                        <Shield className="h-3 w-3" />
+                      ) : (
+                        <UserIcon className="h-3 w-3" />
+                      )}
+                      {user.role}
+                    </span>
+                  </div>
+                  <div>
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
+                        user.is_active
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-red-500/20 text-red-300'
+                      )}
+                    >
+                      {user.is_active ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <X className="h-3 w-3" />
+                      )}
+                      {user.is_active ? 'Active' : 'Off'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
+                      className="p-1 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50"
+                      disabled={user.id === currentUser?.id}
+                    >
+                      <MoreVertical className="h-4 w-4 text-zinc-400" />
+                    </button>
+                    {menuOpen === user.id && (
+                      <div className="absolute right-0 top-full mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg py-1 z-20">
+                        <button
+                          onClick={() => startEditing(user)}
+                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-700 transition-colors"
+                        >
+                          Edit User
+                        </button>
+                        {user.is_active && (
+                          <button
+                            onClick={() => handleDeactivateUser(user.id)}
+                            className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700 transition-colors"
+                          >
+                            Deactivate
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* Create User Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold mb-4">Create New User</h2>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, email: e.target.value })
+                    }
+                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Username
+                </label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={createForm.username}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, username: e.target.value })
+                    }
+                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                    required
+                    minLength={3}
+                    maxLength={32}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={createForm.password}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, password: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  required
+                  minLength={8}
+                  placeholder="Min. 8 characters"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Role
+                </label>
+                <select
+                  value={createForm.role}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      role: e.target.value as UserRole,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={creating}>
+                  {creating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Create User'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold mb-4">Edit User</h2>
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, email: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={editForm.username}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, username: e.target.value })
+                  }
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  required
+                  minLength={3}
+                  maxLength={32}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Role
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      role: e.target.value as UserRole,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => setEditingUser(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={updating}>
+                  {updating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close menu */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setMenuOpen(null)}
+        />
+      )}
+    </>
+  )
+}
+
+// =============================================================================
+// SHARED COMPONENTS
+// =============================================================================
+
+interface SectionProps {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  danger?: boolean
+  children: React.ReactNode
+}
+
+function Section({ icon: Icon, title, danger, children }: SectionProps) {
+  return (
+    <div className="rounded-xl border border-zinc-300 bg-white dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div
+        className={cn(
+          'flex items-center gap-2 border-b px-5 py-4',
+          danger ? 'border-red-500/30' : 'border-zinc-300 dark:border-zinc-800'
+        )}
+      >
+        <Icon
+          className={cn('h-5 w-5', danger ? 'text-red-400' : 'text-zinc-500 dark:text-zinc-400')}
+        />
+        <h3
+          className={cn(
+            'font-semibold',
+            danger ? 'text-red-400' : 'text-zinc-800 dark:text-zinc-200'
+          )}
+        >
+          {title}
+        </h3>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  )
+}
+
+interface FieldProps {
+  label: string
+  children: React.ReactNode
+}
+
+function Field({ label, children }: FieldProps) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+interface ToggleFieldProps {
+  label: string
+  description: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}
+
+function ToggleField({ label, description, checked, onChange }: ToggleFieldProps) {
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <h4 className="font-medium text-zinc-800 dark:text-zinc-200">{label}</h4>
+        <p className="text-sm text-zinc-500">{description}</p>
+      </div>
+      <button
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative h-6 w-11 rounded-full transition-colors',
+          checked ? 'bg-accent-600' : 'bg-zinc-300 dark:bg-zinc-700'
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
+            checked ? 'left-6' : 'left-1'
+          )}
+        />
+      </button>
+    </div>
+  )
+}
+
+function ShortcutItem({ label, shortcut }: { label: string; shortcut: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-zinc-700 dark:text-zinc-300">{label}</span>
+      <kbd className="rounded bg-zinc-200 px-2 py-1 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+        {shortcut}
+      </kbd>
+    </div>
+  )
+}
