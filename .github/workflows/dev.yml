@@ -1,0 +1,93 @@
+name: Publish Dev Version to PyPI
+
+on:
+  push:
+    branches: [ dev ]
+
+permissions:
+  contents: write
+
+jobs:
+  dev-pre-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Ignore bot
+        if: github.actor == 'github-actions[bot]'
+        run: |
+          echo "Commit made by GitHub Actions. Exiting."
+          exit 0
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags --prune
+          git tag --list | sort -V
+
+      - name: Compute next dev version (next patch base)
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          # latest release tag (no pre-release), e.g. v1.0.1
+          last_release="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
+          if [[ -z "${last_release}" ]]; then
+            base="0.1.0"  # bootstrap if no tags yet
+          else
+            v="${last_release#v}"                      # 1.0.0
+            IFS=. read -r MA MI PA <<< "${v}"
+            PA=$((PA+1))                               # next patch
+            base="${MA}.${MI}.${PA}"                   # 1.0.1
+          fi
+
+          # find last dev tag for this base: v1.0.1.dev*
+          last_dev="$(git tag -l "v${base}.dev*" | sort -V | tail -1 || true)"
+          if [[ -z "${last_dev}" ]]; then
+            dev_n=1
+          else
+            suffix="${last_dev##*.dev}"               # take N from ...devN
+            dev_n=$((suffix+1))
+          fi
+
+          new="${base}.dev${dev_n}"
+          echo "base=${base}" >> $GITHUB_OUTPUT
+          echo "new=${new}"   >> $GITHUB_OUTPUT
+          echo "tag=v${new}"  >> $GITHUB_OUTPUT
+          echo "Computed dev version: ${new}"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push dev tag
+        run: |
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "pre: ${{ steps.ver.outputs.new }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with: { python-version: '3.x' }
+
+      - name: Install build deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools_scm build twine
+
+      - name: Set version in pyproject.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.ver.outputs.new }}"/' pyproject.toml
+          grep '^version' pyproject.toml
+
+      - name: Build (dev)
+        run: |
+          python -m build -o dist/cachibot
+
+      - name: Publish to PyPI (dev)
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m twine upload dist/cachibot/* --non-interactive
