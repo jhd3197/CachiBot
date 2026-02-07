@@ -59,16 +59,16 @@ export function DashboardView() {
   })
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
         <div>
-          <h1 className="text-xl font-bold text-zinc-100">Dashboard</h1>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Dashboard</h1>
           <p className="text-sm text-zinc-500">Overview of your bots and activity</p>
         </div>
 
         {/* Time range selector */}
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-900 p-1">
+        <div className="flex items-center gap-1 rounded-lg bg-zinc-200 dark:bg-zinc-900 p-1">
           {(['24h', '7d', '30d', 'all'] as TimeRange[]).map((range) => (
             <button
               key={range}
@@ -179,7 +179,7 @@ export function DashboardView() {
               <BarChart3 className="h-5 w-5 text-zinc-400" />
               Usage Over Time
             </h2>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+            <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-6">
               {stats.daily.length > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-end gap-1" style={{ height: 120 }}>
@@ -226,7 +226,7 @@ export function DashboardView() {
                 <Cpu className="h-5 w-5 text-zinc-400" />
                 Model Usage
               </h2>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+              <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
                 <div className="divide-y divide-zinc-800">
                   {Object.entries(stats.byModel)
                     .sort((a, b) => b[1].tokens - a[1].tokens)
@@ -294,7 +294,7 @@ function StatCard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-800 bg-zinc-900/50',
+        'rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50',
         small ? 'p-4' : 'p-5'
       )}
     >
@@ -362,7 +362,7 @@ function BotCard({
   connections,
 }: BotCardProps) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-4">
       <div className="flex items-center gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-xl"

@@ -42,7 +42,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "aiosqlite>=0.20.0",
-    "pydantic>=2.9.0",
+    "pydantic[email]>=2.9.0",
     "websockets>=14.0",
     # Knowledge base (Phase 2)
     "sqlite-vec>=0.1.3",
@@ -69,7 +69,6 @@ dev = [
 [project.scripts]
 cachibot = "cachibot.cli:app"
 cachi = "cachibot.cli:app"
-cachibot-server = "cachibot.api.server:run_server"
 
 [project.urls]
 Homepage = "https://cachibot.dev"

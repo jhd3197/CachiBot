@@ -24,7 +24,7 @@ export function WorkView() {
   if (!activeBot) return null
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
       {workSection === 'overview' && <WorkOverview botId={activeBot.id} />}
       {workSection === 'active' && <WorkListSection botId={activeBot.id} filter="active" />}
       {workSection === 'completed' && <WorkListSection botId={activeBot.id} filter="completed" />}
