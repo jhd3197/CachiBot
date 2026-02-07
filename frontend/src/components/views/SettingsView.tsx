@@ -86,7 +86,7 @@ export function SettingsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
         <h1 className="text-lg font-semibold text-zinc-100">
@@ -152,7 +152,7 @@ export function SettingsView() {
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
               <h2 className="text-lg font-bold">Delete Bot</h2>
@@ -211,7 +211,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       {/* Reset confirmation modal */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-amber-400">
               <RotateCcw className="h-6 w-6" />
               <h2 className="text-lg font-bold">Reset General Settings</h2>
