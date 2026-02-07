@@ -225,7 +225,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
             placeholder="Search chats..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-9 pr-3 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500 focus:ring-1 focus:ring-cachi-500"
+            className="h-9 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-cachi-500 focus:ring-1 focus:ring-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
           />
         </div>
         <button
@@ -251,8 +251,8 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                   className={cn(
                     'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
                     activeChatId === chat.id
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-300 hover:bg-zinc-800/50'
+                      ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+                      : 'text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50'
                   )}
                 >
                   {getChatIcon(chat)}
@@ -263,7 +263,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                         <Pin className="h-3 w-3 flex-shrink-0 text-cachi-500" />
                       )}
                       {chat.platform && (
-                        <span className="rounded bg-zinc-700 px-1 py-0.5 text-[10px] uppercase text-zinc-400">
+                        <span className="rounded bg-zinc-300 px-1 py-0.5 text-[10px] uppercase text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
                           {chat.platform}
                         </span>
                       )}
@@ -281,7 +281,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                     setMenuOpen(menuOpen === chat.id ? null : chat.id)
                   }}
                   className={cn(
-                    'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-700 group-hover:opacity-100',
+                    'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-200 group-hover:opacity-100 dark:text-zinc-400 dark:hover:bg-zinc-700',
                     menuOpen === chat.id && 'opacity-100'
                   )}
                 >
@@ -290,13 +290,13 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
 
                 {/* Context menu */}
                 {menuOpen === chat.id && (
-                  <div className="absolute right-0 top-8 z-10 w-48 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+                  <div className="absolute right-0 top-8 z-10 w-48 rounded-lg border border-zinc-300 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
                     <button
                       onClick={() => {
                         updateChat(chat.id, { pinned: !chat.pinned })
                         setMenuOpen(null)
                       }}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                     >
                       <Pin className="h-4 w-4" />
                       {chat.pinned ? 'Unpin' : 'Pin'}
@@ -316,7 +316,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                               toast.error('Failed to clear messages')
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                         >
                           <Eraser className="h-4 w-4" />
                           Clear Messages
@@ -331,7 +331,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                               toast.error('Failed to archive chat')
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                         >
                           <Archive className="h-4 w-4" />
                           Archive Chat
@@ -344,18 +344,18 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                             updateChat(chat.id, { archived: true })
                             setMenuOpen(null)
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-700"
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                         >
                           <Archive className="h-4 w-4" />
                           Archive
                         </button>
-                        <div className="my-1 h-px bg-zinc-700" />
+                        <div className="my-1 h-px bg-zinc-300 dark:bg-zinc-700" />
                         <button
                           onClick={() => {
                             deleteChat(chat.id)
                             setMenuOpen(null)
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-zinc-700"
+                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:text-red-400 dark:hover:bg-zinc-700"
                         >
                           <Trash2 className="h-4 w-4" />
                           Delete

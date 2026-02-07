@@ -258,10 +258,10 @@ export function MainLayout() {
       {/* Main content area */}
       <main className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile header with menu button */}
-        <div className="flex h-12 items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-3 lg:hidden">
+        <div className="flex h-12 items-center gap-3 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900 lg:hidden">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -269,7 +269,7 @@ export function MainLayout() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600">
               <span className="text-sm font-bold text-white">C</span>
             </div>
-            <span className="font-semibold text-zinc-100">CachiBot</span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100">CachiBot</span>
           </div>
         </div>
         {renderActiveView()}

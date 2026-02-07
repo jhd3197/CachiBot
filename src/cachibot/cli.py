@@ -314,6 +314,20 @@ def run_task(
         raise typer.Exit(1)
 
 
+@app.command("server")
+def server(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Server host"),
+    port: int = typer.Option(6392, "--port", "-p", help="Server port"),
+    workspace: Optional[Path] = typer.Option(None, "--workspace", "-w", help="Workspace path"),
+    reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),
+) -> None:
+    """Start the Cachibot API server."""
+    from cachibot.api.server import run_server as start_api_server
+
+    console.print(f"[info]🚀 Starting Cachibot server on http://{host}:{port}[/]")
+    start_api_server(host=host, port=port, workspace=workspace, reload=reload)
+
+
 def print_help() -> None:
     """Print help information."""
     help_text = """
