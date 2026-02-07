@@ -123,11 +123,14 @@ jobs:
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip
-          pip install setuptools_scm build twine
+          pip install build twine
+
+      - name: Set version in pyproject.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.bump_version.outputs.new_version }}"/' pyproject.toml
+          grep '^version' pyproject.toml
 
       - name: Build (release)
-        env:
-          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
           python -m build -o dist/cachibot
 
@@ -136,6 +139,5 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          python -m pip install --upgrade twine
           ls -al dist/cachibot
           python -m twine upload dist/cachibot/* --non-interactive
