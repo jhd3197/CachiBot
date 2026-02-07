@@ -42,8 +42,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
         }
       }
 
-      // If we have a token but no user, verify the token
-      if (isAuthenticated && !user) {
+      // Always verify token with server if we think we're authenticated
+      if (isAuthenticated) {
         try {
           const currentUser = await getCurrentUser()
           setUser(currentUser)
@@ -58,13 +58,13 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     }
 
     verifyAuth()
-  }, [isAuthenticated, user, setupRequired, setUser, setSetupRequired, setLoading, logout])
+  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLoading, logout])
 
   // Show loading spinner while checking auth
   if (isLoading || !checked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+        <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
       </div>
     )
   }

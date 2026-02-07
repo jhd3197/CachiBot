@@ -80,26 +80,26 @@ export function SetupPage() {
 
   if (isLoading || setupNeeded === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+        <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
             <Shield className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">CachiBot Setup</h1>
-          <p className="text-zinc-400 mt-1">Create your admin account to get started</p>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">CachiBot Setup</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Create your admin account to get started</p>
         </div>
 
         {/* Setup Card */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
           <form onSubmit={handleSetup} className="space-y-4">
             <div className="flex items-center gap-2 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <UserPlus className="h-5 w-5 text-blue-400 flex-shrink-0" />

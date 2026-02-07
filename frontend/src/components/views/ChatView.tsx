@@ -719,7 +719,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   // Empty state when no chat is selected - but still allow sending messages
   if (!activeChatId) {
     return (
-      <div className="flex h-full flex-col bg-zinc-950">
+      <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
         {/* Welcome content */}
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="max-w-md text-center">
@@ -733,10 +733,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 className="text-zinc-100"
               />
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-zinc-100">
+            <h2 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
               Welcome to {activeBot?.name || 'CachiBot'}
             </h2>
-            <p className="mb-8 text-zinc-400">
+            <p className="mb-8 text-zinc-500 dark:text-zinc-400">
               {activeBot?.description || 'Start a new chat to begin working with your AI assistant.'}
             </p>
             <div className="grid gap-3">
@@ -747,7 +747,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                     setInput(prompt)
                     textareaRef.current?.focus()
                   }}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-left text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/50"
+                  className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 px-4 py-3 text-left text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/50"
                 >
                   <Sparkles className="h-4 w-4 text-cachi-500" />
                   {prompt}
@@ -758,13 +758,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </div>
 
         {/* Input area - allows starting a new chat */}
-        <div className="border-t border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-4">
           <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-            <div className="relative rounded-2xl border border-zinc-700 bg-zinc-800/50 shadow-lg transition-colors focus-within:border-cachi-500">
+            <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
               {/* Command autocomplete menu */}
               {showCommandMenu && filteredCommands.length > 0 && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 shadow-xl">
-                  <div className="px-3 py-2 text-xs font-medium text-zinc-400 border-b border-zinc-700">
+                <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="px-3 py-2 text-xs font-medium text-zinc-500 border-b border-zinc-300 dark:text-zinc-400 dark:border-zinc-700">
                     Commands
                   </div>
                   <div className="max-h-48 overflow-y-auto">
@@ -801,12 +801,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
                 disabled={!isConnected || isLoading}
                 rows={1}
-                className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-100 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
               />
               <div className="absolute bottom-2 right-2 flex items-center gap-1">
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-200"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                   title="Attach file"
                 >
                   <Paperclip className="h-4 w-4" />
@@ -840,9 +840,9 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
       {/* Chat header with bot info and settings */}
-      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900/50 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 px-4 py-3">
         <div className="flex items-center gap-3">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full"
@@ -855,7 +855,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             />
           </div>
           <div>
-            <h2 className="text-sm font-medium text-zinc-100">
+            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {activeBot?.name || 'CachiBot'}
             </h2>
             <p className="text-xs text-zinc-500">{activeBot?.model || 'moonshot/kimi-k2.5'}</p>
@@ -863,7 +863,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </div>
         <button
           onClick={() => setActiveView('settings')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           title="Bot settings"
         >
           <Settings className="h-4 w-4" />
@@ -919,13 +919,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       </div>
 
       {/* Input area */}
-      <div className="border-t border-zinc-800 bg-zinc-900/50 p-3 sm:p-4">
+      <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-          <div className="relative rounded-2xl border border-zinc-700 bg-zinc-800/50 shadow-lg transition-colors focus-within:border-cachi-500">
+          <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
             {/* Command autocomplete menu */}
             {showCommandMenu && filteredCommands.length > 0 && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 shadow-xl">
-                <div className="px-3 py-2 text-xs font-medium text-zinc-400 border-b border-zinc-700">
+              <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
+                <div className="px-3 py-2 text-xs font-medium text-zinc-500 border-b border-zinc-300 dark:text-zinc-400 dark:border-zinc-700">
                   Commands
                 </div>
                 <div className="max-h-48 overflow-y-auto">
@@ -937,8 +937,8 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                       className={cn(
                         'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
                         index === selectedCommandIndex
-                          ? 'bg-cachi-600/20 text-zinc-100'
-                          : 'text-zinc-300 hover:bg-zinc-700/50'
+                          ? 'bg-cachi-600/20 text-zinc-900 dark:text-zinc-100'
+                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700/50'
                       )}
                     >
                       <span className="text-lg">{cmd.icon}</span>
@@ -967,14 +967,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               }
               disabled={!isConnected || isLoading || creationFlow.isLoadingNames}
               rows={1}
-              className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-100 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
             />
 
             {/* Actions */}
             <div className="absolute bottom-2 right-2 flex items-center gap-1">
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-200"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                 title="Attach file"
               >
                 <Paperclip className="h-4 w-4" />
@@ -1206,7 +1206,7 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
   const isSuccess = call.success === true
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left"

@@ -233,9 +233,9 @@ function GeneralSettings({
                 type="text"
                 value={config?.workspacePath || './workspace'}
                 readOnly
-                className="h-10 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none"
+                className="h-10 flex-1 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               />
-              <button className="rounded-lg bg-zinc-800 px-4 text-sm text-zinc-300 hover:bg-zinc-700">
+              <button className="rounded-lg bg-zinc-200 px-4 text-sm text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
                 Browse
               </button>
             </div>
@@ -408,8 +408,8 @@ function ModelsSettings() {
 
       <Section icon={Info} title="Model Information">
         <div className="space-y-4">
-          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-            <h4 className="font-medium text-zinc-200">Model Discovery</h4>
+          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Discovery</h4>
             <p className="mt-1 text-sm text-zinc-500">
               CachiBot automatically discovers available models from your configured API keys.
               Configure API keys for providers like OpenAI, Anthropic, Google, Groq, and more
@@ -417,16 +417,16 @@ function ModelsSettings() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-            <h4 className="font-medium text-zinc-200">Model Capabilities</h4>
+          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Capabilities</h4>
             <p className="mt-1 text-sm text-zinc-500">
               Each model has different capabilities including vision support, tool use,
               structured output, and reasoning. Check the Models page for detailed information.
             </p>
           </div>
 
-          <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
-            <h4 className="font-medium text-zinc-200">Custom Models</h4>
+          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Custom Models</h4>
             <p className="mt-1 text-sm text-zinc-500">
               You can enter custom model IDs manually using the "Enter manually" option
               in the model selector. Use the format: provider/model-id
@@ -462,9 +462,9 @@ function AdvancedSettings({
               <input
                 type="number"
                 value={config?.sandbox.timeoutSeconds ?? 30}
-                className="h-10 w-24 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+                className="h-10 w-24 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               />
-              <span className="text-sm text-zinc-400">seconds</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">seconds</span>
             </div>
           </Field>
         </div>
@@ -497,7 +497,7 @@ function AdvancedSettings({
               value={config?.agent.maxIterations ?? 20}
               min={1}
               max={100}
-              className="h-10 w-32 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
+              className="h-10 w-32 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             <p className="mt-1 text-xs text-zinc-500">
               Maximum tool calls per conversation turn
@@ -564,9 +564,9 @@ function DataSettings() {
     <>
       <Section icon={Database} title="Data Management">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
             <div>
-              <h4 className="font-medium text-zinc-200">Export Data</h4>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Export Data</h4>
               <p className="text-sm text-zinc-500">
                 Download all your data as a JSON file
               </p>
@@ -580,14 +580,14 @@ function DataSettings() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
             <div>
-              <h4 className="font-medium text-zinc-200">Import Data</h4>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Import Data</h4>
               <p className="text-sm text-zinc-500">
                 Restore from a previous backup
               </p>
             </div>
-            <button className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-600">
+            <button className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600">
               <Upload className="h-4 w-4" />
               Import
             </button>
@@ -600,14 +600,14 @@ function DataSettings() {
 
       <Section icon={RefreshCw} title="Cache">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
             <div>
-              <h4 className="font-medium text-zinc-200">Clear Cache</h4>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Clear Cache</h4>
               <p className="text-sm text-zinc-500">
                 Remove cached responses and temporary data
               </p>
             </div>
-            <button className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-600">
+            <button className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600">
               <RefreshCw className="h-4 w-4" />
               Clear
             </button>
@@ -635,20 +635,20 @@ function DataSettings() {
       <Section icon={Info} title="About">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Version</span>
-            <span className="font-mono text-zinc-200">0.1.0</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Version</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">0.1.0</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Build</span>
-            <span className="font-mono text-zinc-200">dev</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Build</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">dev</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Documentation</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Documentation</span>
             <a
               href="https://github.com/jhd3197/CachiBot"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-cachi-400 hover:text-cachi-300"
+              className="flex items-center gap-1 text-cachi-600 hover:text-cachi-500 dark:text-cachi-400 dark:hover:text-cachi-300"
             >
               GitHub
               <ExternalLink className="h-3 w-3" />
@@ -660,7 +660,7 @@ function DataSettings() {
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
               <h2 className="text-lg font-bold">Delete All Data</h2>
@@ -974,12 +974,12 @@ function BotDataManager() {
             return (
               <div
                 key={info.botId}
-                className="rounded-lg border border-zinc-700 bg-zinc-800/30 overflow-hidden"
+                className="rounded-lg border border-zinc-300 bg-zinc-100/30 overflow-hidden dark:border-zinc-700 dark:bg-zinc-800/30"
               >
                 {/* Bot header */}
                 <button
                   onClick={() => toggleBot(info.botId)}
-                  className="flex w-full items-center gap-3 p-3 hover:bg-zinc-800/50 transition-colors"
+                  className="flex w-full items-center gap-3 p-3 hover:bg-zinc-200/50 transition-colors dark:hover:bg-zinc-800/50"
                 >
                   {isExpanded ? (
                     <ChevronDown className="h-4 w-4 text-zinc-500" />
@@ -993,7 +993,7 @@ function BotDataManager() {
                     <Bot className="h-4 w-4" style={{ color: info.botColor }} />
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="font-medium text-zinc-200">{info.botName}</div>
+                    <div className="font-medium text-zinc-800 dark:text-zinc-200">{info.botName}</div>
                     <div className="text-xs text-zinc-500">
                       {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
                       {info.platformChatsCount > 0 && (
@@ -1013,7 +1013,7 @@ function BotDataManager() {
 
                 {/* Expanded content */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-700 p-3">
+                  <div className="border-t border-zinc-300 p-3 dark:border-zinc-700">
                     {!hasData ? (
                       <p className="text-sm text-zinc-500 text-center py-2">
                         No data to clear for this bot
@@ -1024,14 +1024,14 @@ function BotDataManager() {
                         <div className="flex gap-2 mb-3">
                           <button
                             onClick={() => selectAllForBot(info.botId, info)}
-                            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-200"
                           >
                             Select all
                           </button>
-                          <span className="text-zinc-600">·</span>
+                          <span className="text-zinc-400 dark:text-zinc-600">·</span>
                           <button
                             onClick={() => clearSelectionForBot(info.botId)}
-                            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-200"
                           >
                             Clear selection
                           </button>
@@ -1137,7 +1137,7 @@ function BotDataManager() {
       {/* Confirmation modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
               <h2 className="text-lg font-bold">Clear Bot Data</h2>
@@ -1215,13 +1215,13 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
         'flex items-center gap-2 rounded-lg border p-2 transition-all text-left',
         selected
           ? 'border-red-500/50 bg-red-500/10'
-          : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+          : 'border-zinc-300 bg-zinc-100/50 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-zinc-600'
       )}
     >
       <div
         className={cn(
           'h-6 w-6 rounded flex items-center justify-center transition-colors',
-          selected ? 'bg-red-500/20' : 'bg-zinc-700'
+          selected ? 'bg-red-500/20' : 'bg-zinc-300 dark:bg-zinc-700'
         )}
       >
         {selected ? (
@@ -1231,7 +1231,7 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className={cn('text-sm font-medium', selected ? 'text-red-400' : 'text-zinc-200')}>
+        <div className={cn('text-sm font-medium', selected ? 'text-red-400' : 'text-zinc-800 dark:text-zinc-200')}>
           {config.label}
         </div>
         <div className="text-xs text-zinc-500">
@@ -1381,9 +1381,9 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
           </div>
 
           {/* Users Table */}
-          <div className="rounded-lg border border-zinc-700 overflow-hidden">
+          <div className="rounded-lg border border-zinc-300 overflow-hidden dark:border-zinc-700">
             {/* Table Header */}
-            <div className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2 bg-zinc-800/50 text-xs text-zinc-400 font-medium">
+            <div className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2 bg-zinc-100/50 text-xs text-zinc-500 font-medium dark:bg-zinc-800/50 dark:text-zinc-400">
               <div>User</div>
               <div>Email</div>
               <div>Role</div>
@@ -1400,20 +1400,20 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
               users.map((user) => (
                 <div
                   key={user.id}
-                  className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 border-t border-zinc-700 items-center hover:bg-zinc-800/30 transition-colors"
+                  className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 border-t border-zinc-300 items-center hover:bg-zinc-100/30 transition-colors dark:border-zinc-700 dark:hover:bg-zinc-800/30"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-zinc-700 flex items-center justify-center flex-shrink-0">
-                      <AtSign className="h-3.5 w-3.5 text-zinc-400" />
+                    <div className="w-7 h-7 rounded-full bg-zinc-300 flex items-center justify-center flex-shrink-0 dark:bg-zinc-700">
+                      <AtSign className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{user.username}</div>
+                      <div className="font-medium text-sm truncate text-zinc-800 dark:text-zinc-100">{user.username}</div>
                       {user.id === currentUser?.id && (
-                        <div className="text-xs text-cachi-400">You</div>
+                        <div className="text-xs text-cachi-600 dark:text-cachi-400">You</div>
                       )}
                     </div>
                   </div>
-                  <div className="text-zinc-400 text-sm truncate">{user.email}</div>
+                  <div className="text-zinc-500 text-sm truncate dark:text-zinc-400">{user.email}</div>
                   <div>
                     <span
                       className={cn(
@@ -1451,23 +1451,23 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   <div className="relative">
                     <button
                       onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
-                      className="p-1 hover:bg-zinc-700 rounded transition-colors disabled:opacity-50"
+                      className="p-1 hover:bg-zinc-200 rounded transition-colors disabled:opacity-50 dark:hover:bg-zinc-700"
                       disabled={user.id === currentUser?.id}
                     >
-                      <MoreVertical className="h-4 w-4 text-zinc-400" />
+                      <MoreVertical className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                     </button>
                     {menuOpen === user.id && (
-                      <div className="absolute right-0 top-full mt-1 w-36 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg py-1 z-20">
+                      <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-zinc-300 rounded-lg shadow-lg py-1 z-20 dark:bg-zinc-800 dark:border-zinc-700">
                         <button
                           onClick={() => startEditing(user)}
-                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-700 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 transition-colors text-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-700"
                         >
                           Edit User
                         </button>
                         {user.is_active && (
                           <button
                             onClick={() => handleDeactivateUser(user.id)}
-                            className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-zinc-700 transition-colors"
+                            className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-100 transition-colors dark:text-red-400 dark:hover:bg-zinc-700"
                           >
                             Deactivate
                           </button>
@@ -1485,11 +1485,11 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
       {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Create New User</h2>
+          <div className="bg-white rounded-xl border border-zinc-300 p-6 w-full max-w-md mx-4 dark:bg-zinc-900 dark:border-zinc-800">
+            <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Email
                 </label>
                 <div className="relative">
@@ -1500,13 +1500,13 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, email: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                    className="w-full pl-10 pr-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Username
                 </label>
                 <div className="relative">
@@ -1517,7 +1517,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, username: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                    className="w-full pl-10 pr-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                     required
                     minLength={3}
                     maxLength={32}
@@ -1525,7 +1525,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Password
                 </label>
                 <input
@@ -1534,14 +1534,14 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                   required
                   minLength={8}
                   placeholder="Min. 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Role
                 </label>
                 <select
@@ -1552,7 +1552,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -1583,11 +1583,11 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
       {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Edit User</h2>
+          <div className="bg-white rounded-xl border border-zinc-300 p-6 w-full max-w-md mx-4 dark:bg-zinc-900 dark:border-zinc-800">
+            <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Edit User</h2>
             <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Email
                 </label>
                 <input
@@ -1596,12 +1596,12 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setEditForm({ ...editForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Username
                 </label>
                 <input
@@ -1610,14 +1610,14 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setEditForm({ ...editForm, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                   required
                   minLength={3}
                   maxLength={32}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
                   Role
                 </label>
                 <select
@@ -1628,7 +1628,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cachi-500"
+                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
