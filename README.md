@@ -197,10 +197,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Credits
 
 - Built with [Prompture](https://github.com/jhd3197/Prompture) for structured LLM interaction
-"- Named after the Venezuelan *cachicamo* (armadillo)"
+- Named after the Venezuelan *cachicamo* (armadillo)
 
 ---
 
 <p align="center">
-  Made with care by <a href="https://github.com/jhd3197">Juan</a>
+  Made with care by <a href="https://juandenis.com">Juan Denis</a>
 </p>
