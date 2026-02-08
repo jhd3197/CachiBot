@@ -2,6 +2,9 @@
  * Models API client
  */
 
+import { useAuthStore } from '../stores/auth'
+import { tryRefreshToken } from './auth'
+
 const API_BASE = '/api'
 
 export interface ModelInfo {
@@ -23,15 +26,50 @@ export interface ModelsGrouped {
   [provider: string]: ModelInfo[]
 }
 
+function getAuthHeader(): Record<string, string> {
+  const { accessToken } = useAuthStore.getState()
+  if (accessToken) {
+    return { Authorization: `Bearer ${accessToken}` }
+  }
+  return {}
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  retry = true
+): Promise<T> {
+  const url = `${API_BASE}${endpoint}`
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+      ...options.headers,
+    },
+    ...options,
+  })
+
+  if (response.status === 401 && retry) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      return request<T>(endpoint, options, false)
+    }
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail || `Request failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
 /**
  * Get all available models grouped by provider
  */
 export async function getModels(): Promise<ModelsGrouped> {
-  const response = await fetch(`${API_BASE}/models`)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models: ${response.statusText}`)
-  }
-  const data = await response.json()
+  const data = await request<{ groups: ModelsGrouped }>('/models')
   return data.groups || {}
 }
 
@@ -39,11 +77,7 @@ export async function getModels(): Promise<ModelsGrouped> {
  * Get the current default model
  */
 export async function getDefaultModel(): Promise<string> {
-  const response = await fetch(`${API_BASE}/models/default`)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch default model: ${response.statusText}`)
-  }
-  const data = await response.json()
+  const data = await request<{ model: string }>('/models/default')
   return data.model
 }
 
@@ -51,12 +85,8 @@ export async function getDefaultModel(): Promise<string> {
  * Set the default model
  */
 export async function setDefaultModel(model: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/models/default`, {
+  await request('/models/default', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model }),
   })
-  if (!response.ok) {
-    throw new Error(`Failed to set default model: ${response.statusText}`)
-  }
 }
