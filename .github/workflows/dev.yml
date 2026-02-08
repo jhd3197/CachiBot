@@ -86,9 +86,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools_scm build twine
 
-      - name: Set version in pyproject.toml
+      - name: Set version in pyproject.toml and VERSION file
         run: |
           sed -i 's/^version = ".*"/version = "${{ steps.ver.outputs.new }}"/' pyproject.toml
+          echo "${{ steps.ver.outputs.new }}" > VERSION
           grep '^version' pyproject.toml
 
       - name: Build (dev)

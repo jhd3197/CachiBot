@@ -5,7 +5,28 @@ A cross-platform AI agent with visual security.
 Powered by Prompture for structured LLM interaction.
 """
 
-__version__ = "0.2.0"
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
+
+def _get_version() -> str:
+    """Get version from installed package metadata, VERSION file, or fallback."""
+    try:
+        return _pkg_version("cachibot")
+    except PackageNotFoundError:
+        pass
+    # Fallback: read VERSION file from repo root
+    from pathlib import Path
+
+    for candidate in [
+        Path(__file__).parent / "VERSION",  # bundled in package
+        Path(__file__).parent.parent.parent.parent / "VERSION",  # repo root (editable)
+    ]:
+        if candidate.exists():
+            return candidate.read_text().strip()
+    return "0.0.0-unknown"
+
+
+__version__ = _get_version()
 __author__ = "jhd3197"
 
 from cachibot.agent import CachibotAgent, Agent

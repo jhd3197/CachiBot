@@ -54,17 +54,10 @@ Most AI agent tools run in terminals where you can't see what's happening. That'
 
 ## Quick Start
 
-### 1. Clone and Install
+### 1. Install
 
 ```bash
-git clone https://github.com/jhd3197/CachiBot.git
-cd CachiBot
-
-# Install backend
-pip install -e ".[dev]"
-
-# Install frontend
-cd frontend && npm install
+pip install cachibot
 ```
 
 ### 2. Set your API key
@@ -83,14 +76,29 @@ export OPENAI_API_KEY="your-api-key"
 ### 3. Run CachiBot
 
 ```bash
-# Terminal 1: Start the backend server
-cachibot-server
-
-# Terminal 2: Start the frontend
-cd frontend && npm run dev
+cachibot server
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:6392** in your browser. The frontend is bundled and served automatically.
+
+### CLI Usage
+
+```bash
+# Start the dashboard server
+cachibot server
+
+# Run a single task
+cachibot "list all Python files"
+
+# Interactive mode
+cachibot
+
+# Use a specific model
+cachibot --model anthropic/claude-sonnet-4-20250514 "explain this code"
+
+# Short alias works too
+cachi server
+```
 
 ## Architecture
 
@@ -183,6 +191,12 @@ pip install -e ".[dev]"
 
 # Install frontend dependencies
 cd frontend && npm install
+
+# Start backend (dev)
+cachibot server --reload
+
+# Start frontend dev server (in another terminal)
+cd frontend && npm run dev
 
 # Run tests
 pytest
