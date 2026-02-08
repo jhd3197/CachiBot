@@ -73,6 +73,7 @@ class AgentConfig:
     max_iterations: int = 20
     approve_actions: bool = False
     temperature: float = 0.6  # Moonshot recommends 0.6 for instant mode
+    max_tokens: int = 4096  # Max output tokens per LLM call
 
 
 @dataclass
@@ -207,6 +208,13 @@ class Config:
             except ValueError:
                 pass
 
+        # Max tokens
+        if max_tok := os.getenv("CACHIBOT_MAX_TOKENS"):
+            try:
+                self.agent.max_tokens = int(max_tok)
+            except ValueError:
+                pass
+
         # Sandbox timeout
         if timeout := os.getenv("CACHIBOT_SANDBOX_TIMEOUT"):
             try:
@@ -257,6 +265,8 @@ class Config:
                 self.agent.approve_actions = agent_data["approve_actions"]
             if "temperature" in agent_data:
                 self.agent.temperature = agent_data["temperature"]
+            if "max_tokens" in agent_data:
+                self.agent.max_tokens = agent_data["max_tokens"]
 
         if sandbox_data := data.get("sandbox"):
             if "allowed_imports" in sandbox_data:
