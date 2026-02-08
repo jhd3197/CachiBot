@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from cachibot.api.auth import get_current_user
+from cachibot.api.auth import get_current_user, require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.bot import Bot, BotResponse
 from cachibot.models.skill import BotSkillRequest, SkillResponse
@@ -49,7 +49,7 @@ async def list_bots(
 @router.get("/{bot_id}")
 async def get_bot(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> BotResponse:
     """Get a specific bot."""
     bot = await repo.get_bot(bot_id)
@@ -62,7 +62,7 @@ async def get_bot(
 async def sync_bot(
     bot_id: str,
     body: BotSyncRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> BotResponse:
     """Sync a bot from frontend (create or update)."""
     if body.id != bot_id:
@@ -88,7 +88,7 @@ async def sync_bot(
 @router.delete("/{bot_id}", status_code=204)
 async def delete_bot(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> None:
     """Delete a bot."""
     deleted = await repo.delete_bot(bot_id)
@@ -104,7 +104,7 @@ async def delete_bot(
 @router.get("/{bot_id}/skills")
 async def get_bot_skills(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[SkillResponse]:
     """Get all activated skills for a bot."""
     skill_defs = await skills_repo.get_bot_skill_definitions(bot_id)
@@ -114,7 +114,7 @@ async def get_bot_skills(
 @router.get("/{bot_id}/skills/ids")
 async def get_bot_skill_ids(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[str]:
     """Get just the IDs of activated skills for a bot."""
     return await skills_repo.get_bot_skills(bot_id)
@@ -124,7 +124,7 @@ async def get_bot_skill_ids(
 async def activate_bot_skill(
     bot_id: str,
     body: BotSkillRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> dict:
     """Activate a skill for a bot."""
     # Verify skill exists
@@ -140,7 +140,7 @@ async def activate_bot_skill(
 async def deactivate_bot_skill(
     bot_id: str,
     skill_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> None:
     """Deactivate a skill for a bot."""
     deactivated = await skills_repo.deactivate_skill(bot_id, skill_id)
@@ -181,7 +181,7 @@ class BotImportResponse(BaseModel):
 @router.get("/{bot_id}/export")
 async def export_bot(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> BotExportFormat:
     """
     Export a bot configuration as JSON.

@@ -1,9 +1,11 @@
 """Authentication endpoints."""
 
+import time
 import uuid
+from collections import defaultdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from cachibot.api.auth import get_admin_user, get_current_user
 from cachibot.models.auth import (
@@ -26,6 +28,30 @@ from cachibot.storage.user_repository import UserRepository
 
 router = APIRouter(prefix="/auth")
 
+# Simple in-memory rate limiter for auth endpoints
+_rate_limit_store: dict[str, list[float]] = defaultdict(list)
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX_REQUESTS = 5  # max attempts per window
+
+
+async def rate_limit_auth(request: Request) -> None:
+    """Rate limit authentication endpoints by client IP."""
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+
+    # Prune old entries
+    _rate_limit_store[client_ip] = [
+        t for t in _rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW
+    ]
+
+    if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please try again later.",
+        )
+
+    _rate_limit_store[client_ip].append(now)
+
 
 @router.get("/setup-required", response_model=SetupStatusResponse)
 async def check_setup_required() -> SetupStatusResponse:
@@ -35,7 +61,7 @@ async def check_setup_required() -> SetupStatusResponse:
     return SetupStatusResponse(setup_required=count == 0)
 
 
-@router.post("/setup", response_model=LoginResponse)
+@router.post("/setup", response_model=LoginResponse, dependencies=[Depends(rate_limit_auth)])
 async def setup_initial_admin(request: SetupRequest) -> LoginResponse:
     """
     Create the initial admin user (first-time setup).
@@ -103,7 +129,7 @@ async def setup_initial_admin(request: SetupRequest) -> LoginResponse:
     )
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginResponse, dependencies=[Depends(rate_limit_auth)])
 async def login(request: LoginRequest) -> LoginResponse:
     """
     Login with email or username and password.

@@ -7,7 +7,7 @@ Endpoints for managing bot chats, including platform conversations.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import get_current_user
+from cachibot.api.auth import get_current_user, require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.chat_model import ChatResponse
 from cachibot.models.knowledge import BotMessage
@@ -46,7 +46,7 @@ class MessageResponse(BaseModel):
 async def list_chats(
     bot_id: str,
     include_archived: bool = False,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[ChatResponse]:
     """Get all chats for a bot (including platform chats). Excludes archived by default."""
     chats = await chat_repo.get_chats_by_bot(bot_id, include_archived=include_archived)
@@ -71,7 +71,7 @@ class ArchiveResponse(BaseModel):
 @router.post("/_clear", status_code=200)
 async def clear_all_chats(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ClearDataResponse:
     """Delete all chats and messages for a bot (platform data cleanup)."""
     # Delete all messages first (they reference chats)
@@ -90,7 +90,7 @@ async def clear_all_chats(
 async def get_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ChatResponse:
     """Get a specific chat."""
     chat = await chat_repo.get_chat(chat_id)
@@ -104,7 +104,7 @@ async def get_chat_messages(
     bot_id: str,
     chat_id: str,
     limit: int = 50,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[MessageResponse]:
     """Get messages for a chat."""
     chat = await chat_repo.get_chat(chat_id)
@@ -119,7 +119,7 @@ async def get_chat_messages(
 async def delete_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> None:
     """Delete a chat permanently (including messages)."""
     chat = await chat_repo.get_chat(chat_id)
@@ -136,7 +136,7 @@ async def delete_chat(
 async def clear_chat_messages(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ClearDataResponse:
     """Clear all messages for a chat but keep the chat itself."""
     chat = await chat_repo.get_chat(chat_id)
@@ -151,7 +151,7 @@ async def clear_chat_messages(
 async def archive_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ArchiveResponse:
     """Archive a chat. Archived chats are hidden and won't receive new messages."""
     chat = await chat_repo.get_chat(chat_id)
@@ -166,7 +166,7 @@ async def archive_chat(
 async def unarchive_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ArchiveResponse:
     """Unarchive a chat. It will appear in listings and receive messages again."""
     chat = await chat_repo.get_chat(chat_id)
