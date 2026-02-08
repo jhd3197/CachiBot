@@ -4,6 +4,9 @@
  * Functions for document upload, management, and custom instructions.
  */
 
+import { useAuthStore } from '../stores/auth'
+import { tryRefreshToken } from './auth'
+
 const API_BASE = '/api/bots'
 
 // =============================================================================
@@ -33,6 +36,49 @@ export interface InstructionsResponse {
 }
 
 // =============================================================================
+// AUTH HELPERS
+// =============================================================================
+
+function getAuthHeader(): Record<string, string> {
+  const { accessToken } = useAuthStore.getState()
+  if (accessToken) {
+    return { Authorization: `Bearer ${accessToken}` }
+  }
+  return {}
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  retry = true
+): Promise<T> {
+  const url = `${API_BASE}${endpoint}`
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+      ...options.headers,
+    },
+    ...options,
+  })
+
+  if (response.status === 401 && retry) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      return request<T>(endpoint, options, false)
+    }
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail || `Request failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+// =============================================================================
 // DOCUMENTS API
 // =============================================================================
 
@@ -43,10 +89,29 @@ export async function uploadDocument(
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(`${API_BASE}/${botId}/documents/`, {
+  // For FormData uploads, don't set Content-Type (browser sets it with boundary)
+  const url = `${API_BASE}/${botId}/documents/`
+  const response = await fetch(url, {
     method: 'POST',
+    headers: { ...getAuthHeader() },
     body: formData,
   })
+
+  if (response.status === 401) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      const retryResponse = await fetch(url, {
+        method: 'POST',
+        headers: { ...getAuthHeader() },
+        body: formData,
+      })
+      if (!retryResponse.ok) {
+        const error = await retryResponse.json().catch(() => ({ detail: 'Upload failed' }))
+        throw new Error(error.detail || `Upload failed: ${retryResponse.status}`)
+      }
+      return retryResponse.json()
+    }
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
@@ -57,39 +122,23 @@ export async function uploadDocument(
 }
 
 export async function listDocuments(botId: string): Promise<DocumentResponse[]> {
-  const response = await fetch(`${API_BASE}/${botId}/documents/`)
-
-  if (!response.ok) {
-    throw new Error(`Failed to list documents: ${response.status}`)
-  }
-
-  return response.json()
+  return request(`/${botId}/documents/`)
 }
 
 export async function getDocument(
   botId: string,
   documentId: string
 ): Promise<DocumentResponse> {
-  const response = await fetch(`${API_BASE}/${botId}/documents/${documentId}`)
-
-  if (!response.ok) {
-    throw new Error(`Failed to get document: ${response.status}`)
-  }
-
-  return response.json()
+  return request(`/${botId}/documents/${documentId}`)
 }
 
 export async function deleteDocument(
   botId: string,
   documentId: string
 ): Promise<void> {
-  const response = await fetch(`${API_BASE}/${botId}/documents/${documentId}`, {
+  return request(`/${botId}/documents/${documentId}`, {
     method: 'DELETE',
   })
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete document: ${response.status}`)
-  }
 }
 
 // =============================================================================
@@ -97,40 +146,23 @@ export async function deleteDocument(
 // =============================================================================
 
 export async function getInstructions(botId: string): Promise<InstructionsResponse> {
-  const response = await fetch(`${API_BASE}/${botId}/instructions/`)
-
-  if (!response.ok) {
-    throw new Error(`Failed to get instructions: ${response.status}`)
-  }
-
-  return response.json()
+  return request(`/${botId}/instructions/`)
 }
 
 export async function updateInstructions(
   botId: string,
   content: string
 ): Promise<InstructionsResponse> {
-  const response = await fetch(`${API_BASE}/${botId}/instructions/`, {
+  return request(`/${botId}/instructions/`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   })
-
-  if (!response.ok) {
-    throw new Error(`Failed to update instructions: ${response.status}`)
-  }
-
-  return response.json()
 }
 
 export async function deleteInstructions(botId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/${botId}/instructions/`, {
+  return request(`/${botId}/instructions/`, {
     method: 'DELETE',
   })
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete instructions: ${response.status}`)
-  }
 }
 
 // =============================================================================
