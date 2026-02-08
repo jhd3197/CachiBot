@@ -827,6 +827,41 @@ export async function deleteTodo(botId: string, todoId: string): Promise<void> {
 // MARKETPLACE API
 // =============================================================================
 
+// Remote marketplace configuration
+const REMOTE_MARKETPLACE_URL = import.meta.env.VITE_MARKETPLACE_URL || ''
+const MARKETPLACE_CACHE_KEY = 'cachibot_marketplace_cache'
+const MARKETPLACE_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+}
+
+function getMarketplaceCache<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(`${MARKETPLACE_CACHE_KEY}_${key}`)
+    if (!cached) return null
+
+    const entry: CacheEntry<T> = JSON.parse(cached)
+    if (Date.now() - entry.timestamp > MARKETPLACE_CACHE_TTL) {
+      localStorage.removeItem(`${MARKETPLACE_CACHE_KEY}_${key}`)
+      return null
+    }
+    return entry.data
+  } catch {
+    return null
+  }
+}
+
+function setMarketplaceCache<T>(key: string, data: T): void {
+  try {
+    const entry: CacheEntry<T> = { data, timestamp: Date.now() }
+    localStorage.setItem(`${MARKETPLACE_CACHE_KEY}_${key}`, JSON.stringify(entry))
+  } catch {
+    // Ignore cache errors (quota exceeded, etc.)
+  }
+}
+
 export interface MarketplaceTemplate {
   id: string
   name: string
@@ -852,6 +887,7 @@ export interface MarketplaceCategory {
 export interface TemplateListResponse {
   templates: MarketplaceTemplate[]
   total: number
+  source?: 'local' | 'remote'
 }
 
 export interface InstallTemplateResponse {
@@ -861,25 +897,153 @@ export interface InstallTemplateResponse {
   message: string
 }
 
+/**
+ * Fetch templates from remote cachibot.com marketplace.
+ * Returns null if fetch fails or remote is not configured.
+ */
+async function fetchRemoteTemplates(
+  category?: string,
+  search?: string
+): Promise<TemplateListResponse | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cacheKey = `remote_templates_${category || ''}_${search || ''}`
+
+    // Check cache first (only for non-search)
+    if (!search) {
+      const cached = getMarketplaceCache<TemplateListResponse>(cacheKey)
+      if (cached) return { ...cached, source: 'remote' }
+    }
+
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (search) params.set('search', search)
+
+    const queryString = params.toString()
+    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/templates${queryString ? `?${queryString}` : ''}`
+
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) return null
+
+    const data: TemplateListResponse = await response.json()
+
+    // Cache non-search results
+    if (!search) {
+      setMarketplaceCache(cacheKey, data)
+    }
+
+    return { ...data, source: 'remote' }
+  } catch (err) {
+    console.warn('Failed to fetch from remote marketplace:', err)
+    return null
+  }
+}
+
+/**
+ * Fetch a single template from remote marketplace.
+ */
+async function fetchRemoteTemplate(templateId: string): Promise<MarketplaceTemplate | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cacheKey = `remote_template_${templateId}`
+    const cached = getMarketplaceCache<MarketplaceTemplate>(cacheKey)
+    if (cached) return cached
+
+    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/templates/${templateId}`
+    const response = await fetch(url)
+
+    if (!response.ok) return null
+
+    const data: MarketplaceTemplate = await response.json()
+    setMarketplaceCache(cacheKey, data)
+    return data
+  } catch (err) {
+    console.warn('Failed to fetch template from remote marketplace:', err)
+    return null
+  }
+}
+
+/**
+ * Fetch categories from remote marketplace.
+ */
+async function fetchRemoteCategories(): Promise<MarketplaceCategory[] | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cacheKey = 'remote_categories'
+    const cached = getMarketplaceCache<MarketplaceCategory[]>(cacheKey)
+    if (cached) return cached
+
+    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/categories`
+    const response = await fetch(url)
+
+    if (!response.ok) return null
+
+    const data: MarketplaceCategory[] = await response.json()
+    setMarketplaceCache(cacheKey, data)
+    return data
+  } catch (err) {
+    console.warn('Failed to fetch categories from remote marketplace:', err)
+    return null
+  }
+}
+
+/**
+ * Get marketplace templates.
+ * If VITE_MARKETPLACE_URL is set, tries remote first with fallback to local API.
+ */
 export async function getMarketplaceTemplates(
   category?: string,
   search?: string
 ): Promise<TemplateListResponse> {
+  // Try remote first if configured
+  const remote = await fetchRemoteTemplates(category, search)
+  if (remote) return remote
+
+  // Fall back to local API
   const params = new URLSearchParams()
   if (category) params.set('category', category)
   if (search) params.set('search', search)
-  return request(`/marketplace/templates?${params}`)
+  const result = await request<TemplateListResponse>(`/marketplace/templates?${params}`)
+  return { ...result, source: 'local' }
 }
 
+/**
+ * Get a single marketplace template.
+ * Tries remote first, falls back to local API.
+ */
 export async function getMarketplaceTemplate(templateId: string): Promise<MarketplaceTemplate> {
+  // Try remote first
+  const remote = await fetchRemoteTemplate(templateId)
+  if (remote) return remote
+
+  // Fall back to local
   return request(`/marketplace/templates/${templateId}`)
 }
 
+/**
+ * Install a template to create a new bot.
+ * Always uses the local API since it needs to create the bot locally.
+ */
 export async function installMarketplaceTemplate(templateId: string): Promise<InstallTemplateResponse> {
   return request(`/marketplace/templates/${templateId}/install`, { method: 'POST' })
 }
 
+/**
+ * Get marketplace categories.
+ * Tries remote first, falls back to local API.
+ */
 export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]> {
+  // Try remote first
+  const remote = await fetchRemoteCategories()
+  if (remote) return remote
+
+  // Fall back to local
   return request('/marketplace/categories')
 }
 
