@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from prompture import (
-    Agent as PromptureAgent,
+    AsyncAgent as PromptureAgent,
 )
 from prompture import (
     AgentCallbacks,
@@ -23,24 +23,6 @@ from prompture import (
 )
 
 from cachibot.config import Config
-
-
-def create_filtered_registry(full_registry: ToolRegistry, allowed_tools: set[str]) -> ToolRegistry:
-    """
-    Create a new registry containing only the allowed tools.
-
-    Args:
-        full_registry: Complete tool registry with all tools
-        allowed_tools: Set of tool names to include
-
-    Returns:
-        New ToolRegistry with only allowed tools
-    """
-    filtered = ToolRegistry()
-    for tool_name in allowed_tools:
-        if tool := full_registry.get(tool_name):
-            filtered.add(tool)
-    return filtered
 
 
 @dataclass
@@ -81,7 +63,9 @@ class CachibotAgent:
 
         # Apply tool filtering if specified
         if self.allowed_tools is not None:
-            self.registry = create_filtered_registry(self.registry, self.allowed_tools)
+            # Only include tools that exist in the registry
+            valid_tools = self.allowed_tools & set(self.registry.names)
+            self.registry = self.registry.subset(valid_tools)
 
         self._create_agent()
 
@@ -273,7 +257,7 @@ class CachibotAgent:
             return f"Task completed: {summary}"
 
         @self.registry.register
-        def telegram_send(chat_id: str, message: str) -> str:
+        async def telegram_send(chat_id: str, message: str) -> str:
             """
             Send a message to a Telegram chat.
 
@@ -287,10 +271,10 @@ class CachibotAgent:
             Returns:
                 Success or error message
             """
-            return self._send_platform_message("telegram", chat_id, message)
+            return await self._send_platform_message("telegram", chat_id, message)
 
         @self.registry.register
-        def discord_send(channel_id: str, message: str) -> str:
+        async def discord_send(channel_id: str, message: str) -> str:
             """
             Send a message to a Discord channel.
 
@@ -304,14 +288,14 @@ class CachibotAgent:
             Returns:
                 Success or error message
             """
-            return self._send_platform_message("discord", channel_id, message)
+            return await self._send_platform_message("discord", channel_id, message)
 
         # =================================================================
         # WORK MANAGEMENT TOOLS
         # =================================================================
 
         @self.registry.register
-        def work_create(
+        async def work_create(
             title: str,
             description: str = "",
             goal: str = "",
@@ -334,10 +318,10 @@ class CachibotAgent:
             Returns:
                 JSON with the created work ID and details
             """
-            return self._work_create(title, description, goal, priority, tasks)
+            return await self._work_create(title, description, goal, priority, tasks)
 
         @self.registry.register
-        def work_list(status: str = "all", limit: int = 10) -> str:
+        async def work_list(status: str = "all", limit: int = 10) -> str:
             """
             List work items for this bot.
 
@@ -348,10 +332,10 @@ class CachibotAgent:
             Returns:
                 JSON list of work items with their status and progress
             """
-            return self._work_list(status, limit)
+            return await self._work_list(status, limit)
 
         @self.registry.register
-        def work_update(
+        async def work_update(
             work_id: str,
             status: str | None = None,
             progress: int | None = None,
@@ -371,10 +355,10 @@ class CachibotAgent:
             Returns:
                 Updated work details
             """
-            return self._work_update(work_id, status, progress, result, error)
+            return await self._work_update(work_id, status, progress, result, error)
 
         @self.registry.register
-        def todo_create(
+        async def todo_create(
             title: str,
             notes: str = "",
             priority: str = "normal",
@@ -395,10 +379,10 @@ class CachibotAgent:
             Returns:
                 JSON with the created todo ID and details
             """
-            return self._todo_create(title, notes, priority, remind_at)
+            return await self._todo_create(title, notes, priority, remind_at)
 
         @self.registry.register
-        def todo_list(status: str = "open", limit: int = 20) -> str:
+        async def todo_list(status: str = "open", limit: int = 20) -> str:
             """
             List todos for this bot.
 
@@ -409,10 +393,10 @@ class CachibotAgent:
             Returns:
                 JSON list of todos
             """
-            return self._todo_list(status, limit)
+            return await self._todo_list(status, limit)
 
         @self.registry.register
-        def todo_done(todo_id: str) -> str:
+        async def todo_done(todo_id: str) -> str:
             """
             Mark a todo as done.
 
@@ -422,12 +406,10 @@ class CachibotAgent:
             Returns:
                 Confirmation message
             """
-            return self._todo_done(todo_id)
+            return await self._todo_done(todo_id)
 
-    def _send_platform_message(self, platform: str, chat_id: str, message: str) -> str:
+    async def _send_platform_message(self, platform: str, chat_id: str, message: str) -> str:
         """Send a message to a platform (telegram/discord)."""
-        import asyncio
-
         from cachibot.models.connection import ConnectionPlatform
         from cachibot.services.platform_manager import get_platform_manager
 
@@ -446,9 +428,8 @@ class CachibotAgent:
 
         manager = get_platform_manager()
         try:
-            loop = asyncio.get_event_loop()
-            success = loop.run_until_complete(
-                manager.send_to_bot_connection(bot_id, platform_enum, chat_id, message)
+            success = await manager.send_to_bot_connection(
+                bot_id, platform_enum, chat_id, message
             )
             if success:
                 return f"Message sent to {platform.title()} {chat_id}"
@@ -463,7 +444,7 @@ class CachibotAgent:
             return self.tool_configs["platform_bot_id"]
         return None
 
-    def _work_create(
+    async def _work_create(
         self,
         title: str,
         description: str,
@@ -472,7 +453,6 @@ class CachibotAgent:
         tasks: list[str] | None,
     ) -> str:
         """Create a new work item."""
-        import asyncio
         import json
         import uuid
         from datetime import datetime
@@ -484,11 +464,10 @@ class CachibotAgent:
         if not bot_id:
             return "Error: No bot ID configured"
 
-        async def create():
+        try:
             work_repo = WorkRepository()
             task_repo = TaskRepository()
 
-            # Create work
             work = Work(
                 id=str(uuid.uuid4()),
                 bot_id=bot_id,
@@ -504,7 +483,6 @@ class CachibotAgent:
             )
             await work_repo.save(work)
 
-            # Create tasks if provided
             created_tasks = []
             if tasks:
                 for i, task_title in enumerate(tasks):
@@ -524,23 +502,17 @@ class CachibotAgent:
                     await task_repo.save(task)
                     created_tasks.append({"id": task.id, "title": task.title})
 
-            return {
+            return json.dumps({
                 "id": work.id,
                 "title": work.title,
                 "status": work.status.value,
                 "tasks": created_tasks,
-            }
-
-        try:
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(create())
-            return json.dumps(result, indent=2)
+            }, indent=2)
         except Exception as e:
             return f"Error creating work: {e}"
 
-    def _work_list(self, status: str, limit: int) -> str:
+    async def _work_list(self, status: str, limit: int) -> str:
         """List work items."""
-        import asyncio
         import json
 
         from cachibot.models.work import WorkStatus
@@ -550,11 +522,11 @@ class CachibotAgent:
         if not bot_id:
             return "Error: No bot ID configured"
 
-        async def list_work():
+        try:
             work_repo = WorkRepository()
             status_filter = None if status == "all" else WorkStatus(status)
             items = await work_repo.get_by_bot(bot_id, status=status_filter, limit=limit)
-            return [
+            result = [
                 {
                     "id": w.id,
                     "title": w.title,
@@ -565,17 +537,13 @@ class CachibotAgent:
                 }
                 for w in items
             ]
-
-        try:
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(list_work())
             if not result:
                 return "No work items found"
             return json.dumps(result, indent=2)
         except Exception as e:
             return f"Error listing work: {e}"
 
-    def _work_update(
+    async def _work_update(
         self,
         work_id: str,
         status: str | None,
@@ -584,7 +552,6 @@ class CachibotAgent:
         error: str | None,
     ) -> str:
         """Update a work item."""
-        import asyncio
         import json
 
         from cachibot.models.work import WorkStatus
@@ -594,39 +561,30 @@ class CachibotAgent:
         if not bot_id:
             return "Error: No bot ID configured"
 
-        async def update():
+        try:
             work_repo = WorkRepository()
 
-            # Get current work
             work = await work_repo.get(work_id)
             if not work:
-                return {"error": f"Work {work_id} not found"}
+                return json.dumps({"error": f"Work {work_id} not found"}, indent=2)
 
-            # Update status if provided
             if status:
                 await work_repo.update_status(work_id, WorkStatus(status), error)
 
-            # Update progress if provided
             if progress is not None:
                 await work_repo.update_progress(work_id, float(progress))
 
-            # Fetch updated work
             updated_work = await work_repo.get(work_id)
-            return {
+            return json.dumps({
                 "id": updated_work.id,
                 "title": updated_work.title,
                 "status": updated_work.status.value,
                 "progress": updated_work.progress,
-            }
-
-        try:
-            loop = asyncio.get_event_loop()
-            result_data = loop.run_until_complete(update())
-            return json.dumps(result_data, indent=2)
+            }, indent=2)
         except Exception as e:
             return f"Error updating work: {e}"
 
-    def _todo_create(
+    async def _todo_create(
         self,
         title: str,
         notes: str,
@@ -634,7 +592,6 @@ class CachibotAgent:
         remind_at: str | None,
     ) -> str:
         """Create a todo."""
-        import asyncio
         import json
         import uuid
         from datetime import datetime
@@ -646,7 +603,7 @@ class CachibotAgent:
         if not bot_id:
             return "Error: No bot ID configured"
 
-        async def create():
+        try:
             todo_repo = TodoRepository()
             remind_datetime = None
             if remind_at:
@@ -667,23 +624,17 @@ class CachibotAgent:
                 tags=[],
             )
             await todo_repo.save(todo)
-            return {
+            return json.dumps({
                 "id": todo.id,
                 "title": todo.title,
                 "priority": todo.priority.value,
                 "remind_at": todo.remind_at.isoformat() if todo.remind_at else None,
-            }
-
-        try:
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(create())
-            return json.dumps(result, indent=2)
+            }, indent=2)
         except Exception as e:
             return f"Error creating todo: {e}"
 
-    def _todo_list(self, status: str, limit: int) -> str:
+    async def _todo_list(self, status: str, limit: int) -> str:
         """List todos."""
-        import asyncio
         import json
 
         from cachibot.models.work import TodoStatus
@@ -693,11 +644,11 @@ class CachibotAgent:
         if not bot_id:
             return "Error: No bot ID configured"
 
-        async def list_todos():
+        try:
             todo_repo = TodoRepository()
             status_filter = None if status == "all" else TodoStatus(status)
             items = await todo_repo.get_by_bot(bot_id, status=status_filter, limit=limit)
-            return [
+            result = [
                 {
                     "id": t.id,
                     "title": t.title,
@@ -707,35 +658,24 @@ class CachibotAgent:
                 }
                 for t in items
             ]
-
-        try:
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(list_todos())
             if not result:
                 return "No todos found"
             return json.dumps(result, indent=2)
         except Exception as e:
             return f"Error listing todos: {e}"
 
-    def _todo_done(self, todo_id: str) -> str:
+    async def _todo_done(self, todo_id: str) -> str:
         """Mark a todo as done."""
-        import asyncio
-
         from cachibot.models.work import TodoStatus
         from cachibot.storage.work_repository import TodoRepository
 
-        async def mark_done():
+        try:
             todo_repo = TodoRepository()
-            # Get todo first to check it exists and get title
             todo = await todo_repo.get(todo_id)
             if not todo:
                 return f"Error: Todo {todo_id} not found"
             await todo_repo.update_status(todo_id, TodoStatus.DONE)
             return f"Todo '{todo.title}' marked as done"
-
-        try:
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(mark_done())
         except Exception as e:
             return f"Error marking todo done: {e}"
 
@@ -754,6 +694,7 @@ class CachibotAgent:
             on_thinking=self.on_thinking,
             on_tool_start=self.on_tool_start,
             on_tool_end=self.on_tool_end,
+            on_message=self.on_message,
             on_approval_needed=self._handle_approval,
         )
 
@@ -765,6 +706,7 @@ class CachibotAgent:
             system_prompt=self._get_system_prompt(),
             agent_callbacks=callbacks,
             max_iterations=self.config.agent.max_iterations,
+            persistent_conversation=True,
         )
 
     def _get_system_prompt(self) -> str:
@@ -814,7 +756,7 @@ Cachibot was created by Juan Denis (juandenis.com). When asked about your creato
             return False  # Reject by default if no callback
         return True  # Auto-approve if approval not required
 
-    def run(self, user_message: str) -> str:
+    async def run(self, user_message: str) -> str:
         """
         Process a user message and return the response.
 
@@ -824,19 +766,14 @@ Cachibot was created by Juan Denis (juandenis.com). When asked about your creato
         Returns:
             The agent's response message
         """
-        result: AgentResult = self._agent.run(user_message)
+        result: AgentResult = await self._agent.run(user_message)
 
-        # Store result for usage tracking (Prompture Agent doesn't have last_result)
+        # Store result for usage tracking
         self._last_result = result
-
-
-        # Notify message callback
-        if self.on_message and result.output_text:
-            self.on_message(result.output_text)
 
         return result.output_text or "Task completed."
 
-    def run_stream(self, user_message: str):
+    async def run_stream(self, user_message: str):
         """
         Process a user message with streaming output.
 
@@ -846,7 +783,8 @@ Cachibot was created by Juan Denis (juandenis.com). When asked about your creato
         Yields:
             Stream events from the agent
         """
-        yield from self._agent.run_stream(user_message)
+        async for event in self._agent.run_stream(user_message):
+            yield event
 
     def get_usage(self) -> dict:
         """Get token usage and cost information."""
@@ -871,8 +809,7 @@ Cachibot was created by Juan Denis (juandenis.com). When asked about your creato
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
-        # Recreate the agent to clear history
-        self._create_agent()
+        self._agent.clear_history()
 
 
 # Backwards compatibility alias

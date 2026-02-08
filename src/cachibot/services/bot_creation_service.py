@@ -1,11 +1,10 @@
 """Bot creation service with AI-assisted prompt generation."""
 
-import json
 import logging
-import re
 from typing import Literal
+
+from prompture import extract_with_model
 from pydantic import BaseModel, Field
-from prompture import extract_with_model, get_driver_for_model
 
 from cachibot.config import Config
 
@@ -13,54 +12,6 @@ logger = logging.getLogger(__name__)
 
 # Default model for generation - use a reliable model for structured output
 DEFAULT_MODEL = "anthropic/claude-3-5-haiku-20241022"
-
-
-def _extract_json_from_text(text: str) -> dict | list | None:
-    """Try to extract JSON from a text response, handling markdown code blocks."""
-    if not text:
-        return None
-
-    # Try to find JSON in markdown code blocks
-    json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
-    if json_match:
-        try:
-            return json.loads(json_match.group(1).strip())
-        except json.JSONDecodeError:
-            pass
-
-    # Try parsing the whole text as JSON
-    try:
-        return json.loads(text.strip())
-    except json.JSONDecodeError:
-        pass
-
-    # Try to find JSON object or array in the text
-    for pattern in [r'\{[\s\S]*\}', r'\[[\s\S]*\]']:
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
-
-    return None
-
-
-def _generate_with_driver(prompt: str, model: str, system_prompt: str | None = None) -> str:
-    """Generate text using Prompture driver directly."""
-    try:
-        driver = get_driver_for_model(model)
-        options = {}
-        if system_prompt:
-            options["system_prompt"] = system_prompt
-        response = driver.generate(prompt, options)
-        return response.get("text", "")
-    except Exception as e:
-        logger.warning(f"Driver generation failed: {e}")
-        return ""
-
-# Maximum retries for API calls
-MAX_RETRIES = 2
 
 
 class FollowUpQuestion(BaseModel):
@@ -244,59 +195,33 @@ Generate exactly 3 questions that will help customize this bot perfectly for the
 
     instruction = "Generate 3 follow-up questions with placeholders in JSON format:"
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = extract_with_model(
-                FollowUpQuestions,
-                prompt_text,
-                model,
-                instruction_template=instruction,
-            )
-            return result.model.questions[:3]
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Follow-up question generation attempt {attempt + 1} failed: {e}")
-
-    # Fallback: try direct generation with manual JSON parsing
-    logger.info("Trying fallback with direct generation for questions...")
-    try:
-        full_prompt = f"""{prompt_text}
-
-{instruction}
-
-Respond with ONLY a JSON object in this exact format:
-{{"questions": [
-  {{"id": "q1", "question": "Your question here?", "placeholder": "e.g., example answer"}},
-  {{"id": "q2", "question": "Another question?", "placeholder": "e.g., example answer"}},
-  {{"id": "q3", "question": "Third question?", "placeholder": "e.g., example answer"}}
-]}}"""
-
-        raw_response = _generate_with_driver(full_prompt, model)
-        if raw_response:
-            parsed = _extract_json_from_text(raw_response)
-            if parsed and isinstance(parsed, dict) and "questions" in parsed:
-                questions = []
-                for i, item in enumerate(parsed["questions"][:3]):
-                    if isinstance(item, dict) and "question" in item:
-                        questions.append(FollowUpQuestion(
-                            id=item.get("id", f"q{i+1}"),
-                            question=item.get("question", ""),
-                            placeholder=item.get("placeholder", "Your answer here")
-                        ))
-                if questions:
-                    return questions
-    except Exception as e:
-        logger.warning(f"Fallback generation also failed: {e}")
-
-    # Fallback to category-specific questions
-    logger.error(f"Follow-up generation failed after {MAX_RETRIES} attempts: {last_error}")
-    fallback = CATEGORY_QUESTIONS.get(category, [
-        FollowUpQuestion(id="q1", question="What specific tasks should I help you with?", placeholder="e.g., Daily tasks, specific projects, ongoing support"),
-        FollowUpQuestion(id="q2", question="How do you prefer to receive information?", placeholder="e.g., Step-by-step, quick summaries, detailed explanations"),
-        FollowUpQuestion(id="q3", question="Anything specific about your situation I should know?", placeholder="e.g., Time constraints, preferences, past experiences"),
+    fallback_questions = CATEGORY_QUESTIONS.get(category, [
+        FollowUpQuestion(
+            id="q1",
+            question="What specific tasks should I help you with?",
+            placeholder="e.g., Daily tasks, specific projects, ongoing support",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="How do you prefer to receive information?",
+            placeholder="e.g., Step-by-step, quick summaries, detailed explanations",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="Anything specific about your situation I should know?",
+            placeholder="e.g., Time constraints, preferences, past experiences",
+        ),
     ])
-    return fallback
+
+    result = extract_with_model(
+        FollowUpQuestions,
+        prompt_text,
+        model,
+        instruction_template=instruction,
+        max_retries=3,
+        fallback=FollowUpQuestions(questions=fallback_questions),
+    )
+    return result.model.questions[:3]
 
 
 async def generate_system_prompt_full(
@@ -332,7 +257,7 @@ async def generate_system_prompt_full(
         qa_section = "\n## User's Specific Needs\n"
         for question, answer in context.follow_up_answers:
             if answer.strip():
-                qa_section += f"- {question}\n  → {answer}\n"
+                qa_section += f"- {question}\n  -> {answer}\n"
 
     prompt_text = f"""Create a highly personalized system prompt for an AI assistant named "{context.name}".
 
@@ -362,44 +287,6 @@ The prompt should read naturally, not like a template."""
 
     instruction = "Generate the complete system prompt and a one-line description in JSON format:"
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = extract_with_model(
-                GeneratedPrompt,
-                prompt_text,
-                model,
-                instruction_template=instruction,
-            )
-            return result.model
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Full prompt generation attempt {attempt + 1} failed: {e}")
-
-    # Fallback: try direct generation
-    logger.info("Trying fallback with direct generation for prompt...")
-    try:
-        full_prompt = f"""{prompt_text}
-
-{instruction}
-
-Respond with ONLY a JSON object:
-{{"system_prompt": "Your system prompt here...", "suggested_name": "{context.name}", "suggested_description": "One line description"}}"""
-
-        raw_response = _generate_with_driver(full_prompt, model)
-        if raw_response:
-            parsed = _extract_json_from_text(raw_response)
-            if parsed and isinstance(parsed, dict) and "system_prompt" in parsed:
-                return GeneratedPrompt(
-                    system_prompt=parsed.get("system_prompt", ""),
-                    suggested_name=parsed.get("suggested_name", context.name),
-                    suggested_description=parsed.get("suggested_description", f"Your {context.purpose_category} assistant")
-                )
-    except Exception as e:
-        logger.warning(f"Fallback prompt generation also failed: {e}")
-
-    # Better fallback that still uses the context
-    logger.error(f"Full prompt generation failed after {MAX_RETRIES} attempts: {last_error}")
     fallback_prompt = f"""You are {context.name}, a personal {context.purpose_category} assistant.
 
 Your name comes from: {context.name_meaning}
@@ -420,11 +307,19 @@ You specialize in {context.purpose_category} and are here to help with specific 
 - Remember the user's preferences and adapt accordingly
 - Be honest about limitations"""
 
-    return GeneratedPrompt(
-        system_prompt=fallback_prompt,
-        suggested_name=context.name,
-        suggested_description=f"Your personal {context.purpose_category} assistant",
+    result = extract_with_model(
+        GeneratedPrompt,
+        prompt_text,
+        model,
+        instruction_template=instruction,
+        max_retries=3,
+        fallback=GeneratedPrompt(
+            system_prompt=fallback_prompt,
+            suggested_name=context.name,
+            suggested_description=f"Your personal {context.purpose_category} assistant",
+        ),
     )
+    return result.model
 
 
 async def generate_system_prompt(
@@ -474,51 +369,29 @@ async def generate_system_prompt(
 
 Also suggest a creative name (1-2 words) and a one-line description for this bot."""
 
-    instruction = "Generate a complete system prompt, suggested name, and description in JSON format:"
-
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = extract_with_model(
-                GeneratedPrompt,
-                prompt_text,
-                model,
-                instruction_template=instruction,
-            )
-            return result.model
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Prompt generation attempt {attempt + 1} failed: {e}")
-
-    # Fallback: try direct generation
-    logger.info("Trying fallback with direct generation...")
-    try:
-        full_prompt = f"""{prompt_text}
-
-{instruction}
-
-Respond with ONLY a JSON object:
-{{"system_prompt": "Your system prompt here...", "suggested_name": "BotName", "suggested_description": "One line description"}}"""
-
-        raw_response = _generate_with_driver(full_prompt, model)
-        if raw_response:
-            parsed = _extract_json_from_text(raw_response)
-            if parsed and isinstance(parsed, dict) and "system_prompt" in parsed:
-                return GeneratedPrompt(
-                    system_prompt=parsed.get("system_prompt", ""),
-                    suggested_name=parsed.get("suggested_name", "Assistant"),
-                    suggested_description=parsed.get("suggested_description", personality.purpose_description[:100])
-                )
-    except Exception as e:
-        logger.warning(f"Fallback generation also failed: {e}")
-
-    # Fallback to a basic prompt if generation fails
-    logger.error(f"Prompt generation failed after {MAX_RETRIES} attempts: {last_error}")
-    return GeneratedPrompt(
-        system_prompt=f"You are a helpful {personality.purpose_category} assistant. {personality.purpose_description}. Communicate in a {personality.communication_style} manner.",
-        suggested_name="Assistant",
-        suggested_description=personality.purpose_description[:100],
+    instruction = (
+        "Generate a complete system prompt, suggested name, and description in JSON format:"
     )
+
+    basic_prompt = (
+        f"You are a helpful {personality.purpose_category} assistant. "
+        f"{personality.purpose_description}. "
+        f"Communicate in a {personality.communication_style} manner."
+    )
+
+    result = extract_with_model(
+        GeneratedPrompt,
+        prompt_text,
+        model,
+        instruction_template=instruction,
+        max_retries=3,
+        fallback=GeneratedPrompt(
+            system_prompt=basic_prompt,
+            suggested_name="Assistant",
+            suggested_description=personality.purpose_description[:100],
+        ),
+    )
+    return result.model
 
 
 async def refine_system_prompt(
@@ -560,47 +433,18 @@ async def refine_system_prompt(
 
     instruction = "Generate the refined system prompt and summarize the changes in JSON format:"
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = extract_with_model(
-                RefinedPrompt,
-                prompt_text,
-                model,
-                instruction_template=instruction,
-            )
-            return result.model
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Prompt refinement attempt {attempt + 1} failed: {e}")
-
-    # Fallback: try direct generation
-    logger.info("Trying fallback with direct generation for refinement...")
-    try:
-        full_prompt = f"""{prompt_text}
-
-{instruction}
-
-Respond with ONLY a JSON object:
-{{"system_prompt": "The refined prompt here...", "changes_made": "Summary of changes"}}"""
-
-        raw_response = _generate_with_driver(full_prompt, model)
-        if raw_response:
-            parsed = _extract_json_from_text(raw_response)
-            if parsed and isinstance(parsed, dict) and "system_prompt" in parsed:
-                return RefinedPrompt(
-                    system_prompt=parsed.get("system_prompt", current_prompt),
-                    changes_made=parsed.get("changes_made", "Applied requested changes")
-                )
-    except Exception as e:
-        logger.warning(f"Fallback refinement also failed: {e}")
-
-    logger.error(f"Prompt refinement failed after {MAX_RETRIES} attempts: {last_error}")
-    # Return the original prompt if refinement fails
-    return RefinedPrompt(
-        system_prompt=current_prompt,
-        changes_made="Refinement failed - original prompt unchanged",
+    result = extract_with_model(
+        RefinedPrompt,
+        prompt_text,
+        model,
+        instruction_template=instruction,
+        max_retries=3,
+        fallback=RefinedPrompt(
+            system_prompt=current_prompt,
+            changes_made="Refinement failed - original prompt unchanged",
+        ),
     )
+    return result.model
 
 
 async def preview_bot_response(
@@ -626,7 +470,6 @@ async def preview_bot_response(
         except Exception:
             model = DEFAULT_MODEL
 
-    # Combine system prompt with test message for preview
     prompt_text = f"""You are an AI assistant with the following system prompt:
 
 {system_prompt}
@@ -639,34 +482,14 @@ User: {test_message}"""
 
     instruction = "Generate a response as the assistant would, in JSON format with a 'response' field:"
 
-    last_error: Exception | None = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = extract_with_model(
-                PreviewResponse,
-                prompt_text,
-                model,
-                instruction_template=instruction,
-            )
-            return result.model
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Preview generation attempt {attempt + 1} failed: {e}")
-
-    # Fallback: try direct generation (simpler - just ask for a response)
-    logger.info("Trying fallback with direct generation for preview...")
-    try:
-        raw_response = _generate_with_driver(
-            f"User: {test_message}",
-            model,
-            system_prompt=system_prompt
-        )
-        if raw_response:
-            return PreviewResponse(response=raw_response.strip())
-    except Exception as e:
-        logger.warning(f"Fallback preview also failed: {e}")
-
-    logger.error(f"Preview generation failed after {MAX_RETRIES} attempts: {last_error}")
-    return PreviewResponse(
-        response="I'm ready to help! How can I assist you today?"
+    result = extract_with_model(
+        PreviewResponse,
+        prompt_text,
+        model,
+        instruction_template=instruction,
+        max_retries=3,
+        fallback=PreviewResponse(
+            response="I'm ready to help! How can I assist you today?",
+        ),
     )
+    return result.model

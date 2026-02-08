@@ -4,7 +4,6 @@ Platform Message Processor
 Handles incoming messages from Telegram/Discord by routing them through the bot's agent.
 """
 
-import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -151,10 +150,9 @@ class MessageProcessor:
             allowed_tools={"task_complete"},
         )
 
-        # Run agent in executor (blocking call)
+        # Run async agent directly
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, agent.run, message)
+            response = await agent.run(message)
 
             # Get usage data from agent
             usage = agent.get_usage()
