@@ -36,8 +36,14 @@ from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.database import close_db, init_db
 
 # Find the frontend dist directory
-PACKAGE_DIR = Path(__file__).parent.parent.parent.parent
-FRONTEND_DIST = PACKAGE_DIR / "frontend" / "dist"
+# 1. Bundled in the package (pip install case): cachibot/frontend_dist/
+_BUNDLED_DIST = Path(__file__).parent.parent / "frontend_dist"
+# 2. Development repo (editable install / local dev): repo_root/frontend/dist/
+_DEV_DIST = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+
+FRONTEND_DIST = (
+    _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _DEV_DIST
+)
 
 
 @asynccontextmanager
@@ -149,7 +155,6 @@ def create_app(
                 "version": "0.2.0",
                 "docs": "/docs",
                 "health": "/api/health",
-                "note": "Frontend not built. Run 'npm run build' in frontend/ directory.",
             }
 
     return app
