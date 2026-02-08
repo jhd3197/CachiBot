@@ -35,7 +35,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "prompture>=1.0.0",
+    "prompture>=1.0.15",
+    "tukuy>=0.1.0",
     "typer>=0.12.0",
     "rich>=13.0.0",
     # API server
