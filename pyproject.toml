@@ -76,6 +76,9 @@ Documentation = "https://cachibot.dev/docs"
 Repository = "https://github.com/jhd3197/cachibot"
 Issues = "https://github.com/jhd3197/cachibot/issues"
 
+[tool.hatch.build.targets.sdist.force-include]
+"frontend/dist" = "frontend/dist"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/cachibot"]
 
