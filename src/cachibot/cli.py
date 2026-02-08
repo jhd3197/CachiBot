@@ -4,6 +4,7 @@ Cachibot CLI
 Beautiful command-line interface using Typer and Rich.
 """
 
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -225,7 +226,7 @@ def main(
     if task:
         try:
             console.print()
-            response = agent.run(task)
+            response = asyncio.run(agent.run(task))
             console.print(f"\n[assistant]Cachibot:[/]")
             console.print(Markdown(response))
 
@@ -268,7 +269,7 @@ def main(
 
             # Run the agent
             console.print()
-            response = agent.run(user_input)
+            response = asyncio.run(agent.run(user_input))
 
             # Print response
             console.print(f"\n[assistant]Cachibot:[/]")
@@ -304,7 +305,7 @@ def run_task(
     agent = create_agent_with_callbacks(config)
 
     try:
-        response = agent.run(task)
+        response = asyncio.run(agent.run(task))
         console.print(Markdown(response))
 
         if config.display.show_cost:

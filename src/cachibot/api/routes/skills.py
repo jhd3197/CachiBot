@@ -84,9 +84,15 @@ async def create_skill(
         else:
             filename = "new-skill.md"
 
+    # Sanitize filename to prevent path traversal
+    base_name = filename.rsplit(".", 1)[0]
+    base_name = re.sub(r"[^a-z0-9_-]+", "-", base_name.lower()).strip("-")
+    if not base_name:
+        base_name = "new-skill"
+
     # Create in user's .claude/skills directory
     # Create skill directory with SKILL.md inside
-    skill_dir = USER_SKILLS_DIR / filename.rsplit(".", 1)[0]
+    skill_dir = USER_SKILLS_DIR / base_name
     counter = 1
     while skill_dir.exists():
         base = filename.rsplit(".", 1)[0]

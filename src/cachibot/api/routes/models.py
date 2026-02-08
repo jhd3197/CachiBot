@@ -7,8 +7,11 @@ import os
 import re
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+
+from cachibot.api.auth import get_current_user
+from cachibot.models.auth import User
 
 logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
@@ -52,7 +55,7 @@ class DefaultModelUpdate(BaseModel):
 
 
 @router.get("/models", response_model=ModelsResponse)
-async def get_models() -> ModelsResponse:
+async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     """
     Get all available models from configured providers.
 
@@ -188,14 +191,17 @@ async def get_models() -> ModelsResponse:
 
 
 @router.get("/models/default", response_model=DefaultModelResponse)
-async def get_default_model() -> DefaultModelResponse:
+async def get_default_model(user: User = Depends(get_current_user)) -> DefaultModelResponse:
     """Get the current default model."""
     model = os.getenv("CACHIBOT_DEFAULT_MODEL", DEFAULT_MODEL)
     return DefaultModelResponse(model=model)
 
 
 @router.put("/models/default")
-async def set_default_model(body: DefaultModelUpdate) -> dict:
+async def set_default_model(
+    body: DefaultModelUpdate,
+    user: User = Depends(get_current_user),
+) -> dict:
     """
     Set the default model.
 
@@ -204,6 +210,10 @@ async def set_default_model(body: DefaultModelUpdate) -> dict:
     """
     key = "CACHIBOT_DEFAULT_MODEL"
     value = body.model
+
+    # Reject values with newlines or control chars to prevent .env injection
+    if any(c in value for c in ("\n", "\r", "\0")):
+        raise HTTPException(status_code=400, detail="Invalid model ID")
 
     # Update .env file
     content = ""

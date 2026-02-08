@@ -211,13 +211,10 @@ async def websocket_endpoint(
                 # Determine allowed tools based on capabilities and skills
                 allowed_tools = get_allowed_tools(capabilities, enabled_skills)
 
-                # Get the current event loop for thread-safe callback scheduling
-                loop = asyncio.get_running_loop()
-
                 # Always create fresh agent with current systemPrompt
                 # (user may switch between bots with different personalities)
                 agent = create_agent_with_callbacks(
-                    config, client_id, loop, enhanced_prompt,
+                    config, client_id, enhanced_prompt,
                     bot_id, chat_id, allowed_tools, tool_configs
                 )
 
@@ -244,7 +241,8 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        await manager.send(client_id, WSMessage.error(str(e)))
+        logger.error(f"WebSocket error for client {client_id}: {e}")
+        await manager.send(client_id, WSMessage.error("An internal error occurred"))
     finally:
         # Cancel any running task
         if current_task and not current_task.done():
@@ -255,7 +253,6 @@ async def websocket_endpoint(
 def create_agent_with_callbacks(
     config: Config,
     client_id: str,
-    loop: asyncio.AbstractEventLoop,
     system_prompt: str | None = None,
     bot_id: str | None = None,
     chat_id: str | None = None,
@@ -267,7 +264,6 @@ def create_agent_with_callbacks(
     Args:
         config: Application configuration
         client_id: WebSocket client ID
-        loop: The event loop to schedule callbacks on (needed for thread-safe execution)
         system_prompt: Optional system prompt override
         bot_id: Bot ID for message history
         chat_id: Chat ID for message history
@@ -282,32 +278,28 @@ def create_agent_with_callbacks(
     if bot_id:
         merged_tool_configs["platform_bot_id"] = bot_id
 
-    def schedule_async(coro) -> None:
-        """Schedule a coroutine to run on the main event loop from a worker thread."""
-        asyncio.run_coroutine_threadsafe(coro, loop)
-
     def on_thinking(text: str) -> None:
         """Send thinking event."""
-        schedule_async(manager.send(client_id, WSMessage.thinking(text)))
+        asyncio.ensure_future(manager.send(client_id, WSMessage.thinking(text)))
 
     def on_tool_start(name: str, args: dict[str, Any]) -> None:
         """Send tool start event."""
         tool_call_counter["count"] += 1
         tool_id = f"tool_{tool_call_counter['count']}"
-        schedule_async(
+        asyncio.ensure_future(
             manager.send(client_id, WSMessage.tool_start(tool_id, name, args))
         )
 
     def on_tool_end(name: str, result: Any) -> None:
         """Send tool end event."""
         tool_id = f"tool_{tool_call_counter['count']}"
-        schedule_async(
+        asyncio.ensure_future(
             manager.send(client_id, WSMessage.tool_end(tool_id, str(result)[:1000]))
         )
 
     def on_message(text: str) -> None:
         """Send assistant message and save to history."""
-        schedule_async(
+        asyncio.ensure_future(
             manager.send(client_id, WSMessage.message("assistant", text))
         )
         # Save assistant message to history
@@ -320,30 +312,25 @@ def create_agent_with_callbacks(
                 content=text,
                 timestamp=datetime.utcnow(),
             )
-            schedule_async(repo.save_bot_message(assistant_msg))
+            asyncio.ensure_future(repo.save_bot_message(assistant_msg))
 
     def on_approval_needed(tool_name: str, action: str, details: dict) -> bool:
-        """Handle approval request synchronously (blocking)."""
-        # For WebSocket, we need to use async approval flow
-        # This will be called in a sync context, so we use a workaround
+        """Handle approval request."""
         approval_id = str(uuid.uuid4())
 
-        # Create event for waiting
         event = asyncio.Event()
         manager.pending_approvals[approval_id] = event
         manager.approval_results[approval_id] = False
 
-        # Send approval request
-        schedule_async(
+        asyncio.ensure_future(
             manager.send(
                 client_id,
                 WSMessage.approval_needed(approval_id, tool_name, action, details),
             )
         )
 
-        # Note: In sync callback context, we can't await
-        # The approval will be handled in the next iteration
-        # For now, return the config default
+        # Note: on_approval_needed callback is typed as sync (returns bool)
+        # in AgentCallbacks, so we can't await here. Return config default.
         return not config.agent.approve_actions
 
     agent = CachibotAgent(
@@ -387,9 +374,8 @@ async def run_agent(
             )
             await repo.save_bot_message(user_msg)
 
-        # Run agent (this is blocking, so run in executor)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, agent.run, message)
+        # Run async agent directly
+        await agent.run(message)
 
         # Send usage stats
         usage = agent.get_usage()
@@ -412,4 +398,5 @@ async def run_agent(
     except asyncio.CancelledError:
         await manager.send(client_id, WSMessage.error("Operation cancelled"))
     except Exception as e:
-        await manager.send(client_id, WSMessage.error(str(e)))
+        logger.error(f"WebSocket error for client {client_id}: {e}")
+        await manager.send(client_id, WSMessage.error("An internal error occurred"))
