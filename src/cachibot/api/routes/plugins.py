@@ -7,6 +7,7 @@ Allows the frontend to discover available plugins and their skills.
 from fastapi import APIRouter
 
 from cachibot.plugins import CACHIBOT_PLUGINS
+from cachibot.plugins.base import CachibotPlugin
 from cachibot.services.plugin_manager import ALWAYS_ENABLED, CAPABILITY_PLUGINS
 
 router = APIRouter()
@@ -25,18 +26,30 @@ async def list_plugins():
 
     result = []
     for name, cls in CACHIBOT_PLUGINS.items():
-        # Instantiate with a minimal context to introspect skills
-        # We only need the skill metadata, not actual execution
         cap = plugin_to_cap.get(cls.__name__)
-        result.append(
-            {
-                "name": name,
-                "class": cls.__name__,
-                "capability": cap,
-                "alwaysEnabled": cap is None,
-                "skills": _get_plugin_skill_names(cls),
-            }
-        )
+        plugin_data: dict = {
+            "name": name,
+            "class": cls.__name__,
+            "capability": cap,
+            "alwaysEnabled": cap is None,
+            "skills": _get_plugin_skills_metadata(cls),
+        }
+
+        # Include manifest metadata if available
+        try:
+            instance = _instantiate_for_introspection(cls)
+            manifest = instance.manifest
+            plugin_data["displayName"] = manifest.display_name
+            plugin_data["icon"] = manifest.icon
+            plugin_data["color"] = manifest.color
+            plugin_data["group"] = manifest.group
+        except Exception:
+            plugin_data["displayName"] = name
+            plugin_data["icon"] = None
+            plugin_data["color"] = None
+            plugin_data["group"] = None
+
+        result.append(plugin_data)
 
     return {"plugins": result}
 
@@ -48,23 +61,8 @@ async def get_plugin_skills(name: str):
     if not cls:
         return {"error": f"Plugin '{name}' not found"}
 
-    # Create a dummy context for introspection
-    from prompture import PythonSandbox
-
-    from cachibot.config import Config
-    from cachibot.plugins.base import PluginContext
-
-    config = Config()
-    sandbox = PythonSandbox(
-        allowed_imports=[],
-        timeout_seconds=1,
-        allowed_read_paths=[],
-        allowed_write_paths=[],
-    )
-    ctx = PluginContext(config=config, sandbox=sandbox)
-
     try:
-        plugin = cls(ctx)
+        plugin = _instantiate_for_introspection(cls)
         skills = []
         for skill_name, skill_obj in plugin.skills.items():
             desc = skill_obj.descriptor
@@ -80,6 +78,15 @@ async def get_plugin_skills(name: str):
                     "sideEffects": desc.side_effects,
                     "requiresNetwork": desc.requires_network,
                     "requiresFilesystem": desc.requires_filesystem,
+                    "displayName": desc.resolved_display_name,
+                    "icon": desc.icon,
+                    "riskLevel": desc.resolved_risk_level.value,
+                    "group": desc.group,
+                    "configParams": [p.to_dict() for p in desc.config_params]
+                    if desc.config_params
+                    else [],
+                    "hidden": desc.hidden,
+                    "deprecated": desc.deprecated,
                 }
             )
         return {"plugin": name, "skills": skills}
@@ -87,13 +94,12 @@ async def get_plugin_skills(name: str):
         return {"error": f"Failed to inspect plugin '{name}': {e}"}
 
 
-def _get_plugin_skill_names(cls: type) -> list[str]:
-    """Get skill names from a plugin class without full instantiation.
+def _instantiate_for_introspection(cls: type):
+    """Instantiate a plugin for metadata introspection.
 
-    Falls back to class-level introspection if possible.
+    CachiBot custom plugins need a PluginContext; Tukuy built-in plugins don't.
     """
-    # We need to instantiate to get skills; use a minimal context
-    try:
+    if issubclass(cls, CachibotPlugin):
         from prompture import PythonSandbox
 
         from cachibot.config import Config
@@ -107,7 +113,42 @@ def _get_plugin_skill_names(cls: type) -> list[str]:
             allowed_write_paths=[],
         )
         ctx = PluginContext(config=config, sandbox=sandbox)
-        plugin = cls(ctx)
-        return list(plugin.skills.keys())
+        return cls(ctx)
+    else:
+        # Tukuy built-in plugin: no context needed
+        return cls()
+
+
+def _get_plugin_skills_metadata(cls: type) -> list[dict]:
+    """Get full skill metadata from a plugin class."""
+    try:
+        plugin = _instantiate_for_introspection(cls)
+        skills = []
+        for skill_name, skill_obj in plugin.skills.items():
+            desc = skill_obj.descriptor
+            skill_data: dict = {
+                "name": skill_name,
+                "description": desc.description,
+                "category": desc.category,
+                "tags": desc.tags,
+                "version": desc.version,
+                "isAsync": desc.is_async,
+                "idempotent": desc.idempotent,
+                "sideEffects": desc.side_effects,
+                "requiresNetwork": desc.requires_network,
+                "requiresFilesystem": desc.requires_filesystem,
+                # New metadata from Tukuy
+                "displayName": desc.resolved_display_name,
+                "icon": desc.icon,
+                "riskLevel": desc.resolved_risk_level.value,
+                "group": desc.group,
+                "configParams": [p.to_dict() for p in desc.config_params]
+                if desc.config_params
+                else [],
+                "hidden": desc.hidden,
+                "deprecated": desc.deprecated,
+            }
+            skills.append(skill_data)
+        return skills
     except Exception:
         return []

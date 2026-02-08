@@ -4,7 +4,8 @@ File operations plugin — workspace-scoped file_read, file_write, file_list, fi
 
 from pathlib import Path
 
-from tukuy.skill import Skill, skill
+from tukuy.manifest import PluginManifest, PluginRequirements
+from tukuy.skill import RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
@@ -15,6 +16,16 @@ class FileOpsPlugin(CachibotPlugin):
     def __init__(self, ctx: PluginContext) -> None:
         super().__init__("file_ops", ctx)
         self._skills_map = self._build_skills()
+
+    @property
+    def manifest(self) -> PluginManifest:
+        return PluginManifest(
+            name="file_ops",
+            display_name="File Operations",
+            icon="folder",
+            group="Core",
+            requires=PluginRequirements(filesystem=True),
+        )
 
     def _resolve_path(self, path: str) -> Path:
         """Resolve a path relative to the workspace."""
@@ -34,6 +45,9 @@ class FileOpsPlugin(CachibotPlugin):
             tags=["file", "read"],
             idempotent=True,
             requires_filesystem=True,
+            display_name="Read File",
+            icon="file-text",
+            risk_level=RiskLevel.SAFE,
         )
         def file_read(path: str) -> str:
             """Read the contents of a file.
@@ -59,6 +73,9 @@ class FileOpsPlugin(CachibotPlugin):
             tags=["file", "write"],
             side_effects=True,
             requires_filesystem=True,
+            display_name="Write File",
+            icon="file-pen",
+            risk_level=RiskLevel.MODERATE,
         )
         def file_write(path: str, content: str) -> str:
             """Write content to a file. Creates the file if it doesn't exist.
@@ -87,6 +104,9 @@ class FileOpsPlugin(CachibotPlugin):
             tags=["file", "list"],
             idempotent=True,
             requires_filesystem=True,
+            display_name="List Files",
+            icon="folder-open",
+            risk_level=RiskLevel.SAFE,
         )
         def file_list(path: str = ".", pattern: str = "*", recursive: bool = False) -> str:
             """List files in a directory.
@@ -131,6 +151,9 @@ class FileOpsPlugin(CachibotPlugin):
             tags=["file", "edit"],
             side_effects=True,
             requires_filesystem=True,
+            display_name="Edit File",
+            icon="file-search",
+            risk_level=RiskLevel.MODERATE,
         )
         def file_edit(path: str, old_text: str, new_text: str) -> str:
             """Edit a file by replacing a specific string with new content.
@@ -164,6 +187,9 @@ class FileOpsPlugin(CachibotPlugin):
             tags=["file", "info"],
             idempotent=True,
             requires_filesystem=True,
+            display_name="File Info",
+            icon="file-scan",
+            risk_level=RiskLevel.SAFE,
         )
         def file_info(path: str) -> str:
             """Get metadata about a file.

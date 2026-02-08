@@ -105,12 +105,15 @@ export type BotIcon =
 
 // Capability toggles per bot
 export interface BotCapabilities {
-  webSearch: boolean        // web_search, web_fetch tools (not yet implemented)
-  codeExecution: boolean    // python_execute tool
-  fileOperations: boolean   // file_read, file_write, file_list, file_edit, file_info tools
-  contacts: boolean         // Access to contacts in system prompt context
-  connections: boolean      // telegram_send, discord_send tools
-  workManagement: boolean   // work_create, work_list, work_update, todo_create, todo_list, todo_done
+  codeExecution: boolean      // python_execute
+  fileOperations: boolean     // file_read, file_write, file_list, file_edit, file_info
+  gitOperations: boolean      // git_status, git_diff, git_log, git_commit, git_branch
+  shellAccess: boolean        // shell_execute, shell_which
+  webAccess: boolean          // web_fetch, web_search, http_request
+  dataOperations: boolean     // sqlite_query, sqlite_execute, zip/tar
+  contacts: boolean           // Access to contacts in system prompt context
+  connections: boolean        // telegram_send, discord_send
+  workManagement: boolean     // work_create, work_list, work_update, todo_create, todo_list, todo_done
 }
 
 export interface Bot {
@@ -229,8 +232,9 @@ export interface Tool {
   category: ToolCategory
   icon: string
   enabled: boolean
-  riskLevel: 'safe' | 'moderate' | 'dangerous'
+  riskLevel: 'safe' | 'moderate' | 'dangerous' | 'critical'
   parameters?: ToolParameter[]
+  configParams?: ConfigParam[]
 }
 
 export type ToolCategory = 'filesystem' | 'code' | 'web' | 'system' | 'data' | 'custom'
@@ -259,27 +263,9 @@ export interface ToolExecution {
 // TOOL CONFIG TYPES
 // =============================================================================
 
-export interface PythonExecuteConfig {
-  timeoutSeconds: number      // Default: 30
-  maxOutputLength: number     // Default: 10000
-}
-
-export interface FileOperationsConfig {
-  maxFileSizeKb: number       // Default: 1024
-  restrictToWorkspace: boolean // Default: true
-}
-
-export interface ShellRunConfig {
-  timeoutSeconds: number      // Default: 30
-}
-
-export interface ToolConfigs {
-  python_execute?: PythonExecuteConfig
-  file_read?: FileOperationsConfig
-  file_write?: FileOperationsConfig
-  file_list?: FileOperationsConfig
-  shell_run?: ShellRunConfig
-}
+// Generic tool config: maps tool ID -> param name -> value
+// Config params are now described by ConfigParam[] from the API
+export type ToolConfigs = Record<string, Record<string, unknown>>
 
 // =============================================================================
 // CONFIG TYPES
@@ -526,7 +512,11 @@ export interface PluginInfo {
   class: string
   capability: string | null    // null = always enabled
   alwaysEnabled: boolean
-  skills: string[]
+  displayName: string          // from PluginManifest
+  icon: string | null          // Lucide icon name
+  color: string | null         // hex color
+  group: string | null         // plugin group
+  skills: (PluginSkillInfo | string)[]  // string[] if backend returns names only
 }
 
 export interface PluginSkillInfo {
@@ -540,6 +530,27 @@ export interface PluginSkillInfo {
   sideEffects: boolean
   requiresNetwork: boolean
   requiresFilesystem: boolean
+  displayName: string           // from SkillDescriptor
+  icon: string | null           // Lucide icon name
+  riskLevel: string             // "safe" | "moderate" | "dangerous" | "critical"
+  group: string | null
+  configParams: ConfigParam[]
+  hidden: boolean
+  deprecated: string | null
+}
+
+export interface ConfigParam {
+  name: string
+  displayName: string | null
+  description: string | null
+  type: 'number' | 'string' | 'boolean' | 'select'
+  default: unknown
+  min?: number
+  max?: number
+  step?: number
+  options?: string[]
+  unit?: string
+  scope: 'global' | 'per_bot' | 'per_call'
 }
 
 // =============================================================================

@@ -103,7 +103,7 @@ class CachibotAgent:
         self.registry = build_registry(ctx, self.capabilities)
 
     def _create_agent(self) -> None:
-        """Create the Prompture agent with callbacks."""
+        """Create the Prompture agent with callbacks and SecurityContext."""
 
         # Build callbacks
         callbacks = AgentCallbacks(
@@ -114,6 +114,12 @@ class CachibotAgent:
             on_approval_needed=self._handle_approval,
         )
 
+        # Build SecurityContext from sandbox so Tukuy's built-in plugins
+        # are automatically scoped to the workspace
+        security_context = None
+        if self.sandbox is not None:
+            security_context = self.sandbox.to_security_context()
+
         # Create agent
         self._agent = PromptureAgent(
             model=self.config.agent.model,
@@ -122,6 +128,7 @@ class CachibotAgent:
             agent_callbacks=callbacks,
             max_iterations=self.config.agent.max_iterations,
             persistent_conversation=True,
+            security_context=security_context,
             options={
                 "temperature": self.config.agent.temperature,
                 "max_tokens": self.config.agent.max_tokens,
@@ -132,6 +139,10 @@ class CachibotAgent:
         """Generate the system prompt."""
         if self.system_prompt_override:
             return self.system_prompt_override
+
+        # Build dynamic tool list from the actual registry
+        tool_lines = "\n".join(f"- {name}" for name in sorted(self.registry.names))
+
         return f"""You are Cachibot, a helpful AI assistant that executes tasks safely.
 
 ## About Your Name
@@ -145,28 +156,21 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
 
 ## Environment
 - Workspace: {self.config.workspace_path}
-- You can only access files within this workspace
+- All file and git operations are scoped to this workspace
 
 ## Guidelines
 1. Be concise and helpful
 2. Use tools when actions are needed
 3. Explain what you're doing
-4. Always use python_execute to run code (not shell commands)
-5. Verify file paths are within the workspace
-6. Call task_complete when you're done
+4. Verify file paths are within the workspace
+5. Call task_complete when you're done
 
 ## Available Tools
-- python_execute: Run Python code safely
-- file_read: Read file contents
-- file_write: Create or update files
-- file_list: List directory contents
-- file_edit: Edit files by replacing text
-- task_complete: Signal task completion
+{tool_lines}
 
 ## Important
-- All code runs in a Python sandbox with restricted imports
-- You cannot use subprocess, os.system, or similar commands
-- Focus on Python-based solutions
+- All tools are automatically scoped to the workspace for security
+- Python code runs in a sandbox with restricted imports
 """
 
     def _handle_approval(self, tool_name: str, action: str, details: dict) -> bool:

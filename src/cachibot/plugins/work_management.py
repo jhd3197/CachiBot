@@ -2,7 +2,8 @@
 Work management plugin — work_create, work_list, work_update, todo_create, todo_list, todo_done.
 """
 
-from tukuy.skill import Skill, skill
+from tukuy.manifest import PluginManifest
+from tukuy.skill import RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
@@ -13,6 +14,15 @@ class WorkManagementPlugin(CachibotPlugin):
     def __init__(self, ctx: PluginContext) -> None:
         super().__init__("work_management", ctx)
         self._skills_map = self._build_skills()
+
+    @property
+    def manifest(self) -> PluginManifest:
+        return PluginManifest(
+            name="work_management",
+            display_name="Work Management",
+            icon="briefcase",
+            group="Core",
+        )
 
     def _get_bot_id(self) -> str | None:
         return self.ctx.bot_id
@@ -28,6 +38,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["work", "create"],
             is_async=True,
             side_effects=True,
+            display_name="Create Work",
+            icon="briefcase",
+            risk_level=RiskLevel.SAFE,
         )
         async def work_create(
             title: str,
@@ -116,6 +129,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["work", "list"],
             is_async=True,
             idempotent=True,
+            display_name="List Work",
+            icon="clipboard-list",
+            risk_level=RiskLevel.SAFE,
         )
         async def work_list(status: str = "all", limit: int = 10) -> str:
             """List work items for this bot.
@@ -164,6 +180,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["work", "update"],
             is_async=True,
             side_effects=True,
+            display_name="Update Work",
+            icon="clipboard-plus",
+            risk_level=RiskLevel.SAFE,
         )
         async def work_update(
             work_id: str,
@@ -227,6 +246,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["todo", "create"],
             is_async=True,
             side_effects=True,
+            display_name="Create Todo",
+            icon="list-todo",
+            risk_level=RiskLevel.SAFE,
         )
         async def todo_create(
             title: str,
@@ -296,6 +318,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["todo", "list"],
             is_async=True,
             idempotent=True,
+            display_name="List Todos",
+            icon="list-checks",
+            risk_level=RiskLevel.SAFE,
         )
         async def todo_list(status: str = "open", limit: int = 20) -> str:
             """List todos for this bot.
@@ -343,6 +368,9 @@ class WorkManagementPlugin(CachibotPlugin):
             tags=["todo", "done"],
             is_async=True,
             side_effects=True,
+            display_name="Complete Todo",
+            icon="circle-check",
+            risk_level=RiskLevel.SAFE,
         )
         async def todo_done(todo_id: str) -> str:
             """Mark a todo as done.
