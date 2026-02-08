@@ -244,7 +244,8 @@ async def websocket_endpoint(
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        await manager.send(client_id, WSMessage.error(str(e)))
+        logger.error(f"WebSocket error for client {client_id}: {e}")
+        await manager.send(client_id, WSMessage.error("An internal error occurred"))
     finally:
         # Cancel any running task
         if current_task and not current_task.done():
@@ -412,4 +413,5 @@ async def run_agent(
     except asyncio.CancelledError:
         await manager.send(client_id, WSMessage.error("Operation cancelled"))
     except Exception as e:
-        await manager.send(client_id, WSMessage.error(str(e)))
+        logger.error(f"WebSocket error for client {client_id}: {e}")
+        await manager.send(client_id, WSMessage.error("An internal error occurred"))
