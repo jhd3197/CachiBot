@@ -108,6 +108,16 @@ jobs:
           git tag --list
           git describe --tags --long || true
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with: { python-version: '3.x' }
