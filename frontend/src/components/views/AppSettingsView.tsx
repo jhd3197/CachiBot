@@ -47,6 +47,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
 import { useConnectionStore, useUsageStore } from '../../stores/connections'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
+import { checkHealth, type HealthInfo } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
 import { cn } from '../../lib/utils'
@@ -75,6 +76,14 @@ export function AppSettingsView() {
   const { user: currentUser } = useAuthStore()
 
   const isAdmin = currentUser?.role === 'admin'
+
+  const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null)
+
+  useEffect(() => {
+    checkHealth()
+      .then(setHealthInfo)
+      .catch(() => {})
+  }, [])
 
   // Determine active tab from URL, with validation
   const getActiveTab = (): SettingsTab => {
@@ -149,6 +158,7 @@ export function AppSettingsView() {
                 showCost={showCost}
                 setShowCost={setShowCost}
                 config={config}
+                healthInfo={healthInfo}
               />
             )}
             {activeTab === 'appearance' && (
@@ -182,12 +192,14 @@ function GeneralSettings({
   showCost,
   setShowCost,
   config,
+  healthInfo,
 }: {
   showThinking: boolean
   setShowThinking: (show: boolean) => void
   showCost: boolean
   setShowCost: (show: boolean) => void
   config: Config | null
+  healthInfo: HealthInfo | null
 }) {
   return (
     <>
@@ -243,6 +255,47 @@ function GeneralSettings({
               Directory where bots can read and write files
             </p>
           </Field>
+        </div>
+      </Section>
+
+      <Section icon={Info} title="About">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Version</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+              {healthInfo?.version ?? '...'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Build</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+              {healthInfo?.build ?? '...'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Python</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+              {healthInfo?.python ?? '...'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Platform</span>
+            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+              {healthInfo?.platform ?? '...'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Documentation</span>
+            <a
+              href="https://github.com/jhd3197/CachiBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-cachi-600 hover:text-cachi-500 dark:text-cachi-400 dark:hover:text-cachi-300"
+            >
+              GitHub
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </div>
       </Section>
     </>
@@ -629,31 +682,6 @@ function DataSettings() {
             <Trash2 className="h-4 w-4" />
             Delete Everything
           </button>
-        </div>
-      </Section>
-
-      <Section icon={Info} title="About">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Version</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">0.1.0</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Build</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">dev</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Documentation</span>
-            <a
-              href="https://github.com/jhd3197/CachiBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-cachi-600 hover:text-cachi-500 dark:text-cachi-400 dark:hover:text-cachi-300"
-            >
-              GitHub
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
         </div>
       </Section>
 

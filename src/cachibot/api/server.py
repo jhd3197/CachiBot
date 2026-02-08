@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from cachibot import __version__
 from cachibot.api.routes import (
     auth,
     bots,
@@ -88,7 +89,7 @@ def create_app(
     app = FastAPI(
         title="Cachibot API",
         description="AI Agent API with WebSocket streaming",
-        version="0.2.0",
+        version=__version__,
         lifespan=lifespan,
     )
 
@@ -152,7 +153,7 @@ def create_app(
             """Root endpoint with API info."""
             return {
                 "name": "Cachibot API",
-                "version": "0.2.0",
+                "version": __version__,
                 "docs": "/docs",
                 "health": "/api/health",
             }
