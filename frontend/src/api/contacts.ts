@@ -4,6 +4,9 @@
  * REST client for managing bot contacts.
  */
 
+import { useAuthStore } from '../stores/auth'
+import { tryRefreshToken } from './auth'
+
 const API_BASE = '/api/bots'
 
 export interface Contact {
@@ -25,30 +28,60 @@ export interface ContactUpdate {
   details?: string | null
 }
 
+function getAuthHeader(): Record<string, string> {
+  const { accessToken } = useAuthStore.getState()
+  if (accessToken) {
+    return { Authorization: `Bearer ${accessToken}` }
+  }
+  return {}
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  retry = true
+): Promise<T> {
+  const url = `${API_BASE}${endpoint}`
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+      ...options.headers,
+    },
+    ...options,
+  })
+
+  if (response.status === 401 && retry) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      return request<T>(endpoint, options, false)
+    }
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.detail || `Request failed: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
 /**
  * Get all contacts for a bot.
  */
 export async function getContacts(botId: string): Promise<Contact[]> {
-  const response = await fetch(`${API_BASE}/${botId}/contacts`)
-  if (!response.ok) {
-    throw new Error(`Failed to get contacts: ${response.statusText}`)
-  }
-  return response.json()
+  return request(`/${botId}/contacts`)
 }
 
 /**
  * Create a new contact.
  */
 export async function createContact(botId: string, data: ContactCreate): Promise<Contact> {
-  const response = await fetch(`${API_BASE}/${botId}/contacts`, {
+  return request(`/${botId}/contacts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!response.ok) {
-    throw new Error(`Failed to create contact: ${response.statusText}`)
-  }
-  return response.json()
 }
 
 /**
@@ -59,25 +92,17 @@ export async function updateContact(
   contactId: string,
   data: ContactUpdate
 ): Promise<Contact> {
-  const response = await fetch(`${API_BASE}/${botId}/contacts/${contactId}`, {
+  return request(`/${botId}/contacts/${contactId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
-  if (!response.ok) {
-    throw new Error(`Failed to update contact: ${response.statusText}`)
-  }
-  return response.json()
 }
 
 /**
  * Delete a contact.
  */
 export async function deleteContact(botId: string, contactId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/${botId}/contacts/${contactId}`, {
+  return request(`/${botId}/contacts/${contactId}`, {
     method: 'DELETE',
   })
-  if (!response.ok) {
-    throw new Error(`Failed to delete contact: ${response.statusText}`)
-  }
 }
