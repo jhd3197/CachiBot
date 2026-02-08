@@ -4,7 +4,7 @@
  * Handles real-time communication with the agent.
  */
 
-import type { WSMessage, WSMessageType, ToolConfigs } from '../types'
+import type { WSMessage, WSMessageType, ToolConfigs, BotCapabilities } from '../types'
 import { useAuthStore } from '../stores/auth'
 
 type MessageHandler = (message: WSMessage) => void
@@ -117,12 +117,7 @@ export class WebSocketClient {
       systemPrompt?: string
       botId?: string
       chatId?: string
-      capabilities?: {
-        webSearch: boolean
-        codeExecution: boolean
-        fileOperations: boolean
-        contacts: boolean
-      }
+      capabilities?: BotCapabilities
       toolConfigs?: ToolConfigs
       enabledSkills?: string[]
     }

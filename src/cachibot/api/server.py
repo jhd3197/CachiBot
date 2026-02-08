@@ -28,6 +28,7 @@ from cachibot.api.routes import (
     instructions,
     marketplace,
     models,
+    plugins,
     providers,
     skills,
     work,
@@ -129,6 +130,7 @@ def create_app(
     app.include_router(instructions.router, tags=["instructions"])
     app.include_router(marketplace.router, tags=["marketplace"])
     app.include_router(skills.router, tags=["skills"])
+    app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
     app.include_router(ws_router, tags=["websocket"])
 

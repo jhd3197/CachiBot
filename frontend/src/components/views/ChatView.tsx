@@ -657,10 +657,15 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
       // Default capabilities for backwards compatibility
       const defaultCapabilities = {
-        webSearch: false,
         codeExecution: true,
         fileOperations: true,
+        gitOperations: false,
+        shellAccess: false,
+        webAccess: false,
+        dataOperations: false,
         contacts: false,
+        connections: false,
+        workManagement: true,
       }
 
       wsSendMessage(trimmedInput, {
