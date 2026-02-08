@@ -88,3 +88,4 @@ nul
 error.log
 website/*
 settings.local.json
+.marketing/
