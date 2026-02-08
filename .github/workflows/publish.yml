@@ -138,6 +138,7 @@ jobs:
       - name: Set version in pyproject.toml
         run: |
           sed -i 's/^version = ".*"/version = "${{ steps.bump_version.outputs.new_version }}"/' pyproject.toml
+          echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
           grep '^version' pyproject.toml
 
       - name: Build (release)

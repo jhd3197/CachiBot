@@ -84,6 +84,7 @@ packages = ["src/cachibot"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "frontend/dist" = "cachibot/frontend_dist"
+"VERSION" = "cachibot/VERSION"
 
 [tool.ruff]
 target-version = "py310"

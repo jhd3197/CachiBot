@@ -64,7 +64,15 @@ async function request<T>(
 }
 
 // Health check
-export async function checkHealth(): Promise<{ status: string; version: string }> {
+export interface HealthInfo {
+  status: string
+  version: string
+  build: string
+  python: string
+  platform: string
+}
+
+export async function checkHealth(): Promise<HealthInfo> {
   return request('/health')
 }
 
