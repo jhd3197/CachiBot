@@ -8,11 +8,11 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from prompture import StreamEventType
 
 from cachibot.agent import CachibotAgent
 from cachibot.api.auth import get_user_from_token
@@ -139,8 +139,26 @@ async def websocket_endpoint(
     # Get workspace from app state
     workspace = websocket.app.state.workspace
 
-    # Create agent with streaming callbacks
     config = Config.load(workspace=workspace)
+
+    async def on_approval(tool_name: str, action: str, details: dict) -> bool:
+        """Handle approval request - sends to client and waits for response."""
+        approval_id = str(uuid.uuid4())
+        event = asyncio.Event()
+        manager.pending_approvals[approval_id] = event
+        manager.approval_results[approval_id] = False
+        await manager.send(
+            client_id,
+            WSMessage.approval_needed(approval_id, tool_name, action, details),
+        )
+        try:
+            await asyncio.wait_for(event.wait(), timeout=300)
+            return manager.approval_results.pop(approval_id, False)
+        except asyncio.TimeoutError:
+            return not config.agent.approve_actions
+        finally:
+            manager.pending_approvals.pop(approval_id, None)
+
     agent: CachibotAgent | None = None
     current_task: asyncio.Task | None = None
 
@@ -211,11 +229,19 @@ async def websocket_endpoint(
                 # Determine allowed tools based on capabilities and skills
                 allowed_tools = get_allowed_tools(capabilities, enabled_skills)
 
-                # Always create fresh agent with current systemPrompt
+                # Merge bot_id into tool_configs for platform tools
+                merged_tool_configs = dict(tool_configs) if tool_configs else {}
+                if bot_id:
+                    merged_tool_configs["platform_bot_id"] = bot_id
+
+                # Create fresh agent with current systemPrompt
                 # (user may switch between bots with different personalities)
-                agent = create_agent_with_callbacks(
-                    config, client_id, enhanced_prompt,
-                    bot_id, chat_id, allowed_tools, tool_configs
+                agent = CachibotAgent(
+                    config=config,
+                    system_prompt_override=enhanced_prompt,
+                    allowed_tools=allowed_tools,
+                    tool_configs=merged_tool_configs,
+                    on_approval_needed=on_approval,
                 )
 
                 # Run agent in background task
@@ -250,104 +276,6 @@ async def websocket_endpoint(
         manager.disconnect(client_id)
 
 
-def create_agent_with_callbacks(
-    config: Config,
-    client_id: str,
-    system_prompt: str | None = None,
-    bot_id: str | None = None,
-    chat_id: str | None = None,
-    allowed_tools: set[str] | None = None,
-    tool_configs: dict | None = None,
-) -> CachibotAgent:
-    """Create an agent with WebSocket streaming callbacks.
-
-    Args:
-        config: Application configuration
-        client_id: WebSocket client ID
-        system_prompt: Optional system prompt override
-        bot_id: Bot ID for message history
-        chat_id: Chat ID for message history
-        allowed_tools: Set of allowed tool names
-        tool_configs: Tool-specific configurations
-    """
-    tool_call_counter = {"count": 0}
-    repo = KnowledgeRepository()
-
-    # Merge bot_id into tool_configs for platform tools
-    merged_tool_configs = dict(tool_configs) if tool_configs else {}
-    if bot_id:
-        merged_tool_configs["platform_bot_id"] = bot_id
-
-    def on_thinking(text: str) -> None:
-        """Send thinking event."""
-        asyncio.ensure_future(manager.send(client_id, WSMessage.thinking(text)))
-
-    def on_tool_start(name: str, args: dict[str, Any]) -> None:
-        """Send tool start event."""
-        tool_call_counter["count"] += 1
-        tool_id = f"tool_{tool_call_counter['count']}"
-        asyncio.ensure_future(
-            manager.send(client_id, WSMessage.tool_start(tool_id, name, args))
-        )
-
-    def on_tool_end(name: str, result: Any) -> None:
-        """Send tool end event."""
-        tool_id = f"tool_{tool_call_counter['count']}"
-        asyncio.ensure_future(
-            manager.send(client_id, WSMessage.tool_end(tool_id, str(result)[:1000]))
-        )
-
-    def on_message(text: str) -> None:
-        """Send assistant message and save to history."""
-        asyncio.ensure_future(
-            manager.send(client_id, WSMessage.message("assistant", text))
-        )
-        # Save assistant message to history
-        if bot_id and chat_id:
-            assistant_msg = BotMessage(
-                id=str(uuid.uuid4()),
-                bot_id=bot_id,
-                chat_id=chat_id,
-                role="assistant",
-                content=text,
-                timestamp=datetime.utcnow(),
-            )
-            asyncio.ensure_future(repo.save_bot_message(assistant_msg))
-
-    def on_approval_needed(tool_name: str, action: str, details: dict) -> bool:
-        """Handle approval request."""
-        approval_id = str(uuid.uuid4())
-
-        event = asyncio.Event()
-        manager.pending_approvals[approval_id] = event
-        manager.approval_results[approval_id] = False
-
-        asyncio.ensure_future(
-            manager.send(
-                client_id,
-                WSMessage.approval_needed(approval_id, tool_name, action, details),
-            )
-        )
-
-        # Note: on_approval_needed callback is typed as sync (returns bool)
-        # in AgentCallbacks, so we can't await here. Return config default.
-        return not config.agent.approve_actions
-
-    agent = CachibotAgent(
-        config=config,
-        system_prompt_override=system_prompt,
-        allowed_tools=allowed_tools,
-        tool_configs=merged_tool_configs,
-        on_thinking=on_thinking,
-        on_tool_start=on_tool_start,
-        on_tool_end=on_tool_end,
-        on_message=on_message,
-        on_approval_needed=on_approval_needed,
-    )
-
-    return agent
-
-
 async def run_agent(
     agent: CachibotAgent,
     message: str,
@@ -355,7 +283,7 @@ async def run_agent(
     bot_id: str | None = None,
     chat_id: str | None = None,
 ) -> None:
-    """Run the agent and stream results."""
+    """Run the agent with streaming and send results to WebSocket client."""
     repo = KnowledgeRepository()
 
     try:
@@ -374,8 +302,45 @@ async def run_agent(
             )
             await repo.save_bot_message(user_msg)
 
-        # Run async agent directly
-        await agent.run(message)
+        # Stream agent response
+        response_chunks: list[str] = []
+        async for event in agent.run_stream(message):
+            match event.event_type:
+                case StreamEventType.text_delta:
+                    response_chunks.append(event.data)
+                    await manager.send(
+                        client_id, WSMessage.message("assistant", event.data)
+                    )
+                case StreamEventType.tool_call:
+                    await manager.send(
+                        client_id,
+                        WSMessage.tool_start(
+                            event.data.get("id", ""),
+                            event.data["name"],
+                            event.data.get("arguments", {}),
+                        ),
+                    )
+                case StreamEventType.tool_result:
+                    await manager.send(
+                        client_id,
+                        WSMessage.tool_end(
+                            event.data.get("id", ""),
+                            str(event.data.get("result", ""))[:1000],
+                        ),
+                    )
+
+        # Save full assistant response to history
+        response_text = "".join(response_chunks)
+        if response_text and bot_id and chat_id:
+            assistant_msg = BotMessage(
+                id=str(uuid.uuid4()),
+                bot_id=bot_id,
+                chat_id=chat_id,
+                role="assistant",
+                content=response_text,
+                timestamp=datetime.utcnow(),
+            )
+            await repo.save_bot_message(assistant_msg)
 
         # Send usage stats
         usage = agent.get_usage()
