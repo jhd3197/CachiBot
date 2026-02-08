@@ -61,7 +61,7 @@ class ContactResponse(BaseModel):
 @router.get("")
 async def list_contacts(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[ContactResponse]:
     """Get all contacts for a bot."""
     contacts = await repo.get_contacts_by_bot(bot_id)
@@ -72,7 +72,7 @@ async def list_contacts(
 async def create_contact(
     bot_id: str,
     body: ContactCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ContactResponse:
     """Create a new contact for a bot."""
     if not body.name.strip():
@@ -95,7 +95,7 @@ async def create_contact(
 async def get_contact(
     bot_id: str,
     contact_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ContactResponse:
     """Get a specific contact."""
     contact = await repo.get_contact(contact_id)
@@ -109,7 +109,7 @@ async def update_contact(
     bot_id: str,
     contact_id: str,
     body: ContactUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ContactResponse:
     """Update an existing contact."""
     contact = await repo.get_contact(contact_id)
@@ -131,7 +131,7 @@ async def update_contact(
 async def delete_contact(
     bot_id: str,
     contact_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> None:
     """Delete a contact."""
     contact = await repo.get_contact(contact_id)

@@ -4,17 +4,20 @@ Connections API Routes
 CRUD endpoints for managing bot platform connections.
 """
 
+import logging
 import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import get_current_user
+from cachibot.api.auth import get_current_user, require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.repository import ConnectionRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bots/{bot_id}/connections", tags=["connections"])
 
@@ -79,7 +82,7 @@ class ConnectionResponse(BaseModel):
 @router.get("")
 async def list_connections(
     bot_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> list[ConnectionResponse]:
     """Get all connections for a bot."""
     connections = await repo.get_connections_by_bot(bot_id)
@@ -90,7 +93,7 @@ async def list_connections(
 async def create_connection(
     bot_id: str,
     body: ConnectionCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Create a new connection for a bot."""
     if not body.name.strip():
@@ -126,7 +129,7 @@ async def create_connection(
 async def get_connection(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Get a specific connection."""
     connection = await repo.get_connection(connection_id)
@@ -140,7 +143,7 @@ async def update_connection(
     bot_id: str,
     connection_id: str,
     body: ConnectionUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Update an existing connection."""
     connection = await repo.get_connection(connection_id)
@@ -166,7 +169,7 @@ async def update_connection(
 async def delete_connection(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> None:
     """Delete a connection."""
     connection = await repo.get_connection(connection_id)
@@ -185,7 +188,7 @@ async def delete_connection(
 async def connect_platform(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Start a platform connection."""
     connection = await repo.get_connection(connection_id)
@@ -199,14 +202,15 @@ async def connect_platform(
         connection = await repo.get_connection(connection_id)
         return ConnectionResponse.from_connection(connection)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to connect {connection_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start connection")
 
 
 @router.post("/{connection_id}/disconnect")
 async def disconnect_platform(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Stop a platform connection."""
     connection = await repo.get_connection(connection_id)
