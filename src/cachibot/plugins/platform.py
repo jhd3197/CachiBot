@@ -2,7 +2,8 @@
 Platform plugin — telegram_send, discord_send tools.
 """
 
-from tukuy.skill import Skill, skill
+from tukuy.manifest import PluginManifest, PluginRequirements
+from tukuy.skill import RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
@@ -39,6 +40,16 @@ class PlatformPlugin(CachibotPlugin):
         super().__init__("platform", ctx)
         self._skills_map = self._build_skills()
 
+    @property
+    def manifest(self) -> PluginManifest:
+        return PluginManifest(
+            name="platform",
+            display_name="Platform Connections",
+            icon="globe",
+            group="Integrations",
+            requires=PluginRequirements(network=True),
+        )
+
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
@@ -51,6 +62,9 @@ class PlatformPlugin(CachibotPlugin):
             is_async=True,
             side_effects=True,
             requires_network=True,
+            display_name="Send Telegram Message",
+            icon="send",
+            risk_level=RiskLevel.MODERATE,
         )
         async def telegram_send(chat_id: str, message: str) -> str:
             """Send a message to a Telegram chat.
@@ -73,6 +87,9 @@ class PlatformPlugin(CachibotPlugin):
             is_async=True,
             side_effects=True,
             requires_network=True,
+            display_name="Send Discord Message",
+            icon="message-circle",
+            risk_level=RiskLevel.MODERATE,
         )
         async def discord_send(channel_id: str, message: str) -> str:
             """Send a message to a Discord channel.

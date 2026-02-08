@@ -62,7 +62,7 @@ CachiBot is named after the Venezuelan *cachicamo* (armadillo) - a resilient, ar
 const defaultBot: Bot = {
   id: 'default',
   ...DEFAULT_BOT_SETTINGS,
-  tools: ['file_read', 'file_write', 'python_execute', 'shell_run'],
+  tools: ['file_read', 'file_write', 'file_list', 'file_edit', 'file_info', 'python_execute', 'task_complete'],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 }

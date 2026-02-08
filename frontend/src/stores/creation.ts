@@ -115,7 +115,7 @@ const defaultFormData: BotFormData = {
   color: '#3b82f6',
   model: '',
   systemPrompt: '',
-  tools: ['file_read', 'file_write', 'python_execute'],
+  tools: ['file_read', 'file_write', 'file_list', 'file_edit', 'file_info', 'python_execute', 'task_complete'],
 }
 
 // Store state

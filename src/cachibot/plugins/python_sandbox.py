@@ -2,8 +2,10 @@
 Python sandbox plugin — sandboxed python_execute tool with risk analysis.
 """
 
-from prompture import ApprovalRequired, RiskLevel, analyze_python
-from tukuy.skill import Skill, skill
+from prompture import ApprovalRequired, analyze_python
+from prompture import RiskLevel as PromptureRiskLevel
+from tukuy.manifest import PluginManifest, PluginRequirements
+from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
@@ -14,6 +16,16 @@ class PythonSandboxPlugin(CachibotPlugin):
     def __init__(self, ctx: PluginContext) -> None:
         super().__init__("python_sandbox", ctx)
         self._skills_map = self._build_skills()
+
+    @property
+    def manifest(self) -> PluginManifest:
+        return PluginManifest(
+            name="python_sandbox",
+            display_name="Code Execution",
+            icon="code",
+            group="Core",
+            requires=PluginRequirements(filesystem=True),
+        )
 
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
@@ -28,6 +40,31 @@ class PythonSandboxPlugin(CachibotPlugin):
             tags=["python", "execute", "sandbox"],
             side_effects=True,
             requires_filesystem=True,
+            display_name="Execute Python",
+            icon="code",
+            risk_level=RiskLevel.DANGEROUS,
+            config_params=[
+                ConfigParam(
+                    name="timeoutSeconds",
+                    display_name="Timeout",
+                    type="number",
+                    default=30,
+                    min=5,
+                    max=120,
+                    step=5,
+                    unit="seconds",
+                ),
+                ConfigParam(
+                    name="maxOutputLength",
+                    display_name="Max Output Length",
+                    type="number",
+                    default=10000,
+                    min=1000,
+                    max=50000,
+                    step=1000,
+                    unit="chars",
+                ),
+            ],
         )
         def python_execute(code: str) -> str:
             """Execute Python code safely in a sandbox.
@@ -41,7 +78,7 @@ class PythonSandboxPlugin(CachibotPlugin):
             # Analyze code first
             analysis = analyze_python(code)
 
-            if analysis.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL):
+            if analysis.risk_level in (PromptureRiskLevel.HIGH, PromptureRiskLevel.CRITICAL):
                 raise ApprovalRequired(
                     tool_name="python_execute",
                     action=f"Execute {analysis.risk_level.value}-risk Python code",

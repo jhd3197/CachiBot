@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { X, Save, RotateCcw, Clock, FileText, FolderLock } from 'lucide-react'
+import { X, Save, RotateCcw } from 'lucide-react'
 import { useBotStore } from '../../stores/bots'
-import type { Tool, ToolConfigs, PythonExecuteConfig, FileOperationsConfig, ShellRunConfig } from '../../types'
+import type { Tool, ToolConfigs, ConfigParam } from '../../types'
 import { cn } from '../../lib/utils'
 
 interface ToolConfigDialogProps {
@@ -12,256 +12,174 @@ interface ToolConfigDialogProps {
   onClose: () => void
 }
 
-// Default values for each tool type
-const DEFAULT_PYTHON_CONFIG: PythonExecuteConfig = {
-  timeoutSeconds: 30,
-  maxOutputLength: 10000,
-}
-
-const DEFAULT_FILE_CONFIG: FileOperationsConfig = {
-  maxFileSizeKb: 1024,
-  restrictToWorkspace: true,
-}
-
-const DEFAULT_SHELL_CONFIG: ShellRunConfig = {
-  timeoutSeconds: 30,
+function formatValue(value: unknown, param: ConfigParam): string {
+  if (param.type === 'number' && typeof value === 'number') {
+    if (param.unit === 'chars' && value >= 1000) {
+      return `${(value / 1000).toFixed(0)}k ${param.unit}`
+    }
+    return param.unit ? `${value} ${param.unit}` : String(value)
+  }
+  return String(value)
 }
 
 export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose }: ToolConfigDialogProps) {
   const { updateBot } = useBotStore()
+  const configParams = tool.configParams || []
+  const hasConfig = configParams.length > 0
 
-  // Python execute config state
-  const [pyTimeout, setPyTimeout] = useState(DEFAULT_PYTHON_CONFIG.timeoutSeconds)
-  const [pyMaxOutput, setPyMaxOutput] = useState(DEFAULT_PYTHON_CONFIG.maxOutputLength)
+  // Dynamic state: param name -> current value
+  const [values, setValues] = useState<Record<string, unknown>>({})
 
-  // File operations config state
-  const [fileMaxSize, setFileMaxSize] = useState(DEFAULT_FILE_CONFIG.maxFileSizeKb)
-  const [fileRestrictWorkspace, setFileRestrictWorkspace] = useState(DEFAULT_FILE_CONFIG.restrictToWorkspace)
-
-  // Shell run config state
-  const [shellTimeout, setShellTimeout] = useState(DEFAULT_SHELL_CONFIG.timeoutSeconds)
-
-  // Initialize state from current configs
+  // Initialize values from current configs or defaults
   useEffect(() => {
     if (!isOpen) return
 
-    if (tool.id === 'python_execute') {
-      const cfg = currentConfigs?.python_execute
-      setPyTimeout(cfg?.timeoutSeconds ?? DEFAULT_PYTHON_CONFIG.timeoutSeconds)
-      setPyMaxOutput(cfg?.maxOutputLength ?? DEFAULT_PYTHON_CONFIG.maxOutputLength)
-    } else if (['file_read', 'file_write', 'file_list'].includes(tool.id)) {
-      const cfg = currentConfigs?.[tool.id as keyof ToolConfigs] as FileOperationsConfig | undefined
-      setFileMaxSize(cfg?.maxFileSizeKb ?? DEFAULT_FILE_CONFIG.maxFileSizeKb)
-      setFileRestrictWorkspace(cfg?.restrictToWorkspace ?? DEFAULT_FILE_CONFIG.restrictToWorkspace)
-    } else if (tool.id === 'shell_run') {
-      const cfg = currentConfigs?.shell_run
-      setShellTimeout(cfg?.timeoutSeconds ?? DEFAULT_SHELL_CONFIG.timeoutSeconds)
+    const params = tool.configParams || []
+    const initial: Record<string, unknown> = {}
+    const toolConfig = currentConfigs?.[tool.id]
+
+    for (const param of params) {
+      const saved = toolConfig?.[param.name]
+      initial[param.name] = saved !== undefined ? saved : param.default
     }
-  }, [isOpen, tool.id, currentConfigs])
+
+    setValues(initial)
+  }, [isOpen, tool.id, tool.configParams, currentConfigs])
 
   const handleSave = () => {
     const newConfigs: ToolConfigs = { ...currentConfigs }
-
-    if (tool.id === 'python_execute') {
-      newConfigs.python_execute = {
-        timeoutSeconds: pyTimeout,
-        maxOutputLength: pyMaxOutput,
-      }
-    } else if (['file_read', 'file_write', 'file_list'].includes(tool.id)) {
-      const fileConfig: FileOperationsConfig = {
-        maxFileSizeKb: fileMaxSize,
-        restrictToWorkspace: fileRestrictWorkspace,
-      }
-      newConfigs[tool.id as 'file_read' | 'file_write' | 'file_list'] = fileConfig
-    } else if (tool.id === 'shell_run') {
-      newConfigs.shell_run = {
-        timeoutSeconds: shellTimeout,
-      }
-    }
-
+    newConfigs[tool.id] = { ...values }
     updateBot(botId, { toolConfigs: newConfigs })
     onClose()
   }
 
   const handleReset = () => {
-    if (tool.id === 'python_execute') {
-      setPyTimeout(DEFAULT_PYTHON_CONFIG.timeoutSeconds)
-      setPyMaxOutput(DEFAULT_PYTHON_CONFIG.maxOutputLength)
-    } else if (['file_read', 'file_write', 'file_list'].includes(tool.id)) {
-      setFileMaxSize(DEFAULT_FILE_CONFIG.maxFileSizeKb)
-      setFileRestrictWorkspace(DEFAULT_FILE_CONFIG.restrictToWorkspace)
-    } else if (tool.id === 'shell_run') {
-      setShellTimeout(DEFAULT_SHELL_CONFIG.timeoutSeconds)
+    const defaults: Record<string, unknown> = {}
+    for (const param of configParams) {
+      defaults[param.name] = param.default
     }
+    setValues(defaults)
+  }
+
+  const updateValue = (name: string, value: unknown) => {
+    setValues((prev) => ({ ...prev, [name]: value }))
   }
 
   if (!isOpen) return null
 
-  const renderPythonExecuteConfig = () => (
-    <div className="space-y-6">
-      {/* Timeout */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Clock className="h-4 w-4 text-zinc-500" />
-            Timeout
-          </label>
-          <span className="text-sm text-zinc-400">{pyTimeout}s</span>
-        </div>
-        <input
-          type="range"
-          min={5}
-          max={120}
-          step={5}
-          value={pyTimeout}
-          onChange={(e) => setPyTimeout(Number(e.target.value))}
-          className="w-full accent-cachi-500"
-        />
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>5s</span>
-          <span>120s</span>
-        </div>
-        <p className="text-xs text-zinc-500">
-          Maximum execution time before the code is terminated.
-        </p>
-      </div>
+  const renderParam = (param: ConfigParam) => {
+    const value = values[param.name]
 
-      {/* Max output */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <FileText className="h-4 w-4 text-zinc-500" />
-            Max Output Length
-          </label>
-          <span className="text-sm text-zinc-400">{(pyMaxOutput / 1000).toFixed(0)}k chars</span>
-        </div>
-        <input
-          type="range"
-          min={1000}
-          max={50000}
-          step={1000}
-          value={pyMaxOutput}
-          onChange={(e) => setPyMaxOutput(Number(e.target.value))}
-          className="w-full accent-cachi-500"
-        />
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>1k</span>
-          <span>50k</span>
-        </div>
-        <p className="text-xs text-zinc-500">
-          Maximum characters of output to capture from code execution.
-        </p>
-      </div>
-    </div>
-  )
-
-  const renderFileOperationsConfig = () => (
-    <div className="space-y-6">
-      {/* Max file size */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <FileText className="h-4 w-4 text-zinc-500" />
-            Max File Size
-          </label>
-          <span className="text-sm text-zinc-400">{fileMaxSize} KB</span>
-        </div>
-        <input
-          type="range"
-          min={64}
-          max={10240}
-          step={64}
-          value={fileMaxSize}
-          onChange={(e) => setFileMaxSize(Number(e.target.value))}
-          className="w-full accent-cachi-500"
-        />
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>64 KB</span>
-          <span>10 MB</span>
-        </div>
-        <p className="text-xs text-zinc-500">
-          Maximum file size that can be read or written.
-        </p>
-      </div>
-
-      {/* Restrict to workspace */}
-      <div className="flex items-center justify-between rounded-lg border border-zinc-800 p-4">
-        <div className="flex items-center gap-3">
-          <FolderLock className="h-5 w-5 text-zinc-400" />
-          <div>
-            <h4 className="text-sm font-medium text-zinc-200">Restrict to Workspace</h4>
-            <p className="text-xs text-zinc-500">Only allow operations within the workspace folder</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setFileRestrictWorkspace(!fileRestrictWorkspace)}
-          className={cn(
-            'relative h-6 w-11 rounded-full transition-colors',
-            fileRestrictWorkspace ? 'bg-cachi-600' : 'bg-zinc-700'
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform',
-              fileRestrictWorkspace ? 'left-[22px]' : 'left-0.5'
-            )}
-          />
-        </button>
-      </div>
-    </div>
-  )
-
-  const renderShellRunConfig = () => (
-    <div className="space-y-6">
-      {/* Timeout */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Clock className="h-4 w-4 text-zinc-500" />
-            Timeout
-          </label>
-          <span className="text-sm text-zinc-400">{shellTimeout}s</span>
-        </div>
-        <input
-          type="range"
-          min={5}
-          max={120}
-          step={5}
-          value={shellTimeout}
-          onChange={(e) => setShellTimeout(Number(e.target.value))}
-          className="w-full accent-cachi-500"
-        />
-        <div className="flex justify-between text-xs text-zinc-500">
-          <span>5s</span>
-          <span>120s</span>
-        </div>
-        <p className="text-xs text-zinc-500">
-          Maximum execution time before the shell command is terminated.
-        </p>
-      </div>
-    </div>
-  )
-
-  const renderConfigForm = () => {
-    switch (tool.id) {
-      case 'python_execute':
-        return renderPythonExecuteConfig()
-      case 'file_read':
-      case 'file_write':
-      case 'file_list':
-        return renderFileOperationsConfig()
-      case 'shell_run':
-        return renderShellRunConfig()
-      default:
+    switch (param.type) {
+      case 'number': {
+        const numValue = typeof value === 'number' ? value : (param.default as number) ?? 0
         return (
-          <div className="py-8 text-center text-zinc-500">
-            No configuration options available for this tool.
+          <div key={param.name} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-zinc-300">
+                {param.displayName || param.name}
+              </label>
+              <span className="text-sm text-zinc-400">{formatValue(numValue, param)}</span>
+            </div>
+            <input
+              type="range"
+              min={param.min ?? 0}
+              max={param.max ?? 100}
+              step={param.step ?? 1}
+              value={numValue}
+              onChange={(e) => updateValue(param.name, Number(e.target.value))}
+              className="w-full accent-cachi-500"
+            />
+            <div className="flex justify-between text-xs text-zinc-500">
+              <span>{formatValue(param.min ?? 0, param)}</span>
+              <span>{formatValue(param.max ?? 100, param)}</span>
+            </div>
+            {param.description && (
+              <p className="text-xs text-zinc-500">{param.description}</p>
+            )}
           </div>
         )
+      }
+
+      case 'boolean': {
+        const boolValue = typeof value === 'boolean' ? value : Boolean(param.default)
+        return (
+          <div key={param.name} className="flex items-center justify-between rounded-lg border border-zinc-800 p-4">
+            <div>
+              <h4 className="text-sm font-medium text-zinc-200">
+                {param.displayName || param.name}
+              </h4>
+              {param.description && (
+                <p className="text-xs text-zinc-500">{param.description}</p>
+              )}
+            </div>
+            <button
+              onClick={() => updateValue(param.name, !boolValue)}
+              className={cn(
+                'relative h-6 w-11 rounded-full transition-colors',
+                boolValue ? 'bg-cachi-600' : 'bg-zinc-700'
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform',
+                  boolValue ? 'left-[22px]' : 'left-0.5'
+                )}
+              />
+            </button>
+          </div>
+        )
+      }
+
+      case 'select': {
+        const strValue = String(value ?? param.default ?? '')
+        return (
+          <div key={param.name} className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">
+              {param.displayName || param.name}
+            </label>
+            <select
+              value={strValue}
+              onChange={(e) => updateValue(param.name, e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cachi-500"
+            >
+              {(param.options || []).map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+            {param.description && (
+              <p className="text-xs text-zinc-500">{param.description}</p>
+            )}
+          </div>
+        )
+      }
+
+      case 'string': {
+        const strValue = String(value ?? param.default ?? '')
+        return (
+          <div key={param.name} className="space-y-2">
+            <label className="text-sm font-medium text-zinc-300">
+              {param.displayName || param.name}
+            </label>
+            <input
+              type="text"
+              value={strValue}
+              onChange={(e) => updateValue(param.name, e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-cachi-500"
+            />
+            {param.description && (
+              <p className="text-xs text-zinc-500">{param.description}</p>
+            )}
+          </div>
+        )
+      }
+
+      default:
+        return null
     }
   }
-
-  const hasConfig = ['python_execute', 'file_read', 'file_write', 'file_list', 'shell_run'].includes(tool.id)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -282,7 +200,15 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
 
         {/* Content */}
         <div className="p-4">
-          {renderConfigForm()}
+          {hasConfig ? (
+            <div className="space-y-6">
+              {configParams.map(renderParam)}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-zinc-500">
+              No configuration options available for this tool.
+            </div>
+          )}
         </div>
 
         {/* Footer */}

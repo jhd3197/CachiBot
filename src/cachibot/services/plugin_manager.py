@@ -2,11 +2,20 @@
 Plugin Manager Service
 
 Bridges Tukuy plugins to Prompture's ToolRegistry, gated by bot capabilities.
+Includes both CachiBot custom plugins and Tukuy's built-in plugins
+(scoped via SecurityContext).
 """
 
 from __future__ import annotations
 
 from prompture import ToolRegistry
+from tukuy.plugins.base import TransformerPlugin
+from tukuy.plugins.compression import CompressionPlugin
+from tukuy.plugins.git import GitPlugin
+from tukuy.plugins.http import HttpPlugin
+from tukuy.plugins.shell import ShellPlugin
+from tukuy.plugins.sql import SqlPlugin
+from tukuy.plugins.web import WebPlugin
 
 from cachibot.plugins import (
     CachibotPlugin,
@@ -18,26 +27,35 @@ from cachibot.plugins import (
     WorkManagementPlugin,
 )
 
+# Type alias: plugins can be CachiBot custom or Tukuy built-in
+PluginClass = type[CachibotPlugin] | type[TransformerPlugin]
+
 # Mapping of capability names to plugin classes they gate
-CAPABILITY_PLUGINS: dict[str, list[type[CachibotPlugin]]] = {
+CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "fileOperations": [FileOpsPlugin],
     "codeExecution": [PythonSandboxPlugin],
+    "gitOperations": [GitPlugin],
+    "shellAccess": [ShellPlugin],
+    "webAccess": [WebPlugin, HttpPlugin],
+    "dataOperations": [SqlPlugin, CompressionPlugin],
     "connections": [PlatformPlugin],
     "workManagement": [WorkManagementPlugin],
 }
 
 # Plugins that are always enabled regardless of capabilities
-ALWAYS_ENABLED: list[type[CachibotPlugin]] = [TaskPlugin]
+ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin]
 
 
-def plugins_to_registry(plugins: list[CachibotPlugin]) -> ToolRegistry:
+def plugins_to_registry(
+    plugins: list[CachibotPlugin | TransformerPlugin],
+) -> ToolRegistry:
     """Bridge Tukuy skills to a Prompture ToolRegistry.
 
     Each skill's underlying function is registered directly,
     since Prompture infers name/description from the callable.
 
     Args:
-        plugins: Instantiated CachiBot plugins
+        plugins: Instantiated plugins (CachiBot custom or Tukuy built-in)
 
     Returns:
         Populated ToolRegistry
@@ -45,7 +63,7 @@ def plugins_to_registry(plugins: list[CachibotPlugin]) -> ToolRegistry:
     registry = ToolRegistry()
     for plugin in plugins:
         for _name, skill_obj in plugin.skills.items():
-            registry.register(skill_obj.fn)
+            registry.add_tukuy_skill(skill_obj)
     return registry
 
 
@@ -70,7 +88,7 @@ def build_registry(
 def get_enabled_plugins(
     ctx: PluginContext,
     capabilities: dict | None = None,
-) -> list[CachibotPlugin]:
+) -> list[CachibotPlugin | TransformerPlugin]:
     """Get the list of instantiated plugins for given capabilities.
 
     Useful for introspection (e.g. the /api/plugins endpoint).
@@ -88,9 +106,9 @@ def get_enabled_plugins(
 def _instantiate_plugins(
     ctx: PluginContext,
     capabilities: dict | None,
-) -> list[CachibotPlugin]:
+) -> list[CachibotPlugin | TransformerPlugin]:
     """Instantiate the correct set of plugins based on capabilities."""
-    plugin_classes: list[type[CachibotPlugin]] = list(ALWAYS_ENABLED)
+    plugin_classes: list[PluginClass] = list(ALWAYS_ENABLED)
 
     if capabilities is None:
         # Legacy/CLI mode: all plugins enabled
@@ -102,11 +120,18 @@ def _instantiate_plugins(
                 plugin_classes.extend(classes)
 
     # Deduplicate while preserving order
-    seen: set[type[CachibotPlugin]] = set()
-    unique: list[type[CachibotPlugin]] = []
+    seen: set[PluginClass] = set()
+    unique: list[PluginClass] = []
     for cls in plugin_classes:
         if cls not in seen:
             seen.add(cls)
             unique.append(cls)
 
-    return [cls(ctx) for cls in unique]
+    result: list[CachibotPlugin | TransformerPlugin] = []
+    for cls in unique:
+        if issubclass(cls, CachibotPlugin):
+            result.append(cls(ctx))
+        else:
+            # Tukuy built-in plugin: no context needed, SecurityContext handles scoping
+            result.append(cls())
+    return result
