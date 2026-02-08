@@ -699,7 +699,6 @@ class CachibotAgent:
         )
 
         # Create agent
-        # Note: temperature is configured at the model/provider level, not Agent level
         self._agent = PromptureAgent(
             model=self.config.agent.model,
             tools=self.registry,
@@ -707,6 +706,10 @@ class CachibotAgent:
             agent_callbacks=callbacks,
             max_iterations=self.config.agent.max_iterations,
             persistent_conversation=True,
+            options={
+                "temperature": self.config.agent.temperature,
+                "max_tokens": self.config.agent.max_tokens,
+            },
         )
 
     def _get_system_prompt(self) -> str:
