@@ -27,6 +27,9 @@ class BotCapabilities(BaseModel):
     # Platform connections (telegram_send, discord_send tools)
     connections: bool = False
 
+    # Work management (work_create, work_list, work_update, todo_create, todo_list, todo_done)
+    workManagement: bool = True
+
 
 class Contact(BaseModel):
     """A contact entry for a bot."""

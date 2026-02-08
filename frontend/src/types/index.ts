@@ -105,11 +105,12 @@ export type BotIcon =
 
 // Capability toggles per bot
 export interface BotCapabilities {
-  webSearch: boolean      // web_search, web_fetch tools (not yet implemented)
-  codeExecution: boolean  // python_execute tool
-  fileOperations: boolean // file_read, file_write, file_list, file_edit tools
-  contacts: boolean       // Access to contacts in system prompt context
-  connections: boolean    // telegram_send, discord_send tools
+  webSearch: boolean        // web_search, web_fetch tools (not yet implemented)
+  codeExecution: boolean    // python_execute tool
+  fileOperations: boolean   // file_read, file_write, file_list, file_edit, file_info tools
+  contacts: boolean         // Access to contacts in system prompt context
+  connections: boolean      // telegram_send, discord_send tools
+  workManagement: boolean   // work_create, work_list, work_update, todo_create, todo_list, todo_done
 }
 
 export interface Bot {
@@ -514,6 +515,31 @@ export interface SkillDefinition {
   instructions: string
   source: SkillSource
   filepath?: string
+}
+
+// =============================================================================
+// PLUGIN TYPES
+// =============================================================================
+
+export interface PluginInfo {
+  name: string
+  class: string
+  capability: string | null    // null = always enabled
+  alwaysEnabled: boolean
+  skills: string[]
+}
+
+export interface PluginSkillInfo {
+  name: string
+  description: string
+  category: string
+  tags: string[]
+  version: string
+  isAsync: boolean
+  idempotent: boolean
+  sideEffects: boolean
+  requiresNetwork: boolean
+  requiresFilesystem: boolean
 }
 
 // =============================================================================

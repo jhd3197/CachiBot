@@ -19,54 +19,11 @@ from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
 from cachibot.models.knowledge import BotMessage
-from cachibot.models.skill import SkillDefinition
 from cachibot.models.websocket import WSMessage, WSMessageType
 from cachibot.services.context_builder import get_context_builder
 from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
 
 router = APIRouter()
-
-# Mapping of capabilities to their associated tool names
-CAPABILITY_TOOLS: dict[str, list[str]] = {
-    "fileOperations": ["file_read", "file_write", "file_list", "file_edit"],
-    "codeExecution": ["python_execute"],
-    "webSearch": ["web_search", "web_fetch"],  # Not yet implemented, but ready
-    "connections": ["telegram_send", "discord_send"],
-}
-
-
-def get_allowed_tools(
-    capabilities: dict | None,
-    enabled_skills: list[SkillDefinition] | None = None,
-) -> set[str]:
-    """
-    Determine which tools are allowed based on capability toggles and skills.
-
-    Args:
-        capabilities: Dict of capability name -> boolean (e.g., {'codeExecution': True})
-        enabled_skills: List of enabled skill definitions (for requires_tools)
-
-    Returns:
-        Set of allowed tool names (always includes 'task_complete')
-    """
-    allowed = {"task_complete"}  # Always available
-
-    if capabilities is None:
-        # No capabilities provided = legacy behavior (all tools allowed)
-        for tools in CAPABILITY_TOOLS.values():
-            allowed.update(tools)
-    else:
-        for cap_name, tool_names in CAPABILITY_TOOLS.items():
-            if capabilities.get(cap_name, False):
-                allowed.update(tool_names)
-
-    # Add tools required by enabled skills
-    if enabled_skills:
-        for skill in enabled_skills:
-            if skill.requires_tools:
-                allowed.update(skill.requires_tools)
-
-    return allowed
 
 
 class ConnectionManager:
@@ -226,20 +183,17 @@ async def websocket_endpoint(
                         logger.warning(f"Context building failed: {e}")
                         enhanced_prompt = system_prompt
 
-                # Determine allowed tools based on capabilities and skills
-                allowed_tools = get_allowed_tools(capabilities, enabled_skills)
-
-                # Merge bot_id into tool_configs for platform tools
+                # Merge tool_configs
                 merged_tool_configs = dict(tool_configs) if tool_configs else {}
-                if bot_id:
-                    merged_tool_configs["platform_bot_id"] = bot_id
 
                 # Create fresh agent with current systemPrompt
-                # (user may switch between bots with different personalities)
+                # Capabilities are passed directly; the plugin system
+                # handles mapping capabilities to tools.
                 agent = CachibotAgent(
                     config=config,
                     system_prompt_override=enhanced_prompt,
-                    allowed_tools=allowed_tools,
+                    capabilities=capabilities,
+                    bot_id=bot_id,
                     tool_configs=merged_tool_configs,
                     on_approval_needed=on_approval,
                 )
