@@ -8,7 +8,7 @@ workspace-scoped, capability-gated tool architecture.
 from dataclasses import dataclass, field
 from typing import Any
 
-from prompture import PythonSandbox
+from tukuy import PythonSandbox
 from tukuy.plugins.base import TransformerPlugin
 
 from cachibot.config import Config

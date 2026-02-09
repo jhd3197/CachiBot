@@ -70,6 +70,9 @@ class AgentConfig:
 
     # Default to Kimi K2.5 via Moonshot
     model: str = "moonshot/kimi-k2.5"
+    # Cheap/fast model for utility tasks (name gen, questions).
+    # Falls back to main model if empty.
+    utility_model: str = ""
     max_iterations: int = 20
     approve_actions: bool = False
     temperature: float = 0.6  # Moonshot recommends 0.6 for instant mode
@@ -190,6 +193,10 @@ class Config:
         if model := os.getenv("CACHIBOT_MODEL"):
             self.agent.model = model
 
+        # Utility model (cheap/fast for name gen, questions, etc.)
+        if utility_model := os.getenv("CACHIBOT_UTILITY_MODEL"):
+            self.agent.utility_model = utility_model
+
         # Approval mode
         if os.getenv("CACHIBOT_APPROVE", "").lower() in ("1", "true", "yes"):
             self.agent.approve_actions = True
@@ -267,6 +274,8 @@ class Config:
                 self.agent.temperature = agent_data["temperature"]
             if "max_tokens" in agent_data:
                 self.agent.max_tokens = agent_data["max_tokens"]
+            if "utility_model" in agent_data:
+                self.agent.utility_model = agent_data["utility_model"]
 
         if sandbox_data := data.get("sandbox"):
             if "allowed_imports" in sandbox_data:

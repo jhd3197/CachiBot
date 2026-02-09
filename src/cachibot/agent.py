@@ -12,9 +12,9 @@ from typing import Any
 from prompture import (
     AgentCallbacks,
     AgentResult,
-    PythonSandbox,
     ToolRegistry,
 )
+from tukuy import PythonSandbox
 from prompture import (
     AsyncAgent as PromptureAgent,
 )

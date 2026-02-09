@@ -6,6 +6,10 @@
 # Options: moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514, openai/gpt-4o, ollama/llama3.1:8b
 model = "moonshot/kimi-k2.5"
 
+# Cheap/fast model for utility tasks (name generation, follow-up questions)
+# Falls back to the main model if empty
+# utility_model = "anthropic/claude-3-5-haiku-20241022"
+
 # Maximum agent iterations per request
 max_iterations = 20
 

@@ -46,6 +46,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
+import { useOnboardingStore } from '../../stores/onboarding'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
@@ -306,7 +307,39 @@ function GeneralSettings({
           </div>
         </div>
       </Section>
+
+      <SetupWizardButton />
     </>
+  )
+}
+
+function SetupWizardButton() {
+  const { open } = useOnboardingStore()
+
+  const handleRunWizard = () => {
+    // Reset the flag so the wizard can run again, then open it
+    useOnboardingStore.setState({ hasCompletedOnboarding: false })
+    open()
+  }
+
+  return (
+    <Section icon={RefreshCw} title="Setup">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Run Setup Wizard</h4>
+          <p className="text-sm text-zinc-500">
+            Re-run the initial setup to configure API keys, models, and preferences
+          </p>
+        </div>
+        <button
+          onClick={handleRunWizard}
+          className="flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Run Wizard
+        </button>
+      </div>
+    </Section>
   )
 }
 

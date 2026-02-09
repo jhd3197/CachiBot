@@ -1063,6 +1063,7 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
+  const [showToolCalls, setShowToolCalls] = useState(false)
   const { accentColor } = useUIStore()
   const userColor = accentColors[accentColor].palette[600]
 
@@ -1110,6 +1111,32 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
             <div className="whitespace-pre-wrap">{message.content}</div>
           ) : (
             <MarkdownRenderer content={message.content} />
+          )}
+
+          {/* Tool calls collapsible section */}
+          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowToolCalls(!showToolCalls)}
+                className="flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                <Zap className="h-3 w-3" />
+                <span>{message.toolCalls.length} tool action{message.toolCalls.length > 1 ? 's' : ''}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-3 w-3 transition-transform',
+                    showToolCalls && 'rotate-180'
+                  )}
+                />
+              </button>
+              {showToolCalls && (
+                <div className="mt-2 space-y-1.5">
+                  {message.toolCalls.map((call) => (
+                    <MessageToolCallItem key={call.id} call={call} />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Usage info popover */}
@@ -1177,6 +1204,18 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
             {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Copy'}
           </button>
+          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+            <button
+              onClick={() => setShowToolCalls(!showToolCalls)}
+              className={cn(
+                "flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300",
+                showToolCalls && "bg-zinc-800 text-zinc-300"
+              )}
+            >
+              <Code className="h-3 w-3" />
+              Tools ({message.toolCalls.length})
+            </button>
+          )}
           {hasMetadata && (
             <button
               onClick={() => setShowInfo(!showInfo)}
@@ -1202,7 +1241,62 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 }
 
 // =============================================================================
-// TOOL CALL DISPLAY
+// MESSAGE TOOL CALL ITEM (Inline, compact version for completed messages)
+// =============================================================================
+
+function MessageToolCallItem({ call }: { call: ToolCall }) {
+  const [expanded, setExpanded] = useState(false)
+  const isSuccess = call.success !== false
+
+  return (
+    <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs"
+      >
+        {isSuccess ? (
+          <CheckCircle className="h-3 w-3 flex-shrink-0 text-green-400" />
+        ) : (
+          <XCircle className="h-3 w-3 flex-shrink-0 text-red-400" />
+        )}
+        <Code className="h-3 w-3 flex-shrink-0 text-zinc-500" />
+        <span className="flex-1 font-mono text-zinc-300 truncate">{call.tool}</span>
+        <ChevronDown
+          className={cn(
+            'h-3 w-3 flex-shrink-0 text-zinc-500 transition-transform',
+            expanded && 'rotate-180'
+          )}
+        />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-zinc-700/50 px-3 py-2">
+          <div className="space-y-2 font-mono text-xs">
+            <div>
+              <span className="text-zinc-500">Arguments:</span>
+              <pre className="mt-1 overflow-x-auto rounded bg-zinc-950 p-1.5 text-zinc-300">
+                {JSON.stringify(call.args, null, 2)}
+              </pre>
+            </div>
+            {call.result !== undefined && (
+              <div>
+                <span className="text-zinc-500">Result:</span>
+                <pre className="mt-1 max-h-32 overflow-auto rounded bg-zinc-950 p-1.5 text-zinc-300">
+                  {typeof call.result === 'string'
+                    ? call.result
+                    : JSON.stringify(call.result, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// TOOL CALL DISPLAY (Active/streaming tool calls)
 // =============================================================================
 
 function ToolCallDisplay({ call }: { call: ToolCall }) {

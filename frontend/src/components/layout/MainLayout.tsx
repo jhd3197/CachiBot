@@ -17,10 +17,13 @@ import {
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
+import { OnboardingWizard } from '../dialogs/OnboardingWizard'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
+import { useProvidersStore } from '../../stores/providers'
+import { useOnboardingStore } from '../../stores/onboarding'
 import { getConfig } from '../../api/client'
 import type { AppView, BotView, Config } from '../../types'
 
@@ -60,6 +63,8 @@ export function MainLayout() {
   const { theme, accentColor, mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { setConfig } = useConfigStore()
   const { refresh: refreshModels } = useModelsStore()
+  const { providers, refresh: refreshProviders } = useProvidersStore()
+  const { hasCompletedOnboarding, open: openOnboarding } = useOnboardingStore()
 
   // Derive appView from URL path
   const appView = getAppViewFromPath(location.pathname)
@@ -188,7 +193,23 @@ export function MainLayout() {
 
     loadInitialData()
     refreshModels()
-  }, [setConfig, refreshModels])
+    refreshProviders()
+  }, [setConfig, refreshModels, refreshProviders])
+
+  // Onboarding detection: show wizard for first-time users with no API keys
+  useEffect(() => {
+    if (hasCompletedOnboarding) return
+    // Wait until providers have loaded
+    if (providers.length === 0) return
+
+    const hasConfigured = providers.some((p) => p.configured)
+    if (hasConfigured) {
+      // Existing user upgrading — silently mark as completed
+      useOnboardingStore.getState().completeOnboarding()
+    } else {
+      openOnboarding()
+    }
+  }, [hasCompletedOnboarding, providers, openOnboarding])
 
   const renderActiveView = () => {
     // App-level views take precedence (determined by URL)
@@ -279,6 +300,7 @@ export function MainLayout() {
       <CreateBotDialog />
       <SettingsDialog />
       <ApprovalDialog onApprove={() => {}} />
+      <OnboardingWizard />
     </div>
   )
 }
