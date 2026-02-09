@@ -73,6 +73,12 @@ class UsagePayload(BaseModel):
     completion_tokens: int = Field(default=0)
     total_cost: float = Field(default=0.0)
     iterations: int = Field(default=0)
+    elapsed_ms: float = Field(default=0.0)
+    tokens_per_second: float = Field(default=0.0)
+    call_count: int = Field(default=0)
+    errors: int = Field(default=0)
+    per_model: dict = Field(default_factory=dict)
+    latency_stats: dict = Field(default_factory=dict)
 
 
 class ErrorPayload(BaseModel):
@@ -135,6 +141,10 @@ class WSMessage(BaseModel):
         completion_tokens: int = 0,
         elapsed_ms: float = 0.0,
         tokens_per_second: float = 0.0,
+        call_count: int = 0,
+        errors: int = 0,
+        per_model: dict | None = None,
+        latency_stats: dict | None = None,
     ) -> "WSMessage":
         """Create a usage message."""
         return cls(
@@ -147,6 +157,10 @@ class WSMessage(BaseModel):
                 "iterations": iterations,
                 "elapsedMs": elapsed_ms,
                 "tokensPerSecond": tokens_per_second,
+                "callCount": call_count,
+                "errors": errors,
+                "perModel": per_model or {},
+                "latencyStats": latency_stats or {},
             },
         )
 

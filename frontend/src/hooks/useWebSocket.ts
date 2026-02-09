@@ -193,6 +193,10 @@ export function useWebSocket() {
               iterations: payload.iterations,
               elapsedMs: payload.elapsedMs,
               tokensPerSecond: payload.tokensPerSecond,
+              callCount: payload.callCount,
+              errors: payload.errors,
+              perModel: payload.perModel,
+              latencyStats: payload.latencyStats,
             })
           }
           break
