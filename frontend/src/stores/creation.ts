@@ -132,6 +132,9 @@ interface CreationState {
   isGenerating: boolean
   generationError: string | null
 
+  // Names already shown (to avoid duplicates on refresh)
+  excludedNames: string[]
+
   // Preview chat state
   previewMessages: Array<{ role: 'user' | 'assistant'; content: string }>
   isPreviewLoading: boolean
@@ -159,6 +162,7 @@ interface CreationState {
   // Name picker
   setNameSuggestions: (names: NameSuggestion[]) => void
   selectName: (name: string, meaning: string) => void
+  getExcludedNames: () => string[]
 
   // Follow-up questions
   setFollowUpQuestions: (questions: FollowUpQuestion[]) => void
@@ -212,6 +216,7 @@ export const useCreationStore = create<CreationState>((set, get) => ({
   form: { ...defaultFormData },
   isGenerating: false,
   generationError: null,
+  excludedNames: [],
   previewMessages: [],
   isPreviewLoading: false,
 
@@ -228,6 +233,7 @@ export const useCreationStore = create<CreationState>((set, get) => ({
       form: { ...defaultFormData },
       isGenerating: false,
       generationError: null,
+      excludedNames: [],
       previewMessages: [],
       isPreviewLoading: false,
     }),
@@ -294,12 +300,18 @@ export const useCreationStore = create<CreationState>((set, get) => ({
 
   // Name picker
   setNameSuggestions: (names) =>
-    set((state) => ({
-      form: {
-        ...state.form,
-        nameSuggestions: names,
-      },
-    })),
+    set((state) => {
+      // Add current suggestions to excluded list before replacing
+      const currentNames = state.form.nameSuggestions.map((s) => s.name)
+      const newExcluded = [...new Set([...state.excludedNames, ...currentNames])]
+      return {
+        excludedNames: newExcluded,
+        form: {
+          ...state.form,
+          nameSuggestions: names,
+        },
+      }
+    }),
 
   selectName: (name, meaning) =>
     set((state) => ({
@@ -309,6 +321,12 @@ export const useCreationStore = create<CreationState>((set, get) => ({
         selectedNameMeaning: meaning,
       },
     })),
+
+  getExcludedNames: () => {
+    const state = get()
+    const currentNames = state.form.nameSuggestions.map((s) => s.name)
+    return [...new Set([...state.excludedNames, ...currentNames])]
+  },
 
   // Follow-up questions
   setFollowUpQuestions: (questions) =>

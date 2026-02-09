@@ -543,7 +543,7 @@ export interface ConfigParam {
   name: string
   displayName: string | null
   description: string | null
-  type: 'number' | 'string' | 'boolean' | 'select'
+  type: 'number' | 'string' | 'boolean' | 'select' | 'string[]' | 'number[]' | 'secret' | 'text' | 'path' | 'map' | 'multiselect' | 'url' | 'code'
   default: unknown
   min?: number
   max?: number
@@ -551,6 +551,21 @@ export interface ConfigParam {
   options?: string[]
   unit?: string
   scope: 'global' | 'per_bot' | 'per_call'
+  // Array types (string[], number[])
+  minItems?: number
+  maxItems?: number
+  itemPlaceholder?: string
+  // Secret, text, path types
+  placeholder?: string
+  // Text type
+  rows?: number
+  // Path type
+  pathType?: 'file' | 'directory' | 'any'
+  // Map type
+  keyPlaceholder?: string
+  valuePlaceholder?: string
+  // Code type
+  language?: string
 }
 
 // =============================================================================
