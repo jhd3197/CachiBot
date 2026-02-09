@@ -1,17 +1,42 @@
 """Bot creation service with AI-assisted prompt generation."""
 
 import logging
-from typing import Literal
+from typing import Any, Literal
 
-from prompture import extract_with_model
+from prompture.aio import extract_with_model
 from pydantic import BaseModel, Field
 
 from cachibot.config import Config
 
 logger = logging.getLogger(__name__)
 
-# Default model for generation - use a reliable model for structured output
-DEFAULT_MODEL = "anthropic/claude-3-5-haiku-20241022"
+
+async def _extract_with_retry(
+    model_cls: type[BaseModel],
+    text: str,
+    model_name: str,
+    instruction_template: str,
+    max_retries: int = 2,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Call extract_with_model with manual retries."""
+    last_error: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            return await extract_with_model(
+                model_cls,
+                text,
+                model_name,
+                instruction_template=instruction_template,
+                **kwargs,
+            )
+        except Exception as e:
+            last_error = e
+            logger.warning(
+                "Extraction attempt %d/%d failed: %s",
+                attempt + 1, max_retries, e,
+            )
+    raise last_error  # type: ignore[misc]
 
 
 class FollowUpQuestion(BaseModel):
@@ -95,6 +120,24 @@ class PreviewResponse(BaseModel):
     )
 
 
+def _resolve_utility_model() -> str:
+    """Resolve the model to use for utility tasks."""
+    try:
+        config = Config.load()
+        return config.agent.utility_model or config.agent.model
+    except Exception:
+        return "moonshot/kimi-k2.5"
+
+
+def _resolve_main_model() -> str:
+    """Resolve the main model for generation tasks."""
+    try:
+        config = Config.load()
+        return config.agent.model
+    except Exception:
+        return "moonshot/kimi-k2.5"
+
+
 # Category-specific question templates as fallbacks
 CATEGORY_QUESTIONS = {
     "fitness": [
@@ -172,11 +215,7 @@ async def generate_follow_up_questions(
         List of 3 follow-up questions
     """
     if model is None:
-        try:
-            config = Config.load()
-            model = config.agent.model
-        except Exception:
-            model = DEFAULT_MODEL
+        model = _resolve_utility_model()
 
     prompt_text = f"""Generate 3 follow-up questions to better understand what the user wants from their AI assistant.
 
@@ -213,15 +252,17 @@ Generate exactly 3 questions that will help customize this bot perfectly for the
         ),
     ])
 
-    result = extract_with_model(
-        FollowUpQuestions,
-        prompt_text,
-        model,
-        instruction_template=instruction,
-        max_retries=3,
-        fallback=FollowUpQuestions(questions=fallback_questions),
-    )
-    return result.model.questions[:3]
+    try:
+        result = await _extract_with_retry(
+            FollowUpQuestions,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model.questions[:3]
+    except Exception:
+        logger.exception("Follow-up question generation failed, using fallbacks")
+        return fallback_questions
 
 
 async def generate_system_prompt_full(
@@ -239,11 +280,7 @@ async def generate_system_prompt_full(
         Generated system prompt
     """
     if model is None:
-        try:
-            config = Config.load()
-            model = config.agent.model
-        except Exception:
-            model = DEFAULT_MODEL
+        model = _resolve_main_model()
 
     emoji_instruction = {
         "yes": "Use emojis liberally to express emotions and emphasize points.",
@@ -307,19 +344,21 @@ You specialize in {context.purpose_category} and are here to help with specific 
 - Remember the user's preferences and adapt accordingly
 - Be honest about limitations"""
 
-    result = extract_with_model(
-        GeneratedPrompt,
-        prompt_text,
-        model,
-        instruction_template=instruction,
-        max_retries=3,
-        fallback=GeneratedPrompt(
+    try:
+        result = await _extract_with_retry(
+            GeneratedPrompt,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model
+    except Exception:
+        logger.warning("System prompt generation failed, using fallback")
+        return GeneratedPrompt(
             system_prompt=fallback_prompt,
             suggested_name=context.name,
             suggested_description=f"Your personal {context.purpose_category} assistant",
-        ),
-    )
-    return result.model
+        )
 
 
 async def generate_system_prompt(
@@ -337,11 +376,7 @@ async def generate_system_prompt(
         Generated system prompt with suggestions
     """
     if model is None:
-        try:
-            config = Config.load()
-            model = config.agent.model
-        except Exception:
-            model = DEFAULT_MODEL
+        model = _resolve_main_model()
 
     emoji_instruction = {
         "yes": "Use emojis liberally to express emotions and emphasize points.",
@@ -379,19 +414,21 @@ Also suggest a creative name (1-2 words) and a one-line description for this bot
         f"Communicate in a {personality.communication_style} manner."
     )
 
-    result = extract_with_model(
-        GeneratedPrompt,
-        prompt_text,
-        model,
-        instruction_template=instruction,
-        max_retries=3,
-        fallback=GeneratedPrompt(
+    try:
+        result = await _extract_with_retry(
+            GeneratedPrompt,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model
+    except Exception:
+        logger.warning("System prompt generation failed, using fallback")
+        return GeneratedPrompt(
             system_prompt=basic_prompt,
             suggested_name="Assistant",
             suggested_description=personality.purpose_description[:100],
-        ),
-    )
-    return result.model
+        )
 
 
 async def refine_system_prompt(
@@ -411,11 +448,7 @@ async def refine_system_prompt(
         Refined system prompt with change summary
     """
     if model is None:
-        try:
-            config = Config.load()
-            model = config.agent.model
-        except Exception:
-            model = DEFAULT_MODEL
+        model = _resolve_main_model()
 
     prompt_text = f"""You are helping refine a bot's system prompt based on user feedback.
 
@@ -433,18 +466,20 @@ async def refine_system_prompt(
 
     instruction = "Generate the refined system prompt and summarize the changes in JSON format:"
 
-    result = extract_with_model(
-        RefinedPrompt,
-        prompt_text,
-        model,
-        instruction_template=instruction,
-        max_retries=3,
-        fallback=RefinedPrompt(
+    try:
+        result = await _extract_with_retry(
+            RefinedPrompt,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model
+    except Exception:
+        logger.warning("Prompt refinement failed, returning original")
+        return RefinedPrompt(
             system_prompt=current_prompt,
             changes_made="Refinement failed - original prompt unchanged",
-        ),
-    )
-    return result.model
+        )
 
 
 async def preview_bot_response(
@@ -464,11 +499,7 @@ async def preview_bot_response(
         The bot's response to the test message
     """
     if model is None:
-        try:
-            config = Config.load()
-            model = config.agent.model
-        except Exception:
-            model = DEFAULT_MODEL
+        model = _resolve_main_model()
 
     prompt_text = f"""You are an AI assistant with the following system prompt:
 
@@ -482,14 +513,16 @@ User: {test_message}"""
 
     instruction = "Generate a response as the assistant would, in JSON format with a 'response' field:"
 
-    result = extract_with_model(
-        PreviewResponse,
-        prompt_text,
-        model,
-        instruction_template=instruction,
-        max_retries=3,
-        fallback=PreviewResponse(
+    try:
+        result = await _extract_with_retry(
+            PreviewResponse,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model
+    except Exception:
+        logger.warning("Preview generation failed, using fallback")
+        return PreviewResponse(
             response="I'm ready to help! How can I assist you today?",
-        ),
-    )
-    return result.model
+        )

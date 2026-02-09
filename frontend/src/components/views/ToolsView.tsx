@@ -151,6 +151,45 @@ export function ToolsView() {
 
   const isToolEnabled = (toolId: string) => activeBot.tools.includes(toolId)
 
+  // Bulk enable/disable by risk level
+  const riskLevels = ['safe', 'moderate', 'dangerous', 'critical'] as const
+  const riskLevelConfig = {
+    safe: { icon: Shield, color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/30' },
+    moderate: { icon: ShieldAlert, color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+    dangerous: { icon: ShieldOff, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+    critical: { icon: ShieldBan, color: 'text-red-600', bg: 'bg-red-600/10', border: 'border-red-600/30' },
+  }
+
+  const getToolsByRisk = (level: string) =>
+    pluginGroups.flatMap(({ tools }) => tools.filter((t) => t.riskLevel === level))
+
+  const handleToggleRiskLevel = (level: string) => {
+    const toolsAtLevel = getToolsByRisk(level)
+    if (toolsAtLevel.length === 0) return
+    const allEnabled = toolsAtLevel.every((t) => activeBot.tools.includes(t.id))
+    let newTools: string[]
+    if (allEnabled) {
+      // Disable all of this risk level
+      const idsToRemove = new Set(toolsAtLevel.map((t) => t.id))
+      newTools = activeBot.tools.filter((id) => !idsToRemove.has(id))
+    } else {
+      // Enable all of this risk level
+      const idsToAdd = toolsAtLevel.map((t) => t.id).filter((id) => !activeBot.tools.includes(id))
+      newTools = [...activeBot.tools, ...idsToAdd]
+    }
+    updateBot(activeBot.id, { tools: newTools })
+  }
+
+  const handleEnableAll = () => {
+    const allIds = pluginGroups.flatMap(({ tools }) => tools.map((t) => t.id))
+    updateBot(activeBot.id, { tools: [...new Set([...activeBot.tools, ...allIds])] })
+  }
+
+  const handleDisableAll = () => {
+    const allIds = new Set(pluginGroups.flatMap(({ tools }) => tools.map((t) => t.id)))
+    updateBot(activeBot.id, { tools: activeBot.tools.filter((id) => !allIds.has(id)) })
+  }
+
   // Collect active categories for filter chips
   const activeCategories = new Set<ToolCategory>()
   for (const { tools } of pluginGroups) {
@@ -173,20 +212,52 @@ export function ToolsView() {
               </p>
             </div>
 
-            {/* Risk level legend */}
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-1.5">
-                <Shield className="h-4 w-4 text-green-500" />
-                <span className="text-zinc-400">Safe</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldAlert className="h-4 w-4 text-yellow-500" />
-                <span className="text-zinc-400">Moderate</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldOff className="h-4 w-4 text-red-500" />
-                <span className="text-zinc-400">Dangerous</span>
-              </div>
+            {/* Risk level quick toggles */}
+            <div className="flex items-center gap-2">
+              {riskLevels.map((level) => {
+                const cfg = riskLevelConfig[level]
+                const RiskIcon = cfg.icon
+                const toolsAtLevel = getToolsByRisk(level)
+                const enabledAtLevel = toolsAtLevel.filter((t) => activeBot.tools.includes(t.id)).length
+                const totalAtLevel = toolsAtLevel.length
+                if (totalAtLevel === 0) return null
+                const allEnabled = enabledAtLevel === totalAtLevel
+                return (
+                  <button
+                    key={level}
+                    onClick={() => handleToggleRiskLevel(level)}
+                    title={allEnabled ? `Disable all ${level} tools` : `Enable all ${level} tools`}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors',
+                      allEnabled
+                        ? `${cfg.bg} ${cfg.border} ${cfg.color}`
+                        : 'border-zinc-700 bg-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:text-zinc-400'
+                    )}
+                  >
+                    <RiskIcon className="h-3.5 w-3.5" />
+                    <span className="capitalize">{level}</span>
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                      allEnabled ? 'bg-white/10' : 'bg-zinc-700'
+                    )}>
+                      {enabledAtLevel}/{totalAtLevel}
+                    </span>
+                  </button>
+                )
+              })}
+              <div className="mx-1 h-5 w-px bg-zinc-700" />
+              <button
+                onClick={handleEnableAll}
+                className="rounded-lg px-2 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                All on
+              </button>
+              <button
+                onClick={handleDisableAll}
+                className="rounded-lg px-2 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                All off
+              </button>
             </div>
           </div>
 

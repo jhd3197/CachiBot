@@ -157,7 +157,7 @@ export interface NamesWithMeaningsRequest {
   personality?: string
 }
 
-// Generate names with meanings
+// Generate names with meanings (non-streaming fallback)
 export async function generateBotNamesWithMeanings(
   options: NamesWithMeaningsRequest = {}
 ): Promise<NameWithMeaning[]> {
@@ -185,6 +185,7 @@ export interface GenerateQuestionsRequest {
   description: string
 }
 
+// Non-streaming fallback
 export async function generateFollowUpQuestions(
   data: GenerateQuestionsRequest
 ): Promise<FollowUpQuestion[]> {
@@ -193,6 +194,178 @@ export async function generateFollowUpQuestions(
     body: JSON.stringify(data),
   })
   return response.questions
+}
+
+// =============================================================================
+// SSE STREAMING HELPERS
+// =============================================================================
+
+interface SSEEvent {
+  event: string
+  data: unknown
+}
+
+/**
+ * Generic SSE fetch for POST endpoints.
+ * Yields parsed {event, data} objects from the SSE stream.
+ */
+async function* fetchSSE(
+  endpoint: string,
+  body: unknown,
+  signal?: AbortSignal,
+): AsyncGenerator<SSEEvent> {
+  const url = `${API_BASE}${endpoint}`
+
+  let response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  // Handle 401 by trying to refresh token (same as request())
+  if (response.status === 401) {
+    const newToken = await tryRefreshToken()
+    if (newToken) {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(body),
+        signal,
+      })
+    }
+  }
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new ApiError(
+      data.detail || `SSE request failed: ${response.statusText}`,
+      response.status,
+      data,
+    )
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('No response body')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      // Parse complete SSE events from buffer
+      const parts = buffer.split('\n\n')
+      // Last part may be incomplete — keep it in buffer
+      buffer = parts.pop() || ''
+
+      for (const part of parts) {
+        if (!part.trim()) continue
+
+        let eventType = 'message'
+        let eventData = ''
+
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            eventData = line.slice(6)
+          }
+        }
+
+        if (eventData) {
+          try {
+            yield { event: eventType, data: JSON.parse(eventData) }
+          } catch {
+            // Skip malformed JSON
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+/**
+ * Stream bot name suggestions with meanings via SSE.
+ * Calls onName for each name as it arrives, onDone when complete.
+ */
+export async function streamBotNamesWithMeanings(
+  options: NamesWithMeaningsRequest,
+  callbacks: {
+    onName: (name: NameWithMeaning) => void
+    onDone: () => void
+    onError: (error: string) => void
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    for await (const { event, data } of fetchSSE(
+      '/creation/names-with-meanings/stream',
+      {
+        count: options.count ?? 4,
+        exclude: options.exclude ?? [],
+        purpose: options.purpose,
+        personality: options.personality,
+      },
+      signal,
+    )) {
+      if (event === 'name') {
+        callbacks.onName(data as NameWithMeaning)
+      } else if (event === 'done') {
+        callbacks.onDone()
+      } else if (event === 'error') {
+        callbacks.onError((data as { error: string }).error)
+      }
+    }
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return
+    callbacks.onError(err instanceof Error ? err.message : 'Stream failed')
+  }
+}
+
+/**
+ * Stream follow-up questions via SSE.
+ * Calls onQuestion for each question as it arrives.
+ */
+export async function streamFollowUpQuestions(
+  data: GenerateQuestionsRequest,
+  callbacks: {
+    onQuestion: (question: FollowUpQuestion) => void
+    onDone: () => void
+    onError: (error: string) => void
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    for await (const { event, data: eventData } of fetchSSE(
+      '/creation/follow-up-questions/stream',
+      data,
+      signal,
+    )) {
+      if (event === 'question') {
+        callbacks.onQuestion(eventData as FollowUpQuestion)
+      } else if (event === 'done') {
+        callbacks.onDone()
+      } else if (event === 'error') {
+        callbacks.onError((eventData as { error: string }).error)
+      }
+    }
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return
+    callbacks.onError(err instanceof Error ? err.message : 'Stream failed')
+  }
 }
 
 // Full prompt generation

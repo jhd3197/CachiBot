@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Loader2, HelpCircle, Sparkles } from 'lucide-react'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
-import { generateFollowUpQuestions } from '../../../../api/client'
+import { streamFollowUpQuestions } from '../../../../api/client'
 
 export function DetailsStep() {
   const {
@@ -9,39 +9,67 @@ export function DetailsStep() {
     isGenerating,
     setGenerating,
     setGenerationError,
-    setFollowUpQuestions,
     updateFollowUpAnswer,
   } = useCreationStore()
 
-  // Load follow-up questions when entering step
+  // Guard against StrictMode double-fire
+  const loadInitiatedRef = useRef(false)
+  const abortRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
-    if (form.followUpQuestions.length === 0 && !isGenerating) {
+    if (form.followUpQuestions.length === 0 && !isGenerating && !loadInitiatedRef.current) {
+      loadInitiatedRef.current = true
       loadQuestions()
+    }
+    return () => {
+      abortRef.current?.abort()
     }
   }, [])
 
   const loadQuestions = async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setGenerating(true)
     setGenerationError(null)
 
     try {
       const categoryLabel = PURPOSE_CATEGORIES.find(c => c.id === form.purposeCategory)?.label || form.purposeCategory
 
-      const questions = await generateFollowUpQuestions({
-        category: categoryLabel,
-        description: form.purposeDescription,
-      })
-
-      setFollowUpQuestions(
-        questions.map((q) => ({
-          ...q,
-          answer: '',
-        }))
+      await streamFollowUpQuestions(
+        {
+          category: categoryLabel,
+          description: form.purposeDescription,
+        },
+        {
+          onQuestion: (question) => {
+            // Append each question incrementally
+            useCreationStore.setState((state) => ({
+              form: {
+                ...state.form,
+                followUpQuestions: [
+                  ...state.form.followUpQuestions,
+                  { ...question, answer: '' },
+                ],
+              },
+            }))
+          },
+          onDone: () => {
+            setGenerating(false)
+          },
+          onError: (error) => {
+            setGenerationError(error)
+            setGenerating(false)
+          },
+        },
+        controller.signal,
       )
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Failed to generate questions')
-    } finally {
-      setGenerating(false)
+      if ((error as Error).name !== 'AbortError') {
+        setGenerationError(error instanceof Error ? error.message : 'Failed to generate questions')
+        setGenerating(false)
+      }
     }
   }
 
@@ -81,7 +109,11 @@ export function DetailsStep() {
 
       <div className="space-y-5">
         {form.followUpQuestions.map((q, index) => (
-          <div key={q.id} className="group">
+          <div
+            key={q.id}
+            className="group animate-in fade-in slide-in-from-bottom-2 duration-300"
+            style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
+          >
             <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cachi-600/20 text-xs text-cachi-400">
                 {index + 1}
@@ -97,6 +129,13 @@ export function DetailsStep() {
             />
           </div>
         ))}
+
+        {/* Placeholder while streaming */}
+        {isGenerating && form.followUpQuestions.length < 3 && (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+          </div>
+        )}
       </div>
 
       <p className="text-center text-xs text-zinc-600">

@@ -114,7 +114,7 @@ class WSMessage(BaseModel):
         """Create a chat message."""
         return cls(
             type=WSMessageType.MESSAGE,
-            payload={"role": role, "content": content, "message_id": message_id},
+            payload={"role": role, "content": content, "messageId": message_id},
         )
 
     @classmethod

@@ -2,8 +2,9 @@
 Python sandbox plugin — sandboxed python_execute tool with risk analysis.
 """
 
-from prompture import ApprovalRequired, analyze_python
-from prompture import RiskLevel as PromptureRiskLevel
+from prompture import ApprovalRequired
+from tukuy import analyze_python
+from tukuy.analysis.risk_scoring import RiskLevel as AnalysisRiskLevel
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
@@ -78,7 +79,7 @@ class PythonSandboxPlugin(CachibotPlugin):
             # Analyze code first
             analysis = analyze_python(code)
 
-            if analysis.risk_level in (PromptureRiskLevel.HIGH, PromptureRiskLevel.CRITICAL):
+            if analysis.risk_level in (AnalysisRiskLevel.HIGH, AnalysisRiskLevel.CRITICAL):
                 raise ApprovalRequired(
                     tool_name="python_execute",
                     action=f"Execute {analysis.risk_level.value}-risk Python code",
