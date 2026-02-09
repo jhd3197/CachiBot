@@ -49,7 +49,7 @@ export function setPendingChatId(chatId: string | null) {
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
-  const { addMessage, setThinking, addToolCall, updateToolCall, clearToolCalls, setLoading, setError, updateLastAssistantMessageMetadata } = useChatStore()
+  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata } = useChatStore()
 
   // Use a ref to always have access to the current activeChatId without re-creating the handler
   const activeChatIdRef = useRef<string | null>(null)
@@ -71,12 +71,14 @@ export function useWebSocket() {
       switch (msg.type) {
         case 'thinking': {
           const payload = msg.payload as ThinkingPayload
-          setThinking(payload.content)
+          appendThinking(payload.content)
           break
         }
 
         case 'tool_start': {
           const payload = msg.payload as ToolStartPayload
+          // Clear thinking when a new tool starts (model decided on action)
+          setThinking(null)
           addToolCall({
             id: payload.id,
             tool: payload.tool,
@@ -97,18 +99,31 @@ export function useWebSocket() {
           const chatId = activeChatIdRef.current || pendingChatId
           console.log('[WS] Message received:', { role: payload.role, chatId, refValue: activeChatIdRef.current, pendingChatId })
           if (chatId) {
-            addMessage(chatId, {
-              id: payload.messageId || `msg-${Date.now()}`,
-              role: payload.role,
-              content: payload.content,
-              timestamp: new Date().toISOString(),
-            })
+            const messageId = payload.messageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            // Accumulate assistant messages by messageId (streaming)
+            if (payload.messageId && payload.role === 'assistant') {
+              const existingMessages = useChatStore.getState().getMessages(chatId)
+              const existing = existingMessages.find(m => m.id === payload.messageId)
+              if (existing) {
+                updateMessage(chatId, payload.messageId, existing.content + payload.content)
+              } else {
+                addMessage(chatId, {
+                  id: messageId,
+                  role: payload.role,
+                  content: payload.content,
+                  timestamp: new Date().toISOString(),
+                })
+              }
+            } else {
+              addMessage(chatId, {
+                id: messageId,
+                role: payload.role,
+                content: payload.content,
+                timestamp: new Date().toISOString(),
+              })
+            }
           } else {
             console.warn('[WS] No chatId available for message, dropping:', payload)
-          }
-          // Clear thinking when we get a message
-          if (payload.role === 'assistant') {
-            setThinking(null)
           }
           break
         }
@@ -194,14 +209,22 @@ export function useWebSocket() {
         case 'done': {
           setLoading(false)
           setThinking(null)
+
+          // Attach tool calls to last assistant message before clearing
+          const doneChatId = activeChatIdRef.current || pendingChatId
+          const currentToolCalls = useChatStore.getState().toolCalls
+          if (doneChatId && currentToolCalls.length > 0) {
+            attachToolCallsToLastMessage(doneChatId, currentToolCalls)
+          }
           clearToolCalls()
+
           // Clear pending chat ID when done
           pendingChatId = null
           break
         }
       }
     },
-    [addMessage, setThinking, addToolCall, updateToolCall, clearToolCalls, setLoading, setError, updateLastAssistantMessageMetadata]
+    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata]
   )
 
   // Connect on mount - only runs once since handleMessage is now stable

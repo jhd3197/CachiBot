@@ -258,14 +258,28 @@ async def run_agent(
 
         # Stream agent response
         response_chunks: list[str] = []
+        response_msg_id = str(uuid.uuid4())
+        has_tool_calls = False
+
         async for event in agent.run_stream(message):
             match event.event_type:
                 case StreamEventType.text_delta:
                     response_chunks.append(event.data)
                     await manager.send(
-                        client_id, WSMessage.message("assistant", event.data)
+                        client_id,
+                        WSMessage.message(
+                            "assistant", event.data, message_id=response_msg_id
+                        ),
                     )
+                    # Send thinking events for text between tool calls
+                    if has_tool_calls:
+                        await manager.send(
+                            client_id, WSMessage.thinking(event.data)
+                        )
                 case StreamEventType.tool_call:
+                    has_tool_calls = True
+                    # New message ID for text after this tool sequence
+                    response_msg_id = str(uuid.uuid4())
                     await manager.send(
                         client_id,
                         WSMessage.tool_start(

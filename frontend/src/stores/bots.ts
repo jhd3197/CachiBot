@@ -181,9 +181,11 @@ interface ChatState {
 
   // UI State
   setThinking: (content: string | null) => void
+  appendThinking: (content: string) => void
   addToolCall: (call: Omit<ToolCall, 'startTime'>) => void
   updateToolCall: (id: string, result: unknown, success: boolean) => void
   clearToolCalls: () => void
+  attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 }
@@ -384,6 +386,11 @@ export const useChatStore = create<ChatState>()(
 
       setThinking: (thinking) => set({ thinking }),
 
+      appendThinking: (content) =>
+        set((state) => ({
+          thinking: state.thinking ? state.thinking + content : content,
+        })),
+
       addToolCall: (call) =>
         set((state) => ({
           toolCalls: [...state.toolCalls, { ...call, startTime: Date.now() }],
@@ -397,6 +404,29 @@ export const useChatStore = create<ChatState>()(
         })),
 
       clearToolCalls: () => set({ toolCalls: [] }),
+
+      attachToolCallsToLastMessage: (chatId, toolCalls) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          let lastAssistantIndex = -1
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].role === 'assistant') {
+              lastAssistantIndex = i
+              break
+            }
+          }
+          if (lastAssistantIndex === -1) return state
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) =>
+                i === lastAssistantIndex
+                  ? { ...m, toolCalls: [...toolCalls] }
+                  : m
+              ),
+            },
+          }
+        }),
 
       setLoading: (isLoading) => set({ isLoading }),
 

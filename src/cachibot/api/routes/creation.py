@@ -1,22 +1,32 @@
 """Bot creation endpoints with AI assistance."""
 
+import asyncio
+import json
+import logging
+from collections.abc import AsyncGenerator
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
-from cachibot.services.name_generator import generate_bot_names, generate_bot_names_with_meanings, NameWithMeaning
 from cachibot.services.bot_creation_service import (
-    PersonalityConfig,
     FullBotContext,
+    PersonalityConfig,
+    generate_follow_up_questions,
     generate_system_prompt,
     generate_system_prompt_full,
-    generate_follow_up_questions,
-    refine_system_prompt,
     preview_bot_response,
+    refine_system_prompt,
 )
+from cachibot.services.name_generator import (
+    generate_bot_names,
+    generate_bot_names_with_meanings,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -107,11 +117,6 @@ async def suggest_names_with_meanings(
         raise HTTPException(status_code=500, detail=f"Failed to generate names: {str(e)}")
 
 
-# =============================================================================
-# FOLLOW-UP QUESTIONS
-# =============================================================================
-
-
 class FollowUpQuestionModel(BaseModel):
     """A follow-up question."""
 
@@ -131,6 +136,105 @@ class GenerateQuestionsResponse(BaseModel):
     """Response with follow-up questions."""
 
     questions: list[FollowUpQuestionModel]
+
+
+# =============================================================================
+# SSE STREAMING ENDPOINTS
+# =============================================================================
+
+
+def _sse_event(event: str, data: dict) -> str:
+    """Format an SSE event string."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@router.post("/creation/names-with-meanings/stream")
+async def stream_names_with_meanings(
+    request: NamesWithMeaningsRequest,
+    user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """
+    Stream bot name suggestions with meanings via SSE.
+
+    Events:
+    - name: {name, meaning} — one per generated name
+    - done: {} — generation complete
+    - error: {error} — if generation fails
+    """
+
+    async def generate() -> AsyncGenerator[str, None]:
+        try:
+            names = await generate_bot_names_with_meanings(
+                count=request.count,
+                exclude=request.exclude if request.exclude else None,
+                purpose=request.purpose,
+                personality=request.personality,
+            )
+            for name in names:
+                yield _sse_event("name", {"name": name.name, "meaning": name.meaning})
+                await asyncio.sleep(0.05)  # Small delay for visual staggering
+            yield _sse_event("done", {})
+        except Exception as e:
+            logger.exception("SSE name generation failed")
+            yield _sse_event("error", {"error": str(e)})
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/creation/follow-up-questions/stream")
+async def stream_follow_up_questions(
+    request: GenerateQuestionsRequest,
+    user: User = Depends(get_current_user),
+) -> StreamingResponse:
+    """
+    Stream follow-up questions via SSE.
+
+    Events:
+    - question: {id, question, placeholder} — one per question
+    - done: {} — generation complete
+    - error: {error} — if generation fails
+    """
+
+    async def generate() -> AsyncGenerator[str, None]:
+        try:
+            questions = await generate_follow_up_questions(
+                category=request.category,
+                description=request.description,
+            )
+            for q in questions:
+                yield _sse_event("question", {
+                    "id": q.id,
+                    "question": q.question,
+                    "placeholder": q.placeholder,
+                })
+                await asyncio.sleep(0.05)
+            yield _sse_event("done", {})
+        except Exception as e:
+            logger.exception("SSE question generation failed")
+            yield _sse_event("error", {"error": str(e)})
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# =============================================================================
+# FOLLOW-UP QUESTIONS (non-streaming)
+# =============================================================================
 
 
 @router.post("/creation/follow-up-questions", response_model=GenerateQuestionsResponse)

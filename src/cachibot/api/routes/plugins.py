@@ -100,7 +100,7 @@ def _instantiate_for_introspection(cls: type):
     CachiBot custom plugins need a PluginContext; Tukuy built-in plugins don't.
     """
     if issubclass(cls, CachibotPlugin):
-        from prompture import PythonSandbox
+        from tukuy import PythonSandbox
 
         from cachibot.config import Config
         from cachibot.plugins.base import PluginContext
