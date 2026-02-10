@@ -141,6 +141,11 @@ jobs:
           echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
           grep '^version' pyproject.toml
 
+      - name: Fix README images for PyPI
+        run: |
+          sed -i 's|src="assets/|src="https://raw.githubusercontent.com/${{ github.repository }}/main/assets/|g' README.md
+          sed -i 's|href="docs/|href="https://github.com/${{ github.repository }}/blob/main/docs/|g' README.md
+
       - name: Build (release)
         run: |
           python -m build -o dist/cachibot
