@@ -1263,4 +1263,54 @@ export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]>
   return request('/marketplace/categories')
 }
 
+// =============================================================================
+// UPDATE API
+// =============================================================================
+
+export interface UpdateCheckInfo {
+  current_version: string
+  latest_stable: string | null
+  latest_prerelease: string | null
+  update_available: boolean
+  prerelease_available: boolean
+  release_notes: string | null
+  release_url: string | null
+  published_at: string | null
+  is_docker: boolean
+}
+
+export interface UpdateApplyRequest {
+  target_version?: string
+  include_prerelease?: boolean
+}
+
+export interface UpdateApplyResponse {
+  success: boolean
+  old_version: string
+  new_version: string
+  message: string
+  restart_required: boolean
+  pip_output: string
+}
+
+export interface UpdateRestartResponse {
+  restarting: boolean
+  message: string
+}
+
+export async function checkForUpdate(force = false): Promise<UpdateCheckInfo> {
+  return request(`/update/check?force=${force}`)
+}
+
+export async function applyUpdate(data?: UpdateApplyRequest): Promise<UpdateApplyResponse> {
+  return request('/update/apply', {
+    method: 'POST',
+    body: JSON.stringify(data || {}),
+  })
+}
+
+export async function restartServer(): Promise<UpdateRestartResponse> {
+  return request('/update/restart', { method: 'POST' })
+}
+
 export { ApiError }

@@ -26,11 +26,13 @@ from cachibot.api.routes import (
     documents,
     health,
     instructions,
+    knowledge,
     marketplace,
     models,
     plugins,
     providers,
     skills,
+    update,
     work,
 )
 from cachibot.api.websocket import router as ws_router
@@ -120,6 +122,7 @@ def create_app(
     app.include_router(models.router, prefix="/api", tags=["models"])
     app.include_router(providers.router, prefix="/api", tags=["providers"])
     app.include_router(config.router, prefix="/api", tags=["config"])
+    app.include_router(update.router, prefix="/api", tags=["update"])
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
     app.include_router(bots.router, tags=["bots"])
@@ -128,6 +131,7 @@ def create_app(
     app.include_router(connections.router, tags=["connections"])
     app.include_router(documents.router, tags=["documents"])
     app.include_router(instructions.router, tags=["instructions"])
+    app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(marketplace.router, tags=["marketplace"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])

@@ -16,9 +16,11 @@ from cachibot.models.job import Job, JobStatus
 from cachibot.models.knowledge import (
     BotInstruction,
     BotMessage,
+    BotNote,
     DocChunk,
     Document,
     DocumentStatus,
+    NoteSource,
 )
 from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSource
 from cachibot.storage.database import get_db
@@ -626,6 +628,310 @@ class KnowledgeRepository:
         await db.commit()
         return cursor.rowcount
 
+    # ===== KNOWLEDGE STATS =====
+
+    async def get_knowledge_stats(self, bot_id: str) -> dict:
+        """Get aggregated knowledge stats for a bot."""
+        db = await get_db()
+
+        # Document counts by status
+        async with db.execute(
+            """
+            SELECT status, COUNT(*) as count FROM bot_documents
+            WHERE bot_id = ? GROUP BY status
+            """,
+            (bot_id,),
+        ) as cursor:
+            doc_rows = await cursor.fetchall()
+
+        doc_counts = {row["status"]: row["count"] for row in doc_rows}
+
+        # Total chunks
+        async with db.execute(
+            "SELECT COUNT(*) as count FROM doc_chunks WHERE bot_id = ?",
+            (bot_id,),
+        ) as cursor:
+            chunk_row = await cursor.fetchone()
+
+        # Total notes
+        async with db.execute(
+            "SELECT COUNT(*) as count FROM bot_notes WHERE bot_id = ?",
+            (bot_id,),
+        ) as cursor:
+            note_row = await cursor.fetchone()
+
+        # Instructions
+        async with db.execute(
+            "SELECT 1 FROM bot_instructions WHERE bot_id = ?",
+            (bot_id,),
+        ) as cursor:
+            has_instructions = await cursor.fetchone() is not None
+
+        return {
+            "total_documents": sum(doc_counts.values()),
+            "documents_ready": doc_counts.get("ready", 0),
+            "documents_processing": doc_counts.get("processing", 0),
+            "documents_failed": doc_counts.get("failed", 0),
+            "total_chunks": chunk_row["count"] if chunk_row else 0,
+            "total_notes": note_row["count"] if note_row else 0,
+            "has_instructions": has_instructions,
+        }
+
+    async def reset_document_for_retry(self, document_id: str) -> bool:
+        """Reset a failed document to processing status for retry."""
+        db = await get_db()
+        cursor = await db.execute(
+            """
+            UPDATE bot_documents SET status = 'processing', processed_at = NULL, chunk_count = 0
+            WHERE id = ? AND status = 'failed'
+            """,
+            (document_id,),
+        )
+        # Also delete existing chunks
+        await db.execute(
+            "DELETE FROM doc_chunks WHERE document_id = ?",
+            (document_id,),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+    async def get_chunks_by_document_light(self, document_id: str) -> list[dict]:
+        """Get chunks for a document without embedding BLOBs."""
+        db = await get_db()
+        async with db.execute(
+            """
+            SELECT id, document_id, chunk_index, content
+            FROM doc_chunks WHERE document_id = ?
+            ORDER BY chunk_index
+            """,
+            (document_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [
+            {
+                "id": row["id"],
+                "document_id": row["document_id"],
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
+            }
+            for row in rows
+        ]
+
+    async def get_all_embeddings_by_bot(self, bot_id: str) -> list[dict]:
+        """Get only embedding data for vector search (no content)."""
+        db = await get_db()
+        async with db.execute(
+            """
+            SELECT id, document_id, embedding
+            FROM doc_chunks WHERE bot_id = ? AND embedding IS NOT NULL
+            """,
+            (bot_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [
+            {
+                "id": row["id"],
+                "document_id": row["document_id"],
+                "embedding": row["embedding"],
+            }
+            for row in rows
+        ]
+
+    async def get_chunks_by_ids(self, chunk_ids: list[str]) -> list[DocChunk]:
+        """Fetch specific chunks by ID list."""
+        if not chunk_ids:
+            return []
+        db = await get_db()
+        placeholders = ",".join("?" * len(chunk_ids))
+        async with db.execute(
+            f"""
+            SELECT id, document_id, bot_id, chunk_index, content, embedding
+            FROM doc_chunks WHERE id IN ({placeholders})
+            """,
+            chunk_ids,
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [
+            DocChunk(
+                id=row["id"],
+                document_id=row["document_id"],
+                bot_id=row["bot_id"],
+                chunk_index=row["chunk_index"],
+                content=row["content"],
+                embedding=row["embedding"],
+            )
+            for row in rows
+        ]
+
+
+class NotesRepository:
+    """Repository for bot notes (persistent memory)."""
+
+    async def save_note(self, note: BotNote) -> None:
+        """Save a new note."""
+        db = await get_db()
+        await db.execute(
+            """
+            INSERT INTO bot_notes (id, bot_id, title, content, tags, source, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                note.id,
+                note.bot_id,
+                note.title,
+                note.content,
+                json.dumps(note.tags),
+                note.source.value,
+                note.created_at.isoformat(),
+                note.updated_at.isoformat(),
+            ),
+        )
+        await db.commit()
+
+    async def get_note(self, note_id: str) -> BotNote | None:
+        """Get a note by ID."""
+        db = await get_db()
+        async with db.execute(
+            "SELECT * FROM bot_notes WHERE id = ?",
+            (note_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return self._row_to_note(row) if row else None
+
+    async def get_notes_by_bot(
+        self,
+        bot_id: str,
+        tags_filter: list[str] | None = None,
+        search: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[BotNote]:
+        """Get notes for a bot with optional tag filtering and search."""
+        db = await get_db()
+        conditions = ["bot_id = ?"]
+        params: list = [bot_id]
+
+        if tags_filter:
+            # Match notes that contain any of the specified tags
+            tag_conditions = []
+            for tag in tags_filter:
+                tag_conditions.append("tags LIKE ?")
+                params.append(f'%"{tag}"%')
+            conditions.append(f"({' OR '.join(tag_conditions)})")
+
+        if search:
+            conditions.append("(title LIKE ? OR content LIKE ?)")
+            params.extend([f"%{search}%", f"%{search}%"])
+
+        where = " AND ".join(conditions)
+        params.extend([limit, offset])
+
+        async with db.execute(
+            f"""
+            SELECT * FROM bot_notes
+            WHERE {where}
+            ORDER BY updated_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            params,
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        return [self._row_to_note(row) for row in rows]
+
+    async def update_note(
+        self,
+        note_id: str,
+        title: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> BotNote | None:
+        """Partial update of a note."""
+        db = await get_db()
+        now = datetime.utcnow()
+
+        updates = ["updated_at = ?"]
+        params: list = [now.isoformat()]
+
+        if title is not None:
+            updates.append("title = ?")
+            params.append(title)
+        if content is not None:
+            updates.append("content = ?")
+            params.append(content)
+        if tags is not None:
+            updates.append("tags = ?")
+            params.append(json.dumps(tags))
+
+        params.append(note_id)
+        set_clause = ", ".join(updates)
+
+        cursor = await db.execute(
+            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",
+            params,
+        )
+        await db.commit()
+
+        if cursor.rowcount == 0:
+            return None
+        return await self.get_note(note_id)
+
+    async def delete_note(self, note_id: str) -> bool:
+        """Delete a note by ID."""
+        db = await get_db()
+        cursor = await db.execute(
+            "DELETE FROM bot_notes WHERE id = ?",
+            (note_id,),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+    async def get_all_tags(self, bot_id: str) -> list[str]:
+        """Get all unique tags across all notes for a bot."""
+        db = await get_db()
+        async with db.execute(
+            "SELECT tags FROM bot_notes WHERE bot_id = ?",
+            (bot_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+        all_tags: set[str] = set()
+        for row in rows:
+            tags = json.loads(row["tags"])
+            all_tags.update(tags)
+        return sorted(all_tags)
+
+    async def search_notes(self, bot_id: str, query: str, limit: int = 10) -> list[BotNote]:
+        """Simple text search on title + content."""
+        db = await get_db()
+        async with db.execute(
+            """
+            SELECT * FROM bot_notes
+            WHERE bot_id = ? AND (title LIKE ? OR content LIKE ?)
+            ORDER BY updated_at DESC
+            LIMIT ?
+            """,
+            (bot_id, f"%{query}%", f"%{query}%", limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [self._row_to_note(row) for row in rows]
+
+    def _row_to_note(self, row) -> BotNote:
+        """Convert a database row to BotNote."""
+        return BotNote(
+            id=row["id"],
+            bot_id=row["bot_id"],
+            title=row["title"],
+            content=row["content"],
+            tags=json.loads(row["tags"]),
+            source=NoteSource(row["source"]),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
 
 class ContactsRepository:
     """Repository for bot contacts."""
@@ -1058,9 +1364,7 @@ class ChatRepository:
         await self.create_chat(chat)
         return chat
 
-    async def get_chats_by_bot(
-        self, bot_id: str, include_archived: bool = False
-    ) -> list[Chat]:
+    async def get_chats_by_bot(self, bot_id: str, include_archived: bool = False) -> list[Chat]:
         """Get all chats for a bot. Excludes archived by default."""
         db = await get_db()
 
@@ -1360,9 +1664,7 @@ class SkillsRepository:
         ) as cursor:
             return await cursor.fetchone() is not None
 
-    async def get_skill_activation(
-        self, bot_id: str, skill_id: str
-    ) -> BotSkillActivation | None:
+    async def get_skill_activation(self, bot_id: str, skill_id: str) -> BotSkillActivation | None:
         """Get activation details for a bot/skill pair."""
         db = await get_db()
         async with db.execute(

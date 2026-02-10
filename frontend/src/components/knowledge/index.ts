@@ -1,3 +1,8 @@
 export { DocumentUploader } from './DocumentUploader'
 export { DocumentList } from './DocumentList'
 export { InstructionsEditor } from './InstructionsEditor'
+export { NotesManager } from './NotesManager'
+export { NoteEditorDialog } from './NoteEditorDialog'
+export { KnowledgeStats } from './KnowledgeStats'
+export { KnowledgeSearch } from './KnowledgeSearch'
+export { DocumentChunksDialog } from './DocumentChunksDialog'

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/0855ecf4-c0ec-4d81-ad2a-3887d3688cb1" alt="CachiBot" width="800" />
+  <img src="../assets/hero.png" alt="CachiBot" width="800" />
 
   <h1>CachiBot</h1>
 
@@ -53,6 +53,14 @@ La mayoría de los agentes de IA se ejecutan en terminales donde no puedes ver l
 Los agentes basados en CLI operan en una caja negra — sin visibilidad de las tareas en ejecución, sin forma de monitorear múltiples bots, sin información en tiempo real de lo que el agente está haciendo.
 
 **CachiBot te da visibilidad completa.** Observa cómo trabajan tus bots a través de un tablero, ve cada tarea y trabajo en una interfaz limpia, aprueba o rechaza acciones antes de que se ejecuten, y mantén un registro de auditoría completo de todo lo que hacen tus bots.
+
+<p align="center">
+  <img src="../assets/dashboard.jpeg" alt="Tablero" width="800" />
+</p>
+
+<p align="center">
+  <img src="../assets/chat.png" alt="Interfaz de Chat" width="800" />
+</p>
 
 ## Características
 

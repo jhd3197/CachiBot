@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, Star, ExternalLink } from 'lucide-react'
 import { useProvidersStore } from '../../../../stores/providers'
 import { useModelsStore } from '../../../../stores/models'
 import { useUIStore } from '../../../../stores/ui'
@@ -57,6 +57,20 @@ export function CompleteStep() {
           </p>
         </div>
       </div>
+
+      <a
+        href="https://github.com/jhd3197/CachiBot"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 flex w-full max-w-sm items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 transition-colors hover:bg-amber-500/20"
+      >
+        <Star className="h-5 w-5 shrink-0 text-amber-400" />
+        <div className="flex-1 text-left">
+          <p className="text-sm font-medium text-zinc-200">Enjoying CachiBot?</p>
+          <p className="text-xs text-zinc-400">Star us on GitHub to show your support!</p>
+        </div>
+        <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
+      </a>
     </div>
   )
 }

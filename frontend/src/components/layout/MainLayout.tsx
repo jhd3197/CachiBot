@@ -10,7 +10,6 @@ import {
   SettingsView,
   DashboardView,
   AppSettingsView,
-  ModelsView,
   WorkView,
   SchedulesView,
 } from '../views'
@@ -18,6 +17,9 @@ import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
 import { OnboardingWizard } from '../dialogs/OnboardingWizard'
+import { UpdateDialog } from '../dialogs/UpdateDialog'
+import { UpdateBanner } from '../common/UpdateBanner'
+import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
 import { useConfigStore } from '../../stores/config'
@@ -30,7 +32,6 @@ import type { AppView, BotView, Config } from '../../types'
 // Map URL paths to app views
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
-  '/models': 'models',
   '/settings': 'settings',
 }
 
@@ -211,6 +212,11 @@ export function MainLayout() {
     }
   }, [hasCompletedOnboarding, providers, openOnboarding])
 
+  // Check for updates on mount
+  useEffect(() => {
+    useUpdateStore.getState().checkForUpdate()
+  }, [])
+
   const renderActiveView = () => {
     // App-level views take precedence (determined by URL)
     if (appView) {
@@ -219,8 +225,6 @@ export function MainLayout() {
           return <DashboardView />
         case 'settings':
           return <AppSettingsView />
-        case 'models':
-          return <ModelsView />
       }
     }
 
@@ -293,6 +297,7 @@ export function MainLayout() {
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">CachiBot</span>
           </div>
         </div>
+        <UpdateBanner />
         {renderActiveView()}
       </main>
 
@@ -301,6 +306,7 @@ export function MainLayout() {
       <SettingsDialog />
       <ApprovalDialog onApprove={() => {}} />
       <OnboardingWizard />
+      <UpdateDialog />
     </div>
   )
 }
