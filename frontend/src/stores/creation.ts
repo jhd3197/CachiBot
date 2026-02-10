@@ -12,6 +12,7 @@ export type WizardStep =
   | 'details'
   | 'personality'
   | 'prompt-review'
+  | 'setup'
   | 'preview'
   | 'appearance'
   | 'confirm'
@@ -61,6 +62,20 @@ export interface FollowUpQuestion {
   answer: string
 }
 
+// Suggested items from creation analysis
+export interface SuggestedTodoItem {
+  title: string
+  notes: string
+  enabled: boolean
+}
+
+export interface SuggestedScheduleItem {
+  name: string
+  description: string
+  frequency: string
+  enabled: boolean
+}
+
 // Form data for bot creation
 export interface BotFormData {
   // Method selection
@@ -86,6 +101,11 @@ export interface BotFormData {
   suggestedName: string
   suggestedDescription: string
 
+  // Post-analysis setup
+  userContext: string
+  suggestedTodos: SuggestedTodoItem[]
+  suggestedSchedules: SuggestedScheduleItem[]
+
   // Final bot config
   name: string
   description: string
@@ -109,6 +129,9 @@ const defaultFormData: BotFormData = {
   generatedPrompt: '',
   suggestedName: '',
   suggestedDescription: '',
+  userContext: '',
+  suggestedTodos: [],
+  suggestedSchedules: [],
   name: '',
   description: '',
   icon: 'bot',
@@ -184,6 +207,7 @@ const STEP_FLOWS: Record<WizardMethod, WizardStep[]> = {
     'details',
     'personality',
     'prompt-review',
+    'setup',
     'preview',
     'appearance',
     'confirm',

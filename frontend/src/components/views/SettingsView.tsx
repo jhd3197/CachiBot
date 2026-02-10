@@ -71,9 +71,10 @@ export function SettingsView() {
   }
 
   const handleDelete = () => {
-    deleteBot(activeBot.id)
+    const botId = activeBot.id
     setShowDeleteConfirm(false)
     navigate('/dashboard')
+    deleteBot(botId)
   }
 
   const sectionTitles = {
@@ -143,6 +144,7 @@ export function SettingsView() {
             <DangerSection
               botId={activeBot.id}
               botName={activeBot.name}
+              isDefault={activeBot.id === 'default'}
               onDelete={() => setShowDeleteConfirm(true)}
             />
           )}
@@ -814,10 +816,12 @@ function AdvancedSection() {
 function DangerSection({
   botId,
   botName,
+  isDefault,
   onDelete,
 }: {
   botId: string
   botName: string
+  isDefault: boolean
   onDelete: () => void
 }) {
   const [isExporting, setIsExporting] = useState(false)
@@ -870,20 +874,29 @@ function DangerSection({
       </div>
 
       {/* Delete section */}
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
-        <h3 className="text-lg font-semibold text-red-400">Delete this bot</h3>
-        <p className="mt-2 text-sm text-zinc-400">
-          Once you delete <strong className="text-zinc-200">{botName}</strong>, there is no going back.
-          All chats, jobs, and tasks will be permanently deleted.
-        </p>
-        <button
-          onClick={onDelete}
-          className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete Bot
-        </button>
-      </div>
+      {isDefault ? (
+        <div className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-6">
+          <h3 className="text-lg font-semibold text-zinc-400">Delete this bot</h3>
+          <p className="mt-2 text-sm text-zinc-500">
+            The default bot cannot be deleted.
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+          <h3 className="text-lg font-semibold text-red-400">Delete this bot</h3>
+          <p className="mt-2 text-sm text-zinc-400">
+            Once you delete <strong className="text-zinc-200">{botName}</strong>, there is no going back.
+            All chats, jobs, and tasks will be permanently deleted.
+          </p>
+          <button
+            onClick={onDelete}
+            className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Bot
+          </button>
+        </div>
+      )}
     </div>
   )
 }
