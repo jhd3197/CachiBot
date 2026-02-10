@@ -31,6 +31,7 @@ from cachibot.api.routes import (
     plugins,
     providers,
     skills,
+    update,
     work,
 )
 from cachibot.api.websocket import router as ws_router
@@ -120,6 +121,7 @@ def create_app(
     app.include_router(models.router, prefix="/api", tags=["models"])
     app.include_router(providers.router, prefix="/api", tags=["providers"])
     app.include_router(config.router, prefix="/api", tags=["config"])
+    app.include_router(update.router, prefix="/api", tags=["update"])
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
     app.include_router(bots.router, tags=["bots"])

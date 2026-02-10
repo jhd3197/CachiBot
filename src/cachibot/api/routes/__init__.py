@@ -9,6 +9,7 @@ from cachibot.api.routes import (
     models,
     plugins,
     providers,
+    update,
     work,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "models",
     "plugins",
     "providers",
+    "update",
     "work",
 ]
