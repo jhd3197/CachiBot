@@ -10,7 +10,6 @@ import {
   SettingsView,
   DashboardView,
   AppSettingsView,
-  ModelsView,
   WorkView,
   SchedulesView,
 } from '../views'
@@ -33,7 +32,6 @@ import type { AppView, BotView, Config } from '../../types'
 // Map URL paths to app views
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
-  '/models': 'models',
   '/settings': 'settings',
 }
 
@@ -227,8 +225,6 @@ export function MainLayout() {
           return <DashboardView />
         case 'settings':
           return <AppSettingsView />
-        case 'models':
-          return <ModelsView />
       }
     }
 

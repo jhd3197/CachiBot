@@ -43,6 +43,9 @@ import {
   Save,
   Cloud,
   Server,
+  Star,
+  Sparkles,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
@@ -53,6 +56,7 @@ import { useProvidersStore } from '../../stores/providers'
 import { useAuthStore } from '../../stores/auth'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
 import { useConnectionStore, useUsageStore } from '../../stores/connections'
+import { useUpdateStore } from '../../stores/update'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
 import { checkHealth, type HealthInfo } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
@@ -309,6 +313,7 @@ function GeneralSettings({
       </Section>
 
       <SetupWizardButton />
+      <UpdatesSection healthInfo={healthInfo} />
     </>
   )
 }
@@ -317,8 +322,6 @@ function SetupWizardButton() {
   const { open } = useOnboardingStore()
 
   const handleRunWizard = () => {
-    // Reset the flag so the wizard can run again, then open it
-    useOnboardingStore.setState({ hasCompletedOnboarding: false })
     open()
   }
 
@@ -469,7 +472,9 @@ function AppearanceSettings({
 // =============================================================================
 
 function ModelsSettings() {
-  const { defaultModel, updateDefaultModel, refresh } = useModelsStore()
+  const { groups, defaultModel, loading, updateDefaultModel, refresh } = useModelsStore()
+  const [search, setSearch] = useState('')
+  const [providerFilter, setProviderFilter] = useState<string | 'all'>('all')
 
   useEffect(() => {
     refresh()
@@ -479,6 +484,54 @@ function ModelsSettings() {
     if (model) {
       await updateDefaultModel(model)
     }
+  }
+
+  // Filter models
+  const filteredGroups: Record<string, import('../../api/models').ModelInfo[]> = {}
+  for (const [provider, modelList] of Object.entries(groups)) {
+    if (providerFilter !== 'all' && provider !== providerFilter) continue
+    const filtered = modelList.filter((m) =>
+      m.id.toLowerCase().includes(search.toLowerCase())
+    )
+    if (filtered.length > 0) {
+      filteredGroups[provider] = filtered
+    }
+  }
+
+  const totalModels = Object.values(groups).reduce((s, g) => s + g.length, 0)
+  const filteredTotal = Object.values(filteredGroups).reduce((s, g) => s + g.length, 0)
+  const providers = Object.keys(groups).sort()
+
+  const MODEL_PROVIDER_LABELS: Record<string, string> = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    google: 'Google',
+    groq: 'Groq',
+    grok: 'xAI Grok',
+    openrouter: 'OpenRouter',
+    moonshot: 'Moonshot AI',
+    ollama: 'Ollama',
+    lmstudio: 'LM Studio',
+    azure: 'Azure OpenAI',
+    zai: 'Z.ai (Zhipu)',
+    modelscope: 'ModelScope',
+    local_http: 'Local HTTP',
+  }
+
+  const MODEL_PROVIDER_COLORS: Record<string, string> = {
+    openai: 'bg-green-500',
+    anthropic: 'bg-orange-500',
+    google: 'bg-blue-500',
+    groq: 'bg-purple-500',
+    grok: 'bg-red-500',
+    openrouter: 'bg-indigo-500',
+    moonshot: 'bg-cyan-500',
+    ollama: 'bg-zinc-500',
+    lmstudio: 'bg-yellow-500',
+    azure: 'bg-sky-500',
+    zai: 'bg-emerald-500',
+    modelscope: 'bg-pink-500',
+    local_http: 'bg-zinc-600',
   }
 
   return (
@@ -494,41 +547,211 @@ function ModelsSettings() {
             />
             <p className="mt-2 text-xs text-zinc-500">
               This model will be used when no specific model is configured for a bot.
-              Click the star icon on any model in the Models page to set it as default.
             </p>
           </Field>
         </div>
       </Section>
 
-      <Section icon={Info} title="Model Information">
+      <Section icon={Brain} title={`Available Models (${totalModels})`}>
         <div className="space-y-4">
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Discovery</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              CachiBot automatically discovers available models from your configured API keys.
-              Configure API keys for providers like OpenAI, Anthropic, Google, Groq, and more
-              to unlock their models.
-            </p>
+          {/* Search + filter */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search models..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-zinc-100 pl-10 pr-8 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <select
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+                className="h-9 appearance-none rounded-lg border border-zinc-300 bg-zinc-100 pl-3 pr-8 text-sm text-zinc-700 outline-none focus:border-accent-500 cursor-pointer dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                <option value="all">All providers</option>
+                {providers.map((p) => (
+                  <option key={p} value={p}>
+                    {MODEL_PROVIDER_LABELS[p] || p.charAt(0).toUpperCase() + p.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+            </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Capabilities</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              Each model has different capabilities including vision support, tool use,
-              structured output, and reasoning. Check the Models page for detailed information.
+          {(search || providerFilter !== 'all') && (
+            <p className="text-xs text-zinc-500">
+              {filteredTotal} result{filteredTotal !== 1 ? 's' : ''}
             </p>
-          </div>
+          )}
 
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Custom Models</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              You can enter custom model IDs manually using the "Enter manually" option
-              in the model selector. Use the format: provider/model-id
-            </p>
-          </div>
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-8 text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Discovering models...
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading && totalModels === 0 && (
+            <div className="text-center py-8">
+              <Brain className="h-8 w-8 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
+              <p className="text-sm text-zinc-500">No models available</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
+                Configure API keys in the API Keys tab to discover models.
+              </p>
+            </div>
+          )}
+
+          {/* No results */}
+          {!loading && totalModels > 0 && filteredTotal === 0 && (
+            <div className="text-center py-8 text-zinc-500 text-sm">
+              No models match your search
+            </div>
+          )}
+
+          {/* Provider groups */}
+          {!loading &&
+            Object.entries(filteredGroups)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([provider, modelList]) => {
+                const label =
+                  MODEL_PROVIDER_LABELS[provider] ||
+                  provider.charAt(0).toUpperCase() + provider.slice(1)
+                const dotColor = MODEL_PROVIDER_COLORS[provider] || 'bg-zinc-500'
+
+                return (
+                  <div key={provider}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={cn('h-2 w-2 rounded-full', dotColor)} />
+                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</h4>
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">{modelList.length}</span>
+                    </div>
+                    <div className="space-y-1.5 mb-4">
+                      {modelList.map((m) => {
+                        const isDefault = m.id === defaultModel
+                        return (
+                          <ModelRow
+                            key={m.id}
+                            model={m}
+                            isDefault={isDefault}
+                            onSetDefault={() => handleDefaultModelChange(m.id)}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
         </div>
       </Section>
     </>
+  )
+}
+
+function ModelRow({
+  model,
+  isDefault,
+  onSetDefault,
+}: {
+  model: import('../../api/models').ModelInfo
+  isDefault: boolean
+  onSetDefault: () => void
+}) {
+  const m = model
+
+  const formatNum = (n: number | null) => {
+    if (!n) return '—'
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+    return n.toString()
+  }
+
+  const formatPrice = (rate: number | null) => {
+    if (rate == null) return '—'
+    if (rate === 0) return 'Free'
+    if (rate >= 1) return `$${rate.toFixed(2)}`
+    return `$${rate.toFixed(4)}`.replace(/0+$/, '')
+  }
+
+  return (
+    <div
+      className={cn(
+        'group flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all',
+        isDefault
+          ? 'border-accent-500/50 bg-accent-500/5'
+          : 'border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-700 dark:bg-zinc-800/30 dark:hover:border-zinc-600'
+      )}
+    >
+      {/* Name + badges */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate" title={m.id}>
+            {m.id}
+          </span>
+          {isDefault && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-600 dark:text-accent-400">
+              <Star className="h-2.5 w-2.5 fill-current" />
+              Default
+            </span>
+          )}
+          {m.is_reasoning && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-600 dark:text-purple-400">
+              <Sparkles className="h-2.5 w-2.5" />
+              Reasoning
+            </span>
+          )}
+        </div>
+        {/* Stats inline */}
+        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+          <span>CTX {formatNum(m.context_window)}</span>
+          <span className="text-zinc-300 dark:text-zinc-700">·</span>
+          <span>OUT {formatNum(m.max_output_tokens)}</span>
+          {m.pricing && (
+            <>
+              <span className="text-zinc-300 dark:text-zinc-700">·</span>
+              <span>
+                <span className="text-emerald-600 dark:text-emerald-400">{formatPrice(m.pricing.input)}</span>
+                {' / '}
+                <span className="text-amber-600 dark:text-amber-400">{formatPrice(m.pricing.output)}</span>
+              </span>
+            </>
+          )}
+          {m.supports_vision && <span title="Vision">👁</span>}
+          {m.supports_tool_use && <span title="Tool use">🔧</span>}
+          {m.supports_structured_output && <span title="Structured output">{ }</span>}
+        </div>
+      </div>
+
+      {/* Star action */}
+      {!isDefault && (
+        <button
+          onClick={onSetDefault}
+          className="shrink-0 rounded-md p-1.5 text-zinc-400 opacity-0 transition-all hover:bg-accent-500/10 hover:text-accent-600 group-hover:opacity-100 dark:text-zinc-500 dark:hover:text-accent-400"
+          title="Set as default model"
+        >
+          <Star className="h-4 w-4" />
+        </button>
+      )}
+      {isDefault && (
+        <div className="shrink-0 rounded-md p-1.5 text-accent-600 dark:text-accent-400">
+          <Star className="h-4 w-4 fill-current" />
+        </div>
+      )}
+    </div>
   )
 }
 
