@@ -72,8 +72,8 @@ cachibot = "cachibot.cli:app"
 cachi = "cachibot.cli:app"
 
 [project.urls]
-Homepage = "https://cachibot.dev"
-Documentation = "https://cachibot.dev/docs"
+Homepage = "https://cachibot.com"
+Documentation = "https://cachibot.com/docs"
 Repository = "https://github.com/jhd3197/cachibot"
 Issues = "https://github.com/jhd3197/cachibot/issues"
 
