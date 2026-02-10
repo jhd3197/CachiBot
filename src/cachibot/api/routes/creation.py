@@ -15,6 +15,7 @@ from cachibot.models.auth import User
 from cachibot.services.bot_creation_service import (
     FullBotContext,
     PersonalityConfig,
+    analyze_creation_context,
     generate_follow_up_questions,
     generate_system_prompt,
     generate_system_prompt_full,
@@ -462,3 +463,83 @@ async def preview_bot(
         return PreviewBotResponse(response=result.response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+
+
+# =============================================================================
+# CREATION CONTEXT ANALYSIS
+# =============================================================================
+
+
+class AnalyzeContextRequest(BaseModel):
+    """Request to analyze creation context for user info extraction."""
+
+    purpose_category: str = Field(description="The bot's purpose category")
+    purpose_description: str = Field(description="What the user wants the bot to do")
+    follow_up_answers: list[FollowUpAnswer] = Field(
+        default=[], description="Answered follow-up questions"
+    )
+    system_prompt: str = Field(description="The generated system prompt")
+    bot_name: str = Field(description="The bot's name")
+
+
+class SuggestedTodoModel(BaseModel):
+    """A suggested todo item."""
+
+    title: str
+    notes: str = ""
+
+
+class SuggestedScheduleModel(BaseModel):
+    """A suggested recurring schedule."""
+
+    name: str
+    description: str = ""
+    frequency: str
+
+
+class AnalyzeContextResponse(BaseModel):
+    """Response with extracted user context and suggestions."""
+
+    user_context: str
+    suggested_todos: list[SuggestedTodoModel]
+    suggested_schedules: list[SuggestedScheduleModel]
+
+
+@router.post("/creation/analyze-context", response_model=AnalyzeContextResponse)
+async def analyze_context(
+    request: AnalyzeContextRequest,
+    user: User = Depends(get_current_user),
+) -> AnalyzeContextResponse:
+    """
+    Analyze all wizard data to extract user context, todos, and schedules.
+
+    This endpoint runs a second AI pass on the creation data to extract:
+    - User context (for Custom Instructions)
+    - Suggested todos (one-time tasks)
+    - Suggested schedules (recurring tasks)
+    """
+    try:
+        result = await analyze_creation_context(
+            purpose_category=request.purpose_category,
+            purpose_description=request.purpose_description,
+            follow_up_answers=[(fa.question, fa.answer) for fa in request.follow_up_answers],
+            system_prompt=request.system_prompt,
+            bot_name=request.bot_name,
+        )
+        return AnalyzeContextResponse(
+            user_context=result.user_context,
+            suggested_todos=[
+                SuggestedTodoModel(title=t.title, notes=t.notes)
+                for t in result.suggested_todos
+            ],
+            suggested_schedules=[
+                SuggestedScheduleModel(
+                    name=s.name, description=s.description, frequency=s.frequency
+                )
+                for s in result.suggested_schedules
+            ],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze context: {str(e)}"
+        )

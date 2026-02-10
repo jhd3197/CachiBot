@@ -121,6 +121,9 @@ export const useBotStore = create<BotState>()(
       },
 
       deleteBot: (id) => {
+        // Prevent deletion of the default bot
+        if (id === 'default') return
+
         set((state) => ({
           bots: state.bots.filter((bot) => bot.id !== id),
           activeBotId: state.activeBotId === id ? state.bots[0]?.id ?? null : state.activeBotId,

@@ -18,10 +18,13 @@ import { NamePickerStep } from './steps/NamePickerStep'
 import { DetailsStep } from './steps/DetailsStep'
 import { PersonalityStep } from './steps/PersonalityStep'
 import { PromptReviewStep } from './steps/PromptReviewStep'
+import { SetupStep } from './steps/SetupStep'
 import { PreviewStep } from './steps/PreviewStep'
 import { AppearanceStep } from './steps/AppearanceStep'
 import { ConfirmStep } from './steps/ConfirmStep'
 import { ImportStep } from './steps/ImportStep'
+import { updateInstructions } from '../../../api/knowledge'
+import { createTodo, createSchedule } from '../../../api/client'
 import type { Bot as BotType } from '../../../types'
 
 // Step definitions for the stepper
@@ -33,6 +36,7 @@ const WIZARD_STEPS: Record<string, Step[]> = {
     { id: 'details', label: 'Details' },
     { id: 'personality', label: 'Style' },
     { id: 'prompt-review', label: 'Review' },
+    { id: 'setup', label: 'Setup' },
     { id: 'preview', label: 'Test' },
     { id: 'appearance', label: 'Look' },
     { id: 'confirm', label: 'Create' },
@@ -65,6 +69,7 @@ function getStepSubtitle(step: string): string {
     details: 'Help us understand you better',
     personality: 'How should your bot communicate?',
     'prompt-review': 'Review your bot\'s personality',
+    setup: 'Review what your bot knows about you',
     preview: 'Chat with your bot before creating',
     appearance: 'Customize the look',
     confirm: 'Ready to create your bot',
@@ -95,9 +100,10 @@ export function CreateBotWizard() {
     setTimeout(reset, 200)
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    const botId = crypto.randomUUID()
     const newBot: BotType = {
-      id: crypto.randomUUID(),
+      id: botId,
       name: form.name || 'New Bot',
       description: form.description || 'A new AI assistant',
       icon: form.icon,
@@ -118,6 +124,36 @@ export function CreateBotWizard() {
     }
     addBot(newBot)
     setActiveBot(newBot.id)
+
+    // Save user context as Custom Instructions + create todos/schedules (fire-and-forget)
+    if (form.method === 'ai-assisted') {
+      // Save custom instructions
+      if (form.userContext.trim()) {
+        updateInstructions(botId, form.userContext).catch((err) =>
+          console.warn('Failed to save custom instructions:', err)
+        )
+      }
+
+      // Create enabled todos
+      for (const todo of form.suggestedTodos) {
+        if (todo.enabled) {
+          createTodo(botId, { title: todo.title, notes: todo.notes || undefined }).catch(
+            (err) => console.warn('Failed to create todo:', err)
+          )
+        }
+      }
+
+      // Create enabled schedules
+      for (const schedule of form.suggestedSchedules) {
+        if (schedule.enabled) {
+          createSchedule(botId, {
+            name: schedule.name,
+            description: schedule.description || undefined,
+          }).catch((err) => console.warn('Failed to create schedule:', err))
+        }
+      }
+    }
+
     handleClose()
   }
 
@@ -167,6 +203,8 @@ export function CreateBotWizard() {
         return <PersonalityStep />
       case 'prompt-review':
         return <PromptReviewStep />
+      case 'setup':
+        return <SetupStep />
       case 'preview':
         return <PreviewStep />
       case 'appearance':
