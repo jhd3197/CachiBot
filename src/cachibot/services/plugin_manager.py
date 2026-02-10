@@ -20,6 +20,7 @@ from tukuy.plugins.web import WebPlugin
 from cachibot.plugins import (
     CachibotPlugin,
     FileOpsPlugin,
+    NotesPlugin,
     PlatformPlugin,
     PluginContext,
     PythonSandboxPlugin,
@@ -43,7 +44,7 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
 }
 
 # Plugins that are always enabled regardless of capabilities
-ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin]
+ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin]
 
 
 def plugins_to_registry(

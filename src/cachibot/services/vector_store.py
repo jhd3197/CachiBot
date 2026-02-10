@@ -107,7 +107,7 @@ class VectorStore:
         min_score: float = 0.3,
     ) -> list[SearchResult]:
         """
-        Search for chunks similar to the query.
+        Search for chunks similar to the query using vectorized numpy.
 
         Args:
             bot_id: Bot to search within
@@ -118,31 +118,62 @@ class VectorStore:
         Returns:
             List of SearchResult sorted by similarity (highest first)
         """
-        # Get all chunks for this bot
-        chunks = await self._repo.get_all_chunks_by_bot(bot_id)
-        if not chunks:
-            return []
-
-        # Filter chunks with embeddings
-        chunks_with_embeddings = [c for c in chunks if c.embedding]
-        if not chunks_with_embeddings:
+        # Load only embeddings (no content) for efficient search
+        embedding_rows = await self._repo.get_all_embeddings_by_bot(bot_id)
+        if not embedding_rows:
             return []
 
         # Embed the query
         query_embedding = await self.embed_text(query)
 
-        # Compute similarities
+        # Build numpy matrix for vectorized cosine similarity
+        chunk_ids = []
+        embeddings = []
+        for row in embedding_rows:
+            chunk_ids.append(row["id"])
+            embeddings.append(self.deserialize_embedding(row["embedding"]))
+
+        matrix = np.stack(embeddings)  # (N, dim)
+        # Normalize rows
+        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        matrix_normed = matrix / norms
+
+        # Normalize query
+        q_norm = np.linalg.norm(query_embedding)
+        if q_norm == 0:
+            return []
+        query_normed = query_embedding / q_norm
+
+        # Cosine similarity via matrix multiply
+        scores = matrix_normed @ query_normed  # (N,)
+
+        # Filter by min_score and get top-k indices
+        mask = scores >= min_score
+        if not np.any(mask):
+            return []
+
+        masked_scores = scores.copy()
+        masked_scores[~mask] = -1.0
+        top_indices = np.argsort(masked_scores)[::-1][:limit]
+        top_indices = [i for i in top_indices if mask[i]]
+
+        if not top_indices:
+            return []
+
+        # Fetch full chunk content only for top-k results
+        top_chunk_ids = [chunk_ids[i] for i in top_indices]
+        chunks = await self._repo.get_chunks_by_ids(top_chunk_ids)
+        chunk_map = {c.id: c for c in chunks}
+
         results: list[SearchResult] = []
-        for chunk in chunks_with_embeddings:
-            chunk_embedding = self.deserialize_embedding(chunk.embedding)  # type: ignore
-            score = self.cosine_similarity(query_embedding, chunk_embedding)
+        for i in top_indices:
+            cid = chunk_ids[i]
+            chunk = chunk_map.get(cid)
+            if chunk:
+                results.append(SearchResult(chunk=chunk, score=float(scores[i])))
 
-            if score >= min_score:
-                results.append(SearchResult(chunk=chunk, score=score))
-
-        # Sort by score (descending) and limit
-        results.sort(key=lambda r: r.score, reverse=True)
-        return results[:limit]
+        return results
 
     async def get_document_filenames(self, bot_id: str) -> dict[str, str]:
         """Get mapping of document_id -> filename for a bot."""

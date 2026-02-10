@@ -43,6 +43,9 @@ import {
   Save,
   Cloud,
   Server,
+  Star,
+  Sparkles,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
@@ -53,6 +56,7 @@ import { useProvidersStore } from '../../stores/providers'
 import { useAuthStore } from '../../stores/auth'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
 import { useConnectionStore, useUsageStore } from '../../stores/connections'
+import { useUpdateStore } from '../../stores/update'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
 import { checkHealth, type HealthInfo } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
@@ -309,6 +313,7 @@ function GeneralSettings({
       </Section>
 
       <SetupWizardButton />
+      <UpdatesSection healthInfo={healthInfo} />
     </>
   )
 }
@@ -317,8 +322,6 @@ function SetupWizardButton() {
   const { open } = useOnboardingStore()
 
   const handleRunWizard = () => {
-    // Reset the flag so the wizard can run again, then open it
-    useOnboardingStore.setState({ hasCompletedOnboarding: false })
     open()
   }
 
@@ -338,6 +341,131 @@ function SetupWizardButton() {
           <RefreshCw className="h-4 w-4" />
           Run Wizard
         </button>
+      </div>
+    </Section>
+  )
+}
+
+function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const {
+    checkResult,
+    isChecking,
+    optIntoBeta,
+    setOptIntoBeta,
+    checkForUpdate,
+    openDialog,
+    lastCheckAt,
+  } = useUpdateStore()
+
+  useEffect(() => {
+    checkForUpdate()
+  }, [checkForUpdate])
+
+  const currentVersion = checkResult?.current_version || healthInfo?.version || '...'
+  const latestStable = checkResult?.latest_stable
+  const latestPrerelease = checkResult?.latest_prerelease
+  const hasUpdate = checkResult?.update_available || checkResult?.prerelease_available
+
+  const formatRelativeTime = (timestamp: number) => {
+    if (!timestamp) return 'Never'
+    const seconds = Math.floor((Date.now() - timestamp) / 1000)
+    if (seconds < 60) return 'Just now'
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    const days = Math.floor(hours / 24)
+    return `${days}d ago`
+  }
+
+  const buildBadge = healthInfo?.build ? (
+    <span
+      className={cn(
+        'ml-2 rounded-full px-2 py-0.5 text-xs font-medium',
+        healthInfo.build === 'release'
+          ? 'bg-green-500/20 text-green-400'
+          : healthInfo.build === 'dev'
+            ? 'bg-amber-500/20 text-amber-400'
+            : 'bg-zinc-500/20 text-zinc-400'
+      )}
+    >
+      {healthInfo.build}
+    </span>
+  ) : null
+
+  return (
+    <Section icon={Download} title="Updates">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500 dark:text-zinc-400">Current Version</span>
+          <span className="font-mono text-zinc-800 dark:text-zinc-200">
+            {currentVersion}
+            {buildBadge}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500 dark:text-zinc-400">Latest Version</span>
+          {latestStable ? (
+            <span
+              className={cn(
+                'font-mono',
+                checkResult?.update_available
+                  ? 'text-accent-500'
+                  : 'text-green-400'
+              )}
+            >
+              {latestStable}
+              {!checkResult?.update_available && ' (up to date)'}
+            </span>
+          ) : (
+            <span className="text-zinc-500">—</span>
+          )}
+        </div>
+
+        {latestPrerelease && optIntoBeta && (
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-500 dark:text-zinc-400">Latest Pre-release</span>
+            <span className="font-mono text-amber-400">{latestPrerelease}</span>
+          </div>
+        )}
+
+        <ToggleField
+          label="Include Pre-release Versions"
+          description="Opt into beta and development builds"
+          checked={optIntoBeta}
+          onChange={setOptIntoBeta}
+        />
+
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-zinc-500">
+            Last checked: {formatRelativeTime(lastCheckAt)}
+          </span>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => checkForUpdate(true)}
+            disabled={isChecking}
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            {isChecking ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Check Now
+          </button>
+          {hasUpdate && (
+            <button
+              onClick={openDialog}
+              className="flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500"
+            >
+              <Download className="h-4 w-4" />
+              Update Available — View Details
+            </button>
+          )}
+        </div>
       </div>
     </Section>
   )
@@ -468,8 +596,56 @@ function AppearanceSettings({
 // MODELS SETTINGS
 // =============================================================================
 
+const MODEL_PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+  groq: 'Groq',
+  grok: 'xAI Grok',
+  openrouter: 'OpenRouter',
+  moonshot: 'Moonshot AI',
+  ollama: 'Ollama',
+  lmstudio: 'LM Studio',
+  azure: 'Azure OpenAI',
+  zai: 'Z.ai (Zhipu)',
+  modelscope: 'ModelScope',
+  local_http: 'Local HTTP',
+}
+
+const MODEL_PROVIDER_COLORS: Record<string, string> = {
+  openai: 'bg-green-500',
+  anthropic: 'bg-orange-500',
+  google: 'bg-blue-500',
+  groq: 'bg-purple-500',
+  grok: 'bg-red-500',
+  openrouter: 'bg-indigo-500',
+  moonshot: 'bg-cyan-500',
+  ollama: 'bg-zinc-500',
+  lmstudio: 'bg-yellow-500',
+  azure: 'bg-sky-500',
+  zai: 'bg-emerald-500',
+  modelscope: 'bg-pink-500',
+  local_http: 'bg-zinc-600',
+}
+
+function formatModelNum(n: number | null) {
+  if (!n) return '—'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return n.toString()
+}
+
+function formatModelPrice(rate: number | null) {
+  if (rate == null) return '—'
+  if (rate === 0) return 'Free'
+  if (rate >= 1) return `$${rate.toFixed(2)}`
+  return `$${rate.toFixed(4)}`.replace(/0+$/, '')
+}
+
 function ModelsSettings() {
-  const { defaultModel, updateDefaultModel, refresh } = useModelsStore()
+  const { groups, defaultModel, loading, updateDefaultModel, refresh } = useModelsStore()
+  const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     refresh()
@@ -481,8 +657,30 @@ function ModelsSettings() {
     }
   }
 
+  // Filter models by search
+  const filteredGroups: Record<string, import('../../api/models').ModelInfo[]> = {}
+  for (const [provider, modelList] of Object.entries(groups)) {
+    const filtered = search
+      ? modelList.filter((m) => m.id.toLowerCase().includes(search.toLowerCase()))
+      : modelList
+    if (filtered.length > 0) {
+      filteredGroups[provider] = filtered
+    }
+  }
+
+  const totalModels = Object.values(groups).reduce((s, g) => s + g.length, 0)
+  const filteredTotal = Object.values(filteredGroups).reduce((s, g) => s + g.length, 0)
+  const providerCount = Object.keys(filteredGroups).length
+
+  const toggleProvider = (provider: string) =>
+    setExpanded((prev) => ({ ...prev, [provider]: !prev[provider] }))
+
+  // Auto-expand all when searching
+  const isSearching = search.length > 0
+
   return (
     <>
+      {/* Default model */}
       <Section icon={Brain} title="Default Model">
         <div className="space-y-4">
           <Field label="System Default Model">
@@ -493,39 +691,168 @@ function ModelsSettings() {
               className="w-full"
             />
             <p className="mt-2 text-xs text-zinc-500">
-              This model will be used when no specific model is configured for a bot.
-              Click the star icon on any model in the Models page to set it as default.
+              Used when no specific model is configured for a bot.
             </p>
           </Field>
         </div>
       </Section>
 
-      <Section icon={Info} title="Model Information">
-        <div className="space-y-4">
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Discovery</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              CachiBot automatically discovers available models from your configured API keys.
-              Configure API keys for providers like OpenAI, Anthropic, Google, Groq, and more
-              to unlock their models.
-            </p>
+      {/* Available models - collapsible providers */}
+      <Section icon={Brain} title="Available Models">
+        <div className="space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Search models..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 w-full rounded-lg border border-zinc-300 bg-zinc-100 pl-10 pr-8 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Model Capabilities</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              Each model has different capabilities including vision support, tool use,
-              structured output, and reasoning. Check the Models page for detailed information.
-            </p>
-          </div>
+          {/* Summary */}
+          <p className="text-xs text-zinc-500">
+            {isSearching
+              ? `${filteredTotal} result${filteredTotal !== 1 ? 's' : ''} across ${providerCount} provider${providerCount !== 1 ? 's' : ''}`
+              : `${totalModels} model${totalModels !== 1 ? 's' : ''} from ${providerCount} provider${providerCount !== 1 ? 's' : ''}`}
+          </p>
 
-          <div className="rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Custom Models</h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              You can enter custom model IDs manually using the "Enter manually" option
-              in the model selector. Use the format: provider/model-id
-            </p>
-          </div>
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center justify-center gap-2 py-6 text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Discovering models...
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading && totalModels === 0 && (
+            <div className="text-center py-6">
+              <Brain className="h-7 w-7 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
+              <p className="text-sm text-zinc-500">No models available</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
+                Configure API keys to discover models.
+              </p>
+            </div>
+          )}
+
+          {/* No search results */}
+          {!loading && totalModels > 0 && filteredTotal === 0 && (
+            <div className="text-center py-6 text-zinc-500 text-sm">
+              No models match your search
+            </div>
+          )}
+
+          {/* Provider accordions */}
+          {!loading && (
+            <div className="space-y-1.5">
+              {Object.entries(filteredGroups)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([provider, modelList]) => {
+                  const label =
+                    MODEL_PROVIDER_LABELS[provider] ||
+                    provider.charAt(0).toUpperCase() + provider.slice(1)
+                  const dotColor = MODEL_PROVIDER_COLORS[provider] || 'bg-zinc-500'
+                  const isOpen = isSearching || expanded[provider]
+
+                  return (
+                    <div
+                      key={provider}
+                      className="rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-700"
+                    >
+                      {/* Provider header - clickable */}
+                      <button
+                        onClick={() => toggleProvider(provider)}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-zinc-100/50 transition-colors dark:hover:bg-zinc-800/50"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            'h-3.5 w-3.5 text-zinc-400 transition-transform',
+                            isOpen && 'rotate-90'
+                          )}
+                        />
+                        <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
+                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                          {label}
+                        </span>
+                        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                          {modelList.length}
+                        </span>
+                      </button>
+
+                      {/* Model list */}
+                      {isOpen && (
+                        <div className="border-t border-zinc-200 dark:border-zinc-700 max-h-64 overflow-y-auto">
+                          {modelList.map((m) => {
+                            const isDefault = m.id === defaultModel
+                            return (
+                              <div
+                                key={m.id}
+                                className={cn(
+                                  'group flex items-center gap-2 px-3 py-1.5 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors dark:border-zinc-800 dark:hover:bg-zinc-800/40',
+                                  isDefault && 'bg-accent-500/5'
+                                )}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate"
+                                      title={m.id}
+                                    >
+                                      {m.id}
+                                    </span>
+                                    {isDefault && (
+                                      <Star className="h-3 w-3 shrink-0 fill-current text-accent-500" />
+                                    )}
+                                    {m.is_reasoning && (
+                                      <Sparkles className="h-3 w-3 shrink-0 text-purple-400" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                                    <span>{formatModelNum(m.context_window)} ctx</span>
+                                    {m.pricing && (
+                                      <>
+                                        <span className="text-zinc-300 dark:text-zinc-700">/</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400">
+                                          {formatModelPrice(m.pricing.input)}
+                                        </span>
+                                        <span className="text-zinc-300 dark:text-zinc-700">·</span>
+                                        <span className="text-amber-600 dark:text-amber-400">
+                                          {formatModelPrice(m.pricing.output)}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                {!isDefault && (
+                                  <button
+                                    onClick={() => handleDefaultModelChange(m.id)}
+                                    className="shrink-0 rounded p-1 text-zinc-300 opacity-0 transition-all hover:text-accent-500 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-accent-400"
+                                    title="Set as default"
+                                  >
+                                    <Star className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
         </div>
       </Section>
     </>

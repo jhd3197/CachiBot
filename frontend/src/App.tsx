@@ -36,14 +36,6 @@ function App() {
         }
       />
       <Route
-        path="/models"
-        element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/settings"
         element={
           <ProtectedRoute>
