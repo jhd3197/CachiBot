@@ -450,6 +450,41 @@ export async function previewBot(data: PreviewBotRequest): Promise<PreviewBotRes
   })
 }
 
+// Creation context analysis
+export interface SuggestedTodo {
+  title: string
+  notes: string
+}
+
+export interface SuggestedSchedule {
+  name: string
+  description: string
+  frequency: string
+}
+
+export interface AnalyzeContextRequest {
+  purpose_category: string
+  purpose_description: string
+  follow_up_answers: FollowUpAnswer[]
+  system_prompt: string
+  bot_name: string
+}
+
+export interface AnalyzeContextResponse {
+  user_context: string
+  suggested_todos: SuggestedTodo[]
+  suggested_schedules: SuggestedSchedule[]
+}
+
+export async function analyzeCreationContext(
+  data: AnalyzeContextRequest
+): Promise<AnalyzeContextResponse> {
+  return request('/creation/analyze-context', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 // Bot sync (for platform connections)
 export interface BotSyncData {
   id: string

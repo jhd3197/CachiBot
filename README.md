@@ -1,56 +1,68 @@
-<p align="center">
-  <img width="800"  alt="CachiBot" src="https://github.com/user-attachments/assets/0855ecf4-c0ec-4d81-ad2a-3887d3688cb1" />
-</p>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/0855ecf4-c0ec-4d81-ad2a-3887d3688cb1" alt="CachiBot" width="800" />
 
-<h1 align="center">CachiBot</h1>
+  <h1>CachiBot</h1>
 
-<p align="center">
-  <strong>The Armored AI Agent</strong>
-</p>
+  <p><strong>The Armored AI Agent</strong></p>
+  <p><em>Visual. Transparent. Secure.</em></p>
 
-<p align="center">
-  <em>Visual. Transparent. Secure.</em>
-</p>
+  <p>
+    <a href="docs/README.es.md">Español</a> ·
+    <a href="docs/README.zh-CN.md">中文版</a> ·
+    <a href="docs/README.pt.md">Português</a>
+  </p>
 
-<p align="center">
-  <a href="https://pypi.org/project/cachibot"><img src="https://img.shields.io/pypi/v/cachibot.svg" alt="PyPI"></a>
-  <a href="https://pypi.org/project/cachibot"><img src="https://img.shields.io/pypi/dm/cachibot.svg" alt="Downloads"></a>
-  <a href="https://github.com/jhd3197/cachibot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License"></a>
-  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python"></a>
-  <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18+-61DAFB.svg" alt="React"></a>
-</p>
+  <p>
+    <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+    <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS" />
+    <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux" />
+  </p>
+
+  <p>
+    <a href="https://pypi.org/project/cachibot"><img src="https://img.shields.io/pypi/v/cachibot.svg" alt="PyPI" /></a>
+    <a href="https://pypi.org/project/cachibot"><img src="https://img.shields.io/pypi/dm/cachibot.svg" alt="Downloads" /></a>
+    <a href="https://github.com/jhd3197/CachiBot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License" /></a>
+    <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python" /></a>
+    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18+-61DAFB.svg" alt="React" /></a>
+    <a href="https://github.com/jhd3197/CachiBot/stargazers"><img src="https://img.shields.io/github/stars/jhd3197/CachiBot?style=social" alt="Stars" /></a>
+    <a href="https://discord.gg/V9bKwYVJ"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
+  </p>
+
+  <p>
+    A visual AI agent platform with full transparency. Named after the Venezuelan <em>cachicamo</em> (armadillo) — built to be armored, auditable, and yours to control.
+  </p>
+
+  <p>
+    <a href="#-quick-start">Quick Start</a> ·
+    <a href="#-features">Features</a> ·
+    <a href="#-architecture">Architecture</a> ·
+    <a href="#-security">Security</a> ·
+    <a href="#-contributing">Contributing</a> ·
+    <a href="https://discord.gg/V9bKwYVJ">Discord</a>
+  </p>
+
+</div>
 
 ---
 
-**CachiBot** is a visual AI agent platform with full transparency. Named after the Venezuelan *cachicamo* (armadillo), it's built to be armored, auditable, and yours to control.
-
 ## Why Visual?
 
-Most AI agent tools run in terminals where you can't see what's happening. That's a security nightmare.
+Most AI agents run in terminals where you can't see what's happening. That's a security nightmare.
 
-**The problem with CLI-based agents:**
-- You can't see what the agent is doing in real-time
-- No visibility into running tasks or jobs
-- No way to monitor multiple bots simultaneously
-- Actions happen in a black box
+CLI-based agents operate in a black box — no visibility into running tasks, no way to monitor multiple bots, no real-time insight into what the agent is doing.
 
-**CachiBot gives you full visibility:**
-- Watch your bots work in real-time through the dashboard
-- See every task, job, and chat in a clean interface
-- Monitor connections to Telegram, Discord, and other platforms
-- Approve or reject actions before they execute
-- Full audit trail of everything your bots do
+**CachiBot gives you full visibility.** Watch your bots work through a dashboard, see every task and job in a clean interface, approve or reject actions before they execute, and maintain a full audit trail of everything your bots do.
 
 ## Features
 
 - **Visual Dashboard** — See all your bots, their status, and activity at a glance
-- **Real-time Monitoring** — Watch tasks and jobs execute with live updates
+- **Real-time Monitoring** — Watch tasks and jobs execute with live WebSocket updates
 - **Multi-Bot Management** — Create and manage multiple specialized bots
 - **Platform Connections** — Connect bots to Telegram, Discord, and more
 - **Knowledge Base** — Upload documents to give bots specialized knowledge
-- **Secure Sandbox** — Code runs in isolated environment with restricted imports
+- **Secure Sandbox** — Code runs in isolation with AST-based risk analysis
 - **Approval Flow** — Visual approval for risky operations before they execute
-- **Multi-Provider** — Kimi K2.5, Claude, OpenAI, and more
+- **Multi-Provider** — Kimi K2.5, Claude, OpenAI, Ollama, Groq, and more
 
 ## Quick Start
 
@@ -63,109 +75,69 @@ pip install cachibot
 ### 2. Set your API key
 
 ```bash
-# For Moonshot/Kimi (default)
-export MOONSHOT_API_KEY="your-api-key"
+# Moonshot/Kimi (default)
+export MOONSHOT_API_KEY="your-key"
 
-# Or for Claude
-export ANTHROPIC_API_KEY="your-api-key"
+# Or Claude
+export ANTHROPIC_API_KEY="your-key"
 
-# Or for OpenAI
-export OPENAI_API_KEY="your-api-key"
+# Or OpenAI
+export OPENAI_API_KEY="your-key"
 ```
 
-### 3. Run CachiBot
+### 3. Launch
 
 ```bash
 cachibot server
 ```
 
-Open **http://localhost:6392** in your browser. The frontend is bundled and served automatically.
+Open **http://localhost:6392** — the frontend is bundled and served automatically.
 
 ### CLI Usage
 
 ```bash
-# Start the dashboard server
-cachibot server
-
-# Run a single task
-cachibot "list all Python files"
-
-# Interactive mode
-cachibot
-
-# Use a specific model
-cachibot --model anthropic/claude-sonnet-4-20250514 "explain this code"
-
-# Short alias works too
-cachi server
+cachibot server                              # Start the dashboard
+cachibot "list all Python files"             # Run a single task
+cachibot                                     # Interactive mode
+cachibot --model anthropic/claude-sonnet-4-20250514 "explain this"  # Specific model
+cachi server                                 # Short alias
 ```
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph Frontend["React Dashboard"]
+        Bots[Bots]
+        Chats[Chats]
+        Jobs[Jobs & Tasks]
+        KB[Knowledge Base]
+        Conn[Connections]
+    end
+
+    subgraph Backend["FastAPI Backend"]
+        Agent["Prompture Agent"]
+        Tools["Tool Registry"]
+        Sandbox["Sandbox Executor"]
+    end
+
+    subgraph Providers["LLM Providers"]
+        Moonshot[Moonshot/Kimi]
+        Claude[Claude]
+        OpenAI[OpenAI]
+        Ollama[Ollama]
+        Groq[Groq]
+    end
+
+    subgraph Platforms["Platform Connections"]
+        Telegram[Telegram]
+        Discord[Discord]
+    end
+
+    Frontend -- "WebSocket / REST" --> Backend
+    Backend --> Providers
+    Backend --> Platforms
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         CachiBot                                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                  React Dashboard                         │    │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  │    │
-│  │  │   Bots   │  │  Chats   │  │   Jobs   │  │ Tasks  │  │    │
-│  │  └──────────┘  └──────────┘  └──────────┘  └────────┘  │    │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │    │
-│  │  │ Settings │  │Knowledge │  │    Connections       │  │    │
-│  │  └──────────┘  └──────────┘  └──────────────────────┘  │    │
-│  └────────────────────────┬────────────────────────────────┘    │
-│                           │ WebSocket / REST                     │
-│  ┌────────────────────────▼────────────────────────────────┐    │
-│  │              FastAPI Backend                             │    │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐   │    │
-│  │  │Prompture │  │  Tools   │  │   Sandbox Executor   │   │    │
-│  │  │  Agent   │  │ Registry │  │  (Isolated Python)   │   │    │
-│  │  └──────────┘  └──────────┘  └──────────────────────┘   │    │
-│  └────────────────────────┬────────────────────────────────┘    │
-│                           │                                      │
-│  ┌────────────────────────▼────────────────────────────────┐    │
-│  │             LLM Providers (via Prompture)                │    │
-│  │   Moonshot  │  Claude  │  OpenAI  │  Ollama  │  Groq    │    │
-│  └──────────────────────────────────────────────────────────┘    │
-│                           │                                      │
-│  ┌────────────────────────▼────────────────────────────────┐    │
-│  │              Platform Connections                        │    │
-│  │         Telegram  │  Discord  │  (more coming)          │    │
-│  └──────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Security
-
-CachiBot is built with security as a core principle:
-
-### Visibility = Security
-
-The biggest security risk with AI agents is not knowing what they're doing. CachiBot solves this by making everything visible:
-
-- **See every action** before it executes
-- **Approve or reject** risky operations
-- **Full audit trail** of all bot activity
-- **Real-time monitoring** of running tasks
-
-### Sandboxed Execution
-
-Python code runs in a **sandboxed environment**:
-
-- **Import Restrictions** — Only safe modules allowed (json, math, datetime, etc.)
-- **Path Restrictions** — Can only access files in the workspace
-- **Execution Timeout** — Code killed after timeout (default: 30s)
-- **Risk Analysis** — AST-based detection of dangerous operations
-
-### Always Blocked
-
-These are never allowed regardless of configuration:
-- `subprocess`, `os.system`, `ctypes`
-- `socket`, `ssl`, raw network access
-- `importlib`, `eval`, `exec` (dynamic code)
-- `pickle`, `marshal` (unsafe serialization)
 
 ## Supported Models
 
@@ -174,41 +146,74 @@ These are never allowed regardless of configuration:
 | Moonshot | `moonshot/kimi-k2.5` | `MOONSHOT_API_KEY` |
 | Claude | `anthropic/claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
 | OpenAI | `openai/gpt-4o` | `OPENAI_API_KEY` |
-| Ollama | `ollama/llama3.1:8b` | (local, no key) |
+| Ollama | `ollama/llama3.1:8b` | (local, no key needed) |
 | Groq | `groq/llama-3.1-70b` | `GROQ_API_KEY` |
+
+## Security
+
+CachiBot is built with security as a core principle. **Visibility is security** — the biggest risk with AI agents is not knowing what they're doing.
+
+### Sandboxed Execution
+
+Python code runs in a restricted environment:
+
+- **Import Restrictions** — Only safe modules allowed (json, math, datetime, etc.)
+- **Path Restrictions** — File access limited to the workspace
+- **Execution Timeout** — Code killed after timeout (default: 30s)
+- **Risk Analysis** — AST-based detection of dangerous operations
+
+### Always Blocked
+
+These are never allowed regardless of configuration: `subprocess`, `os.system`, `ctypes`, `socket`, `ssl`, `importlib`, `eval`, `exec`, `pickle`, `marshal`.
+
+## Roadmap
+
+- [x] Visual dashboard with real-time monitoring
+- [x] Multi-bot management
+- [x] Sandboxed Python execution
+- [x] Multi-provider LLM support
+- [x] Knowledge base with document upload
+- [x] Telegram integration
+- [x] Discord integration
+- [x] Plugin marketplace
+- [ ] Voice interface
+- [ ] Mobile companion app
 
 ## Contributing
 
 Contributions are welcome!
 
 ```bash
-# Clone the repo
 git clone https://github.com/jhd3197/CachiBot.git
 cd CachiBot
 
-# Install backend in development mode
+# Backend
 pip install -e ".[dev]"
-
-# Install frontend dependencies
-cd frontend && npm install
-
-# Start backend (dev)
 cachibot server --reload
 
-# Start frontend dev server (in another terminal)
-cd frontend && npm run dev
+# Frontend (in another terminal)
+cd frontend && npm install && npm run dev
 
-# Run tests
+# Tests & linting
 pytest
-
-# Lint
 ruff check src/
 cd frontend && npm run lint
 ```
 
+## Community
+
+<p align="center">
+  <a href="https://discord.gg/V9bKwYVJ">
+    <img src="https://img.shields.io/badge/Discord-Join_the_community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
+  </a>
+  <a href="https://github.com/jhd3197/CachiBot/issues">
+    <img src="https://img.shields.io/badge/Issues-Report_a_bug-red?style=for-the-badge&logo=github&logoColor=white" alt="Issues" />
+  </a>
+</p>
+
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Credits
 

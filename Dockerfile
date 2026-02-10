@@ -21,4 +21,4 @@ RUN pip install --no-cache-dir -e .
 EXPOSE 6392
 
 # Run the server
-CMD ["cachibot-server"]
+CMD ["cachibot server"]
