@@ -1,15 +1,16 @@
 /**
  * Document List Component
  *
- * Displays uploaded documents with status and delete action.
+ * Displays uploaded documents with status, retry, delete confirmation, and chunk preview.
  */
 
-import { useEffect } from 'react'
-import { FileText, Trash2, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileText, Trash2, Clock, CheckCircle, XCircle, RefreshCw, RotateCcw, Eye } from 'lucide-react'
 import { useKnowledgeStore, type DocumentResponse } from '../../stores/knowledge'
 
 interface DocumentListProps {
   botId: string
+  onViewChunks?: (documentId: string, filename: string) => void
 }
 
 function formatSize(bytes: number): string {
@@ -38,17 +39,20 @@ function StatusIcon({ status }: { status: DocumentResponse['status'] }) {
   }
 }
 
-export function DocumentList({ botId }: DocumentListProps) {
+export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
   const {
     loadDocuments,
     deleteDocument,
     refreshDocument,
+    retryDocument,
     getDocuments,
     loadingDocuments,
   } = useKnowledgeStore()
 
   const documents = getDocuments(botId)
   const isLoading = loadingDocuments[botId]
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState<string | null>(null)
 
   useEffect(() => {
     loadDocuments(botId)
@@ -67,6 +71,20 @@ export function DocumentList({ botId }: DocumentListProps) {
 
     return () => clearInterval(interval)
   }, [botId, documents, refreshDocument])
+
+  const handleDelete = async (documentId: string) => {
+    await deleteDocument(botId, documentId)
+    setConfirmingDelete(null)
+  }
+
+  const handleRetry = async (documentId: string) => {
+    setRetrying(documentId)
+    try {
+      await retryDocument(botId, documentId)
+    } finally {
+      setRetrying(null)
+    }
+  }
 
   if (isLoading && documents.length === 0) {
     return (
@@ -88,31 +106,80 @@ export function DocumentList({ botId }: DocumentListProps) {
   return (
     <div className="space-y-2">
       {documents.map((doc) => (
-        <div
-          key={doc.id}
-          className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg"
-        >
-          <FileText className="h-5 w-5 text-zinc-400 flex-shrink-0" />
+        <div key={doc.id}>
+          <div className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
+            <FileText className="h-5 w-5 text-zinc-400 flex-shrink-0" />
 
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-zinc-200 truncate">{doc.filename}</p>
-            <p className="text-xs text-zinc-500">
-              {formatSize(doc.file_size)}
-              {doc.chunk_count > 0 && ` - ${doc.chunk_count} chunks`}
-              {' - '}
-              {formatDate(doc.uploaded_at)}
-            </p>
+            <div
+              className={`flex-1 min-w-0 ${doc.status === 'ready' && onViewChunks ? 'cursor-pointer hover:opacity-80' : ''}`}
+              onClick={() => {
+                if (doc.status === 'ready' && onViewChunks) {
+                  onViewChunks(doc.id, doc.filename)
+                }
+              }}
+            >
+              <p className="text-sm text-zinc-200 truncate">{doc.filename}</p>
+              <p className="text-xs text-zinc-500">
+                {formatSize(doc.file_size)}
+                {doc.chunk_count > 0 && ` - ${doc.chunk_count} chunks`}
+                {' - '}
+                {formatDate(doc.uploaded_at)}
+              </p>
+            </div>
+
+            <StatusIcon status={doc.status} />
+
+            {/* View chunks button for ready documents */}
+            {doc.status === 'ready' && onViewChunks && (
+              <button
+                onClick={() => onViewChunks(doc.id, doc.filename)}
+                className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                title="View chunks"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Retry button for failed documents */}
+            {doc.status === 'failed' && (
+              <button
+                onClick={() => handleRetry(doc.id)}
+                disabled={retrying === doc.id}
+                className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-yellow-400 transition-colors disabled:opacity-50"
+                title="Retry processing"
+              >
+                <RotateCcw className={`h-4 w-4 ${retrying === doc.id ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+
+            {/* Delete button */}
+            <button
+              onClick={() => setConfirmingDelete(doc.id)}
+              className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
+              title="Delete document"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
 
-          <StatusIcon status={doc.status} />
-
-          <button
-            onClick={() => deleteDocument(botId, doc.id)}
-            className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
-            title="Delete document"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {/* Inline delete confirmation */}
+          {confirmingDelete === doc.id && (
+            <div className="flex items-center gap-2 mt-1 ml-8 p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <span className="text-xs text-red-400 flex-1">Delete "{doc.filename}"?</span>
+              <button
+                onClick={() => handleDelete(doc.id)}
+                className="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-500"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmingDelete(null)}
+                className="px-2 py-1 text-xs rounded border border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

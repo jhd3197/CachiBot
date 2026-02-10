@@ -35,6 +35,55 @@ export interface InstructionsResponse {
   updated_at: string | null
 }
 
+export interface NoteResponse {
+  id: string
+  bot_id: string
+  title: string
+  content: string
+  tags: string[]
+  source: 'user' | 'bot'
+  created_at: string
+  updated_at: string
+}
+
+export interface NoteCreate {
+  title: string
+  content: string
+  tags?: string[]
+}
+
+export interface NoteUpdate {
+  title?: string
+  content?: string
+  tags?: string[]
+}
+
+export interface KnowledgeStats {
+  total_documents: number
+  documents_ready: number
+  documents_processing: number
+  documents_failed: number
+  total_chunks: number
+  total_notes: number
+  has_instructions: boolean
+}
+
+export interface SearchResult {
+  type: 'document' | 'note'
+  id: string
+  title: string
+  content: string
+  score: number | null
+  source: string | null
+}
+
+export interface ChunkPreview {
+  id: string
+  document_id: string
+  chunk_index: number
+  content: string
+}
+
 // =============================================================================
 // AUTH HELPERS
 // =============================================================================
@@ -166,6 +215,106 @@ export async function deleteInstructions(botId: string): Promise<void> {
 }
 
 // =============================================================================
+// NOTES API
+// =============================================================================
+
+export async function listNotes(
+  botId: string,
+  params?: { tags?: string; search?: string; limit?: number; offset?: number }
+): Promise<NoteResponse[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.tags) searchParams.set('tags', params.tags)
+  if (params?.search) searchParams.set('search', params.search)
+  if (params?.limit) searchParams.set('limit', String(params.limit))
+  if (params?.offset) searchParams.set('offset', String(params.offset))
+  const qs = searchParams.toString()
+  return request(`/${botId}/knowledge/notes${qs ? `?${qs}` : ''}`)
+}
+
+export async function createNote(
+  botId: string,
+  data: NoteCreate
+): Promise<NoteResponse> {
+  return request(`/${botId}/knowledge/notes`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getNote(
+  botId: string,
+  noteId: string
+): Promise<NoteResponse> {
+  return request(`/${botId}/knowledge/notes/${noteId}`)
+}
+
+export async function updateNote(
+  botId: string,
+  noteId: string,
+  data: NoteUpdate
+): Promise<NoteResponse> {
+  return request(`/${botId}/knowledge/notes/${noteId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteNote(
+  botId: string,
+  noteId: string
+): Promise<void> {
+  return request(`/${botId}/knowledge/notes/${noteId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function getNoteTags(botId: string): Promise<string[]> {
+  return request(`/${botId}/knowledge/notes/tags`)
+}
+
+// =============================================================================
+// KNOWLEDGE UTILITY API
+// =============================================================================
+
+export async function getKnowledgeStats(botId: string): Promise<KnowledgeStats> {
+  return request(`/${botId}/knowledge/stats`)
+}
+
+export async function searchKnowledge(
+  botId: string,
+  query: string,
+  includeNotes = true,
+  includeDocs = true,
+  limit = 10
+): Promise<SearchResult[]> {
+  return request(`/${botId}/knowledge/search`, {
+    method: 'POST',
+    body: JSON.stringify({
+      query,
+      include_notes: includeNotes,
+      include_documents: includeDocs,
+      limit,
+    }),
+  })
+}
+
+export async function retryDocument(
+  botId: string,
+  documentId: string
+): Promise<{ status: string; document_id: string }> {
+  return request(`/${botId}/knowledge/documents/${documentId}/retry`, {
+    method: 'POST',
+  })
+}
+
+export async function getDocumentChunks(
+  botId: string,
+  documentId: string
+): Promise<ChunkPreview[]> {
+  return request(`/${botId}/knowledge/documents/${documentId}/chunks`)
+}
+
+// =============================================================================
 // COMBINED EXPORT
 // =============================================================================
 
@@ -175,10 +324,22 @@ export const knowledgeApi = {
     list: listDocuments,
     get: getDocument,
     delete: deleteDocument,
+    retry: retryDocument,
+    getChunks: getDocumentChunks,
   },
   instructions: {
     get: getInstructions,
     update: updateInstructions,
     delete: deleteInstructions,
   },
+  notes: {
+    list: listNotes,
+    create: createNote,
+    get: getNote,
+    update: updateNote,
+    delete: deleteNote,
+    getTags: getNoteTags,
+  },
+  stats: getKnowledgeStats,
+  search: searchKnowledge,
 }

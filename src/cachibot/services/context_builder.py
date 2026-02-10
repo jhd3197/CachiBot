@@ -9,7 +9,12 @@ import logging
 from dataclasses import dataclass
 
 from cachibot.services.vector_store import VectorStore, get_vector_store
-from cachibot.storage.repository import ContactsRepository, KnowledgeRepository, SkillsRepository
+from cachibot.storage.repository import (
+    ContactsRepository,
+    KnowledgeRepository,
+    NotesRepository,
+    SkillsRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,7 @@ class KnowledgeContext:
     recent_history: str | None
     contacts: str | None
     skills: str | None
+    notes: str | None = None
 
     def to_prompt_section(self) -> str:
         """Convert to prompt-ready string."""
@@ -34,6 +40,9 @@ class KnowledgeContext:
 
         if self.instructions:
             sections.append(f"## Custom Instructions\n{self.instructions}")
+
+        if self.notes:
+            sections.append(f"## Notes\n{self.notes}")
 
         if self.contacts:
             sections.append(f"## Known Contacts\n{self.contacts}")
@@ -83,6 +92,7 @@ class ContextBuilder:
         self._repo = KnowledgeRepository()
         self._contacts_repo = ContactsRepository()
         self._skills_repo = SkillsRepository()
+        self._notes_repo = NotesRepository()
 
     @property
     def vector_store(self) -> VectorStore:
@@ -123,10 +133,13 @@ class ContextBuilder:
         # 3. Get contacts if enabled
         contacts = await self._get_contacts(bot_id, include_contacts)
 
-        # 4. Get relevant document chunks
+        # 4. Get relevant notes
+        notes = await self._get_relevant_notes(bot_id, user_message)
+
+        # 5. Get relevant document chunks
         relevant_docs = await self._get_relevant_docs(bot_id, user_message)
 
-        # 5. Get recent conversation history
+        # 6. Get recent conversation history
         recent_history = await self._get_recent_history(bot_id, chat_id)
 
         return KnowledgeContext(
@@ -135,6 +148,7 @@ class ContextBuilder:
             recent_history=recent_history,
             contacts=contacts,
             skills=skills,
+            notes=notes,
         )
 
     async def _get_skills_instructions(
@@ -200,6 +214,41 @@ class ContextBuilder:
 
         except Exception as e:
             logger.warning(f"Contacts retrieval failed: {e}")
+            return None
+
+    async def _get_relevant_notes(self, bot_id: str, query: str) -> str | None:
+        """Get relevant notes for the bot."""
+        try:
+            # Get recent notes, optionally filtered by query relevance
+            if query.strip():
+                notes = await self._notes_repo.search_notes(bot_id, query, limit=5)
+            else:
+                notes = []
+
+            # Always include the most recent notes as well
+            recent_notes = await self._notes_repo.get_notes_by_bot(bot_id, limit=5)
+
+            # Merge and deduplicate
+            seen_ids: set[str] = set()
+            all_notes = []
+            for note in notes + recent_notes:
+                if note.id not in seen_ids:
+                    seen_ids.add(note.id)
+                    all_notes.append(note)
+
+            if not all_notes:
+                return None
+
+            formatted = []
+            for note in all_notes[:10]:  # Cap at 10
+                tags_str = f" [{', '.join(note.tags)}]" if note.tags else ""
+                content = note.content[:500] + "..." if len(note.content) > 500 else note.content
+                formatted.append(f"### {note.title}{tags_str}\n{content}")
+
+            return "\n\n".join(formatted)
+
+        except Exception as e:
+            logger.warning(f"Notes retrieval failed: {e}")
             return None
 
     async def _get_relevant_docs(self, bot_id: str, query: str) -> str | None:
