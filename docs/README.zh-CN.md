@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/0855ecf4-c0ec-4d81-ad2a-3887d3688cb1" alt="CachiBot" width="800" />
+  <img src="../assets/hero.png" alt="CachiBot" width="800" />
 
   <h1>CachiBot</h1>
 
@@ -53,6 +53,14 @@
 基于命令行的智能体在黑盒中运行——无法看到正在运行的任务、无法监控多个机器人、无法实时了解智能体正在做什么。
 
 **CachiBot 为你提供完全的可见性。** 通过仪表板观察你的机器人工作，在简洁的界面中查看每个任务和作业，在操作执行前批准或拒绝，并维护机器人所做一切的完整审计追踪。
+
+<p align="center">
+  <img src="../assets/dashboard.jpeg" alt="仪表板" width="800" />
+</p>
+
+<p align="center">
+  <img src="../assets/chat.png" alt="聊天界面" width="800" />
+</p>
 
 ## 功能特性
 
