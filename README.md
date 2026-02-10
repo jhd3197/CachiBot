@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/0855ecf4-c0ec-4d81-ad2a-3887d3688cb1" alt="CachiBot" width="800" />
+  <img src="assets/hero.png" alt="CachiBot" width="800" />
 
   <h1>CachiBot</h1>
 
@@ -52,6 +52,14 @@ Most AI agents run in terminals where you can't see what's happening. That's a s
 CLI-based agents operate in a black box — no visibility into running tasks, no way to monitor multiple bots, no real-time insight into what the agent is doing.
 
 **CachiBot gives you full visibility.** Watch your bots work through a dashboard, see every task and job in a clean interface, approve or reject actions before they execute, and maintain a full audit trail of everything your bots do.
+
+<p align="center">
+  <img src="assets/dashboard.jpeg" alt="Dashboard" width="800" />
+</p>
+
+<p align="center">
+  <img src="assets/chat.png" alt="Chat Interface" width="800" />
+</p>
 
 ## Features
 
