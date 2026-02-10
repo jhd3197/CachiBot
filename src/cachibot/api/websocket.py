@@ -257,14 +257,13 @@ async def run_agent(
             await repo.save_bot_message(user_msg)
 
         # Stream agent response
-        response_chunks: list[str] = []
         response_msg_id = str(uuid.uuid4())
         has_tool_calls = False
+        agent_result = None  # Captured from the final output event
 
         async for event in agent.run_stream(message):
             match event.event_type:
                 case StreamEventType.text_delta:
-                    response_chunks.append(event.data)
                     await manager.send(
                         client_id,
                         WSMessage.message(
@@ -296,9 +295,14 @@ async def run_agent(
                             str(event.data.get("result", ""))[:1000],
                         ),
                     )
+                case StreamEventType.output:
+                    agent_result = event.data  # AgentResult
+
+        # Extract response text and usage from the AgentResult
+        response_text = (agent_result.output_text or "") if agent_result else ""
+        run_usage = agent_result.run_usage if agent_result else {}
 
         # Save full assistant response to history
-        response_text = "".join(response_chunks)
         if response_text and bot_id and chat_id:
             assistant_msg = BotMessage(
                 id=str(uuid.uuid4()),
@@ -310,18 +314,21 @@ async def run_agent(
             )
             await repo.save_bot_message(assistant_msg)
 
-        # Send usage stats
-        usage = agent.get_usage()
+        # Send usage stats from AgentResult.run_usage
         await manager.send(
             client_id,
             WSMessage.usage(
-                tokens=usage.get("total_tokens", 0),
-                cost=usage.get("total_cost", 0.0),
-                iterations=usage.get("iterations", 0),
-                prompt_tokens=usage.get("prompt_tokens", 0),
-                completion_tokens=usage.get("completion_tokens", 0),
-                elapsed_ms=usage.get("elapsed_ms", 0.0),
-                tokens_per_second=usage.get("tokens_per_second", 0.0),
+                tokens=run_usage.get("total_tokens", 0),
+                cost=run_usage.get("cost", 0.0),
+                iterations=len(agent_result.steps) if agent_result else 0,
+                prompt_tokens=run_usage.get("prompt_tokens", 0),
+                completion_tokens=run_usage.get("completion_tokens", 0),
+                elapsed_ms=run_usage.get("total_elapsed_ms", 0.0),
+                tokens_per_second=run_usage.get("tokens_per_second", 0.0),
+                call_count=run_usage.get("call_count", 0),
+                errors=run_usage.get("errors", 0),
+                per_model=run_usage.get("per_model", {}),
+                latency_stats=run_usage.get("latency_stats", {}),
             ),
         )
 

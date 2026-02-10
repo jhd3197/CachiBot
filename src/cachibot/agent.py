@@ -64,7 +64,6 @@ class CachibotAgent:
 
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
-        self._last_result = None  # Store last AgentResult for usage tracking
         self._setup_sandbox()
         self._build_registry_from_plugins()
 
@@ -183,22 +182,17 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
             return False  # Reject by default if no callback
         return True  # Auto-approve if approval not required
 
-    async def run(self, user_message: str) -> str:
+    async def run(self, user_message: str) -> AgentResult:
         """
-        Process a user message and return the response.
+        Process a user message and return the AgentResult.
 
         Args:
             user_message: The user's input
 
         Returns:
-            The agent's response message
+            The AgentResult containing output_text, run_usage, steps, etc.
         """
-        result: AgentResult = await self._agent.run(user_message)
-
-        # Store result for usage tracking
-        self._last_result = result
-
-        return result.output_text or "Task completed."
+        return await self._agent.run(user_message)
 
     async def run_stream(self, user_message: str):
         """
@@ -208,36 +202,16 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
             user_message: The user's input
 
         Yields:
-            Stream events from the agent
+            Stream events from the agent.
+            The final event (StreamEventType.output) contains the complete AgentResult.
         """
         async for event in self._agent.run_stream(user_message):
             yield event
 
-    def get_usage(self) -> dict:
-        """Get token usage and cost information."""
-        if hasattr(self, "_last_result") and self._last_result:
-            # Prompture 1.0.4+: run_usage now works correctly with tools
-            # Use run_usage for session-level aggregated stats
-            usage = self._last_result.run_usage
-            return {
-                "prompt_tokens": usage.get("prompt_tokens", 0),
-                "completion_tokens": usage.get("completion_tokens", 0),
-                "total_tokens": usage.get("total_tokens", 0),
-                "total_cost": usage.get("cost", 0.0),
-                "iterations": len(self._last_result.steps),
-                # Timing data (Prompture 1.0.4+)
-                "elapsed_ms": usage.get("total_elapsed_ms", 0.0),
-                "tokens_per_second": usage.get("tokens_per_second", 0.0),
-            }
-        return {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "total_cost": 0.0,
-            "iterations": 0,
-            "elapsed_ms": 0.0,
-            "tokens_per_second": 0.0,
-        }
+    @property
+    def conversation(self):
+        """Access the underlying agent's conversation history."""
+        return self._agent.conversation
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
