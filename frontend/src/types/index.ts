@@ -470,7 +470,7 @@ export interface UsageStats {
 export type BotView = 'chats' | 'tasks' | 'work' | 'schedules' | 'tools' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
-export type AppView = 'dashboard' | 'settings' | 'models'
+export type AppView = 'dashboard' | 'settings'
 
 // =============================================================================
 // CREATION FLOW TYPES

@@ -1,4 +1,4 @@
-import { Plus, Settings, LayoutDashboard, Brain, Github } from 'lucide-react'
+import { Plus, Settings, LayoutDashboard, Github } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils'
 import type { Bot } from '../../types'
 
 // App-level paths (not bot views)
-const appPaths = ['/dashboard', '/models', '/settings']
+const appPaths = ['/dashboard', '/settings']
 
 interface BotRailProps {
   onNavigate?: () => void
@@ -22,7 +22,7 @@ export function BotRail({ onNavigate }: BotRailProps) {
 
   // Derive current app view from URL
   const currentPath = location.pathname
-  const isAppView = appPaths.includes(currentPath)
+  const isAppView = appPaths.some((p) => currentPath === p || currentPath.startsWith(p + '/'))
 
   const handleBotClick = (botId: string) => {
     setActiveBot(botId)
@@ -57,20 +57,6 @@ export function BotRail({ onNavigate }: BotRailProps) {
         >
           <LayoutDashboard className="h-5 w-5" />
           <Tooltip>Dashboard</Tooltip>
-        </button>
-
-        {/* Models */}
-        <button
-          onClick={() => handleAppViewClick('/models')}
-          className={cn(
-            'group relative flex h-12 w-12 items-center justify-center rounded-[24px] transition-all duration-200 hover:rounded-[16px]',
-            currentPath === '/models'
-              ? 'rounded-[16px] bg-accent-600 text-white'
-              : 'bg-zinc-300 text-zinc-600 hover:bg-accent-600/80 hover:text-white dark:bg-zinc-800 dark:text-zinc-400'
-          )}
-        >
-          <Brain className="h-5 w-5" />
-          <Tooltip>Models</Tooltip>
         </button>
 
         <Divider />
@@ -117,7 +103,7 @@ export function BotRail({ onNavigate }: BotRailProps) {
           onClick={() => handleAppViewClick('/settings')}
           className={cn(
             'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
-            currentPath === '/settings'
+            currentPath === '/settings' || currentPath.startsWith('/settings/')
               ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
               : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
           )}
