@@ -82,6 +82,14 @@ export interface MessageMetadata {
   tokens?: number
   cost?: number
   iterations?: number
+  promptTokens?: number
+  completionTokens?: number
+  elapsedMs?: number
+  tokensPerSecond?: number
+  callCount?: number
+  errors?: number
+  perModel?: Record<string, { tokens: number; cost: number }>
+  latencyStats?: Record<string, number>
 }
 
 export interface ChatMessage {
@@ -372,6 +380,10 @@ export interface UsagePayload {
   iterations: number
   elapsedMs: number
   tokensPerSecond: number
+  callCount: number
+  errors: number
+  perModel: Record<string, { tokens: number; cost: number }>
+  latencyStats: Record<string, number>
 }
 
 export interface PlatformMessagePayload {

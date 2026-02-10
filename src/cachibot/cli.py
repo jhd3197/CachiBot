@@ -94,14 +94,23 @@ def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
     return Confirm.ask("  [bold]Approve this action?[/]", default=False)
 
 
-def print_usage(usage: dict) -> None:
-    """Print token usage and cost."""
-    if usage["total_tokens"] > 0:
-        console.print(
-            f"\n  [cost]📊 Tokens: {usage['total_tokens']:,} | "
-            f"Cost: ${usage['total_cost']:.4f} | "
-            f"Steps: {usage['iterations']}[/]"
-        )
+def print_usage(run_usage: dict, steps: int = 0) -> None:
+    """Print token usage and cost from AgentResult.run_usage."""
+    total_tokens = run_usage.get("total_tokens", 0)
+    if total_tokens > 0:
+        cost = run_usage.get("cost", 0.0)
+        elapsed_ms = run_usage.get("total_elapsed_ms", 0.0)
+        tps = run_usage.get("tokens_per_second", 0.0)
+        parts = [
+            f"Tokens: {total_tokens:,}",
+            f"Cost: ${cost:.4f}",
+            f"Steps: {steps}",
+        ]
+        if elapsed_ms > 0:
+            parts.append(f"Time: {elapsed_ms / 1000:.1f}s")
+        if tps > 0:
+            parts.append(f"Speed: {tps:.0f} tok/s")
+        console.print(f"\n  [cost]📊 {' | '.join(parts)}[/]")
 
 
 def create_agent_with_callbacks(config: Config) -> CachibotAgent:
@@ -226,12 +235,12 @@ def main(
     if task:
         try:
             console.print()
-            response = asyncio.run(agent.run(task))
+            result = asyncio.run(agent.run(task))
             console.print(f"\n[assistant]Cachibot:[/]")
-            console.print(Markdown(response))
+            console.print(Markdown(result.output_text or "Task completed."))
 
             if config.display.show_cost:
-                print_usage(agent.get_usage())
+                print_usage(result.run_usage, steps=len(result.steps))
         except Exception as e:
             console.print(f"[error]Error: {e}[/]")
             raise typer.Exit(1)
@@ -269,15 +278,15 @@ def main(
 
             # Run the agent
             console.print()
-            response = asyncio.run(agent.run(user_input))
+            result = asyncio.run(agent.run(user_input))
 
             # Print response
             console.print(f"\n[assistant]Cachibot:[/]")
-            console.print(Markdown(response))
+            console.print(Markdown(result.output_text or "Task completed."))
 
             # Show usage
             if config.display.show_cost:
-                print_usage(agent.get_usage())
+                print_usage(result.run_usage, steps=len(result.steps))
 
         except KeyboardInterrupt:
             console.print("\n\n[dim]Use 'exit' to quit properly.[/]")
@@ -305,11 +314,11 @@ def run_task(
     agent = create_agent_with_callbacks(config)
 
     try:
-        response = asyncio.run(agent.run(task))
-        console.print(Markdown(response))
+        result = asyncio.run(agent.run(task))
+        console.print(Markdown(result.output_text or "Task completed."))
 
         if config.display.show_cost:
-            print_usage(agent.get_usage())
+            print_usage(result.run_usage, steps=len(result.steps))
     except Exception as e:
         console.print(f"[error]Error: {e}[/]")
         raise typer.Exit(1)

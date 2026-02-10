@@ -152,13 +152,24 @@ class MessageProcessor:
 
         # Run async agent directly
         try:
-            response = await agent.run(message)
-
-            # Get usage data from agent
-            usage = agent.get_usage()
+            result = await agent.run(message)
+            response = result.output_text or "Task completed."
+            run_usage = result.run_usage
 
             # Save assistant response to history with usage metadata
             assistant_msg_id = str(uuid.uuid4())
+            usage_metadata = {
+                "tokens": run_usage.get("total_tokens", 0),
+                "promptTokens": run_usage.get("prompt_tokens", 0),
+                "completionTokens": run_usage.get("completion_tokens", 0),
+                "cost": run_usage.get("cost", 0.0),
+                "elapsedMs": run_usage.get("total_elapsed_ms", 0.0),
+                "tokensPerSecond": run_usage.get("tokens_per_second", 0.0),
+                "callCount": run_usage.get("call_count", 0),
+                "errors": run_usage.get("errors", 0),
+                "model": bot.model,
+                "platform": platform,
+            }
             assistant_msg = BotMessage(
                 id=assistant_msg_id,
                 bot_id=bot_id,
@@ -166,16 +177,7 @@ class MessageProcessor:
                 role="assistant",
                 content=response,
                 timestamp=datetime.utcnow(),
-                metadata={
-                    "tokens": usage.get("total_tokens", 0),
-                    "promptTokens": usage.get("prompt_tokens", 0),
-                    "completionTokens": usage.get("completion_tokens", 0),
-                    "cost": usage.get("total_cost", 0.0),
-                    "elapsedMs": usage.get("elapsed_ms", 0.0),
-                    "tokensPerSecond": usage.get("tokens_per_second", 0.0),
-                    "model": bot.model,
-                    "platform": platform,
-                },
+                metadata=usage_metadata,
             )
             await self._knowledge_repo.save_bot_message(assistant_msg)
 
@@ -187,15 +189,7 @@ class MessageProcessor:
                 content=response,
                 message_id=assistant_msg_id,
                 platform=platform,
-                metadata={
-                    "tokens": usage.get("total_tokens", 0),
-                    "promptTokens": usage.get("prompt_tokens", 0),
-                    "completionTokens": usage.get("completion_tokens", 0),
-                    "cost": usage.get("total_cost", 0.0),
-                    "elapsedMs": usage.get("elapsed_ms", 0.0),
-                    "tokensPerSecond": usage.get("tokens_per_second", 0.0),
-                    "model": bot.model,
-                },
+                metadata=usage_metadata,
             )
 
             return response
