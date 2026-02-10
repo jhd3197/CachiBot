@@ -1,7 +1,7 @@
 /**
  * Knowledge Base Store
  *
- * Manages documents and custom instructions state per bot.
+ * Manages documents, custom instructions, notes, and KB stats per bot.
  */
 
 import { create } from 'zustand'
@@ -9,9 +9,15 @@ import { persist } from 'zustand/middleware'
 import {
   knowledgeApi,
   type DocumentResponse,
+  type NoteResponse,
+  type NoteCreate,
+  type NoteUpdate,
+  type KnowledgeStats,
+  type SearchResult,
+  type ChunkPreview,
 } from '../api/knowledge'
 
-export type { DocumentResponse } from '../api/knowledge'
+export type { DocumentResponse, NoteResponse, KnowledgeStats, SearchResult, ChunkPreview } from '../api/knowledge'
 
 // =============================================================================
 // TYPES
@@ -22,9 +28,23 @@ export interface KnowledgeState {
   documents: Record<string, DocumentResponse[]>
   // Instructions per bot: botId -> content
   instructions: Record<string, string>
+  // Notes per bot: botId -> notes[]
+  notes: Record<string, NoteResponse[]>
+  // All tags per bot: botId -> tags[]
+  allTags: Record<string, string[]>
+  // Stats per bot
+  stats: Record<string, KnowledgeStats>
+  // Search results
+  searchResults: SearchResult[]
+  // Document chunks: documentId -> chunks[]
+  documentChunks: Record<string, ChunkPreview[]>
   // Loading states
   loadingDocuments: Record<string, boolean>
   loadingInstructions: Record<string, boolean>
+  loadingNotes: Record<string, boolean>
+  loadingStats: Record<string, boolean>
+  loadingSearch: boolean
+  loadingChunks: Record<string, boolean>
   // Upload state
   uploadingBots: Set<string>
   // Error state
@@ -36,6 +56,8 @@ export interface KnowledgeState {
   deleteDocument: (botId: string, documentId: string) => Promise<void>
   refreshDocument: (botId: string, documentId: string) => Promise<void>
   getDocuments: (botId: string) => DocumentResponse[]
+  retryDocument: (botId: string, documentId: string) => Promise<void>
+  loadDocumentChunks: (botId: string, documentId: string) => Promise<void>
 
   // Instruction actions
   loadInstructions: (botId: string) => Promise<void>
@@ -43,8 +65,20 @@ export interface KnowledgeState {
   deleteInstructions: (botId: string) => Promise<void>
   getInstructions: (botId: string) => string
 
+  // Notes actions
+  loadNotes: (botId: string, tags?: string, search?: string) => Promise<void>
+  createNote: (botId: string, data: NoteCreate) => Promise<NoteResponse>
+  updateNote: (botId: string, noteId: string, data: NoteUpdate) => Promise<void>
+  deleteNote: (botId: string, noteId: string) => Promise<void>
+  loadTags: (botId: string) => Promise<void>
+
+  // Stats & search
+  loadStats: (botId: string) => Promise<void>
+  searchKnowledge: (botId: string, query: string) => Promise<void>
+
   // Utility
   clearError: () => void
+  clearSearchResults: () => void
 }
 
 // =============================================================================
@@ -56,8 +90,17 @@ export const useKnowledgeStore = create<KnowledgeState>()(
     (set, get) => ({
       documents: {},
       instructions: {},
+      notes: {},
+      allTags: {},
+      stats: {},
+      searchResults: [],
+      documentChunks: {},
       loadingDocuments: {},
       loadingInstructions: {},
+      loadingNotes: {},
+      loadingStats: {},
+      loadingSearch: false,
+      loadingChunks: {},
       uploadingBots: new Set(),
       error: null,
 
@@ -155,6 +198,37 @@ export const useKnowledgeStore = create<KnowledgeState>()(
         return get().documents[botId] || []
       },
 
+      retryDocument: async (botId: string, documentId: string) => {
+        try {
+          await knowledgeApi.documents.retry(botId, documentId)
+          // Refresh to show new status
+          await get().loadDocuments(botId)
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Retry failed',
+          })
+          throw error
+        }
+      },
+
+      loadDocumentChunks: async (botId: string, documentId: string) => {
+        set((state) => ({
+          loadingChunks: { ...state.loadingChunks, [documentId]: true },
+        }))
+        try {
+          const chunks = await knowledgeApi.documents.getChunks(botId, documentId)
+          set((state) => ({
+            documentChunks: { ...state.documentChunks, [documentId]: chunks },
+            loadingChunks: { ...state.loadingChunks, [documentId]: false },
+          }))
+        } catch (error) {
+          set((state) => ({
+            loadingChunks: { ...state.loadingChunks, [documentId]: false },
+            error: error instanceof Error ? error.message : 'Failed to load chunks',
+          }))
+        }
+      },
+
       // ===== INSTRUCTIONS =====
 
       loadInstructions: async (botId: string) => {
@@ -209,16 +283,138 @@ export const useKnowledgeStore = create<KnowledgeState>()(
         return get().instructions[botId] || ''
       },
 
+      // ===== NOTES =====
+
+      loadNotes: async (botId: string, tags?: string, search?: string) => {
+        set((state) => ({
+          loadingNotes: { ...state.loadingNotes, [botId]: true },
+          error: null,
+        }))
+
+        try {
+          const notes = await knowledgeApi.notes.list(botId, { tags, search })
+          set((state) => ({
+            notes: { ...state.notes, [botId]: notes },
+            loadingNotes: { ...state.loadingNotes, [botId]: false },
+          }))
+        } catch (error) {
+          set((state) => ({
+            loadingNotes: { ...state.loadingNotes, [botId]: false },
+            error: error instanceof Error ? error.message : 'Failed to load notes',
+          }))
+        }
+      },
+
+      createNote: async (botId: string, data: NoteCreate) => {
+        try {
+          const note = await knowledgeApi.notes.create(botId, data)
+          set((state) => ({
+            notes: {
+              ...state.notes,
+              [botId]: [note, ...(state.notes[botId] || [])],
+            },
+          }))
+          return note
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to create note',
+          })
+          throw error
+        }
+      },
+
+      updateNote: async (botId: string, noteId: string, data: NoteUpdate) => {
+        try {
+          const updated = await knowledgeApi.notes.update(botId, noteId, data)
+          set((state) => ({
+            notes: {
+              ...state.notes,
+              [botId]: (state.notes[botId] || []).map((n) =>
+                n.id === noteId ? updated : n
+              ),
+            },
+          }))
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to update note',
+          })
+          throw error
+        }
+      },
+
+      deleteNote: async (botId: string, noteId: string) => {
+        try {
+          await knowledgeApi.notes.delete(botId, noteId)
+          set((state) => ({
+            notes: {
+              ...state.notes,
+              [botId]: (state.notes[botId] || []).filter((n) => n.id !== noteId),
+            },
+          }))
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to delete note',
+          })
+          throw error
+        }
+      },
+
+      loadTags: async (botId: string) => {
+        try {
+          const tags = await knowledgeApi.notes.getTags(botId)
+          set((state) => ({
+            allTags: { ...state.allTags, [botId]: tags },
+          }))
+        } catch {
+          // Silently fail
+        }
+      },
+
+      // ===== STATS & SEARCH =====
+
+      loadStats: async (botId: string) => {
+        set((state) => ({
+          loadingStats: { ...state.loadingStats, [botId]: true },
+        }))
+        try {
+          const stats = await knowledgeApi.stats(botId)
+          set((state) => ({
+            stats: { ...state.stats, [botId]: stats },
+            loadingStats: { ...state.loadingStats, [botId]: false },
+          }))
+        } catch (error) {
+          set((state) => ({
+            loadingStats: { ...state.loadingStats, [botId]: false },
+            error: error instanceof Error ? error.message : 'Failed to load stats',
+          }))
+        }
+      },
+
+      searchKnowledge: async (botId: string, query: string) => {
+        set({ loadingSearch: true, error: null })
+        try {
+          const results = await knowledgeApi.search(botId, query)
+          set({ searchResults: results, loadingSearch: false })
+        } catch (error) {
+          set({
+            loadingSearch: false,
+            error: error instanceof Error ? error.message : 'Search failed',
+          })
+        }
+      },
+
       // ===== UTILITY =====
 
       clearError: () => set({ error: null }),
+      clearSearchResults: () => set({ searchResults: [] }),
     }),
     {
       name: 'cachibot-knowledge',
-      // Only persist documents and instructions, not loading/error states
+      // Only persist documents, instructions, and notes, not loading/error states
       partialize: (state) => ({
         documents: state.documents,
         instructions: state.instructions,
+        notes: state.notes,
       }),
     }
   )

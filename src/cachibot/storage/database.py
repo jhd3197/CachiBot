@@ -353,6 +353,20 @@ async def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_work_jobs_work ON work_jobs(work_id);
         CREATE INDEX IF NOT EXISTS idx_work_jobs_status ON work_jobs(status);
 
+        -- Bot Notes (persistent memory for bots)
+        CREATE TABLE IF NOT EXISTS bot_notes (
+            id TEXT PRIMARY KEY,
+            bot_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            tags TEXT DEFAULT '[]',
+            source TEXT DEFAULT 'user',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_notes_bot ON bot_notes(bot_id);
+        CREATE INDEX IF NOT EXISTS idx_bot_notes_tags ON bot_notes(tags);
+
         -- Todos (Reminders/Notes)
         CREATE TABLE IF NOT EXISTS todos (
             id TEXT PRIMARY KEY,

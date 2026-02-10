@@ -20,7 +20,16 @@ import { useBotStore, DEFAULT_BOT_SETTINGS } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../common/BotIconRenderer'
 import { ModelSelect } from '../common/ModelSelect'
-import { DocumentUploader, DocumentList, InstructionsEditor } from '../knowledge'
+import {
+  DocumentUploader,
+  DocumentList,
+  InstructionsEditor,
+  NotesManager,
+  NoteEditorDialog,
+  KnowledgeStats as KnowledgeStatsComponent,
+  KnowledgeSearch,
+  DocumentChunksDialog,
+} from '../knowledge'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
@@ -346,21 +355,90 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 }
 
 function KnowledgeSection({ botId }: { botId: string }) {
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [showNoteEditor, setShowNoteEditor] = useState(false)
+  const [chunksDoc, setChunksDoc] = useState<{ id: string; filename: string } | null>(null)
+
+  const handleEditNote = (noteId: string) => {
+    setEditingNoteId(noteId)
+    setShowNoteEditor(true)
+  }
+
+  const handleNewNote = () => {
+    setEditingNoteId(null)
+    setShowNoteEditor(true)
+  }
+
+  const handleCloseNoteEditor = () => {
+    setShowNoteEditor(false)
+    setEditingNoteId(null)
+  }
+
   return (
     <div className="space-y-6">
-      <div>
+      {/* Stats overview */}
+      <KnowledgeStatsComponent botId={botId} />
+
+      {/* Notes section (main feature) */}
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="mb-2 text-sm font-medium text-zinc-200">Notes & Memory</h3>
+        <p className="mb-4 text-xs text-zinc-500">
+          Save notes for your bot to remember. The bot can also create notes during conversations.
+        </p>
+        <NotesManager
+          botId={botId}
+          onEditNote={handleEditNote}
+          onNewNote={handleNewNote}
+        />
+      </div>
+
+      {/* Search tester */}
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="mb-2 text-sm font-medium text-zinc-200">Search Knowledge</h3>
+        <p className="mb-4 text-xs text-zinc-500">
+          Test search across documents and notes.
+        </p>
+        <KnowledgeSearch botId={botId} />
+      </div>
+
+      {/* Documents section */}
+      <div className="border-t border-zinc-800 pt-6">
         <h3 className="mb-2 text-sm font-medium text-zinc-200">Documents</h3>
         <p className="mb-4 text-xs text-zinc-500">
           Upload documents to give your bot specialized knowledge.
         </p>
         <DocumentUploader botId={botId} />
         <div className="mt-4">
-          <DocumentList botId={botId} />
+          <DocumentList
+            botId={botId}
+            onViewChunks={(docId, filename) => setChunksDoc({ id: docId, filename })}
+          />
         </div>
       </div>
+
+      {/* Instructions editor */}
       <div className="border-t border-zinc-800 pt-6">
         <InstructionsEditor botId={botId} />
       </div>
+
+      {/* Note editor dialog */}
+      <NoteEditorDialog
+        botId={botId}
+        noteId={editingNoteId}
+        open={showNoteEditor}
+        onClose={handleCloseNoteEditor}
+      />
+
+      {/* Document chunks dialog */}
+      {chunksDoc && (
+        <DocumentChunksDialog
+          botId={botId}
+          documentId={chunksDoc.id}
+          filename={chunksDoc.filename}
+          open={!!chunksDoc}
+          onClose={() => setChunksDoc(null)}
+        />
+      )}
     </div>
   )
 }

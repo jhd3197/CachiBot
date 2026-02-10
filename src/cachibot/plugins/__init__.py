@@ -15,6 +15,7 @@ from tukuy.plugins.web import WebPlugin
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 from cachibot.plugins.file_ops import FileOpsPlugin
+from cachibot.plugins.notes import NotesPlugin
 from cachibot.plugins.platform import PlatformPlugin
 from cachibot.plugins.python_sandbox import PythonSandboxPlugin
 from cachibot.plugins.task import TaskPlugin
@@ -24,6 +25,7 @@ from cachibot.plugins.work_management import WorkManagementPlugin
 CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     # CachiBot custom plugins
     "task": TaskPlugin,
+    "notes": NotesPlugin,
     "file_ops": FileOpsPlugin,
     "python_sandbox": PythonSandboxPlugin,
     "platform": PlatformPlugin,
@@ -42,6 +44,7 @@ __all__ = [
     "PluginContext",
     "CACHIBOT_PLUGINS",
     "TaskPlugin",
+    "NotesPlugin",
     "FileOpsPlugin",
     "PythonSandboxPlugin",
     "PlatformPlugin",
