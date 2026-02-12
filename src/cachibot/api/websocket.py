@@ -309,7 +309,7 @@ async def run_agent(
                         client_id,
                         WSMessage.tool_end(
                             event.data.get("id", ""),
-                            str(event.data.get("result", ""))[:1000],
+                            str(event.data.get("result", "")),
                         ),
                     )
                 case StreamEventType.output:
