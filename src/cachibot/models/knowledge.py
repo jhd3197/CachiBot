@@ -28,6 +28,7 @@ class BotMessage(BaseModel):
     content: str
     timestamp: datetime
     metadata: dict = Field(default_factory=dict)
+    reply_to_id: str | None = None
 
 
 class BotInstruction(BaseModel):

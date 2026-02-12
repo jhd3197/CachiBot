@@ -16,6 +16,8 @@ import {
   User,
   Settings,
   Info,
+  Reply,
+  X,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
@@ -53,7 +55,7 @@ interface ChatViewProps {
 
 export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp }: ChatViewProps) {
   const navigate = useNavigate()
-  const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat } = useChatStore()
+  const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot, setActiveView } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
@@ -678,9 +680,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         models: activeBot?.models,
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
+        replyToId: replyToMessage?.id,
       })
     }
     setInput('')
+    setReplyTo(null)
   }
 
   // Select a command from the autocomplete menu
@@ -895,6 +899,8 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                   message={message}
                   botIcon={activeBot?.icon}
                   botColor={activeBot?.color}
+                  onReply={() => setReplyTo(message)}
+                  chatId={activeChatId || ''}
                 />
               ))}
             </div>
@@ -930,6 +936,27 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       {/* Input area */}
       <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+          {/* Reply composer bar */}
+          {replyToMessage && (
+            <div className="mb-2 flex items-center gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/70">
+              <Reply className="h-4 w-4 flex-shrink-0 text-cachi-500" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Replying to {replyToMessage.role === 'user' ? 'You' : (activeBot?.name || 'Assistant')}
+                </span>
+                <p className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+                  {replyToMessage.content.slice(0, 100)}{replyToMessage.content.length > 100 ? '...' : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyTo(null)}
+                className="flex-shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
             {/* Command autocomplete menu */}
             {showCommandMenu && filteredCommands.length > 0 && (
@@ -1057,19 +1084,67 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 // MESSAGE BUBBLE
 // =============================================================================
 
+// Citation parsing utilities
+function parseCiteMarkers(content: string): string[] {
+  return [...content.matchAll(/\[cite:([a-f0-9-]+)\]/g)].map(m => m[1])
+}
+
+function stripCiteMarkers(content: string): string {
+  return content.replace(/\[cite:[a-f0-9-]+\]/g, '')
+}
+
+function scrollToMessage(messageId: string) {
+  const el = document.getElementById(`msg-${messageId}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('reply-highlight')
+  setTimeout(() => el.classList.remove('reply-highlight'), 1500)
+}
+
+// Reply preview component
+function ReplyPreview({ message, onClick }: { message: ChatMessage; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-1 flex items-start gap-2 rounded-lg border-l-2 border-cachi-500 bg-zinc-900/40 px-3 py-1.5 text-left transition-colors hover:bg-zinc-900/60"
+    >
+      <Reply className="mt-0.5 h-3 w-3 flex-shrink-0 text-cachi-500" />
+      <div className="min-w-0">
+        <span className="text-[10px] font-semibold text-cachi-400">
+          {message.role === 'user' ? 'You' : 'Assistant'}
+        </span>
+        <p className="truncate text-xs text-zinc-400">
+          {stripCiteMarkers(message.content).slice(0, 80)}{message.content.length > 80 ? '...' : ''}
+        </p>
+      </div>
+    </button>
+  )
+}
+
 interface MessageBubbleProps {
   message: ChatMessage
   botIcon?: BotIcon
   botColor?: string
+  onReply?: () => void
+  chatId: string
 }
 
-function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
+function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showToolCalls, setShowToolCalls] = useState(false)
   const { accentColor } = useUIStore()
   const userColor = accentColors[accentColor].palette[600]
+  const getMessageById = useChatStore((s) => s.getMessageById)
+
+  // Resolve reply-to message
+  const replyToMessage = message.replyToId ? getMessageById(chatId, message.replyToId) : undefined
+
+  // Parse inline citations from bot messages
+  const citedIds = !isUser ? parseCiteMarkers(message.content) : []
+  const displayContent = !isUser ? stripCiteMarkers(message.content) : message.content
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content)
@@ -1084,7 +1159,7 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
   )
 
   return (
-    <div className={cn('group flex gap-4', isUser && 'flex-row-reverse')}>
+    <div id={`msg-${message.id}`} className={cn('group flex gap-4 transition-colors duration-500', isUser && 'flex-row-reverse')}>
       {/* Avatar */}
       <div
         className={cn(
@@ -1102,6 +1177,27 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 
       {/* Content */}
       <div className={cn('flex max-w-[80%] flex-col gap-1', isUser && 'items-end')}>
+        {/* Reply preview */}
+        {replyToMessage && (
+          <ReplyPreview
+            message={replyToMessage}
+            onClick={() => scrollToMessage(replyToMessage.id)}
+          />
+        )}
+
+        {/* Inline citation previews (from [cite:ID] markers) */}
+        {citedIds.length > 0 && !replyToMessage && citedIds.map((citeId) => {
+          const cited = getMessageById(chatId, citeId)
+          if (!cited) return null
+          return (
+            <ReplyPreview
+              key={citeId}
+              message={cited}
+              onClick={() => scrollToMessage(citeId)}
+            />
+          )
+        })}
+
         <div
           className={cn(
             'rounded-2xl px-4 py-3',
@@ -1112,9 +1208,9 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
           style={isUser ? { backgroundColor: userColor } : undefined}
         >
           {isUser ? (
-            <div className="whitespace-pre-wrap">{message.content}</div>
+            <div className="whitespace-pre-wrap">{displayContent}</div>
           ) : (
-            <MarkdownRenderer content={message.content} />
+            <MarkdownRenderer content={displayContent} />
           )}
 
           {/* Tool calls collapsible section */}
@@ -1207,6 +1303,13 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
           >
             {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button
+            onClick={onReply}
+            className="flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+          >
+            <Reply className="h-3 w-3" />
+            Reply
           </button>
           {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
             <button

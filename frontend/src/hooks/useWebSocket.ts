@@ -51,7 +51,7 @@ export function setPendingChatId(chatId: string | null) {
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
-  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata } = useChatStore()
+  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
 
   // Use a ref to always have access to the current activeChatId without re-creating the handler
   const activeChatIdRef = useRef<string | null>(null)
@@ -239,13 +239,19 @@ export function useWebSocket() {
           }
           clearToolCalls()
 
+          // If the server sent a replyToId in the done payload, set it on the last assistant message
+          const doneReplyToId = (msg.payload as Record<string, unknown>).replyToId as string | undefined
+          if (doneReplyToId && doneChatId) {
+            updateLastAssistantMessage(doneChatId, { replyToId: doneReplyToId })
+          }
+
           // Clear pending chat ID when done
           pendingChatId = null
           break
         }
       }
     },
-    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata]
+    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage]
   )
 
   // Connect on mount - only runs once since handleMessage is now stable
@@ -284,6 +290,7 @@ export function useWebSocket() {
         models?: BotModels
         capabilities?: BotCapabilities
         toolConfigs?: ToolConfigs
+        replyToId?: string
       }
     ) => {
       const { setLoading, setError, clearToolCalls } = useChatStore.getState()

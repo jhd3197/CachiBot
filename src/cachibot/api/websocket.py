@@ -7,6 +7,7 @@ Handles real-time streaming of agent events to clients.
 import asyncio
 import copy
 import logging
+import re
 import uuid
 from datetime import datetime
 
@@ -215,9 +216,12 @@ async def websocket_endpoint(
                     on_approval_needed=on_approval,
                 )
 
+                # Extract replyToId from client payload
+                reply_to_id = payload.get("replyToId")
+
                 # Run agent in background task
                 current_task = asyncio.create_task(
-                    run_agent(agent, message, client_id, bot_id, chat_id)
+                    run_agent(agent, message, client_id, bot_id, chat_id, reply_to_id)
                 )
 
             elif msg_type == WSMessageType.CANCEL:
@@ -253,6 +257,7 @@ async def run_agent(
     client_id: str,
     bot_id: str | None = None,
     chat_id: str | None = None,
+    reply_to_id: str | None = None,
 ) -> None:
     """Run the agent with streaming and send results to WebSocket client."""
     repo = KnowledgeRepository()
@@ -270,6 +275,7 @@ async def run_agent(
                 role="user",
                 content=message,
                 timestamp=datetime.utcnow(),
+                reply_to_id=reply_to_id,
             )
             await repo.save_bot_message(user_msg)
 
@@ -315,6 +321,10 @@ async def run_agent(
         response_text = (agent_result.output_text or "") if agent_result else ""
         run_usage = agent_result.run_usage if agent_result else {}
 
+        # Parse [cite:MSG_ID] from response to determine bot's primary citation
+        cited_ids = re.findall(r"\[cite:([a-f0-9-]+)\]", response_text)
+        bot_reply_to = cited_ids[0] if cited_ids else None
+
         # Save full assistant response to history
         if response_text and bot_id and chat_id:
             assistant_msg = BotMessage(
@@ -324,6 +334,7 @@ async def run_agent(
                 role="assistant",
                 content=response_text,
                 timestamp=datetime.utcnow(),
+                reply_to_id=bot_reply_to,
             )
             await repo.save_bot_message(assistant_msg)
 
@@ -345,8 +356,8 @@ async def run_agent(
             ),
         )
 
-        # Send done signal
-        await manager.send(client_id, WSMessage.done())
+        # Send done signal with bot's primary citation
+        await manager.send(client_id, WSMessage.done(reply_to_id=bot_reply_to))
 
     except asyncio.CancelledError:
         await manager.send(client_id, WSMessage.error("Operation cancelled"))

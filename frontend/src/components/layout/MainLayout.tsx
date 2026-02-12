@@ -12,6 +12,7 @@ import {
   AppSettingsView,
   WorkView,
   SchedulesView,
+  VoiceView,
 } from '../views'
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
@@ -79,6 +80,7 @@ export function MainLayout() {
     tasks: 'tasks',
     work: 'work',
     schedules: 'schedules',
+    voice: 'voice',
     tools: 'tools',
     settings: 'settings',
   }
@@ -239,6 +241,8 @@ export function MainLayout() {
         return <WorkView />
       case 'schedules':
         return <SchedulesView />
+      case 'voice':
+        return <VoiceView />
       case 'tools':
         return <ToolsView />
       case 'settings':

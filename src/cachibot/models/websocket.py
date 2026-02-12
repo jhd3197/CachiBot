@@ -116,12 +116,18 @@ class WSMessage(BaseModel):
         )
 
     @classmethod
-    def message(cls, role: str, content: str, message_id: str | None = None) -> "WSMessage":
+    def message(
+        cls,
+        role: str,
+        content: str,
+        message_id: str | None = None,
+        reply_to_id: str | None = None,
+    ) -> "WSMessage":
         """Create a chat message."""
-        return cls(
-            type=WSMessageType.MESSAGE,
-            payload={"role": role, "content": content, "messageId": message_id},
-        )
+        payload: dict[str, Any] = {"role": role, "content": content, "messageId": message_id}
+        if reply_to_id:
+            payload["replyToId"] = reply_to_id
+        return cls(type=WSMessageType.MESSAGE, payload=payload)
 
     @classmethod
     def approval_needed(cls, id: str, tool: str, action: str, details: dict) -> "WSMessage":
@@ -170,9 +176,12 @@ class WSMessage(BaseModel):
         return cls(type=WSMessageType.ERROR, payload={"message": message, "code": code})
 
     @classmethod
-    def done(cls) -> "WSMessage":
+    def done(cls, reply_to_id: str | None = None) -> "WSMessage":
         """Create a done message."""
-        return cls(type=WSMessageType.DONE, payload={})
+        payload: dict[str, Any] = {}
+        if reply_to_id:
+            payload["replyToId"] = reply_to_id
+        return cls(type=WSMessageType.DONE, payload=payload)
 
     @classmethod
     def platform_message(

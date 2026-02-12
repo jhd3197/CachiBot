@@ -122,6 +122,7 @@ export class WebSocketClient {
       capabilities?: BotCapabilities
       toolConfigs?: ToolConfigs
       enabledSkills?: string[]
+      replyToId?: string
     }
   ): void {
     this.send('chat', {
@@ -134,6 +135,7 @@ export class WebSocketClient {
       capabilities: options?.capabilities,
       toolConfigs: options?.toolConfigs,
       enabledSkills: options?.enabledSkills,
+      replyToId: options?.replyToId,
     })
   }
 

@@ -23,6 +23,7 @@ import {
   History,
   Pause,
   Eraser,
+  Mic,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -40,6 +41,7 @@ const navItems: { id: BotView; label: string; icon: React.ComponentType<{ classN
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'work', label: 'Work', icon: FolderKanban },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+  { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -703,6 +705,7 @@ const settingsSections: { id: SettingsSection; label: string; icon: React.Compon
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
   { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'connections', label: 'Connections', icon: Plug },
+  { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'advanced', label: 'Advanced', icon: Sliders },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
 ]

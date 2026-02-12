@@ -99,6 +99,7 @@ export interface ChatMessage {
   timestamp: string
   metadata?: MessageMetadata & Record<string, unknown>
   toolCalls?: ToolCall[]
+  replyToId?: string
 }
 
 // =============================================================================
@@ -160,6 +161,15 @@ export interface Bot {
 
   // Per-tool configuration (optional - defaults applied if missing)
   toolConfigs?: ToolConfigs
+
+  // Voice channel settings (optional)
+  voiceSettings?: {
+    ttsVoice: string
+    ttsSpeed: number
+    sttLanguage: string | null
+    enableInterruption: boolean
+    saveTranscripts: boolean
+  }
 }
 
 export interface BotStats {
@@ -370,6 +380,7 @@ export interface MessagePayload {
   role: MessageRole
   content: string
   messageId?: string
+  replyToId?: string
 }
 
 export interface ApprovalPayload {
@@ -478,7 +489,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'tasks' | 'work' | 'schedules' | 'tools' | 'settings'
+export type BotView = 'chats' | 'tasks' | 'work' | 'schedules' | 'voice' | 'tools' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
 export type AppView = 'dashboard' | 'settings'
