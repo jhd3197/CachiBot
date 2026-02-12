@@ -242,7 +242,8 @@ class KnowledgeRepository:
         db = await get_db()
         await db.execute(
             """
-            INSERT INTO bot_messages (id, bot_id, chat_id, role, content, timestamp, metadata, reply_to_id)
+            INSERT INTO bot_messages
+                (id, bot_id, chat_id, role, content, timestamp, metadata, reply_to_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (

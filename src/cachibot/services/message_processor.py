@@ -162,7 +162,8 @@ async def _process_attachments(
     # Build augmented message
     augmented = message
     if extra_parts:
-        augmented = "\n\n".join(extra_parts) + "\n\n" + augmented if augmented else "\n\n".join(extra_parts)
+        joined = "\n\n".join(extra_parts)
+        augmented = joined + "\n\n" + augmented if augmented else joined
 
     return augmented, images
 
