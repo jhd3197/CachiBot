@@ -749,7 +749,7 @@ class KnowledgeRepository:
             f"""
             SELECT id, document_id, bot_id, chunk_index, content, embedding
             FROM doc_chunks WHERE id IN ({placeholders})
-            """,
+            """,  # nosec B608 — parameterized with ? placeholders
             chunk_ids,
         ) as cursor:
             rows = await cursor.fetchall()
@@ -835,7 +835,7 @@ class NotesRepository:
             WHERE {where}
             ORDER BY updated_at DESC
             LIMIT ? OFFSET ?
-            """,
+            """,  # nosec B608 — parameterized with ? placeholders
             params,
         ) as cursor:
             rows = await cursor.fetchall()
@@ -870,7 +870,7 @@ class NotesRepository:
         set_clause = ", ".join(updates)
 
         cursor = await db.execute(
-            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",
+            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",  # nosec B608
             params,
         )
         await db.commit()

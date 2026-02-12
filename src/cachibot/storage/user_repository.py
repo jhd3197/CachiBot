@@ -154,7 +154,7 @@ class UserRepository:
             return True  # Nothing to update
 
         params.append(user_id)
-        query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+        query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"  # nosec B608
 
         cursor = await db.execute(query, params)
         await db.commit()
