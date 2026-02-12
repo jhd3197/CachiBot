@@ -18,6 +18,8 @@ import {
   Info,
   Reply,
   X,
+  Image,
+  Volume2,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
@@ -1213,6 +1215,11 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             <MarkdownRenderer content={displayContent} />
           )}
 
+          {/* Inline media previews from tool results */}
+          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+            <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
+          )}
+
           {/* Tool calls collapsible section */}
           {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
             <div className="mt-3">
@@ -1355,6 +1362,131 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
 function isMediaResult(result: unknown): boolean {
   if (typeof result !== 'string') return false
   return /!\[.*?\]\(data:(?:image|audio)\//.test(result)
+}
+
+// =============================================================================
+// MEDIA EXTRACTION & INLINE PREVIEWS
+// =============================================================================
+
+interface MediaArtifact {
+  type: 'image' | 'audio'
+  dataUri: string
+  toolName: string
+  caption?: string
+}
+
+/** Extract media artifacts (images/audio) from tool call results. */
+function extractMediaArtifacts(toolCalls: ToolCall[]): MediaArtifact[] {
+  const artifacts: MediaArtifact[] = []
+  for (const call of toolCalls) {
+    if (typeof call.result !== 'string') continue
+
+    // Extract images: ![alt](data:image/...)
+    const imgMatch = call.result.match(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/)
+    if (imgMatch) {
+      // Get caption text after the media markdown
+      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:[^)]+\)/, '').trim()
+      artifacts.push({
+        type: 'image',
+        dataUri: imgMatch[2],
+        toolName: call.tool,
+        caption: afterMedia || undefined,
+      })
+      continue
+    }
+
+    // Extract audio: ![alt](data:audio/...)
+    const audioMatch = call.result.match(/!\[([^\]]*)\]\((data:audio\/[^\s)]+(?:\s[^)]*)?)\)/)
+    if (audioMatch) {
+      const rawUri = audioMatch[2].replace(/\s+/g, '')
+      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:audio\/[^)]+\)/, '').trim()
+      artifacts.push({
+        type: 'audio',
+        dataUri: rawUri,
+        toolName: call.tool,
+        caption: afterMedia || undefined,
+      })
+    }
+  }
+  return artifacts
+}
+
+/** Fullscreen image lightbox overlay. */
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={src}
+        alt="Full size"
+        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
+/** Inline media previews for message artifacts. */
+function MediaPreviews({ artifacts }: { artifacts: MediaArtifact[] }) {
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  if (artifacts.length === 0) return null
+
+  return (
+    <>
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {artifacts.map((artifact, i) => (
+          artifact.type === 'image' ? (
+            <button
+              key={i}
+              onClick={() => setLightboxSrc(artifact.dataUri)}
+              className="group/thumb relative overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/50 transition-colors hover:border-zinc-500"
+            >
+              <img
+                src={artifact.dataUri}
+                alt="Generated"
+                className="h-24 w-24 object-cover sm:h-32 sm:w-32"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/thumb:bg-black/30">
+                <Image className="h-5 w-5 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100" />
+              </div>
+              {artifact.caption && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                  <span className="text-[10px] text-zinc-300 line-clamp-1">{artifact.caption}</span>
+                </div>
+              )}
+            </button>
+          ) : (
+            <div
+              key={i}
+              className="flex w-full max-w-xs items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/50 px-3 py-2"
+            >
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cachi-600/20">
+                <Volume2 className="h-4 w-4 text-cachi-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <audio controls className="h-8 w-full [&::-webkit-media-controls-panel]:bg-zinc-800">
+                  <source src={artifact.dataUri} type={artifact.dataUri.split(';')[0].replace('data:', '')} />
+                </audio>
+                {artifact.caption && (
+                  <p className="mt-0.5 truncate text-[10px] text-zinc-500">{artifact.caption}</p>
+                )}
+              </div>
+            </div>
+          )
+        ))}
+      </div>
+    </>
+  )
 }
 
 // =============================================================================
