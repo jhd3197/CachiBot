@@ -5,6 +5,7 @@ import { BotRail } from './BotRail'
 import { BotSidebar } from './BotSidebar'
 import {
   ChatView,
+  RoomsView,
   TasksView,
   ToolsView,
   SettingsView,
@@ -235,6 +236,8 @@ export function MainLayout() {
     switch (viewToRender) {
       case 'chats':
         return <ChatView />
+      case 'rooms':
+        return <RoomsView />
       case 'tasks':
         return <TasksView />
       case 'work':

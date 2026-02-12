@@ -489,7 +489,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'tasks' | 'work' | 'schedules' | 'voice' | 'tools' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'voice' | 'tools' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
 export type AppView = 'dashboard' | 'settings'
@@ -909,4 +909,109 @@ export interface CreateScheduleRequest {
   timezone?: string
   maxConcurrent?: number
   catchUp?: boolean
+}
+
+// =============================================================================
+// MULTI-AGENT ROOMS
+// =============================================================================
+
+export type RoomMemberRole = 'creator' | 'member'
+export type RoomSenderType = 'user' | 'bot' | 'system'
+
+export interface RoomMember {
+  userId: string
+  username: string
+  role: RoomMemberRole
+  joinedAt: string
+}
+
+export interface RoomBot {
+  botId: string
+  botName: string
+  addedAt: string
+}
+
+export interface RoomSettings {
+  cooldown_seconds: number
+  auto_relevance: boolean
+}
+
+export interface Room {
+  id: string
+  title: string
+  description: string | null
+  creatorId: string
+  maxBots: number
+  settings: RoomSettings
+  members: RoomMember[]
+  bots: RoomBot[]
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RoomMessage {
+  id: string
+  roomId: string
+  senderType: RoomSenderType
+  senderId: string
+  senderName: string
+  content: string
+  metadata: Record<string, unknown>
+  timestamp: string
+}
+
+export type RoomWSMessageType =
+  | 'room_chat'
+  | 'room_typing'
+  | 'room_cancel'
+  | 'room_message'
+  | 'room_bot_thinking'
+  | 'room_bot_tool_start'
+  | 'room_bot_tool_end'
+  | 'room_bot_done'
+  | 'room_typing_indicator'
+  | 'room_presence'
+  | 'room_error'
+  | 'room_usage'
+
+export interface RoomWSMessage {
+  type: RoomWSMessageType
+  payload: Record<string, unknown>
+}
+
+export interface RoomMessagePayload {
+  roomId: string
+  senderType: RoomSenderType
+  senderId: string
+  senderName: string
+  content: string
+  messageId?: string
+}
+
+export interface RoomPresencePayload {
+  roomId: string
+  userId: string
+  username: string
+  status: 'online' | 'offline'
+}
+
+export interface RoomTypingPayload {
+  roomId: string
+  userId: string
+  username: string
+  isTyping: boolean
+}
+
+export interface RoomBotThinkingPayload {
+  roomId: string
+  botId: string
+  botName: string
+}
+
+export interface CreateRoomRequest {
+  title: string
+  description?: string
+  bot_ids: string[]
+  settings?: RoomSettings
 }

@@ -1,4 +1,5 @@
 export { ChatView } from './ChatView'
+export { RoomsView } from './RoomsView'
 export { TasksView } from './TasksView'
 export { ToolsView } from './ToolsView'
 export { SettingsView } from './SettingsView'
