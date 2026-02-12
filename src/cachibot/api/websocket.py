@@ -10,8 +10,6 @@ import logging
 import uuid
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 
@@ -23,6 +21,8 @@ from cachibot.models.knowledge import BotMessage
 from cachibot.models.websocket import WSMessage, WSMessageType
 from cachibot.services.context_builder import get_context_builder
 from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -283,15 +283,11 @@ async def run_agent(
                 case StreamEventType.text_delta:
                     await manager.send(
                         client_id,
-                        WSMessage.message(
-                            "assistant", event.data, message_id=response_msg_id
-                        ),
+                        WSMessage.message("assistant", event.data, message_id=response_msg_id),
                     )
                     # Send thinking events for text between tool calls
                     if has_tool_calls:
-                        await manager.send(
-                            client_id, WSMessage.thinking(event.data)
-                        )
+                        await manager.send(client_id, WSMessage.thinking(event.data))
                 case StreamEventType.tool_call:
                     has_tool_calls = True
                     # New message ID for text after this tool sequence
@@ -309,7 +305,7 @@ async def run_agent(
                         client_id,
                         WSMessage.tool_end(
                             event.data.get("id", ""),
-                            str(event.data.get("result", ""))[:1000],
+                            str(event.data.get("result", "")),
                         ),
                     )
                 case StreamEventType.output:

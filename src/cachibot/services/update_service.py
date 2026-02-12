@@ -44,7 +44,7 @@ def _fetch_pypi_json() -> dict[str, Any]:
     """Fetch package info from PyPI (blocking)."""
     url = "https://pypi.org/pypi/cachibot/json"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 — hardcoded HTTPS URL
         result: dict[str, Any] = json.loads(resp.read().decode())
         return result
 
@@ -54,7 +54,7 @@ def _fetch_github_release_notes(version: str) -> tuple[str | None, str | None]:
     url = f"https://api.github.com/repos/jhd3197/cachibot/releases/tags/v{version}"
     req = urllib.request.Request(url, headers={"Accept": "application/vnd.github.v3+json"})
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 — hardcoded HTTPS URL
             data = json.loads(resp.read().decode())
             return data.get("body"), data.get("published_at")
     except Exception:

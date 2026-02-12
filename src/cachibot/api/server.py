@@ -46,9 +46,7 @@ _BUNDLED_DIST = Path(__file__).parent.parent / "frontend_dist"
 # 2. Development repo (editable install / local dev): repo_root/frontend/dist/
 _DEV_DIST = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
 
-FRONTEND_DIST = (
-    _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _DEV_DIST
-)
+FRONTEND_DIST = _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _DEV_DIST
 
 
 @asynccontextmanager
@@ -156,6 +154,7 @@ def create_app(
                 return FileResponse(file_path)
             return FileResponse(FRONTEND_DIST / "index.html")
     else:
+
         @app.get("/")
         async def root():
             """Root endpoint with API info."""

@@ -6,7 +6,7 @@ Chats created from platform conversations (Telegram, Discord).
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class Chat(BaseModel):

@@ -16,6 +16,7 @@ import type {
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
+  ToolCall,
   ToolConfigs,
   BotCapabilities,
   BotModels,
@@ -139,7 +140,12 @@ export function useWebSocket() {
           // Real-time platform message sync (Telegram/Discord)
           const payload = msg.payload as PlatformMessagePayload & { metadata?: Record<string, unknown> }
 
-          // Add message to the appropriate chat with usage metadata if available
+          // Extract tool calls from metadata if present (sent by message_processor)
+          const platformToolCalls = payload.metadata?.toolCalls as ToolCall[] | undefined
+          const { toolCalls: _tc, ...metadataWithoutToolCalls } = payload.metadata || {}
+          void _tc
+
+          // Add message to the appropriate chat with usage metadata and tool calls
           addMessage(payload.chatId, {
             id: payload.messageId,
             role: payload.role,
@@ -147,8 +153,9 @@ export function useWebSocket() {
             timestamp: new Date().toISOString(),
             metadata: {
               platform: payload.platform,
-              ...payload.metadata,  // Include usage data (tokens, cost, time, etc.)
+              ...metadataWithoutToolCalls,
             },
+            ...(platformToolCalls && platformToolCalls.length > 0 ? { toolCalls: platformToolCalls } : {}),
           })
 
           // Record usage to dashboard stats for assistant messages with usage data
@@ -208,6 +215,15 @@ export function useWebSocket() {
           setError(payload.message)
           setLoading(false)
           setThinking(null)
+
+          // Attach any in-progress tool calls to the last message (same as done)
+          const errChatId = activeChatIdRef.current || pendingChatId
+          const errToolCalls = useChatStore.getState().toolCalls
+          if (errChatId && errToolCalls.length > 0) {
+            attachToolCallsToLastMessage(errChatId, errToolCalls)
+          }
+          clearToolCalls()
+          pendingChatId = null
           break
         }
 

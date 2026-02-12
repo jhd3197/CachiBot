@@ -4,7 +4,7 @@
  * Renders markdown content as formatted HTML for the chat interface.
  */
 
-import Markdown from 'react-markdown'
+import Markdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { cn } from '../../lib/utils'
@@ -146,6 +146,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={components}
+        urlTransform={(url) => url.startsWith('data:') ? url : defaultUrlTransform(url)}
       >
         {content}
       </Markdown>

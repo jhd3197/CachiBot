@@ -208,9 +208,7 @@ class DocumentProcessor:
 
         except Exception as e:
             logger.error(f"Failed to process document {document_id}: {e}")
-            await self._repo.update_document_status(
-                document_id, DocumentStatus.FAILED
-            )
+            await self._repo.update_document_status(document_id, DocumentStatus.FAILED)
             raise
 
 

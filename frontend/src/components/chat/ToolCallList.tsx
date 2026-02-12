@@ -2,6 +2,30 @@ import { Wrench, Check, X, Loader2 } from 'lucide-react'
 import type { ToolCall } from '../../types'
 import { cn } from '../../lib/utils'
 
+/** Extract the first markdown image data URI from a string, if any. */
+function extractImageDataUri(text: string): string | null {
+  const match = text.match(/!\[.*?\]\((data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)\)/)
+  return match ? match[1] : null
+}
+
+/** Extract the first markdown audio data URI from a string, if any. */
+function extractAudioDataUri(text: string): string | null {
+  const match = text.match(/!\[.*?\]\((data:audio\/[^;]+;base64,[A-Za-z0-9+/=\s]+)\)/)
+  if (match) return match[1].replace(/\s/g, '')
+  // Also check for raw data URI not wrapped in markdown
+  const raw = text.match(/(data:audio\/[^;]+;base64,[A-Za-z0-9+/=\s]+)/)
+  return raw ? raw[1].replace(/\s/g, '') : null
+}
+
+/** Extract metadata text that follows the media markdown. */
+function extractResultMeta(text: string): string | null {
+  // Strip markdown image/audio portions to get remaining metadata
+  const stripped = text
+    .replace(/!\[.*?\]\(data:(?:image|audio)\/[^;]+;base64,[A-Za-z0-9+/=\s]+\)/g, '')
+    .trim()
+  return stripped || null
+}
+
 interface ToolCallListProps {
   toolCalls: ToolCall[]
 }
@@ -23,6 +47,12 @@ interface ToolCallItemProps {
 function ToolCallItem({ call }: ToolCallItemProps) {
   const isComplete = call.endTime !== undefined
   const isSuccess = call.success !== false
+
+  const resultStr = call.result != null ? String(call.result) : ''
+  const imageUri = isComplete && isSuccess ? extractImageDataUri(resultStr) : null
+  const audioUri = isComplete && isSuccess && !imageUri ? extractAudioDataUri(resultStr) : null
+  const mediaUri = imageUri || audioUri
+  const resultMeta = mediaUri ? extractResultMeta(resultStr) : null
 
   return (
     <div
@@ -82,12 +112,34 @@ function ToolCallItem({ call }: ToolCallItemProps) {
         </div>
       ) : null}
 
-      {/* Result preview */}
-      {isComplete && call.result ? (
+      {/* Media result (image or audio) */}
+      {imageUri ? (
+        <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+          <img
+            src={imageUri}
+            alt="Generated"
+            className="max-w-full rounded-md"
+          />
+          {resultMeta ? (
+            <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
+              {resultMeta}
+            </p>
+          ) : null}
+        </div>
+      ) : audioUri ? (
+        <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+          <audio controls className="w-full" src={audioUri} />
+          {resultMeta ? (
+            <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
+              {resultMeta}
+            </p>
+          ) : null}
+        </div>
+      ) : isComplete && call.result ? (
         <div className="mt-2 overflow-x-auto border-t border-zinc-200 pt-2 dark:border-zinc-700">
           <pre className="text-xs text-zinc-600 dark:text-zinc-400">
-            {String(call.result).slice(0, 300)}
-            {String(call.result).length > 300 ? '...' : null}
+            {resultStr.slice(0, 300)}
+            {resultStr.length > 300 ? '...' : null}
           </pre>
         </div>
       ) : null}

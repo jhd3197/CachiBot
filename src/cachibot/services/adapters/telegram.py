@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
+from cachibot.models.platform import PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -76,9 +77,9 @@ class TelegramAdapter(BasePlatformAdapter):
                         metadata,
                     )
 
-                    # Send response back (strip markdown if configured)
-                    if response:
-                        await message.answer(self.format_outgoing_message(response))
+                    # Send response back with media support
+                    if response.text or response.media:
+                        await self._send_platform_response(message.chat.id, response)
 
                 except Exception as e:
                     logger.error(f"Error handling Telegram message: {e}")
@@ -152,6 +153,39 @@ class TelegramAdapter(BasePlatformAdapter):
         self._dispatcher = None
         self._polling_task = None
         logger.info(f"Telegram adapter stopped for connection {self.connection_id}")
+
+    async def _send_platform_response(
+        self, chat_id: int, response: PlatformResponse
+    ) -> None:
+        """Send a PlatformResponse with media and text to a Telegram chat."""
+        from aiogram.types import BufferedInputFile
+
+        # Send each media item as a native Telegram message
+        for item in response.media:
+            try:
+                input_file = BufferedInputFile(item.data, filename=item.filename)
+                caption = item.metadata_text or item.alt_text or None
+
+                if item.media_type.startswith("image/"):
+                    await self._bot.send_photo(
+                        chat_id=chat_id, photo=input_file, caption=caption
+                    )
+                elif item.media_type.startswith("audio/"):
+                    await self._bot.send_voice(
+                        chat_id=chat_id, voice=input_file, caption=caption
+                    )
+                else:
+                    await self._bot.send_document(
+                        chat_id=chat_id, document=input_file, caption=caption
+                    )
+            except Exception as e:
+                logger.error(f"Failed to send Telegram media ({item.media_type}): {e}")
+
+        # Send text portion
+        if response.text:
+            formatted = self.format_outgoing_message(response.text)
+            if formatted:
+                await self._bot.send_message(chat_id=chat_id, text=formatted)
 
     async def send_message(self, chat_id: str, message: str) -> bool:
         """Send a message to a Telegram chat."""

@@ -69,9 +69,7 @@ class CommandProcessor:
         args = parts[1].split() if len(parts) > 1 else []
         return cmd, args
 
-    def _start_flow(
-        self, user_id: str, chat_id: str, command: str
-    ) -> FlowState:
+    def _start_flow(self, user_id: str, chat_id: str, command: str) -> FlowState:
         """Start a new command flow."""
         key = self._flow_key(user_id, chat_id)
         flow = FlowState(
@@ -248,10 +246,7 @@ class CommandProcessor:
 
             if not bots:
                 return CommandResult(
-                    response=(
-                        "You don't have any bots yet!\n"
-                        "Use /new to create your first bot."
-                    ),
+                    response=("You don't have any bots yet!\nUse /new to create your first bot."),
                 )
 
             lines = ["Your bots:\n"]
@@ -284,7 +279,7 @@ class CommandProcessor:
         if not command_def.flow_steps:
             return CommandResult(response="Bot creation is not configured.")
 
-        flow = self._start_flow(user_id, chat_id, "new")
+        self._start_flow(user_id, chat_id, "new")
         first_step = command_def.flow_steps[0]
 
         return CommandResult(
@@ -301,7 +296,10 @@ class CommandProcessor:
             )
 
         return CommandResult(
-            response="Settings are available in the web interface. Visit your CachiBot URL to configure settings.",
+            response=(
+                "Settings are available in the web interface."
+                " Visit your CachiBot URL to configure settings."
+            ),
         )
 
     async def _continue_flow(
@@ -338,7 +336,10 @@ class CommandProcessor:
                     flow.collected_data[current_step.field] = current_step.choices[choice_num - 1]
                 else:
                     return CommandResult(
-                        response=f"Please enter a number between 1 and {len(current_step.choices or [])}.",
+                        response=(
+                            "Please enter a number between"
+                            f" 1 and {len(current_step.choices or [])}."
+                        ),
                         is_flow_active=True,
                     )
             except ValueError:
@@ -353,7 +354,10 @@ class CommandProcessor:
                         flow.collected_data[current_step.field] = matched
                     else:
                         return CommandResult(
-                            response=f"Please enter a number (1-{len(current_step.choices)}) or a valid option name.",
+                            response=(
+                                f"Please enter a number (1-{len(current_step.choices)})"
+                                " or a valid option name."
+                            ),
                             is_flow_active=True,
                         )
         else:
@@ -448,7 +452,9 @@ class CommandProcessor:
         except Exception as e:
             logger.error(f"Error creating bot: {e}")
             return CommandResult(
-                response="Sorry, I couldn't create the bot. Please try again or use the web interface.",
+                response=(
+                    "Sorry, I couldn't create the bot. Please try again or use the web interface."
+                ),
             )
 
 

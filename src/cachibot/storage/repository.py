@@ -26,7 +26,7 @@ from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSour
 from cachibot.storage.database import get_db
 
 
-class ChatRepository:
+class MessageRepository:
     """Repository for chat messages."""
 
     async def save_message(self, message: ChatMessage) -> None:
@@ -749,7 +749,7 @@ class KnowledgeRepository:
             f"""
             SELECT id, document_id, bot_id, chunk_index, content, embedding
             FROM doc_chunks WHERE id IN ({placeholders})
-            """,
+            """,  # nosec B608 — parameterized with ? placeholders
             chunk_ids,
         ) as cursor:
             rows = await cursor.fetchall()
@@ -835,7 +835,7 @@ class NotesRepository:
             WHERE {where}
             ORDER BY updated_at DESC
             LIMIT ? OFFSET ?
-            """,
+            """,  # nosec B608 — parameterized with ? placeholders
             params,
         ) as cursor:
             rows = await cursor.fetchall()
@@ -870,7 +870,7 @@ class NotesRepository:
         set_clause = ", ".join(updates)
 
         cursor = await db.execute(
-            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",
+            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",  # nosec B608
             params,
         )
         await db.commit()
@@ -959,7 +959,8 @@ class ContactsRepository:
         """Get a contact by ID."""
         db = await get_db()
         async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at FROM bot_contacts WHERE id = ?",
+            "SELECT id, bot_id, name, details, created_at, updated_at"
+            " FROM bot_contacts WHERE id = ?",
             (contact_id,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -969,7 +970,8 @@ class ContactsRepository:
         """Get all contacts for a bot."""
         db = await get_db()
         async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at FROM bot_contacts WHERE bot_id = ? ORDER BY name",
+            "SELECT id, bot_id, name, details, created_at, updated_at"
+            " FROM bot_contacts WHERE bot_id = ? ORDER BY name",
             (bot_id,),
         ) as cursor:
             rows = await cursor.fetchall()
@@ -1183,7 +1185,8 @@ class BotRepository:
                 """
                 UPDATE bots SET
                     name = ?, description = ?, icon = ?, color = ?,
-                    model = ?, system_prompt = ?, capabilities = ?, updated_at = ?
+                    model = ?, system_prompt = ?, capabilities = ?,
+                    models = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -1194,6 +1197,7 @@ class BotRepository:
                     bot.model,
                     bot.system_prompt,
                     json.dumps(bot.capabilities),
+                    json.dumps(bot.models) if bot.models else None,
                     bot.updated_at.isoformat(),
                     bot.id,
                 ),
@@ -1203,8 +1207,8 @@ class BotRepository:
                 """
                 INSERT INTO bots
                 (id, name, description, icon, color, model, system_prompt,
-                 capabilities, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 capabilities, models, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     bot.id,
@@ -1215,6 +1219,7 @@ class BotRepository:
                     bot.model,
                     bot.system_prompt,
                     json.dumps(bot.capabilities),
+                    json.dumps(bot.models) if bot.models else None,
                     bot.created_at.isoformat(),
                     bot.updated_at.isoformat(),
                 ),
@@ -1228,7 +1233,7 @@ class BotRepository:
         async with db.execute(
             """
             SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, created_at, updated_at
+                   capabilities, models, created_at, updated_at
             FROM bots WHERE id = ?
             """,
             (bot_id,),
@@ -1242,7 +1247,7 @@ class BotRepository:
         async with db.execute(
             """
             SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, created_at, updated_at
+                   capabilities, models, created_at, updated_at
             FROM bots ORDER BY name
             """
         ) as cursor:
@@ -1270,8 +1275,9 @@ class BotRepository:
             model=row[5],
             systemPrompt=row[6],
             capabilities=json.loads(row[7]) if row[7] else {},
-            createdAt=datetime.fromisoformat(row[8]),
-            updatedAt=datetime.fromisoformat(row[9]),
+            models=json.loads(row[8]) if row[8] else None,
+            createdAt=datetime.fromisoformat(row[9]),
+            updatedAt=datetime.fromisoformat(row[10]),
         )
 
 
