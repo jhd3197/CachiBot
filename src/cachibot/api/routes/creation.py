@@ -211,11 +211,14 @@ async def stream_follow_up_questions(
                 description=request.description,
             )
             for q in questions:
-                yield _sse_event("question", {
-                    "id": q.id,
-                    "question": q.question,
-                    "placeholder": q.placeholder,
-                })
+                yield _sse_event(
+                    "question",
+                    {
+                        "id": q.id,
+                        "question": q.question,
+                        "placeholder": q.placeholder,
+                    },
+                )
                 await asyncio.sleep(0.05)
             yield _sse_event("done", {})
         except Exception as e:
@@ -290,7 +293,9 @@ class GenerateFullPromptRequest(BaseModel):
     name_meaning: str = Field(description="Why this name was chosen")
     purpose_category: str = Field(description="Category like fitness, cooking, coding")
     purpose_description: str = Field(description="What the user wants the bot to do")
-    follow_up_answers: list[FollowUpAnswer] = Field(default=[], description="Answered follow-up questions")
+    follow_up_answers: list[FollowUpAnswer] = Field(
+        default=[], description="Answered follow-up questions"
+    )
     communication_style: str = Field(default="friendly")
     use_emojis: Literal["yes", "no", "sometimes"] = Field(default="sometimes")
 
@@ -332,20 +337,15 @@ class SuggestPromptRequest(BaseModel):
     purpose_category: str = Field(
         description="Category of bot purpose (e.g., coding, writing, analysis)"
     )
-    purpose_description: str = Field(
-        description="Detailed description of what the bot should do"
-    )
+    purpose_description: str = Field(description="Detailed description of what the bot should do")
     communication_style: str = Field(
-        default="professional",
-        description="How the bot should communicate"
+        default="professional", description="How the bot should communicate"
     )
     use_emojis: Literal["yes", "no", "sometimes"] = Field(
-        default="sometimes",
-        description="Whether the bot should use emojis"
+        default="sometimes", description="Whether the bot should use emojis"
     )
     model: str | None = Field(
-        default=None,
-        description="Model to use for generation (uses default if not specified)"
+        default=None, description="Model to use for generation (uses default if not specified)"
     )
 
 
@@ -380,16 +380,9 @@ async def suggest_prompt(
 class RefinePromptRequest(BaseModel):
     """Request to refine an existing system prompt."""
 
-    current_prompt: str = Field(
-        description="The current system prompt to refine"
-    )
-    feedback: str = Field(
-        description="User feedback on what to change"
-    )
-    model: str | None = Field(
-        default=None,
-        description="Model to use for generation"
-    )
+    current_prompt: str = Field(description="The current system prompt to refine")
+    feedback: str = Field(description="User feedback on what to change")
+    model: str | None = Field(default=None, description="Model to use for generation")
 
 
 class RefinePromptResponse(BaseModel):
@@ -426,16 +419,9 @@ async def refine_prompt(
 class PreviewBotRequest(BaseModel):
     """Request to preview bot response."""
 
-    system_prompt: str = Field(
-        description="The system prompt to test"
-    )
-    test_message: str = Field(
-        description="A test user message to respond to"
-    )
-    model: str | None = Field(
-        default=None,
-        description="Model to use for generation"
-    )
+    system_prompt: str = Field(description="The system prompt to test")
+    test_message: str = Field(description="A test user message to respond to")
+    model: str | None = Field(default=None, description="Model to use for generation")
 
 
 class PreviewBotResponse(BaseModel):
@@ -529,8 +515,7 @@ async def analyze_context(
         return AnalyzeContextResponse(
             user_context=result.user_context,
             suggested_todos=[
-                SuggestedTodoModel(title=t.title, notes=t.notes)
-                for t in result.suggested_todos
+                SuggestedTodoModel(title=t.title, notes=t.notes) for t in result.suggested_todos
             ],
             suggested_schedules=[
                 SuggestedScheduleModel(
@@ -540,6 +525,4 @@ async def analyze_context(
             ],
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to analyze context: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to analyze context: {str(e)}")

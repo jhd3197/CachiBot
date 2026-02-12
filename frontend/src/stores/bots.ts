@@ -305,13 +305,21 @@ export const useChatStore = create<ChatState>()(
           set((state) => ({
             messages: {
               ...state.messages,
-              [chatId]: messages.map((m) => ({
-                id: m.id,
-                role: m.role as 'user' | 'assistant' | 'system',
-                content: m.content,
-                timestamp: m.timestamp,
-                metadata: m.metadata,
-              })),
+              [chatId]: messages.map((m) => {
+                // Extract toolCalls from metadata if present (persisted by message_processor)
+                const toolCalls = m.metadata?.toolCalls as ToolCall[] | undefined
+                const msg: ChatMessage = {
+                  id: m.id,
+                  role: m.role as 'user' | 'assistant' | 'system',
+                  content: m.content,
+                  timestamp: m.timestamp,
+                  metadata: m.metadata,
+                }
+                if (toolCalls && toolCalls.length > 0) {
+                  msg.toolCalls = toolCalls
+                }
+                return msg
+              }),
             },
           }))
         } catch (err) {
@@ -431,7 +439,23 @@ export const useChatStore = create<ChatState>()(
               break
             }
           }
-          if (lastAssistantIndex === -1) return state
+          // If no assistant message exists (LLM went straight to tool call),
+          // create a placeholder so tool calls aren't lost
+          if (lastAssistantIndex === -1) {
+            const placeholder: ChatMessage = {
+              id: `msg-tools-${Date.now()}`,
+              role: 'assistant',
+              content: '',
+              timestamp: new Date().toISOString(),
+              toolCalls: [...toolCalls],
+            }
+            return {
+              messages: {
+                ...state.messages,
+                [chatId]: [...chatMessages, placeholder],
+              },
+            }
+          }
           return {
             messages: {
               ...state.messages,

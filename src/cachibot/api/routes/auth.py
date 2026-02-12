@@ -433,9 +433,7 @@ async def deactivate_user(
     # Prevent deactivating the last admin
     if user.role == UserRole.ADMIN:
         all_users = await repo.get_all_users(limit=1000)
-        active_admin_count = sum(
-            1 for u in all_users if u.role == UserRole.ADMIN and u.is_active
-        )
+        active_admin_count = sum(1 for u in all_users if u.role == UserRole.ADMIN and u.is_active)
         if active_admin_count <= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

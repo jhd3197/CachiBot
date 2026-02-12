@@ -24,6 +24,7 @@ class AuthService:
         self._jwt_secret = config.jwt_secret or secrets.token_hex(32)
         if not config.jwt_secret:
             import logging
+
             logging.getLogger(__name__).warning(
                 "CACHIBOT_JWT_SECRET not set. Using random secret. "
                 "Tokens will be invalidated on restart. "
@@ -156,6 +157,7 @@ def get_auth_service() -> AuthService:
     global _auth_service
     if _auth_service is None:
         from cachibot.config import Config
+
         config = Config.load()
         _auth_service = AuthService(config.auth)
     return _auth_service

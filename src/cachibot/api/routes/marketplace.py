@@ -7,22 +7,22 @@ Remote templates are cached for 5 minutes to reduce API calls.
 import logging
 import os
 import time
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
+from cachibot.data.marketplace_templates import (
+    get_all_templates,
+    get_template_by_id,
+    get_templates_by_category,
+    search_templates,
+)
 from cachibot.models.auth import User
 from cachibot.models.bot import Bot
 from cachibot.storage.repository import BotRepository
-from cachibot.data.marketplace_templates import (
-    get_all_templates,
-    get_templates_by_category,
-    get_template_by_id,
-    search_templates,
-)
 
 logger = logging.getLogger(__name__)
 

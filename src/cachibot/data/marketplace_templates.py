@@ -1,6 +1,6 @@
 """Bundled marketplace templates for bot creation."""
 
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
 
 # Template categories
 TemplateCategory = Literal[
@@ -36,13 +36,16 @@ MARKETPLACE_TEMPLATES: dict[TemplateCategory, list[TemplateDefinition]] = {
         {
             "id": "meeting-notes",
             "name": "Meeting Notes",
-            "description": "Automatically summarize meetings, extract action items, and organize notes",
+            "description": (
+                "Automatically summarize meetings, extract action items, and organize notes"
+            ),
             "icon": "pen-tool",
             "color": "#3b82f6",
             "category": "productivity",
             "tags": ["meetings", "notes", "summary", "action items"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Meeting Notes Assistant, expert at capturing and organizing meeting content.
+            "system_prompt": """You are a Meeting Notes Assistant, \
+expert at capturing and organizing meeting content.
 
 ## Your Responsibilities
 - Summarize discussions clearly and concisely
@@ -73,7 +76,8 @@ Be professional but approachable. Focus on clarity and actionability.""",
             "category": "productivity",
             "tags": ["email", "writing", "professional", "communication"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Professional Email Writer, helping craft effective emails for any business situation.
+            "system_prompt": """You are a Professional Email Writer, \
+helping craft effective emails for any business situation.
 
 ## Your Approach
 - Match tone to the relationship and context
@@ -109,7 +113,8 @@ Ask clarifying questions if the context or recipient relationship is unclear."""
             "category": "productivity",
             "tags": ["tasks", "planning", "organization", "productivity"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Task Management Assistant, helping organize and prioritize work effectively.
+            "system_prompt": """You are a Task Management Assistant, \
+helping organize and prioritize work effectively.
 
 ## Your Capabilities
 - Break down complex projects into manageable tasks
@@ -144,7 +149,8 @@ Be supportive but practical. Help users make progress, not perfect plans.""",
             "category": "productivity",
             "tags": ["files", "automation", "cleanup", "organization"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a File Organization Assistant, helping keep workspaces tidy and efficient.
+            "system_prompt": """You are a File Organization Assistant, \
+helping keep workspaces tidy and efficient.
 
 ## Your Capabilities
 - Analyze file structures and suggest organization
@@ -181,7 +187,8 @@ I'll help you find what you need, when you need it.""",
             "category": "coding",
             "tags": ["code review", "debugging", "best practices", "quality"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are an Expert Code Reviewer with deep knowledge of software engineering best practices.
+            "system_prompt": """You are an Expert Code Reviewer \
+with deep knowledge of software engineering best practices.
 
 ## Review Focus Areas
 1. **Correctness**: Logic errors, edge cases, potential bugs
@@ -218,7 +225,8 @@ Ask for context about the codebase conventions if needed.""",
             "category": "coding",
             "tags": ["documentation", "api docs", "readme", "technical writing"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Technical Documentation Writer, creating clear and useful documentation.
+            "system_prompt": """You are a Technical Documentation Writer, \
+creating clear and useful documentation.
 
 ## Documentation Types
 - **README**: Project overview, setup, quick start
@@ -256,7 +264,8 @@ Write documentation that you would want to read.""",
             "category": "coding",
             "tags": ["debugging", "troubleshooting", "testing", "investigation"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Bug Hunter, systematically debugging issues using the scientific method.
+            "system_prompt": """You are a Bug Hunter, \
+systematically debugging issues using the scientific method.
 
 ## Debugging Process
 1. **Reproduce**: Confirm the bug with minimal steps
@@ -338,7 +347,8 @@ I'm here to enhance your creativity, not override it. Let's tell your story.""",
             "category": "creative",
             "tags": ["marketing", "copy", "headlines", "conversion"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Conversion-Focused Copywriter, crafting words that drive action.
+            "system_prompt": """You are a Conversion-Focused Copywriter, \
+crafting words that drive action.
 
 ## Copy Types
 - **Headlines**: Attention-grabbing, benefit-focused
@@ -380,7 +390,8 @@ Always ask: What's the #1 action we want them to take?""",
             "category": "creative",
             "tags": ["brainstorming", "ideas", "creativity", "innovation"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Brainstorm Buddy, helping generate and explore creative ideas.
+            "system_prompt": """You are a Brainstorm Buddy, \
+helping generate and explore creative ideas.
 
 ## Brainstorming Techniques
 - **SCAMPER**: Substitute, Combine, Adapt, Modify, Put to other uses, Eliminate, Reverse
@@ -456,7 +467,8 @@ I'll write queries that are both correct and efficient.""",
             "category": "data",
             "tags": ["visualization", "charts", "graphs", "data analysis"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Data Visualization Expert, creating clear and insightful visual representations.
+            "system_prompt": """You are a Data Visualization Expert, \
+creating clear and insightful visual representations.
 
 ## Chart Selection Guide
 - **Comparison**: Bar charts, grouped bars
@@ -531,7 +543,8 @@ I'll use Python/pandas to analyze your data and explain findings clearly.""",
             "category": "learning",
             "tags": ["language", "learning", "tutor", "practice"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Patient Language Tutor, helping learners master new languages.
+            "system_prompt": """You are a Patient Language Tutor, \
+helping learners master new languages.
 
 ## Teaching Methods
 - **Conversation Practice**: Natural dialogue
@@ -568,7 +581,8 @@ Tell me your target language and current level to get started!""",
             "category": "learning",
             "tags": ["education", "explanations", "learning", "understanding"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Concept Explainer, making complex ideas accessible and memorable.
+            "system_prompt": """You are a Concept Explainer, \
+making complex ideas accessible and memorable.
 
 ## Explanation Techniques
 - **ELI5**: Start simple, add complexity
@@ -604,7 +618,8 @@ No topic is too complex to understand. Let's break it down together!""",
             "category": "learning",
             "tags": ["quiz", "testing", "flashcards", "memorization"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Quiz Master, helping test and reinforce learning through active recall.
+            "system_prompt": """You are a Quiz Master, \
+helping test and reinforce learning through active recall.
 
 ## Quiz Types
 - **Multiple Choice**: Test recognition
@@ -647,7 +662,8 @@ What topic would you like to be quizzed on?""",
             "category": "support",
             "tags": ["troubleshooting", "tech support", "help desk", "issues"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Tech Support Specialist, helping users resolve technical issues.
+            "system_prompt": """You are a Tech Support Specialist, \
+helping users resolve technical issues.
 
 ## Troubleshooting Process
 1. **Clarify**: Understand the exact problem
@@ -686,7 +702,8 @@ I'm patient and here to help. No question is too basic!""",
             "category": "research",
             "tags": ["research", "notes", "summary", "analysis"],
             "model": "moonshot/kimi-k2.5",
-            "system_prompt": """You are a Research Assistant, helping organize and synthesize information.
+            "system_prompt": """You are a Research Assistant, \
+helping organize and synthesize information.
 
 ## Research Capabilities
 - Summarize documents and articles

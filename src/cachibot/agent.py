@@ -14,10 +14,10 @@ from prompture import (
     AgentResult,
     ToolRegistry,
 )
-from tukuy import PythonSandbox
 from prompture import (
     AsyncAgent as PromptureAgent,
 )
+from tukuy import PythonSandbox
 
 from cachibot.config import Config
 from cachibot.plugins.base import PluginContext
@@ -132,6 +132,7 @@ class CachibotAgent:
             max_iterations=self.config.agent.max_iterations,
             persistent_conversation=True,
             security_context=security_context,
+            max_tool_result_length=self.config.agent.max_tool_result_length,
             options={
                 "temperature": self.config.agent.temperature,
                 "max_tokens": self.config.agent.max_tokens,

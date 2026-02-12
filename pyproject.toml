@@ -65,6 +65,7 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "ruff>=0.5.0",
     "mypy>=1.10.0",
+    "bandit>=1.7.0",
 ]
 
 [project.scripts]
@@ -93,10 +94,21 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["N815"]
 
 [tool.mypy]
 python_version = "3.10"
 strict = true
+
+[tool.bandit]
+targets = ["src/cachibot"]
+exclude_dirs = ["tests"]
+skips = [
+    "B110",   # try_except_pass — intentional graceful degradation throughout
+    "B112",   # try_except_continue — intentional skip-on-error loops
+    "B106",   # hardcoded_password_funcarg — false positives on token_type="access"
+    "B107",   # hardcoded_password_default — false positives on token_type defaults
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

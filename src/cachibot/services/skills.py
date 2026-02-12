@@ -67,7 +67,9 @@ def _skill_info_to_definition(
         CachiBot SkillDefinition
     """
     # Generate stable ID from name and filepath
-    path_hash = hashlib.md5((filepath or skill_info.name).encode()).hexdigest()[:8]
+    path_hash = hashlib.md5(  # nosec B324 — not used for security, just stable IDs
+        (filepath or skill_info.name).encode(), usedforsecurity=False
+    ).hexdigest()[:8]
     slug = re.sub(r"[^a-z0-9]+", "-", skill_info.name.lower()).strip("-")
     skill_id = f"{slug}-{path_hash}"
 
@@ -107,7 +109,9 @@ class SkillsService:
 
     def _generate_skill_id(self, path: Path, name: str) -> str:
         """Generate a stable ID for a skill based on its path and name."""
-        path_hash = hashlib.md5(str(path).encode()).hexdigest()[:8]
+        path_hash = hashlib.md5(  # nosec B324 — not used for security, just stable IDs
+            str(path).encode(), usedforsecurity=False
+        ).hexdigest()[:8]
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
         return f"{slug}-{path_hash}"
 
@@ -155,9 +159,7 @@ class SkillsService:
                     # Use path property (added in Prompture 1.0.6)
                     filepath = str(skill_info.path) if skill_info.path else None
 
-                    skill = _skill_info_to_definition(
-                        skill_info, SkillSource.LOCAL, filepath
-                    )
+                    skill = _skill_info_to_definition(skill_info, SkillSource.LOCAL, filepath)
                     skills.append(skill)
                 except Exception as e:
                     logger.warning(f"Failed to convert skill {skill_info.name}: {e}")

@@ -4,18 +4,76 @@ Platform Message Processor
 Handles incoming messages from Telegram/Discord by routing them through the bot's agent.
 """
 
+import copy
+import json
 import logging
 import uuid
 from datetime import datetime
+from typing import Any
 
 from cachibot.agent import CachibotAgent
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
+from cachibot.models.platform import PlatformResponse
 from cachibot.models.websocket import WSMessage
 from cachibot.services.context_builder import get_context_builder
 from cachibot.storage.repository import BotRepository, ChatRepository, KnowledgeRepository
+from cachibot.utils.markdown import extract_media_from_steps, extract_media_from_text
 
 logger = logging.getLogger(__name__)
+
+# Max chars for tool results sent through WebSocket (avoid huge base64 payloads)
+_MAX_WS_TOOL_RESULT = 2000
+
+
+def _extract_tool_calls_from_steps(steps: list) -> list[dict[str, Any]]:
+    """Convert AgentResult steps into ToolCall dicts for the frontend.
+
+    Pairs tool_call steps with their subsequent tool_result steps
+    sequentially and formats them to match the frontend ToolCall interface.
+    """
+    tool_calls: list[dict[str, Any]] = []
+    # Queue of pending tool_call entries waiting for their result
+    pending: list[dict[str, Any]] = []
+
+    for step in steps:
+        if not hasattr(step, "step_type"):
+            continue
+        st = step.step_type.value
+
+        if st == "tool_call":
+            args = step.tool_args or {}
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except (json.JSONDecodeError, TypeError):
+                    args = {"raw": args}
+
+            entry = {
+                "id": f"tc-{len(tool_calls)}",
+                "tool": step.tool_name or "unknown",
+                "args": args,
+                "startTime": int(step.timestamp * 1000) if step.timestamp else 0,
+            }
+            pending.append(entry)
+            tool_calls.append(entry)
+
+        elif st == "tool_result":
+            result_str = step.tool_result or step.content or ""
+            # Preserve media data URIs so the web UI can render them inline.
+            # Only truncate plain-text results to keep payloads small.
+            has_media = "data:image/" in result_str or "data:audio/" in result_str
+            if not has_media and len(result_str) > _MAX_WS_TOOL_RESULT:
+                result_str = result_str[:_MAX_WS_TOOL_RESULT] + "\n[... truncated ...]"
+
+            if pending:
+                # Pair with the oldest pending tool_call
+                entry = pending.pop(0)
+                entry["result"] = result_str
+                entry["success"] = not result_str.startswith("Error:")
+                entry["endTime"] = int(step.timestamp * 1000) if step.timestamp else 0
+
+    return tool_calls
 
 
 class MessageProcessor:
@@ -63,7 +121,7 @@ class MessageProcessor:
         platform_chat_id: str,
         message: str,
         metadata: dict,
-    ) -> str:
+    ) -> PlatformResponse:
         """
         Process an incoming message from a platform.
 
@@ -74,13 +132,15 @@ class MessageProcessor:
             metadata: Platform-specific metadata (user info, etc.)
 
         Returns:
-            The bot's response text
+            A PlatformResponse with text and optional media attachments.
         """
         # Get bot configuration
         bot = await self._bot_repo.get_bot(bot_id)
         if bot is None:
             logger.warning(f"Bot not found: {bot_id}")
-            return "Bot configuration not found. Please sync the bot from the app."
+            return PlatformResponse(
+                text="Bot configuration not found. Please sync the bot from the app."
+            )
 
         # Get or create the platform chat
         platform = metadata.get("platform", "unknown")
@@ -97,7 +157,7 @@ class MessageProcessor:
         # If chat is archived, ignore the message
         if chat is None:
             logger.debug(f"Ignoring message for archived chat: {platform_chat_id}")
-            return ""  # Return empty - no response for archived chats
+            return PlatformResponse()  # Empty - no response for archived chats
 
         # Use the internal chat ID for message storage
         chat_id = chat.id
@@ -142,23 +202,39 @@ class MessageProcessor:
             logger.warning(f"Context building failed: {e}")
             enhanced_prompt = bot.system_prompt
 
-        # Create agent
+        # Determine agent config — override model if bot has multi-model slots
+        agent_config = self._config
+        if bot.models and bot.models.get("default"):
+            agent_config = copy.deepcopy(self._config)
+            agent_config.agent.model = bot.models["default"]
+
+        # Create agent with bot capabilities for tool access
         agent = CachibotAgent(
-            config=self._config,
+            config=agent_config,
             system_prompt_override=enhanced_prompt,
-            # Platform messages get limited tool access for safety
-            allowed_tools={"task_complete"},
+            capabilities=bot.capabilities or None,
+            bot_id=bot_id,
+            bot_models=bot.models,
         )
 
         # Run async agent directly
         try:
             result = await agent.run(message)
-            response = result.output_text or "Task completed."
+            response_text = result.output_text or "Task completed."
             run_usage = result.run_usage
+
+            # Extract media from tool result steps (full non-truncated data)
+            media_items = extract_media_from_steps(result.steps)
+            if media_items:
+                cleaned_text, _ = extract_media_from_text(response_text)
+                response_text = cleaned_text or response_text
+
+            # Extract tool calls from steps for web UI display
+            tool_calls = _extract_tool_calls_from_steps(result.steps)
 
             # Save assistant response to history with usage metadata
             assistant_msg_id = str(uuid.uuid4())
-            usage_metadata = {
+            usage_metadata: dict[str, Any] = {
                 "tokens": run_usage.get("total_tokens", 0),
                 "promptTokens": run_usage.get("prompt_tokens", 0),
                 "completionTokens": run_usage.get("completion_tokens", 0),
@@ -170,12 +246,15 @@ class MessageProcessor:
                 "model": bot.model,
                 "platform": platform,
             }
+            if tool_calls:
+                usage_metadata["toolCalls"] = tool_calls
+
             assistant_msg = BotMessage(
                 id=assistant_msg_id,
                 bot_id=bot_id,
                 chat_id=chat_id,
                 role="assistant",
-                content=response,
+                content=response_text,
                 timestamp=datetime.utcnow(),
                 metadata=usage_metadata,
             )
@@ -186,17 +265,20 @@ class MessageProcessor:
                 bot_id=bot_id,
                 chat_id=chat_id,
                 role="assistant",
-                content=response,
+                content=response_text,
                 message_id=assistant_msg_id,
                 platform=platform,
                 metadata=usage_metadata,
             )
 
-            return response
+            return PlatformResponse(text=response_text, media=media_items)
 
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            return "Sorry, I encountered an error processing your message."
+            return PlatformResponse(
+                text="Sorry, I encountered an error processing your message."
+            )
+
 
 # Singleton instance
 _message_processor: MessageProcessor | None = None
