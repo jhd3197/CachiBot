@@ -19,6 +19,7 @@ import {
   Cpu,
   AudioLines,
   Layers,
+  Mic,
 } from 'lucide-react'
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -36,6 +37,7 @@ import {
   DocumentChunksDialog,
 } from '../knowledge'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
+import { useVoiceStore } from '../../stores/voice'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
 import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
@@ -103,6 +105,7 @@ export function SettingsView() {
     knowledge: 'Knowledge',
     skills: 'Skills',
     connections: 'Connections',
+    voice: 'Voice',
     advanced: 'Advanced',
     danger: 'Danger Zone',
   }
@@ -158,6 +161,9 @@ export function SettingsView() {
           )}
           {settingsSection === 'connections' && (
             <ConnectionsSection botId={activeBot.id} />
+          )}
+          {settingsSection === 'voice' && (
+            <VoiceSettingsSection botId={activeBot.id} />
           )}
           {settingsSection === 'advanced' && (
             <AdvancedSection />
@@ -984,6 +990,162 @@ function ConnectionsSection({ botId }: { botId: string }) {
     </div>
   )
 }
+
+// =============================================================================
+// VOICE SETTINGS SECTION
+// =============================================================================
+
+const TTS_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+
+const STT_LANGUAGES = [
+  { value: '', label: 'Auto-detect' },
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'it', label: 'Italian' },
+  { value: 'ru', label: 'Russian' },
+  { value: 'ar', label: 'Arabic' },
+]
+
+function VoiceSettingsSection({ botId: _botId }: { botId: string }) {
+  const { getActiveBot } = useBotStore()
+  const { voiceSettings, updateVoiceSettings } = useVoiceStore()
+  const activeBot = getActiveBot()
+  void _botId
+
+  const audioEnabled = !!activeBot?.capabilities?.audioGeneration
+
+  if (!audioEnabled) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <AudioLines className="h-5 w-5 text-amber-400" />
+          <div>
+            <p className="text-sm font-medium text-amber-300">Audio Generation Required</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Enable the "Audio Generation" capability in the General settings to use voice features.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* TTS Voice */}
+      <div>
+        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
+          <Mic className="h-4 w-4 text-zinc-400" />
+          TTS Voice
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {TTS_VOICES.map((voice) => (
+            <button
+              key={voice}
+              onClick={() => updateVoiceSettings({ ttsVoice: voice })}
+              className={cn(
+                'rounded-lg border px-3 py-1.5 text-sm capitalize transition-all',
+                voiceSettings.ttsVoice === voice
+                  ? 'border-cachi-500 bg-cachi-500/20 text-cachi-300'
+                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
+              )}
+            >
+              {voice}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-zinc-500">
+          For ElevenLabs, set a voice ID in the input below instead.
+        </p>
+        <input
+          type="text"
+          placeholder="Custom voice ID (ElevenLabs)"
+          value={voiceSettings.ttsVoice}
+          onChange={(e) => updateVoiceSettings({ ttsVoice: e.target.value })}
+          className="mt-2 h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+        />
+      </div>
+
+      {/* Speech Speed */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-300">
+          Speech Speed
+        </label>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="0.5"
+            max="2"
+            step="0.1"
+            value={voiceSettings.ttsSpeed}
+            onChange={(e) => updateVoiceSettings({ ttsSpeed: parseFloat(e.target.value) })}
+            className="flex-1"
+          />
+          <span className="w-12 text-center text-sm text-zinc-400">{voiceSettings.ttsSpeed}x</span>
+        </div>
+      </div>
+
+      {/* STT Language */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-zinc-300">
+          Speech Recognition Language
+        </label>
+        <select
+          value={voiceSettings.sttLanguage || ''}
+          onChange={(e) => updateVoiceSettings({ sttLanguage: e.target.value || null })}
+          className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none focus:border-cachi-500"
+        >
+          {STT_LANGUAGES.map((lang) => (
+            <option key={lang.value} value={lang.value}>{lang.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Toggles */}
+      <div className="space-y-4 border-t border-zinc-800 pt-6">
+        <label className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-zinc-300">Enable Interruption</p>
+            <p className="text-xs text-zinc-500">Allow interrupting the bot while it speaks</p>
+          </div>
+          <button
+            onClick={() => updateVoiceSettings({ enableInterruption: !voiceSettings.enableInterruption })}
+            className="text-zinc-400"
+          >
+            {voiceSettings.enableInterruption
+              ? <ToggleRight className="h-6 w-6 text-cachi-500" />
+              : <ToggleLeft className="h-6 w-6" />}
+          </button>
+        </label>
+
+        <label className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-zinc-300">Save Transcripts</p>
+            <p className="text-xs text-zinc-500">Save voice conversations to chat history</p>
+          </div>
+          <button
+            onClick={() => updateVoiceSettings({ saveTranscripts: !voiceSettings.saveTranscripts })}
+            className="text-zinc-400"
+          >
+            {voiceSettings.saveTranscripts
+              ? <ToggleRight className="h-6 w-6 text-cachi-500" />
+              : <ToggleLeft className="h-6 w-6" />}
+          </button>
+        </label>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// ADVANCED SECTION
+// =============================================================================
 
 function AdvancedSection() {
   return (

@@ -242,8 +242,9 @@ class KnowledgeRepository:
         db = await get_db()
         await db.execute(
             """
-            INSERT INTO bot_messages (id, bot_id, chat_id, role, content, timestamp, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bot_messages
+                (id, bot_id, chat_id, role, content, timestamp, metadata, reply_to_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 message.id,
@@ -253,6 +254,7 @@ class KnowledgeRepository:
                 message.content,
                 message.timestamp.isoformat(),
                 json.dumps(message.metadata),
+                message.reply_to_id,
             ),
         )
         await db.commit()
@@ -285,6 +287,7 @@ class KnowledgeRepository:
                 content=row["content"],
                 timestamp=datetime.fromisoformat(row["timestamp"]),
                 metadata=json.loads(row["metadata"]),
+                reply_to_id=row["reply_to_id"] if "reply_to_id" in row.keys() else None,
             )
             for row in reversed(rows)  # Return in chronological order
         ]
@@ -316,6 +319,7 @@ class KnowledgeRepository:
                 content=row["content"],
                 timestamp=datetime.fromisoformat(row["timestamp"]),
                 metadata=json.loads(row["metadata"]),
+                reply_to_id=row["reply_to_id"] if "reply_to_id" in row.keys() else None,
             )
             for row in reversed(rows)
         ]

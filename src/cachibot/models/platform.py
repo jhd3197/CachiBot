@@ -9,6 +9,16 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class IncomingMedia:
+    """An incoming media attachment from a platform user."""
+
+    media_type: str  # MIME type (e.g., "image/jpeg", "audio/ogg")
+    data: bytes  # Raw file bytes
+    filename: str  # Original or generated filename
+    caption: str = ""  # User caption if any
+
+
+@dataclass
 class MediaItem:
     """A single media attachment in a platform response."""
 
