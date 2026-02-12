@@ -141,13 +141,14 @@ export function SettingsView() {
               form={form}
               setForm={setForm}
               onReset={() => {
+                const appDefault = useModelsStore.getState().defaultModel
                 setForm({
                   name: DEFAULT_BOT_SETTINGS.name,
                   description: DEFAULT_BOT_SETTINGS.description,
                   icon: DEFAULT_BOT_SETTINGS.icon,
                   color: DEFAULT_BOT_SETTINGS.color,
-                  model: DEFAULT_BOT_SETTINGS.model,
-                  models: { default: DEFAULT_BOT_SETTINGS.model, image: '', audio: '', structured: '' },
+                  model: appDefault,
+                  models: { default: appDefault, image: '', audio: '', structured: '' },
                   systemPrompt: DEFAULT_BOT_SETTINGS.systemPrompt,
                 })
               }}

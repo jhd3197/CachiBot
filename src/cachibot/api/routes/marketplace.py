@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
+from cachibot.config import Config
 from cachibot.data.marketplace_templates import (
     get_all_templates,
     get_template_by_id,
@@ -333,6 +334,14 @@ async def install_template(
     bot_id = str(uuid.uuid4())
     now = datetime.utcnow()
 
+    # Resolve model: use template's model if set, otherwise app default
+    template_model = template_data.get("model", "")
+    if not template_model:
+        try:
+            template_model = Config.load().agent.model
+        except Exception:
+            template_model = "moonshot/kimi-k2.5"
+
     # Create the bot from template
     bot = Bot(
         id=bot_id,
@@ -340,7 +349,7 @@ async def install_template(
         description=template_data["description"],
         icon=template_data["icon"],
         color=template_data["color"],
-        model=template_data["model"],
+        model=template_model,
         systemPrompt=template_data["system_prompt"],
         capabilities={tool: True for tool in template_data["tools"]},
         createdAt=now,

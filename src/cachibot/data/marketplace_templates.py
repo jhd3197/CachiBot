@@ -43,7 +43,7 @@ MARKETPLACE_TEMPLATES: dict[TemplateCategory, list[TemplateDefinition]] = {
             "color": "#3b82f6",
             "category": "productivity",
             "tags": ["meetings", "notes", "summary", "action items"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Meeting Notes Assistant, \
 expert at capturing and organizing meeting content.
 
@@ -75,7 +75,7 @@ Be professional but approachable. Focus on clarity and actionability.""",
             "color": "#8b5cf6",
             "category": "productivity",
             "tags": ["email", "writing", "professional", "communication"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Professional Email Writer, \
 helping craft effective emails for any business situation.
 
@@ -112,7 +112,7 @@ Ask clarifying questions if the context or recipient relationship is unclear."""
             "color": "#22c55e",
             "category": "productivity",
             "tags": ["tasks", "planning", "organization", "productivity"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Task Management Assistant, \
 helping organize and prioritize work effectively.
 
@@ -148,7 +148,7 @@ Be supportive but practical. Help users make progress, not perfect plans.""",
             "color": "#3b82f6",
             "category": "productivity",
             "tags": ["files", "automation", "cleanup", "organization"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a File Organization Assistant, \
 helping keep workspaces tidy and efficient.
 
@@ -186,7 +186,7 @@ I'll help you find what you need, when you need it.""",
             "color": "#ef4444",
             "category": "coding",
             "tags": ["code review", "debugging", "best practices", "quality"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are an Expert Code Reviewer \
 with deep knowledge of software engineering best practices.
 
@@ -224,7 +224,7 @@ Ask for context about the codebase conventions if needed.""",
             "color": "#06b6d4",
             "category": "coding",
             "tags": ["documentation", "api docs", "readme", "technical writing"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Technical Documentation Writer, \
 creating clear and useful documentation.
 
@@ -263,7 +263,7 @@ Write documentation that you would want to read.""",
             "color": "#f59e0b",
             "category": "coding",
             "tags": ["debugging", "troubleshooting", "testing", "investigation"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Bug Hunter, \
 systematically debugging issues using the scientific method.
 
@@ -309,7 +309,7 @@ Stay curious and methodical. Every bug has a cause.""",
             "color": "#ec4899",
             "category": "creative",
             "tags": ["writing", "fiction", "storytelling", "creative"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Creative Story Writer, helping craft engaging narratives.
 
 ## Story Elements I Help With
@@ -346,7 +346,7 @@ I'm here to enhance your creativity, not override it. Let's tell your story.""",
             "color": "#f97316",
             "category": "creative",
             "tags": ["marketing", "copy", "headlines", "conversion"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Conversion-Focused Copywriter, \
 crafting words that drive action.
 
@@ -389,7 +389,7 @@ Always ask: What's the #1 action we want them to take?""",
             "color": "#a855f7",
             "category": "creative",
             "tags": ["brainstorming", "ideas", "creativity", "innovation"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Brainstorm Buddy, \
 helping generate and explore creative ideas.
 
@@ -429,7 +429,7 @@ I believe in your creative potential. Let's explore together!""",
             "color": "#06b6d4",
             "category": "data",
             "tags": ["sql", "database", "queries", "optimization"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are an SQL Expert, helping write and optimize database queries.
 
 ## Capabilities
@@ -466,7 +466,7 @@ I'll write queries that are both correct and efficient.""",
             "color": "#22c55e",
             "category": "data",
             "tags": ["visualization", "charts", "graphs", "data analysis"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Data Visualization Expert, \
 creating clear and insightful visual representations.
 
@@ -503,7 +503,7 @@ Ask about the story you want to tell with the data.""",
             "color": "#3b82f6",
             "category": "data",
             "tags": ["csv", "analysis", "statistics", "data cleaning"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a CSV Data Analyst, helping explore and understand data.
 
 ## Analysis Capabilities
@@ -542,7 +542,7 @@ I'll use Python/pandas to analyze your data and explain findings clearly.""",
             "color": "#ec4899",
             "category": "learning",
             "tags": ["language", "learning", "tutor", "practice"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Patient Language Tutor, \
 helping learners master new languages.
 
@@ -580,7 +580,7 @@ Tell me your target language and current level to get started!""",
             "color": "#8b5cf6",
             "category": "learning",
             "tags": ["education", "explanations", "learning", "understanding"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Concept Explainer, \
 making complex ideas accessible and memorable.
 
@@ -617,7 +617,7 @@ No topic is too complex to understand. Let's break it down together!""",
             "color": "#f59e0b",
             "category": "learning",
             "tags": ["quiz", "testing", "flashcards", "memorization"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Quiz Master, \
 helping test and reinforce learning through active recall.
 
@@ -661,7 +661,7 @@ What topic would you like to be quizzed on?""",
             "color": "#3b82f6",
             "category": "support",
             "tags": ["troubleshooting", "tech support", "help desk", "issues"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Tech Support Specialist, \
 helping users resolve technical issues.
 
@@ -701,7 +701,7 @@ I'm patient and here to help. No question is too basic!""",
             "color": "#f59e0b",
             "category": "research",
             "tags": ["research", "notes", "summary", "analysis"],
-            "model": "moonshot/kimi-k2.5",
+            "model": "",
             "system_prompt": """You are a Research Assistant, \
 helping organize and synthesize information.
 
