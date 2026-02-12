@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Download,
   ExternalLink,
-  KeyRound,
   Search,
   Sparkles,
   ToggleLeft,
@@ -220,6 +219,14 @@ interface GeneralSectionProps {
 function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const { imageGroups, audioGroups } = useModelsStore()
+  const { getActiveBot, updateBot } = useBotStore()
+  const activeBot = getActiveBot()
+
+  const toggleCapability = (key: string, value: boolean) => {
+    if (!activeBot) return
+    const caps = { ...(activeBot.capabilities || {}), [key]: value }
+    updateBot(activeBot.id, { capabilities: caps as unknown as BotType['capabilities'] })
+  }
 
   return (
     <div className="space-y-6">
@@ -317,73 +324,68 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             </p>
           </div>
 
-          {/* Image model — only shown when imageGeneration capability is on */}
-          {form.capabilities?.imageGeneration && (
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-                <Image className="h-3.5 w-3.5 text-zinc-500" />
-                Image Model
-              </label>
-              <ModelSelect
-                value={form.models?.image || ''}
-                onChange={(model) => {
-                  const models: BotModels = { ...(form.models || { default: '' }), image: model }
-                  setForm({ ...form, models })
-                }}
-                placeholder="Use plugin default"
-                className="w-full"
-                groups={imageGroups}
-              />
-              <p className="mt-1 text-xs text-zinc-500">
-                e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
-              </p>
-            </div>
-          )}
-
-          {/* Audio model */}
-          {form.capabilities?.audioGeneration ? (
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
-                <AudioLines className="h-3.5 w-3.5 text-zinc-500" />
-                Audio Model
-              </label>
-              <ModelSelect
-                value={form.models?.audio || ''}
-                onChange={(model) => {
-                  const models: BotModels = { ...(form.models || { default: '' }), audio: model }
-                  setForm({ ...form, models })
-                }}
-                placeholder="Use plugin default"
-                className="w-full"
-                groups={audioGroups}
-              />
-              <p className="mt-1 text-xs text-zinc-500">
-                e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
-              </p>
-            </div>
-          ) : (
-            <div className="opacity-50">
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
-                <AudioLines className="h-3.5 w-3.5 text-zinc-600" />
-                Audio Model
-                <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500">Enable Audio Generation</span>
-              </label>
-              <div className="h-10 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-4 flex items-center text-sm text-zinc-600">
-                Enable audio generation capability first
+          {/* Image Generation toggle + model */}
+          <div>
+            <CapabilityToggle
+              icon={<Image className="h-4 w-4" />}
+              label="Image Generation"
+              description="Generate images via DALL-E, Imagen, Stability AI"
+              enabled={!!activeBot?.capabilities?.imageGeneration}
+              onToggle={(v) => toggleCapability('imageGeneration', v)}
+            />
+            {!!activeBot?.capabilities?.imageGeneration && (
+              <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
+                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                  <Image className="h-3 w-3 text-zinc-500" />
+                  Image Model
+                </label>
+                <ModelSelect
+                  value={form.models?.image || ''}
+                  onChange={(model) => {
+                    const models: BotModels = { ...(form.models || { default: '' }), image: model }
+                    setForm({ ...form, models })
+                  }}
+                  placeholder="Use plugin default"
+                  className="w-full"
+                  groups={imageGroups}
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
+                </p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Structured model — coming soon */}
-          <div className="opacity-50">
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
-              <Layers className="h-3.5 w-3.5 text-zinc-600" />
-              Structured Output Model
-              <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500">Coming soon</span>
-            </label>
-            <div className="h-10 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-4 flex items-center text-sm text-zinc-600">
-              Not yet available
-            </div>
+          {/* Audio Generation toggle + model */}
+          <div>
+            <CapabilityToggle
+              icon={<AudioLines className="h-4 w-4" />}
+              label="Audio Generation"
+              description="Text-to-speech and speech-to-text via OpenAI, ElevenLabs"
+              enabled={!!activeBot?.capabilities?.audioGeneration}
+              onToggle={(v) => toggleCapability('audioGeneration', v)}
+            />
+            {!!activeBot?.capabilities?.audioGeneration && (
+              <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
+                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                  <AudioLines className="h-3 w-3 text-zinc-500" />
+                  Audio Model
+                </label>
+                <ModelSelect
+                  value={form.models?.audio || ''}
+                  onChange={(model) => {
+                    const models: BotModels = { ...(form.models || { default: '' }), audio: model }
+                    setForm({ ...form, models })
+                  }}
+                  placeholder="Use plugin default"
+                  className="w-full"
+                  groups={audioGroups}
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -544,9 +546,6 @@ function KnowledgeSection({ botId }: { botId: string }) {
 }
 
 function SkillsSection({ botId }: { botId: string }) {
-  const navigate = useNavigate()
-  const { getActiveBot, updateBot } = useBotStore()
-  const activeBot = getActiveBot()
   const [allSkills, setAllSkills] = useState<SkillDefinition[]>([])
   const [activeSkillIds, setActiveSkillIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -554,11 +553,6 @@ function SkillsSection({ botId }: { botId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showInstallDialog, setShowInstallDialog] = useState(false)
-
-  const toggleCapability = (key: string, value: boolean) => {
-    const caps = { ...(activeBot?.capabilities || {}), [key]: value }
-    updateBot(botId, { capabilities: caps as unknown as BotType['capabilities'] })
-  }
 
   // Load skills and bot's active skills
   const loadData = useCallback(async () => {
@@ -666,36 +660,6 @@ function SkillsSection({ botId }: { botId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Built-in Capabilities */}
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-zinc-200">Built-in Capabilities</h3>
-        <div className="space-y-2">
-          <CapabilityToggle
-            icon={<Image className="h-4 w-4" />}
-            label="Image Generation"
-            description="Generate images via DALL-E, Imagen, Stability AI"
-            enabled={!!activeBot?.capabilities?.imageGeneration}
-            onToggle={(v) => toggleCapability('imageGeneration', v)}
-          />
-          <CapabilityToggle
-            icon={<AudioLines className="h-4 w-4" />}
-            label="Audio Generation"
-            description="Text-to-speech and speech-to-text via OpenAI, ElevenLabs"
-            enabled={!!activeBot?.capabilities?.audioGeneration}
-            onToggle={(v) => toggleCapability('audioGeneration', v)}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('/settings/keys')}
-          className="mt-3 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-cachi-400 transition-colors"
-        >
-          <KeyRound className="h-3 w-3" />
-          Manage API Keys
-        </button>
-      </div>
-
-      <div className="border-t border-zinc-800 pt-6" />
 
       {/* Error display */}
       {error && (

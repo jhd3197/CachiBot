@@ -208,6 +208,15 @@ export function useWebSocket() {
           setError(payload.message)
           setLoading(false)
           setThinking(null)
+
+          // Attach any in-progress tool calls to the last message (same as done)
+          const errChatId = activeChatIdRef.current || pendingChatId
+          const errToolCalls = useChatStore.getState().toolCalls
+          if (errChatId && errToolCalls.length > 0) {
+            attachToolCallsToLastMessage(errChatId, errToolCalls)
+          }
+          clearToolCalls()
+          pendingChatId = null
           break
         }
 
