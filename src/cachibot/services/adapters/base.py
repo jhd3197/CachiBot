@@ -8,12 +8,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
+from cachibot.models.platform import PlatformResponse
 from cachibot.utils.markdown import strip_markdown
 
 # Type for message handler callback
-MessageHandler = Callable[[str, str, str, dict], Awaitable[str]]
+MessageHandler = Callable[[str, str, str, dict], Awaitable[PlatformResponse]]
 # Args: connection_id, chat_id, user_message, metadata
-# Returns: bot response
+# Returns: PlatformResponse with text and optional media
 
 
 class BasePlatformAdapter(ABC):

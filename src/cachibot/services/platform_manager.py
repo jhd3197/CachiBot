@@ -9,6 +9,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
+from cachibot.models.platform import PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
 from cachibot.services.adapters.discord import DiscordAdapter
 from cachibot.services.adapters.telegram import TelegramAdapter
@@ -19,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 # Type for bot message processor
-BotMessageProcessor = Callable[[str, str, str, dict], Awaitable[str]]
+BotMessageProcessor = Callable[[str, str, str, dict], Awaitable[PlatformResponse]]
 # Args: bot_id, chat_id, message, metadata
-# Returns: bot response
+# Returns: PlatformResponse with text and optional media
 
 
 class PlatformManager:
@@ -48,12 +49,12 @@ class PlatformManager:
         chat_id: str,
         message: str,
         metadata: dict,
-    ) -> str:
+    ) -> PlatformResponse:
         """Handle an incoming message from any platform."""
         # Get connection to find bot_id
         connection = await self._repo.get_connection(connection_id)
         if not connection:
-            return "Connection not found."
+            return PlatformResponse(text="Connection not found.")
 
         # Extract user_id from metadata (platform-specific)
         user_id = metadata.get("user_id") or metadata.get("username") or chat_id
@@ -71,30 +72,31 @@ class PlatformManager:
                     chat_id=chat_id,
                     metadata=metadata,
                 )
-                return result.response
+                return PlatformResponse(text=result.response)
             except Exception as e:
                 logger.error(f"Error processing command: {e}")
-                return "Sorry, I encountered an error processing that command."
+                return PlatformResponse(
+                    text="Sorry, I encountered an error processing that command."
+                )
 
         # Normal message processing
         if not self._message_processor:
-            return "Bot is not configured to respond."
+            return PlatformResponse(text="Bot is not configured to respond.")
 
         # Increment message count
         await self._repo.increment_message_count(connection_id)
 
         # Process the message through the bot
         try:
-            response = await self._message_processor(
+            return await self._message_processor(
                 connection.bot_id,
                 chat_id,
                 message,
                 metadata,
             )
-            return response
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            return "Sorry, I encountered an error."
+            return PlatformResponse(text="Sorry, I encountered an error.")
 
     def _create_adapter(self, connection: BotConnection) -> BasePlatformAdapter:
         """Create an adapter for the given connection."""

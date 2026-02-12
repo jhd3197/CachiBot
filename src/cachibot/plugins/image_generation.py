@@ -107,6 +107,7 @@ class ImageGenerationPlugin(CachibotPlugin):
             try:
                 from prompture import get_async_img_gen_driver_for_model
             except ImportError:
+                logger.error("Prompture image generation drivers not available")
                 return "Error: Prompture image generation drivers not available. Update prompture."
 
             # Resolve config
@@ -133,6 +134,7 @@ class ImageGenerationPlugin(CachibotPlugin):
             try:
                 driver = get_async_img_gen_driver_for_model(model)
             except Exception as exc:
+                logger.error("Failed to init image driver for '%s': %s", model, exc)
                 return f"Error: Failed to initialize image driver for '{model}': {exc}"
 
             # Build options — each driver takes what it supports and ignores the rest
@@ -161,6 +163,7 @@ class ImageGenerationPlugin(CachibotPlugin):
             try:
                 result = await driver.generate_image(prompt, options)
             except Exception as exc:
+                logger.error("Image generation failed for '%s': %s", model, exc, exc_info=True)
                 return f"Error: Image generation failed: {exc}"
 
             images = result.get("images", [])
@@ -169,24 +172,28 @@ class ImageGenerationPlugin(CachibotPlugin):
             if not images:
                 return "Error: No images returned from the provider."
 
-            # Build markdown with the first image as base64 data URI
+            # Build response with summary FIRST so the LLM sees useful info
+            # even if the result is truncated (base64 data is very large).
             image = images[0]
             media_type = getattr(image, "media_type", "image/png")
             image_data = getattr(image, "data", "")
 
-            parts = [f"![Generated Image](data:{media_type};base64,{image_data})"]
-
-            # Add metadata
+            # Summary metadata (placed before the data URI)
             meta_parts = []
-            if meta.get("revised_prompt"):
-                meta_parts.append(f"Revised prompt: {meta['revised_prompt']}")
-            if meta.get("cost"):
-                meta_parts.append(f"Cost: ${meta['cost']:.4f}")
+            meta_parts.append(f"Model: {meta.get('model_name', model)}")
             if meta.get("size"):
                 meta_parts.append(f"Size: {meta['size']}")
-            meta_parts.append(f"Model: {meta.get('model_name', model)}")
-            if meta_parts:
-                parts.append(f"\n*{' | '.join(meta_parts)}*")
+            if meta.get("cost"):
+                meta_parts.append(f"Cost: ${meta['cost']:.4f}")
+            if meta.get("revised_prompt"):
+                meta_parts.append(f"Revised prompt: {meta['revised_prompt']}")
+
+            parts = [
+                "Image generated successfully.",
+                f"*{' | '.join(meta_parts)}*",
+                "",
+                f"![Generated Image](data:{media_type};base64,{image_data})",
+            ]
 
             return "\n".join(parts)
 

@@ -8,10 +8,21 @@ function extractImageDataUri(text: string): string | null {
   return match ? match[1] : null
 }
 
-/** Extract metadata text that follows the image markdown. */
+/** Extract the first markdown audio data URI from a string, if any. */
+function extractAudioDataUri(text: string): string | null {
+  const match = text.match(/!\[.*?\]\((data:audio\/[^;]+;base64,[A-Za-z0-9+/=\s]+)\)/)
+  if (match) return match[1].replace(/\s/g, '')
+  // Also check for raw data URI not wrapped in markdown
+  const raw = text.match(/(data:audio\/[^;]+;base64,[A-Za-z0-9+/=\s]+)/)
+  return raw ? raw[1].replace(/\s/g, '') : null
+}
+
+/** Extract metadata text that follows the media markdown. */
 function extractResultMeta(text: string): string | null {
-  // Strip the markdown image portion to get remaining metadata
-  const stripped = text.replace(/!\[.*?\]\(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+\)/, '').trim()
+  // Strip markdown image/audio portions to get remaining metadata
+  const stripped = text
+    .replace(/!\[.*?\]\(data:(?:image|audio)\/[^;]+;base64,[A-Za-z0-9+/=\s]+\)/g, '')
+    .trim()
   return stripped || null
 }
 
@@ -39,7 +50,9 @@ function ToolCallItem({ call }: ToolCallItemProps) {
 
   const resultStr = call.result != null ? String(call.result) : ''
   const imageUri = isComplete && isSuccess ? extractImageDataUri(resultStr) : null
-  const resultMeta = imageUri ? extractResultMeta(resultStr) : null
+  const audioUri = isComplete && isSuccess && !imageUri ? extractAudioDataUri(resultStr) : null
+  const mediaUri = imageUri || audioUri
+  const resultMeta = mediaUri ? extractResultMeta(resultStr) : null
 
   return (
     <div
@@ -99,7 +112,7 @@ function ToolCallItem({ call }: ToolCallItemProps) {
         </div>
       ) : null}
 
-      {/* Image result */}
+      {/* Media result (image or audio) */}
       {imageUri ? (
         <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
           <img
@@ -107,6 +120,15 @@ function ToolCallItem({ call }: ToolCallItemProps) {
             alt="Generated"
             className="max-w-full rounded-md"
           />
+          {resultMeta ? (
+            <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
+              {resultMeta}
+            </p>
+          ) : null}
+        </div>
+      ) : audioUri ? (
+        <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+          <audio controls className="w-full" src={audioUri} />
           {resultMeta ? (
             <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
               {resultMeta}

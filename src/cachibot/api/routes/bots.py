@@ -33,6 +33,7 @@ class BotSyncRequest(BaseModel):
     icon: str | None = None
     color: str | None = None
     model: str
+    models: dict | None = None
     systemPrompt: str
     capabilities: dict = Field(default_factory=dict)
     createdAt: str
@@ -81,6 +82,7 @@ async def sync_bot(
         icon=body.icon,
         color=body.color,
         model=body.model,
+        models=body.models,
         systemPrompt=body.systemPrompt,
         capabilities=body.capabilities,
         createdAt=datetime.fromisoformat(body.createdAt.replace("Z", "+00:00")),
@@ -210,7 +212,8 @@ async def export_bot(
             "icon": bot.icon,
             "color": bot.color,
             "model": bot.model,
-            "systemPrompt": bot.systemPrompt,
+            "models": bot.models,
+            "systemPrompt": bot.system_prompt,
             "tools": list(bot.capabilities.keys()) if bot.capabilities else [],
             "capabilities": bot.capabilities,
             "skills": skill_ids,
@@ -260,6 +263,7 @@ async def import_bot(
         icon=bot_data.get("icon", "bot"),
         color=bot_data.get("color", "#3b82f6"),
         model=bot_data.get("model"),
+        models=bot_data.get("models"),
         systemPrompt=bot_data.get("systemPrompt", ""),
         capabilities=bot_data.get("capabilities", {}),
         createdAt=now,

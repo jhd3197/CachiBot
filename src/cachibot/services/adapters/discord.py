@@ -5,10 +5,12 @@ Uses discord.py library for Discord Bot integration.
 """
 
 import asyncio
+import io
 import logging
 from typing import Any
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
+from cachibot.models.platform import PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -106,9 +108,9 @@ class DiscordAdapter(BasePlatformAdapter):
                         metadata,
                     )
 
-                    # Send response back (strip markdown if configured)
-                    if response:
-                        await message.channel.send(adapter.format_outgoing_message(response))
+                    # Send response back with media support
+                    if response.text or response.media:
+                        await adapter._send_platform_response(message.channel, response)
 
                 except Exception as e:
                     logger.error(f"Error handling Discord message: {e}")
@@ -160,6 +162,25 @@ class DiscordAdapter(BasePlatformAdapter):
         self._client = None
         self._client_task = None
         logger.info(f"Discord adapter stopped for connection {self.connection_id}")
+
+    async def _send_platform_response(self, channel: Any, response: PlatformResponse) -> None:
+        """Send a PlatformResponse with media and text to a Discord channel."""
+        import discord
+
+        # Send each media item as a Discord file attachment
+        for item in response.media:
+            try:
+                file = discord.File(io.BytesIO(item.data), filename=item.filename)
+                caption = item.metadata_text or item.alt_text or None
+                await channel.send(content=caption, file=file)
+            except Exception as e:
+                logger.error(f"Failed to send Discord media ({item.media_type}): {e}")
+
+        # Send text portion
+        if response.text:
+            formatted = self.format_outgoing_message(response.text)
+            if formatted:
+                await channel.send(formatted)
 
     async def send_message(self, channel_id: str, message: str) -> bool:
         """Send a message to a Discord channel."""
