@@ -28,7 +28,7 @@ import { generateBotNames } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
-import type { ChatMessage, ToolCall, BotIcon, Chat, Bot } from '../../types'
+import type { ChatMessage, ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -1251,6 +1251,7 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 function MessageToolCallItem({ call }: { call: ToolCall }) {
   const [expanded, setExpanded] = useState(false)
   const isSuccess = call.success !== false
+  const toolModel = getToolModel(call.tool)
 
   return (
     <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50">
@@ -1265,6 +1266,11 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
         )}
         <Code className="h-3 w-3 flex-shrink-0 text-zinc-500" />
         <span className="flex-1 font-mono text-zinc-300 truncate">{call.tool}</span>
+        {toolModel && (
+          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-zinc-500 truncate max-w-[140px]">
+            {toolModel}
+          </span>
+        )}
         <ChevronDown
           className={cn(
             'h-3 w-3 flex-shrink-0 text-zinc-500 transition-transform',
@@ -1303,10 +1309,25 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
 // TOOL CALL DISPLAY (Active/streaming tool calls)
 // =============================================================================
 
+// Map tool names to bot model slots
+const TOOL_MODEL_SLOTS: Record<string, string> = {
+  generate_image: 'image',
+  generate_audio: 'audio',
+  transcribe_audio: 'audio',
+}
+
+function getToolModel(toolName: string): string | undefined {
+  const slot = TOOL_MODEL_SLOTS[toolName]
+  if (!slot) return undefined
+  const bot = useBotStore.getState().getActiveBot()
+  return bot?.models?.[slot as keyof BotModels] || undefined
+}
+
 function ToolCallDisplay({ call }: { call: ToolCall }) {
   const [expanded, setExpanded] = useState(false)
   const isComplete = call.endTime !== undefined
   const isSuccess = call.success === true
+  const toolModel = getToolModel(call.tool)
 
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
@@ -1324,6 +1345,11 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
 
         <Code className="h-4 w-4 text-zinc-500" />
         <span className="flex-1 font-mono text-sm text-zinc-300">{call.tool}</span>
+        {toolModel && (
+          <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-400">
+            {toolModel}
+          </span>
+        )}
 
         <ChevronDown
           className={cn(

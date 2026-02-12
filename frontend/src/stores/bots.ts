@@ -431,7 +431,23 @@ export const useChatStore = create<ChatState>()(
               break
             }
           }
-          if (lastAssistantIndex === -1) return state
+          // If no assistant message exists (LLM went straight to tool call),
+          // create a placeholder so tool calls aren't lost
+          if (lastAssistantIndex === -1) {
+            const placeholder: ChatMessage = {
+              id: `msg-tools-${Date.now()}`,
+              role: 'assistant',
+              content: '',
+              timestamp: new Date().toISOString(),
+              toolCalls: [...toolCalls],
+            }
+            return {
+              messages: {
+                ...state.messages,
+                [chatId]: [...chatMessages, placeholder],
+              },
+            }
+          }
           return {
             messages: {
               ...state.messages,
