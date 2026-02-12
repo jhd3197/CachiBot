@@ -26,6 +26,8 @@ PROVIDERS = {
     "moonshot": {"env_key": "MOONSHOT_API_KEY", "type": "api_key"},
     "zai": {"env_key": "ZHIPU_API_KEY", "type": "api_key"},
     "modelscope": {"env_key": "MODELSCOPE_API_KEY", "type": "api_key"},
+    "stability": {"env_key": "STABILITY_API_KEY", "type": "api_key"},
+    "elevenlabs": {"env_key": "ELEVENLABS_API_KEY", "type": "api_key"},
     "azure": {
         "env_key": "AZURE_API_KEY",
         "type": "api_key",

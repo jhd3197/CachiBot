@@ -5,6 +5,7 @@ Handles real-time streaming of agent events to clients.
 """
 
 import asyncio
+import copy
 import logging
 import uuid
 from datetime import datetime
@@ -131,6 +132,8 @@ async def websocket_endpoint(
                 system_prompt = payload.get("systemPrompt")
                 bot_id = payload.get("botId")
                 chat_id = payload.get("chatId")
+                bot_model = payload.get("model")  # Per-bot model override
+                bot_models = payload.get("models")  # Multi-model slots dict
                 capabilities = payload.get("capabilities")  # Optional dict
                 tool_configs = payload.get("toolConfigs")  # Optional dict with per-tool settings
                 enabled_skill_ids = payload.get("enabledSkills")  # Optional list of skill IDs
@@ -186,14 +189,28 @@ async def websocket_endpoint(
                 # Merge tool_configs
                 merged_tool_configs = dict(tool_configs) if tool_configs else {}
 
+                # Apply per-bot model override: resolve from models.default or model field
+                effective_model = None
+                if bot_models and bot_models.get("default"):
+                    effective_model = bot_models["default"]
+                elif bot_model:
+                    effective_model = bot_model
+
+                agent_config = config
+                if effective_model:
+                    # Copy config to avoid mutating the shared instance
+                    agent_config = copy.deepcopy(config)
+                    agent_config.agent.model = effective_model
+
                 # Create fresh agent with current systemPrompt
                 # Capabilities are passed directly; the plugin system
                 # handles mapping capabilities to tools.
                 agent = CachibotAgent(
-                    config=config,
+                    config=agent_config,
                     system_prompt_override=enhanced_prompt,
                     capabilities=capabilities,
                     bot_id=bot_id,
+                    bot_models=bot_models,
                     tool_configs=merged_tool_configs,
                     on_approval_needed=on_approval,
                 )

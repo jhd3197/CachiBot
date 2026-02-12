@@ -10,16 +10,22 @@ import {
   RefreshCw,
   Download,
   ExternalLink,
+  KeyRound,
   Search,
   Sparkles,
   ToggleLeft,
   ToggleRight,
   X,
+  Image,
+  Cpu,
+  AudioLines,
+  Layers,
 } from 'lucide-react'
-import { useBotStore, DEFAULT_BOT_SETTINGS } from '../../stores/bots'
+import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../common/BotIconRenderer'
 import { ModelSelect } from '../common/ModelSelect'
+import { useModelsStore } from '../../stores/models'
 import {
   DocumentUploader,
   DocumentList,
@@ -33,7 +39,7 @@ import {
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
-import type { Bot as BotType, SkillDefinition } from '../../types'
+import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
 
 const COLOR_OPTIONS = [
   '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
@@ -55,7 +61,9 @@ export function SettingsView() {
     icon: activeBot?.icon,
     color: activeBot?.color,
     model: activeBot?.model || '',
+    models: activeBot ? getEffectiveModels(activeBot) : undefined,
     systemPrompt: activeBot?.systemPrompt || '',
+    capabilities: activeBot?.capabilities,
   })
 
   useEffect(() => {
@@ -66,7 +74,9 @@ export function SettingsView() {
         icon: activeBot.icon,
         color: activeBot.color,
         model: activeBot.model,
+        models: getEffectiveModels(activeBot),
         systemPrompt: activeBot.systemPrompt,
+        capabilities: activeBot.capabilities,
       })
     }
   }, [activeBot?.id])
@@ -74,7 +84,10 @@ export function SettingsView() {
   if (!activeBot) return null
 
   const handleSave = () => {
-    updateBot(activeBot.id, form)
+    // Exclude capabilities from form save — those are toggled live in Skills section
+    const { capabilities: _caps, ...formWithoutCaps } = form
+    void _caps
+    updateBot(activeBot.id, formWithoutCaps)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -132,6 +145,7 @@ export function SettingsView() {
                   icon: DEFAULT_BOT_SETTINGS.icon,
                   color: DEFAULT_BOT_SETTINGS.color,
                   model: DEFAULT_BOT_SETTINGS.model,
+                  models: { default: DEFAULT_BOT_SETTINGS.model, image: '', audio: '', structured: '' },
                   systemPrompt: DEFAULT_BOT_SETTINGS.systemPrompt,
                 })
               }}
@@ -205,6 +219,7 @@ interface GeneralSectionProps {
 
 function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const { imageGroups, audioGroups } = useModelsStore()
 
   return (
     <div className="space-y-6">
@@ -273,18 +288,103 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-zinc-100 outline-none focus:border-cachi-500"
           />
         </div>
+      </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">Model</label>
-          <ModelSelect
-            value={form.model || ''}
-            onChange={(model) => setForm({ ...form, model })}
-            placeholder="Use system default"
-            className="w-full"
-          />
-          <p className="mt-1 text-xs text-zinc-500">
-            Leave empty to use the system default model
-          </p>
+      {/* Models */}
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-200">
+          <Cpu className="h-4 w-4 text-zinc-400" />
+          Models
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
+              <Layers className="h-3.5 w-3.5 text-zinc-500" />
+              Default Model
+            </label>
+            <ModelSelect
+              value={form.models?.default || form.model || ''}
+              onChange={(model) => {
+                const models: BotModels = { ...(form.models || { default: '' }), default: model }
+                setForm({ ...form, model, models })
+              }}
+              placeholder="Use system default"
+              className="w-full"
+              filter={(m) => !m.supports_image_generation && !m.supports_audio}
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Main conversational model. Leave empty to use the system default.
+            </p>
+          </div>
+
+          {/* Image model — only shown when imageGeneration capability is on */}
+          {form.capabilities?.imageGeneration && (
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
+                <Image className="h-3.5 w-3.5 text-zinc-500" />
+                Image Model
+              </label>
+              <ModelSelect
+                value={form.models?.image || ''}
+                onChange={(model) => {
+                  const models: BotModels = { ...(form.models || { default: '' }), image: model }
+                  setForm({ ...form, models })
+                }}
+                placeholder="Use plugin default"
+                className="w-full"
+                groups={imageGroups}
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
+              </p>
+            </div>
+          )}
+
+          {/* Audio model */}
+          {form.capabilities?.audioGeneration ? (
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
+                <AudioLines className="h-3.5 w-3.5 text-zinc-500" />
+                Audio Model
+              </label>
+              <ModelSelect
+                value={form.models?.audio || ''}
+                onChange={(model) => {
+                  const models: BotModels = { ...(form.models || { default: '' }), audio: model }
+                  setForm({ ...form, models })
+                }}
+                placeholder="Use plugin default"
+                className="w-full"
+                groups={audioGroups}
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
+              </p>
+            </div>
+          ) : (
+            <div className="opacity-50">
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
+                <AudioLines className="h-3.5 w-3.5 text-zinc-600" />
+                Audio Model
+                <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500">Enable Audio Generation</span>
+              </label>
+              <div className="h-10 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-4 flex items-center text-sm text-zinc-600">
+                Enable audio generation capability first
+              </div>
+            </div>
+          )}
+
+          {/* Structured model — coming soon */}
+          <div className="opacity-50">
+            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-400">
+              <Layers className="h-3.5 w-3.5 text-zinc-600" />
+              Structured Output Model
+              <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500">Coming soon</span>
+            </label>
+            <div className="h-10 rounded-lg border border-zinc-700/50 bg-zinc-800/50 px-4 flex items-center text-sm text-zinc-600">
+              Not yet available
+            </div>
+          </div>
         </div>
       </div>
 
@@ -444,6 +544,9 @@ function KnowledgeSection({ botId }: { botId: string }) {
 }
 
 function SkillsSection({ botId }: { botId: string }) {
+  const navigate = useNavigate()
+  const { getActiveBot, updateBot } = useBotStore()
+  const activeBot = getActiveBot()
   const [allSkills, setAllSkills] = useState<SkillDefinition[]>([])
   const [activeSkillIds, setActiveSkillIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -451,6 +554,11 @@ function SkillsSection({ botId }: { botId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showInstallDialog, setShowInstallDialog] = useState(false)
+
+  const toggleCapability = (key: string, value: boolean) => {
+    const caps = { ...(activeBot?.capabilities || {}), [key]: value }
+    updateBot(botId, { capabilities: caps as unknown as BotType['capabilities'] })
+  }
 
   // Load skills and bot's active skills
   const loadData = useCallback(async () => {
@@ -558,6 +666,37 @@ function SkillsSection({ botId }: { botId: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Built-in Capabilities */}
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-zinc-200">Built-in Capabilities</h3>
+        <div className="space-y-2">
+          <CapabilityToggle
+            icon={<Image className="h-4 w-4" />}
+            label="Image Generation"
+            description="Generate images via DALL-E, Imagen, Stability AI"
+            enabled={!!activeBot?.capabilities?.imageGeneration}
+            onToggle={(v) => toggleCapability('imageGeneration', v)}
+          />
+          <CapabilityToggle
+            icon={<AudioLines className="h-4 w-4" />}
+            label="Audio Generation"
+            description="Text-to-speech and speech-to-text via OpenAI, ElevenLabs"
+            enabled={!!activeBot?.capabilities?.audioGeneration}
+            onToggle={(v) => toggleCapability('audioGeneration', v)}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/settings/keys')}
+          className="mt-3 flex items-center gap-1.5 text-xs text-zinc-500 hover:text-cachi-400 transition-colors"
+        >
+          <KeyRound className="h-3 w-3" />
+          Manage API Keys
+        </button>
+      </div>
+
+      <div className="border-t border-zinc-800 pt-6" />
+
       {/* Error display */}
       {error && (
         <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
@@ -665,6 +804,44 @@ function SkillsSection({ botId }: { botId: string }) {
           onInstalled={handleInstalled}
         />
       )}
+    </div>
+  )
+}
+
+// Capability toggle component
+interface CapabilityToggleProps {
+  icon: React.ReactNode
+  label: string
+  description: string
+  enabled: boolean
+  onToggle: (enabled: boolean) => void
+}
+
+function CapabilityToggle({ icon, label, description, enabled, onToggle }: CapabilityToggleProps) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between rounded-lg border p-3 transition-colors',
+        enabled
+          ? 'border-cachi-500/50 bg-cachi-500/5'
+          : 'border-zinc-700 bg-zinc-800/30'
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn('text-zinc-400', enabled && 'text-cachi-500')}>
+          {icon}
+        </div>
+        <div>
+          <div className="text-sm font-medium text-zinc-200">{label}</div>
+          <div className="text-xs text-zinc-500">{description}</div>
+        </div>
+      </div>
+      <button
+        onClick={() => onToggle(!enabled)}
+        className={enabled ? 'text-cachi-500' : 'text-zinc-600'}
+      >
+        {enabled ? <ToggleRight className="h-7 w-7" /> : <ToggleLeft className="h-7 w-7" />}
+      </button>
     </div>
   )
 }

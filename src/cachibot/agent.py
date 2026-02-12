@@ -62,6 +62,9 @@ class CachibotAgent:
     # Bot identity (needed by work management and platform plugins)
     bot_id: str | None = None
 
+    # Multi-model slot configuration (e.g., {"default": "...", "image": "..."})
+    bot_models: dict | None = None
+
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
         self._setup_sandbox()
@@ -98,6 +101,7 @@ class CachibotAgent:
             sandbox=self.sandbox,
             bot_id=self.bot_id,
             tool_configs=self.tool_configs or {},
+            bot_models=self.bot_models,
         )
         self.registry = build_registry(ctx, self.capabilities)
 

@@ -666,12 +666,16 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         contacts: false,
         connections: false,
         workManagement: true,
+        imageGeneration: false,
+        audioGeneration: false,
       }
 
       wsSendMessage(trimmedInput, {
         systemPrompt: activeBot?.systemPrompt,
         botId: activeBot?.id,
         chatId: chatIdToUse ?? undefined,
+        model: activeBot?.model,
+        models: activeBot?.models,
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
       })

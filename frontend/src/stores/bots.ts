@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   Bot,
+  BotModels,
   Chat,
   Job,
   Task,
@@ -56,6 +57,18 @@ CachiBot is named after the Venezuelan *cachicamo* (armadillo) - a resilient, ar
 - Use tools when actions are needed
 - Explain what you're doing
 - When asked about yourself, refer to the information above - do not claim to be created by any other company`,
+}
+
+/**
+ * Get effective multi-model config for a bot, with fallback from bot.model.
+ */
+export function getEffectiveModels(bot: Bot): BotModels {
+  return {
+    default: bot.models?.default || bot.model || '',
+    image: bot.models?.image || '',
+    audio: bot.models?.audio || '',
+    structured: bot.models?.structured || '',
+  }
 }
 
 // Default bot for initial state
