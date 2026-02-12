@@ -128,9 +128,7 @@ class PlatformManager:
                 raise ValueError(f"Connection not found: {connection_id}")
 
             # Update status to connecting
-            await self._repo.update_connection_status(
-                connection_id, ConnectionStatus.connecting
-            )
+            await self._repo.update_connection_status(connection_id, ConnectionStatus.connecting)
 
             try:
                 # Create and start adapter
@@ -141,9 +139,7 @@ class PlatformManager:
                 self._adapters[connection_id] = adapter
 
                 # Update status to connected
-                await self._repo.update_connection_status(
-                    connection_id, ConnectionStatus.connected
-                )
+                await self._repo.update_connection_status(connection_id, ConnectionStatus.connected)
 
                 logger.info(f"Connected {connection.platform.value} adapter: {connection_id}")
 
@@ -168,9 +164,7 @@ class PlatformManager:
                 del self._adapters[connection_id]
 
             # Update status to disconnected
-            await self._repo.update_connection_status(
-                connection_id, ConnectionStatus.disconnected
-            )
+            await self._repo.update_connection_status(connection_id, ConnectionStatus.disconnected)
 
             logger.info(f"Disconnected adapter: {connection_id}")
 

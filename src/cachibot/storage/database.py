@@ -89,7 +89,8 @@ async def init_db() -> None:
             processed_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_bot_documents_bot ON bot_documents(bot_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_documents_hash ON bot_documents(bot_id, file_hash);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_documents_hash
+            ON bot_documents(bot_id, file_hash);
 
         -- Document chunks with embeddings (for vector search)
         -- Note: sqlite-vec virtual table created separately after extension loads
@@ -187,7 +188,8 @@ async def init_db() -> None:
             updated_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_chats_bot ON chats(bot_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_platform ON chats(bot_id, platform, platform_chat_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_platform
+            ON chats(bot_id, platform, platform_chat_id);
 
         -- Skills (reusable behavior modules)
         CREATE TABLE IF NOT EXISTS skills (

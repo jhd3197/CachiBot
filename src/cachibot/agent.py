@@ -14,10 +14,10 @@ from prompture import (
     AgentResult,
     ToolRegistry,
 )
-from tukuy import PythonSandbox
 from prompture import (
     AsyncAgent as PromptureAgent,
 )
+from tukuy import PythonSandbox
 
 from cachibot.config import Config
 from cachibot.plugins.base import PluginContext

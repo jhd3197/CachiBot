@@ -159,9 +159,7 @@ class SkillsService:
                     # Use path property (added in Prompture 1.0.6)
                     filepath = str(skill_info.path) if skill_info.path else None
 
-                    skill = _skill_info_to_definition(
-                        skill_info, SkillSource.LOCAL, filepath
-                    )
+                    skill = _skill_info_to_definition(skill_info, SkillSource.LOCAL, filepath)
                     skills.append(skill)
                 except Exception as e:
                     logger.warning(f"Failed to convert skill {skill_info.name}: {e}")

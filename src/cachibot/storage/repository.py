@@ -26,7 +26,7 @@ from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSour
 from cachibot.storage.database import get_db
 
 
-class ChatRepository:
+class MessageRepository:
     """Repository for chat messages."""
 
     async def save_message(self, message: ChatMessage) -> None:
@@ -959,7 +959,8 @@ class ContactsRepository:
         """Get a contact by ID."""
         db = await get_db()
         async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at FROM bot_contacts WHERE id = ?",
+            "SELECT id, bot_id, name, details, created_at, updated_at"
+            " FROM bot_contacts WHERE id = ?",
             (contact_id,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -969,7 +970,8 @@ class ContactsRepository:
         """Get all contacts for a bot."""
         db = await get_db()
         async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at FROM bot_contacts WHERE bot_id = ? ORDER BY name",
+            "SELECT id, bot_id, name, details, created_at, updated_at"
+            " FROM bot_contacts WHERE bot_id = ? ORDER BY name",
             (bot_id,),
         ) as cursor:
             rows = await cursor.fetchall()

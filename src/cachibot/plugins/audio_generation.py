@@ -65,7 +65,9 @@ class AudioGenerationPlugin(CachibotPlugin):
                 ConfigParam(
                     name="voice",
                     display_name="Voice",
-                    description="Voice for TTS. OpenAI voices: alloy, echo, fable, onyx, nova, shimmer.",
+                    description=(
+                        "Voice for TTS. OpenAI voices: alloy, echo, fable, onyx, nova, shimmer."
+                    ),
                     type="select",
                     default="alloy",
                     options=["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
@@ -246,8 +248,10 @@ class AudioGenerationPlugin(CachibotPlugin):
                     audio_bytes = base64.b64decode(encoded)
                 except Exception as exc:
                     return f"Error: Invalid data URI: {exc}"
-            elif "/" in audio_data or "\\" in audio_data or audio_data.endswith(
-                (".mp3", ".wav", ".ogg", ".flac", ".m4a", ".webm")
+            elif (
+                "/" in audio_data
+                or "\\" in audio_data
+                or audio_data.endswith((".mp3", ".wav", ".ogg", ".flac", ".m4a", ".webm"))
             ):
                 # File path — validate within workspace
                 workspace = Path(ctx.config.workspace_path).resolve()

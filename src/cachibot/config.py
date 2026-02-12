@@ -95,7 +95,15 @@ class WorkspaceConfig:
 
     allowed_paths: list[str] = field(default_factory=lambda: ["."])
     ignore_patterns: list[str] = field(
-        default_factory=lambda: ["node_modules", ".git", "__pycache__", "*.pyc", ".env", "venv", ".venv"]
+        default_factory=lambda: [
+            "node_modules",
+            ".git",
+            "__pycache__",
+            "*.pyc",
+            ".env",
+            "venv",
+            ".venv",
+        ]
     )
 
 

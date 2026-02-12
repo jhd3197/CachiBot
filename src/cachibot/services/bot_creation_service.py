@@ -34,7 +34,9 @@ async def _extract_with_retry(
             last_error = e
             logger.warning(
                 "Extraction attempt %d/%d failed: %s",
-                attempt + 1, max_retries, e,
+                attempt + 1,
+                max_retries,
+                e,
             )
     raise last_error  # type: ignore[misc]
 
@@ -61,15 +63,12 @@ class PersonalityConfig(BaseModel):
     purpose_category: str = Field(
         description="Category of bot purpose (e.g., coding, writing, analysis, support)"
     )
-    purpose_description: str = Field(
-        description="Detailed description of what the bot should do"
-    )
+    purpose_description: str = Field(description="Detailed description of what the bot should do")
     communication_style: str = Field(
         description="How the bot should communicate (e.g., professional, casual, friendly)"
     )
     use_emojis: Literal["yes", "no", "sometimes"] = Field(
-        default="sometimes",
-        description="Whether the bot should use emojis in responses"
+        default="sometimes", description="Whether the bot should use emojis in responses"
     )
 
 
@@ -90,34 +89,22 @@ class FullBotContext(BaseModel):
 class GeneratedPrompt(BaseModel):
     """AI-generated system prompt result."""
 
-    system_prompt: str = Field(
-        description="The generated system prompt for the bot"
-    )
-    suggested_name: str = Field(
-        description="A suggested name for the bot based on its personality"
-    )
-    suggested_description: str = Field(
-        description="A one-line description of the bot"
-    )
+    system_prompt: str = Field(description="The generated system prompt for the bot")
+    suggested_name: str = Field(description="A suggested name for the bot based on its personality")
+    suggested_description: str = Field(description="A one-line description of the bot")
 
 
 class RefinedPrompt(BaseModel):
     """Refined system prompt based on feedback."""
 
-    system_prompt: str = Field(
-        description="The refined system prompt incorporating the feedback"
-    )
-    changes_made: str = Field(
-        description="Brief summary of what was changed"
-    )
+    system_prompt: str = Field(description="The refined system prompt incorporating the feedback")
+    changes_made: str = Field(description="Brief summary of what was changed")
 
 
 class PreviewResponse(BaseModel):
     """Response from the preview chat."""
 
-    response: str = Field(
-        description="The bot's response to the test message"
-    )
+    response: str = Field(description="The bot's response to the test message")
 
 
 def _resolve_utility_model() -> str:
@@ -141,59 +128,199 @@ def _resolve_main_model() -> str:
 # Category-specific question templates as fallbacks (user-centric)
 CATEGORY_QUESTIONS = {
     "fitness": [
-        FollowUpQuestion(id="q1", question="What's your name and what are your current fitness goals?", placeholder="e.g., I'm Maria, trying to lose 10kg and run a 5K by summer"),
-        FollowUpQuestion(id="q2", question="What does your typical week look like — when do you work out?", placeholder="e.g., I work 9-6, gym at 7am on weekdays, long run on Saturdays"),
-        FollowUpQuestion(id="q3", question="What tasks or reminders would help you stay on track?", placeholder="e.g., Remind me to stretch daily, track my calories, plan weekly workouts"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what are your current fitness goals?",
+            placeholder="e.g., I'm Maria, trying to lose 10kg and run a 5K by summer",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your typical week look like — when do you work out?",
+            placeholder="e.g., I work 9-6, gym at 7am on weekdays, long run on Saturdays",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What tasks or reminders would help you stay on track?",
+            placeholder="e.g., Remind me to stretch daily, track my calories, plan weekly workouts",
+        ),
     ],
     "cooking": [
-        FollowUpQuestion(id="q1", question="What's your name and who do you usually cook for?", placeholder="e.g., I'm Sam, cooking for myself and my partner, they're vegetarian"),
-        FollowUpQuestion(id="q2", question="What does your weekly meal routine look like?", placeholder="e.g., Meal prep on Sundays, quick lunches during work, nice dinner on Fridays"),
-        FollowUpQuestion(id="q3", question="What cooking tasks would you want me to help with regularly?", placeholder="e.g., Weekly meal plans, grocery lists, new recipe ideas for date night"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and who do you usually cook for?",
+            placeholder="e.g., I'm Sam, cooking for myself and my partner, they're vegetarian",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your weekly meal routine look like?",
+            placeholder=(
+                "e.g., Meal prep on Sundays, quick lunches during work, nice dinner on Fridays"
+            ),
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What cooking tasks would you want me to help with regularly?",
+            placeholder="e.g., Weekly meal plans, grocery lists, new recipe ideas for date night",
+        ),
     ],
     "finance": [
-        FollowUpQuestion(id="q1", question="What's your name and what's your current financial situation?", placeholder="e.g., I'm Jordan, just started a new job, trying to build an emergency fund"),
-        FollowUpQuestion(id="q2", question="What does your income and spending look like right now?", placeholder="e.g., Salary + freelance, biggest expenses are rent and eating out"),
-        FollowUpQuestion(id="q3", question="What financial tasks would you want me to remind you about?", placeholder="e.g., Track daily spending, review budget weekly, save $500/month"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what's your current financial situation?",
+            placeholder=(
+                "e.g., I'm Jordan, just started a new job, trying to build an emergency fund"
+            ),
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your income and spending look like right now?",
+            placeholder="e.g., Salary + freelance, biggest expenses are rent and eating out",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What financial tasks would you want me to remind you about?",
+            placeholder="e.g., Track daily spending, review budget weekly, save $500/month",
+        ),
     ],
     "travel": [
-        FollowUpQuestion(id="q1", question="What's your name and what kind of trips do you enjoy?", placeholder="e.g., I'm Chris, love backpacking through Southeast Asia on a budget"),
-        FollowUpQuestion(id="q2", question="Any upcoming trips or travel goals you're working towards?", placeholder="e.g., Planning 2-week Japan trip in March, need to save for it"),
-        FollowUpQuestion(id="q3", question="What travel tasks would you want help with?", placeholder="e.g., Research destinations, create packing lists, track travel budget"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what kind of trips do you enjoy?",
+            placeholder="e.g., I'm Chris, love backpacking through Southeast Asia on a budget",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="Any upcoming trips or travel goals you're working towards?",
+            placeholder="e.g., Planning 2-week Japan trip in March, need to save for it",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What travel tasks would you want help with?",
+            placeholder="e.g., Research destinations, create packing lists, track travel budget",
+        ),
     ],
     "coding": [
-        FollowUpQuestion(id="q1", question="What's your name and what do you do as a developer?", placeholder="e.g., I'm Alex, fullstack dev at a startup working with React + Python"),
-        FollowUpQuestion(id="q2", question="What are you currently working on or learning?", placeholder="e.g., Building a SaaS product, learning Rust on the side"),
-        FollowUpQuestion(id="q3", question="What coding tasks would you want help with regularly?", placeholder="e.g., Code review, debugging, learning new patterns, planning features"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what do you do as a developer?",
+            placeholder="e.g., I'm Alex, fullstack dev at a startup working with React + Python",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What are you currently working on or learning?",
+            placeholder="e.g., Building a SaaS product, learning Rust on the side",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What coding tasks would you want help with regularly?",
+            placeholder="e.g., Code review, debugging, learning new patterns, planning features",
+        ),
     ],
     "writing": [
-        FollowUpQuestion(id="q1", question="What's your name and what kind of writing do you do?", placeholder="e.g., I'm Pat, writing a sci-fi novel and weekly blog posts"),
-        FollowUpQuestion(id="q2", question="What does your writing routine look like?", placeholder="e.g., Write 1 hour before work, aim for 1000 words/day"),
-        FollowUpQuestion(id="q3", question="What writing tasks would you want me to help with?", placeholder="e.g., Daily writing prompts, editing feedback, outline my next chapter"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what kind of writing do you do?",
+            placeholder="e.g., I'm Pat, writing a sci-fi novel and weekly blog posts",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your writing routine look like?",
+            placeholder="e.g., Write 1 hour before work, aim for 1000 words/day",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What writing tasks would you want me to help with?",
+            placeholder="e.g., Daily writing prompts, editing feedback, outline my next chapter",
+        ),
     ],
     "learning": [
-        FollowUpQuestion(id="q1", question="What's your name and what are you currently studying?", placeholder="e.g., I'm Taylor, studying for AWS certification while working full-time"),
-        FollowUpQuestion(id="q2", question="What's your study schedule and learning goals?", placeholder="e.g., 30 min before bed on weekdays, exam in 3 months"),
-        FollowUpQuestion(id="q3", question="What study tasks would you want me to help track?", placeholder="e.g., Quiz me daily, track progress through chapters, remind me to review"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what are you currently studying?",
+            placeholder="e.g., I'm Taylor, studying for AWS certification while working full-time",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What's your study schedule and learning goals?",
+            placeholder="e.g., 30 min before bed on weekdays, exam in 3 months",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What study tasks would you want me to help track?",
+            placeholder="e.g., Quiz me daily, track progress through chapters, remind me to review",
+        ),
     ],
     "productivity": [
-        FollowUpQuestion(id="q1", question="What's your name and what do you do day-to-day?", placeholder="e.g., I'm Morgan, freelance designer juggling 3 clients + personal projects"),
-        FollowUpQuestion(id="q2", question="What does your ideal productive day look like?", placeholder="e.g., Deep work 9-12, meetings after lunch, personal time after 5"),
-        FollowUpQuestion(id="q3", question="What tasks or habits would you want me to track for you?", placeholder="e.g., Daily top-3 priorities, weekly review, break reminders"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what do you do day-to-day?",
+            placeholder=(
+                "e.g., I'm Morgan, freelance designer juggling 3 clients + personal projects"
+            ),
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your ideal productive day look like?",
+            placeholder="e.g., Deep work 9-12, meetings after lunch, personal time after 5",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What tasks or habits would you want me to track for you?",
+            placeholder="e.g., Daily top-3 priorities, weekly review, break reminders",
+        ),
     ],
     "creative": [
-        FollowUpQuestion(id="q1", question="What's your name and what creative work do you do?", placeholder="e.g., I'm Jamie, digital artist doing commissions + personal art"),
-        FollowUpQuestion(id="q2", question="What does your creative routine look like?", placeholder="e.g., Draw after dinner, post on Instagram Tuesdays and Fridays"),
-        FollowUpQuestion(id="q3", question="What creative tasks would you want help managing?", placeholder="e.g., Track commissions, brainstorm ideas, schedule posts"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what creative work do you do?",
+            placeholder="e.g., I'm Jamie, digital artist doing commissions + personal art",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What does your creative routine look like?",
+            placeholder="e.g., Draw after dinner, post on Instagram Tuesdays and Fridays",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What creative tasks would you want help managing?",
+            placeholder="e.g., Track commissions, brainstorm ideas, schedule posts",
+        ),
     ],
     "gaming": [
-        FollowUpQuestion(id="q1", question="What's your name and what games are you into right now?", placeholder="e.g., I'm Riley, playing Elden Ring and Baldur's Gate 3 on PC"),
-        FollowUpQuestion(id="q2", question="What's your gaming schedule like?", placeholder="e.g., 2-3 hours on weeknights, longer sessions on weekends"),
-        FollowUpQuestion(id="q3", question="What gaming-related things would you want help with?", placeholder="e.g., Build guides for my character, track achievements, find new games"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what games are you into right now?",
+            placeholder="e.g., I'm Riley, playing Elden Ring and Baldur's Gate 3 on PC",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What's your gaming schedule like?",
+            placeholder="e.g., 2-3 hours on weeknights, longer sessions on weekends",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What gaming-related things would you want help with?",
+            placeholder="e.g., Build guides for my character, track achievements, find new games",
+        ),
     ],
     "social": [
-        FollowUpQuestion(id="q1", question="What's your name and what's your social life like right now?", placeholder="e.g., I'm Casey, moved to a new city and trying to meet people"),
-        FollowUpQuestion(id="q2", question="What social situations come up most for you?", placeholder="e.g., Work networking events, dating apps, making friends at hobbies"),
-        FollowUpQuestion(id="q3", question="What would you want me to help you with specifically?", placeholder="e.g., Practice conversations, plan social outings, follow up with contacts"),
+        FollowUpQuestion(
+            id="q1",
+            question="What's your name and what's your social life like right now?",
+            placeholder="e.g., I'm Casey, moved to a new city and trying to meet people",
+        ),
+        FollowUpQuestion(
+            id="q2",
+            question="What social situations come up most for you?",
+            placeholder="e.g., Work networking events, dating apps, making friends at hobbies",
+        ),
+        FollowUpQuestion(
+            id="q3",
+            question="What would you want me to help you with specifically?",
+            placeholder=(
+                "e.g., Practice conversations, plan social outings, follow up with contacts"
+            ),
+        ),
     ],
 }
 
@@ -217,18 +344,23 @@ async def generate_follow_up_questions(
     if model is None:
         model = _resolve_utility_model()
 
-    prompt_text = f"""Generate 3 follow-up questions to learn about the USER so the bot can truly know them.
+    prompt_text = (
+        "Generate 3 follow-up questions to learn about the USER so the bot can truly know them."
+    )
+    prompt_text += f"""
 
 ## Context
 - Category: {category}
 - User's description: "{description}"
 
 ## Requirements for questions:
-1. Questions should learn about the USER's identity, routine, and specific needs — not about bot preferences
+1. Questions should learn about the USER's identity, routine, and \
+specific needs — not about bot preferences
 2. Ask about their name, schedule, current situation, and concrete tasks they need help with
 3. Questions should be warm and personal, making the user feel heard
 4. Include helpful placeholder text showing example answers
-5. The answers will be used to create custom instructions so the bot always remembers who the user is
+5. The answers will be used to create custom instructions so the \
+bot always remembers who the user is
 
 ## Good question examples:
 - "What's your name and how should I address you?"
@@ -244,23 +376,30 @@ Generate exactly 3 questions that will help the bot KNOW the user personally."""
 
     instruction = "Generate 3 follow-up questions with placeholders in JSON format:"
 
-    fallback_questions = CATEGORY_QUESTIONS.get(category, [
-        FollowUpQuestion(
-            id="q1",
-            question="What's your name and how should I address you?",
-            placeholder="e.g., I'm Alex, call me Alex or just A",
-        ),
-        FollowUpQuestion(
-            id="q2",
-            question="Tell me about your typical day or week — what does your routine look like?",
-            placeholder="e.g., I work 9-5 remotely, gym in the morning, study at night",
-        ),
-        FollowUpQuestion(
-            id="q3",
-            question="What specific tasks or reminders would you want me to help with?",
-            placeholder="e.g., Track my workouts, remind me to meal prep on Sundays, help plan my week",
-        ),
-    ])
+    fallback_questions = CATEGORY_QUESTIONS.get(
+        category,
+        [
+            FollowUpQuestion(
+                id="q1",
+                question="What's your name and how should I address you?",
+                placeholder="e.g., I'm Alex, call me Alex or just A",
+            ),
+            FollowUpQuestion(
+                id="q2",
+                question=(
+                    "Tell me about your typical day or week — what does your routine look like?"
+                ),
+                placeholder=("e.g., I work 9-5 remotely, gym in the morning, study at night"),
+            ),
+            FollowUpQuestion(
+                id="q3",
+                question="What specific tasks or reminders would you want me to help with?",
+                placeholder=(
+                    "e.g., Track my workouts, remind me to meal prep on Sundays, help plan my week"
+                ),
+            ),
+        ],
+    )
 
     try:
         result = await _extract_with_retry(
@@ -306,7 +445,10 @@ async def generate_system_prompt_full(
             if answer.strip():
                 qa_section += f"- {question}\n  -> {answer}\n"
 
-    prompt_text = f"""Create a highly personalized system prompt for an AI assistant named "{context.name}".
+    prompt_text = (
+        f'Create a highly personalized system prompt for an AI assistant named "{context.name}".'
+    )
+    prompt_text += f"""
 
 ## Identity
 - Name: {context.name}
@@ -346,7 +488,8 @@ Your name comes from: {context.name_meaning}
 - {emoji_instruction}
 
 ## Your Expertise
-You specialize in {context.purpose_category} and are here to help with specific tasks and questions in this area.
+You specialize in {context.purpose_category} and are here to help \
+with specific tasks and questions in this area.
 
 ## Guidelines
 - Always be helpful and supportive
@@ -521,7 +664,9 @@ Now respond to this user message as that assistant would:
 
 User: {test_message}"""
 
-    instruction = "Generate a response as the assistant would, in JSON format with a 'response' field:"
+    instruction = (
+        "Generate a response as the assistant would, in JSON format with a 'response' field:"
+    )
 
     try:
         result = await _extract_with_retry(
@@ -555,7 +700,9 @@ class SuggestedSchedule(BaseModel):
 
     name: str = Field(description="Name of the recurring task")
     description: str = Field(default="", description="What this schedule does")
-    frequency: str = Field(description="How often, e.g. 'daily', 'weekly on Mondays', 'every morning'")
+    frequency: str = Field(
+        description="How often, e.g. 'daily', 'weekly on Mondays', 'every morning'"
+    )
 
 
 class CreationAnalysis(BaseModel):
@@ -612,7 +759,12 @@ async def analyze_creation_context(
             if answer.strip():
                 qa_section += f"- Q: {question}\n  A: {answer}\n"
 
-    prompt_text = f"""Analyze the following bot creation context to extract structured information about the user.
+    prompt_text = (
+        "Analyze the following bot creation context"
+        " to extract structured information"
+        " about the user."
+    )
+    prompt_text += f"""
 
 ## Bot Being Created
 - Name: {bot_name}

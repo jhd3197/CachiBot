@@ -6,7 +6,6 @@ Beautiful command-line interface using Typer and Rich.
 
 import asyncio
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -22,17 +21,19 @@ from cachibot.agent import CachibotAgent
 from cachibot.config import Config
 
 # Custom theme for Cachibot
-CACHIBOT_THEME = Theme({
-    "info": "cyan",
-    "warning": "yellow",
-    "error": "red bold",
-    "success": "green",
-    "thinking": "dim italic",
-    "tool": "magenta",
-    "user": "bold blue",
-    "assistant": "bold green",
-    "cost": "dim cyan",
-})
+CACHIBOT_THEME = Theme(
+    {
+        "info": "cyan",
+        "warning": "yellow",
+        "error": "red bold",
+        "success": "green",
+        "thinking": "dim italic",
+        "tool": "magenta",
+        "user": "bold blue",
+        "assistant": "bold green",
+        "cost": "dim cyan",
+    }
+)
 
 console = Console(theme=CACHIBOT_THEME)
 app = typer.Typer(
@@ -44,15 +45,15 @@ app = typer.Typer(
 
 def print_banner() -> None:
     """Print the Cachibot banner."""
-    banner = """
+    banner = f"""
 [bold cyan]    ╭─────────╮
    ╱ ◉     ◉  ╲
   │  ─────────  │
-  │   ╲_____╱   │    [bold white]Cachibot[/] v{}
+  │   ╲_____╱   │    [bold white]Cachibot[/] v{__version__}
    ╲ ═══════   ╱     [dim]The Armored Agent[/]
     ╲ ═════   ╱
      ╰═══════╯[/]
-""".format(__version__)
+"""
     console.print(banner)
 
 
@@ -68,21 +69,23 @@ def print_welcome(config: Config) -> None:
 def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
     """Show approval dialog for risky operations."""
     console.print()
-    console.print(Panel(
-        f"[warning]⚠️  Approval Required[/]\n\n"
-        f"Tool: [bold]{tool_name}[/]\n"
-        f"Action: {action}",
-        title="Security Check",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel(
+            f"[warning]⚠️  Approval Required[/]\n\nTool: [bold]{tool_name}[/]\nAction: {action}",
+            title="Security Check",
+            border_style="yellow",
+        )
+    )
 
     # Show code if present
     if "code" in details:
-        console.print(Panel(
-            Syntax(details["code"], "python", theme="monokai", line_numbers=True),
-            title="Code to Execute",
-            border_style="dim",
-        ))
+        console.print(
+            Panel(
+                Syntax(details["code"], "python", theme="monokai", line_numbers=True),
+                title="Code to Execute",
+                border_style="dim",
+            )
+        )
 
     # Show risk reasons
     if "reasons" in details:
@@ -155,37 +158,43 @@ def create_agent_with_callbacks(config: Config) -> CachibotAgent:
 
 @app.command()
 def main(
-    workspace: Optional[Path] = typer.Option(
+    workspace: Path | None = typer.Option(
         None,
-        "--workspace", "-w",
+        "--workspace",
+        "-w",
         help="Working directory for the agent",
     ),
-    config_file: Optional[Path] = typer.Option(
+    config_file: Path | None = typer.Option(
         None,
-        "--config", "-c",
+        "--config",
+        "-c",
         help="Path to configuration file",
     ),
-    model: Optional[str] = typer.Option(
+    model: str | None = typer.Option(
         None,
-        "--model", "-m",
+        "--model",
+        "-m",
         help="Model to use (e.g., moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514)",
     ),
     approve: bool = typer.Option(
         False,
-        "--approve", "-a",
+        "--approve",
+        "-a",
         help="Require approval for each action",
     ),
     verbose: bool = typer.Option(
         False,
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         help="Show thinking process",
     ),
     version: bool = typer.Option(
         False,
-        "--version", "-V",
+        "--version",
+        "-V",
         help="Show version and exit",
     ),
-    task: Optional[str] = typer.Argument(
+    task: str | None = typer.Argument(
         None,
         help="Task to run (if not provided, enters interactive mode)",
     ),
@@ -236,7 +245,7 @@ def main(
         try:
             console.print()
             result = asyncio.run(agent.run(task))
-            console.print(f"\n[assistant]Cachibot:[/]")
+            console.print("\n[assistant]Cachibot:[/]")
             console.print(Markdown(result.output_text or "Task completed."))
 
             if config.display.show_cost:
@@ -281,7 +290,7 @@ def main(
             result = asyncio.run(agent.run(user_input))
 
             # Print response
-            console.print(f"\n[assistant]Cachibot:[/]")
+            console.print("\n[assistant]Cachibot:[/]")
             console.print(Markdown(result.output_text or "Task completed."))
 
             # Show usage
@@ -299,8 +308,8 @@ def main(
 @app.command("run")
 def run_task(
     task: str = typer.Argument(..., help="Task to execute"),
-    workspace: Optional[Path] = typer.Option(None, "--workspace", "-w"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    workspace: Path | None = typer.Option(None, "--workspace", "-w"),
+    model: str | None = typer.Option(None, "--model", "-m"),
     approve: bool = typer.Option(False, "--approve", "-a"),
 ) -> None:
     """Run a single task and exit."""
@@ -328,7 +337,7 @@ def run_task(
 def server(
     host: str = typer.Option("127.0.0.1", "--host", "-h", help="Server host"),
     port: int = typer.Option(6392, "--port", "-p", help="Server port"),
-    workspace: Optional[Path] = typer.Option(None, "--workspace", "-w", help="Workspace path"),
+    workspace: Path | None = typer.Option(None, "--workspace", "-w", help="Workspace path"),
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),
 ) -> None:
     """Start the Cachibot API server."""

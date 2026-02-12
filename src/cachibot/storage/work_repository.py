@@ -114,9 +114,7 @@ class FunctionRepository:
         await db.commit()
         return cursor.rowcount > 0
 
-    async def increment_run_count(
-        self, function_id: str, success: bool
-    ) -> None:
+    async def increment_run_count(self, function_id: str, success: bool) -> None:
         """Increment run count and update success rate."""
         db = await get_db()
         now = datetime.utcnow()
@@ -312,9 +310,7 @@ class ScheduleRepository:
         )
         await db.commit()
 
-    async def update_next_run(
-        self, schedule_id: str, next_run_at: datetime | None
-    ) -> None:
+    async def update_next_run(self, schedule_id: str, next_run_at: datetime | None) -> None:
         """Update the next run time for a schedule."""
         db = await get_db()
         now = datetime.utcnow()
@@ -364,9 +360,7 @@ class ScheduleRepository:
             name=row["name"],
             description=row["description"],
             function_id=row["function_id"],
-            function_params=json.loads(row["function_params"])
-            if row["function_params"]
-            else {},
+            function_params=json.loads(row["function_params"]) if row["function_params"] else {},
             schedule_type=ScheduleType(row["schedule_type"]),
             cron_expression=row["cron_expression"],
             interval_seconds=row["interval_seconds"],
@@ -803,14 +797,11 @@ class TaskRepository:
 
     async def get_ready_tasks(self, work_id: str) -> list[Task]:
         """Get tasks that are ready to run (all dependencies complete)."""
-        db = await get_db()
         # Get all tasks for this work
         all_tasks = await self.get_by_work(work_id)
 
         # Find completed task IDs
-        completed_ids = {
-            t.id for t in all_tasks if t.status == TaskStatus.COMPLETED
-        }
+        completed_ids = {t.id for t in all_tasks if t.status == TaskStatus.COMPLETED}
 
         # Filter to pending tasks whose dependencies are all complete
         ready = []

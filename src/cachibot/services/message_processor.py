@@ -198,6 +198,7 @@ class MessageProcessor:
             logger.error(f"Error processing message: {e}")
             return "Sorry, I encountered an error processing your message."
 
+
 # Singleton instance
 _message_processor: MessageProcessor | None = None
 

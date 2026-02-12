@@ -31,7 +31,9 @@ class ModelInfo(BaseModel):
     max_output_tokens: int | None = Field(default=None, description="Max output tokens")
     supports_tool_use: bool = Field(default=False, description="Supports tool use")
     supports_vision: bool = Field(default=False, description="Supports vision")
-    supports_structured_output: bool = Field(default=False, description="Supports structured output")
+    supports_structured_output: bool = Field(
+        default=False, description="Supports structured output"
+    )
     supports_image_generation: bool = Field(default=False, description="Supports image generation")
     supports_audio: bool = Field(default=False, description="Supports audio (TTS/STT)")
     is_reasoning: bool = Field(default=False, description="Is a reasoning model")
@@ -111,15 +113,9 @@ _AUDIO_MODEL_FALLBACKS = [
     ModelInfo(id="openai/tts-1", provider="openai", supports_audio=True),
     ModelInfo(id="openai/tts-1-hd", provider="openai", supports_audio=True),
     ModelInfo(id="openai/whisper-1", provider="openai", supports_audio=True),
-    ModelInfo(
-        id="elevenlabs/eleven_multilingual_v2", provider="elevenlabs", supports_audio=True
-    ),
-    ModelInfo(
-        id="elevenlabs/eleven_turbo_v2_5", provider="elevenlabs", supports_audio=True
-    ),
-    ModelInfo(
-        id="elevenlabs/eleven_flash_v2_5", provider="elevenlabs", supports_audio=True
-    ),
+    ModelInfo(id="elevenlabs/eleven_multilingual_v2", provider="elevenlabs", supports_audio=True),
+    ModelInfo(id="elevenlabs/eleven_turbo_v2_5", provider="elevenlabs", supports_audio=True),
+    ModelInfo(id="elevenlabs/eleven_flash_v2_5", provider="elevenlabs", supports_audio=True),
     ModelInfo(id="elevenlabs/scribe_v1", provider="elevenlabs", supports_audio=True),
 ]
 
@@ -160,6 +156,7 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     get_model_rates = None
     try:
         from prompture.model_rates import get_model_rates as _get_rates
+
         get_model_rates = _get_rates
     except ImportError:
         pass

@@ -7,7 +7,7 @@ Endpoints for managing bot custom instructions.
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from cachibot.api.auth import get_current_user, require_bot_access
+from cachibot.api.auth import require_bot_access
 from cachibot.models.auth import User
 from cachibot.storage.repository import KnowledgeRepository
 
