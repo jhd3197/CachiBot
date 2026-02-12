@@ -10,16 +10,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import get_current_user, require_bot_access
-from cachibot.models.auth import User
+from cachibot.models.auth import BotOwnership, User, UserRole
 from cachibot.models.bot import Bot, BotResponse
 from cachibot.models.skill import BotSkillRequest, SkillResponse
 from cachibot.storage.repository import BotRepository, SkillsRepository
+from cachibot.storage.user_repository import OwnershipRepository
 
 router = APIRouter(prefix="/api/bots", tags=["bots"])
 
 # Repository instances
 repo = BotRepository()
 skills_repo = SkillsRepository()
+ownership_repo = OwnershipRepository()
 
 
 class BotSyncRequest(BaseModel):
@@ -41,8 +43,12 @@ class BotSyncRequest(BaseModel):
 async def list_bots(
     user: User = Depends(get_current_user),
 ) -> list[BotResponse]:
-    """Get all synced bots."""
-    bots = await repo.get_all_bots()
+    """Get bots accessible to the current user."""
+    if user.role == UserRole.ADMIN:
+        bots = await repo.get_all_bots()
+    else:
+        bot_ids = await ownership_repo.get_user_bots(user.id)
+        bots = [b for b in [await repo.get_bot(bid) for bid in bot_ids] if b is not None]
     return [BotResponse.from_bot(b) for b in bots]
 
 
@@ -221,6 +227,7 @@ async def import_bot(
     Import a bot from an exported configuration.
 
     Creates a new bot with a new ID based on the imported data.
+    Assigns ownership to the importing user.
     """
     # Validate version
     if body.version not in ("1.0",):
@@ -260,6 +267,15 @@ async def import_bot(
     )
 
     await repo.upsert_bot(bot)
+
+    # Assign ownership to the importing user
+    ownership = BotOwnership(
+        id=str(uuid.uuid4()),
+        bot_id=new_id,
+        user_id=user.id,
+        created_at=now,
+    )
+    await ownership_repo.assign_bot_owner(ownership)
 
     # Activate any skills
     skill_ids = bot_data.get("skills", [])
