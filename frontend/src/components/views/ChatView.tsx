@@ -24,6 +24,7 @@ import {
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
+import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { cn } from '../../lib/utils'
@@ -432,7 +433,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         description: data.purposeDescription || `A ${data.purposeCategory} assistant`,
         icon: pickRandomIcon(),
         color: pickRandomColor(),
-        model: 'moonshot/kimi-k2.5',
+        model: useModelsStore.getState().defaultModel,
         systemPrompt,
         tools: ['file_read', 'file_write', 'python_execute'],
         createdAt: new Date().toISOString(),
@@ -873,7 +874,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {activeBot?.name || 'CachiBot'}
             </h2>
-            <p className="text-xs text-zinc-500">{activeBot?.model || 'moonshot/kimi-k2.5'}</p>
+            <p className="text-xs text-zinc-500">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
           </div>
         </div>
         <button
