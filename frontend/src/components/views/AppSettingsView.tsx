@@ -866,6 +866,7 @@ function ModelsSettings() {
 const CLOUD_PROVIDERS = new Set([
   'openai', 'claude', 'google', 'groq', 'grok',
   'openrouter', 'moonshot', 'zai', 'modelscope', 'azure',
+  'stability', 'elevenlabs',
 ])
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -879,6 +880,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   zai: 'Zhipu AI',
   modelscope: 'ModelScope',
   azure: 'Azure OpenAI',
+  stability: 'Stability AI',
+  elevenlabs: 'ElevenLabs',
   ollama: 'Ollama',
   lmstudio: 'LM Studio',
   local_http: 'Local HTTP',

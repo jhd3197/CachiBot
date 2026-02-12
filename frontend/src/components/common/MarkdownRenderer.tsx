@@ -107,6 +107,18 @@ const components: Components = {
     <del className="text-zinc-500 line-through">{children}</del>
   ),
 
+  // Images — with audio data URI detection
+  img: ({ src, alt, ...props }) => {
+    if (src?.startsWith('data:audio/')) {
+      return (
+        <audio controls className="my-2 w-full max-w-md">
+          <source src={src} type={src.split(';')[0].replace('data:', '')} />
+        </audio>
+      )
+    }
+    return <img src={src} alt={alt} className="my-3 max-w-full rounded-lg" {...props} />
+  },
+
   // Tables (GitHub Flavored Markdown)
   table: ({ children }) => (
     <div className="my-3 overflow-x-auto">

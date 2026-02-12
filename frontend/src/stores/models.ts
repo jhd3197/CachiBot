@@ -1,8 +1,10 @@
 import { create } from 'zustand'
-import { getModels, getDefaultModel, setDefaultModel, type ModelsGrouped, type ModelInfo } from '../api/models'
+import { getModels, getDefaultModel, setDefaultModel, getImageModels, getAudioModels, type ModelsGrouped, type ModelInfo } from '../api/models'
 
 interface ModelsState {
   groups: ModelsGrouped
+  imageGroups: ModelsGrouped
+  audioGroups: ModelsGrouped
   defaultModel: string
   loading: boolean
   error: string | null
@@ -17,6 +19,8 @@ interface ModelsState {
 
 export const useModelsStore = create<ModelsState>((set, get) => ({
   groups: {},
+  imageGroups: {},
+  audioGroups: {},
   defaultModel: '',
   loading: true,
   error: null,
@@ -28,12 +32,16 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null })
     try {
-      const [groups, defaultModel] = await Promise.all([
+      const [groups, defaultModel, imageGroups, audioGroups] = await Promise.all([
         getModels(),
         getDefaultModel(),
+        getImageModels().catch(() => ({} as ModelsGrouped)),
+        getAudioModels().catch(() => ({} as ModelsGrouped)),
       ])
       set({
         groups,
+        imageGroups,
+        audioGroups,
         defaultModel,
         loading: false,
       })
