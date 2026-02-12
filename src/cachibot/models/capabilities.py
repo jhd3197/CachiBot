@@ -39,6 +39,12 @@ class BotCapabilities(BaseModel):
     # Work management (work_create, work_list, work_update, todo_create, todo_list, todo_done)
     workManagement: bool = True
 
+    # Image generation (generate_image tool via DALL-E, Imagen, Stability AI)
+    imageGeneration: bool = False
+
+    # Audio generation (generate_audio, transcribe_audio via Prompture audio drivers)
+    audioGeneration: bool = False
+
 
 class Contact(BaseModel):
     """A contact entry for a bot."""

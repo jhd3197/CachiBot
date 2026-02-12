@@ -18,6 +18,7 @@ import type {
   UsagePayload,
   ToolConfigs,
   BotCapabilities,
+  BotModels,
 } from '../types'
 
 // Pending approval store (simple module-level state for now)
@@ -263,6 +264,8 @@ export function useWebSocket() {
         systemPrompt?: string
         botId?: string
         chatId?: string
+        model?: string
+        models?: BotModels
         capabilities?: BotCapabilities
         toolConfigs?: ToolConfigs
       }

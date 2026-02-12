@@ -18,8 +18,10 @@ from tukuy.plugins.sql import SqlPlugin
 from tukuy.plugins.web import WebPlugin
 
 from cachibot.plugins import (
+    AudioGenerationPlugin,
     CachibotPlugin,
     FileOpsPlugin,
+    ImageGenerationPlugin,
     NotesPlugin,
     PlatformPlugin,
     PluginContext,
@@ -41,6 +43,8 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "dataOperations": [SqlPlugin, CompressionPlugin],
     "connections": [PlatformPlugin],
     "workManagement": [WorkManagementPlugin],
+    "imageGeneration": [ImageGenerationPlugin],
+    "audioGeneration": [AudioGenerationPlugin],
 }
 
 # Plugins that are always enabled regardless of capabilities

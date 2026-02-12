@@ -111,6 +111,14 @@ export type BotIcon =
   | 'rocket' | 'target' | 'laptop' | 'bar-chart' | 'sparkles' | 'star'
   | 'cpu' | 'ghost' | 'palette' | 'pen-tool' | 'code' | 'terminal'
 
+// Multi-model slot configuration per bot
+export interface BotModels {
+  default: string
+  image?: string
+  audio?: string
+  structured?: string
+}
+
 // Capability toggles per bot
 export interface BotCapabilities {
   codeExecution: boolean      // python_execute
@@ -122,6 +130,8 @@ export interface BotCapabilities {
   contacts: boolean           // Access to contacts in system prompt context
   connections: boolean        // telegram_send, discord_send
   workManagement: boolean     // work_create, work_list, work_update, todo_create, todo_list, todo_done
+  imageGeneration: boolean    // generate_image (DALL-E, Imagen, Stability AI)
+  audioGeneration: boolean    // generate_audio, transcribe_audio (TTS/STT)
 }
 
 export interface Bot {
@@ -131,6 +141,7 @@ export interface Bot {
   icon: BotIcon // Lucide icon name
   color: string // accent color for the bot
   model: string
+  models?: BotModels // Multi-model slot configuration
   systemPrompt?: string
   tools: string[] // tool IDs enabled for this bot
   createdAt: string

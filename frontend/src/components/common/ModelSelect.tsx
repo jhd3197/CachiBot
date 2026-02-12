@@ -33,6 +33,9 @@ interface ModelSelectProps {
   onChange: (modelId: string) => void
   placeholder?: string
   className?: string
+  filter?: (model: import('../../api/models').ModelInfo) => boolean
+  /** Override model groups instead of using the default store groups */
+  groups?: import('../../api/models').ModelsGrouped
 }
 
 export function ModelSelect({
@@ -40,8 +43,12 @@ export function ModelSelect({
   onChange,
   placeholder = 'System Default',
   className = '',
+  filter: filterFn,
+  groups: groupsOverride,
 }: ModelSelectProps) {
-  const { groups, refresh, loading } = useModelsStore()
+  const store = useModelsStore()
+  const { refresh, loading } = store
+  const groups = groupsOverride ?? store.groups
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [manualMode, setManualMode] = useState(false)
@@ -110,18 +117,25 @@ export function ModelSelect({
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
-    if (!q) return groups
     const result: typeof groups = {}
     for (const [provider, items] of Object.entries(groups)) {
-      const matches = items.filter(
-        (m) =>
-          m.id.toLowerCase().includes(q) ||
-          provider.toLowerCase().includes(q)
-      )
+      let matches = items
+      // Apply external filter if provided
+      if (filterFn) {
+        matches = matches.filter(filterFn)
+      }
+      // Apply search filter
+      if (q) {
+        matches = matches.filter(
+          (m) =>
+            m.id.toLowerCase().includes(q) ||
+            provider.toLowerCase().includes(q)
+        )
+      }
       if (matches.length > 0) result[provider] = matches
     }
     return result
-  }, [groups, search])
+  }, [groups, search, filterFn])
 
   const totalCount = Object.values(filtered).reduce(
     (sum, arr) => sum + arr.length,

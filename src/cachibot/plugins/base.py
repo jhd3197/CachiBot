@@ -19,13 +19,15 @@ class PluginContext:
     """Runtime context shared with all plugins.
 
     Carries everything a plugin's skills need to operate:
-    workspace config, sandbox, bot identity, and per-tool settings.
+    workspace config, sandbox, bot identity, per-tool settings,
+    and multi-model slot configuration.
     """
 
     config: Config
     sandbox: PythonSandbox
     bot_id: str | None = None
     tool_configs: dict[str, Any] = field(default_factory=dict)
+    bot_models: dict | None = None
 
 
 class CachibotPlugin(TransformerPlugin):
