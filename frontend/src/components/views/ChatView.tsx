@@ -1245,11 +1245,23 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 }
 
 // =============================================================================
+// MEDIA DETECTION HELPER
+// =============================================================================
+
+/** Check if a tool result contains rendered media (image/audio data URIs). */
+function isMediaResult(result: unknown): boolean {
+  if (typeof result !== 'string') return false
+  return /!\[.*?\]\(data:(?:image|audio)\//.test(result)
+}
+
+// =============================================================================
 // MESSAGE TOOL CALL ITEM (Inline, compact version for completed messages)
 // =============================================================================
 
 function MessageToolCallItem({ call }: { call: ToolCall }) {
-  const [expanded, setExpanded] = useState(false)
+  const resultStr = typeof call.result === 'string' ? call.result : JSON.stringify(call.result ?? '', null, 2)
+  const hasMedia = isMediaResult(call.result)
+  const [expanded, setExpanded] = useState(hasMedia)
   const isSuccess = call.success !== false
   const toolModel = getToolModel(call.tool)
 
@@ -1281,8 +1293,8 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
 
       {expanded && (
         <div className="border-t border-zinc-700/50 px-3 py-2">
-          <div className="space-y-2 font-mono text-xs">
-            <div>
+          <div className="space-y-2 text-xs">
+            <div className="font-mono">
               <span className="text-zinc-500">Arguments:</span>
               <pre className="mt-1 overflow-x-auto rounded bg-zinc-950 p-1.5 text-zinc-300">
                 {JSON.stringify(call.args, null, 2)}
@@ -1290,12 +1302,16 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
             </div>
             {call.result !== undefined && (
               <div>
-                <span className="text-zinc-500">Result:</span>
-                <pre className="mt-1 max-h-32 overflow-auto rounded bg-zinc-950 p-1.5 text-zinc-300">
-                  {typeof call.result === 'string'
-                    ? call.result
-                    : JSON.stringify(call.result, null, 2)}
-                </pre>
+                <span className="font-mono text-zinc-500">Result:</span>
+                {hasMedia ? (
+                  <div className="mt-1">
+                    <MarkdownRenderer content={resultStr} />
+                  </div>
+                ) : (
+                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-zinc-950 p-1.5 font-mono text-zinc-300">
+                    {resultStr}
+                  </pre>
+                )}
               </div>
             )}
           </div>
@@ -1324,10 +1340,17 @@ function getToolModel(toolName: string): string | undefined {
 }
 
 function ToolCallDisplay({ call }: { call: ToolCall }) {
-  const [expanded, setExpanded] = useState(false)
+  const resultStr = typeof call.result === 'string' ? call.result : JSON.stringify(call.result ?? '', null, 2)
+  const hasMedia = isMediaResult(call.result)
+  const [expanded, setExpanded] = useState(hasMedia)
   const isComplete = call.endTime !== undefined
   const isSuccess = call.success === true
   const toolModel = getToolModel(call.tool)
+
+  // Auto-expand when media result arrives
+  useEffect(() => {
+    if (hasMedia && !expanded) setExpanded(true)
+  }, [hasMedia])
 
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
@@ -1361,8 +1384,8 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
 
       {expanded && (
         <div className="border-t border-zinc-800 bg-zinc-950/50 p-4">
-          <div className="space-y-3 font-mono text-xs">
-            <div>
+          <div className="space-y-3 text-xs">
+            <div className="font-mono">
               <span className="text-zinc-500">Arguments:</span>
               <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-2 text-zinc-300">
                 {JSON.stringify(call.args, null, 2)}
@@ -1370,12 +1393,16 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
             </div>
             {call.result !== undefined && (
               <div>
-                <span className="text-zinc-500">Result:</span>
-                <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-2 text-zinc-300">
-                  {typeof call.result === 'string'
-                    ? call.result
-                    : JSON.stringify(call.result, null, 2)}
-                </pre>
+                <span className="font-mono text-zinc-500">Result:</span>
+                {hasMedia ? (
+                  <div className="mt-1">
+                    <MarkdownRenderer content={resultStr} />
+                  </div>
+                ) : (
+                  <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-2 font-mono text-zinc-300">
+                    {resultStr}
+                  </pre>
+                )}
               </div>
             )}
           </div>
