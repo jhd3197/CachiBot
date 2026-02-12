@@ -174,6 +174,7 @@ interface ChatState {
   toolCalls: ToolCall[]
   isLoading: boolean
   error: string | null
+  replyToMessage: ChatMessage | null
 
   // Actions
   addChat: (chat: Chat) => void
@@ -191,9 +192,14 @@ interface ChatState {
   // Messages
   addMessage: (chatId: string, message: ChatMessage) => void
   updateMessage: (chatId: string, messageId: string, content: string) => void
+  updateLastAssistantMessage: (chatId: string, updates: Partial<ChatMessage>) => void
   updateLastAssistantMessageMetadata: (chatId: string, metadata: Record<string, unknown>) => void
   getMessages: (chatId: string) => ChatMessage[]
+  getMessageById: (chatId: string, messageId: string) => ChatMessage | undefined
   clearMessages: (chatId: string) => void
+
+  // Reply state
+  setReplyTo: (message: ChatMessage | null) => void
 
   // UI State
   setThinking: (content: string | null) => void
@@ -216,6 +222,7 @@ export const useChatStore = create<ChatState>()(
       toolCalls: [],
       isLoading: false,
       error: null,
+      replyToMessage: null,
 
       addChat: (chat) =>
         set((state) => ({
@@ -314,6 +321,7 @@ export const useChatStore = create<ChatState>()(
                   content: m.content,
                   timestamp: m.timestamp,
                   metadata: m.metadata,
+                  replyToId: (m as unknown as Record<string, unknown>).replyToId as string | undefined,
                 }
                 if (toolCalls && toolCalls.length > 0) {
                   msg.toolCalls = toolCalls
@@ -370,6 +378,27 @@ export const useChatStore = create<ChatState>()(
           },
         })),
 
+      updateLastAssistantMessage: (chatId, updates) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          let lastAssistantIndex = -1
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].role === 'assistant') {
+              lastAssistantIndex = i
+              break
+            }
+          }
+          if (lastAssistantIndex === -1) return state
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) =>
+                i === lastAssistantIndex ? { ...m, ...updates } : m
+              ),
+            },
+          }
+        }),
+
       updateLastAssistantMessageMetadata: (chatId, metadata) =>
         set((state) => {
           const chatMessages = state.messages[chatId] || []
@@ -399,6 +428,13 @@ export const useChatStore = create<ChatState>()(
         const state = get()
         return state.messages[chatId] || []
       },
+
+      getMessageById: (chatId, messageId) => {
+        const state = get()
+        return (state.messages[chatId] || []).find((m) => m.id === messageId)
+      },
+
+      setReplyTo: (message) => set({ replyToMessage: message }),
 
       clearMessages: (chatId) =>
         set((state) => ({
@@ -477,6 +513,7 @@ export const useChatStore = create<ChatState>()(
       partialize: (state) => ({
         chats: state.chats,
         messages: state.messages,
+        // replyToMessage excluded — transient UI state
       }),
     }
   )

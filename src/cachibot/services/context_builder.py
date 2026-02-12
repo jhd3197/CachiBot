@@ -298,13 +298,13 @@ class ContextBuilder:
             if not messages:
                 return None
 
-            # Format as conversation summary
+            # Format as conversation summary with message IDs for citation
             formatted = []
             for msg in messages:
                 role = "User" if msg.role == "user" else "Assistant"
                 # Truncate long messages
                 content = msg.content[:300] + "..." if len(msg.content) > 300 else msg.content
-                formatted.append(f"{role}: {content}")
+                formatted.append(f"[{msg.id}] {role}: {content}")
 
             return "\n".join(formatted)
 
@@ -345,7 +345,14 @@ class ContextBuilder:
         context_section = context.to_prompt_section()
 
         if context_section:
-            return f"{base_prompt}\n\n---\n\n{context_section}"
+            citation_instructions = (
+                "\n\n---\n\n## Message Citations\n"
+                "When referencing a specific earlier message from the conversation, use "
+                "[cite:MESSAGE_ID] where MESSAGE_ID is the ID in brackets before each message "
+                "in the history. This creates a visual reply link in the chat. Only cite when "
+                "it genuinely clarifies which message you're referring to — don't overuse."
+            )
+            return f"{base_prompt}\n\n---\n\n{context_section}{citation_instructions}"
 
         return base_prompt
 

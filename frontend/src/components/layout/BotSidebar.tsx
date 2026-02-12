@@ -23,11 +23,15 @@ import {
   History,
   Pause,
   Eraser,
+  Mic,
+  DoorOpen,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useBotStore, useChatStore, useTaskStore, useWorkStore, useScheduleStore } from '../../stores/bots'
+import { useRoomStore } from '../../stores/rooms'
+import { getRooms } from '../../api/rooms'
 import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSection } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
@@ -37,9 +41,11 @@ import type { BotView, Chat, Task } from '../../types'
 
 const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'chats', label: 'Chats', icon: MessageSquare },
+  { id: 'rooms', label: 'Rooms', icon: DoorOpen },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'work', label: 'Work', icon: FolderKanban },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+  { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -102,6 +108,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
       {/* Content based on active view */}
       <div className="flex-1 overflow-hidden">
         {activeView === 'chats' && <ChatList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
+        {activeView === 'rooms' && <RoomList collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'tasks' && <TaskList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'work' && <WorkSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
@@ -374,8 +381,133 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
 }
 
 // =============================================================================
-// JOB LIST
+// ROOM LIST
 // =============================================================================
+
+function RoomList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+  const navigate = useNavigate()
+  const { activeBotId } = useBotStore()
+  const { rooms, setRooms, activeRoomId, setActiveRoom } = useRoomStore()
+  const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+
+  // Load rooms on mount
+  useEffect(() => {
+    getRooms()
+      .then(setRooms)
+      .catch(() => {})
+  }, [setRooms])
+
+  const filtered = rooms.filter(
+    (r) => !search || r.title.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const handleRoomClick = (roomId: string) => {
+    setActiveRoom(roomId)
+    navigate(`/${activeBotId}/rooms/${roomId}`)
+    onNavigate?.()
+  }
+
+  const handleNewRoom = () => {
+    setShowCreate(true)
+  }
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-2 p-2">
+        <button
+          onClick={handleNewRoom}
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        {rooms.length > 0 && (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-300">
+            {rooms.length}
+          </div>
+        )}
+        {showCreate && (
+          <CreateRoomDialogWrapper onClose={() => setShowCreate(false)} />
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Search and new room */}
+      <div className="flex gap-2 p-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Search rooms..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-cachi-500 focus:ring-1 focus:ring-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+          />
+        </div>
+        <button
+          onClick={handleNewRoom}
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Room list */}
+      <div className="flex-1 overflow-y-auto px-2 pb-2">
+        {filtered.length === 0 ? (
+          <div className="py-8 text-center text-sm text-zinc-500">
+            {search ? 'No rooms found' : 'No rooms yet'}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filtered.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => handleRoomClick(room.id)}
+                className={cn(
+                  'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
+                  activeRoomId === room.id
+                    ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+                    : 'text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50'
+                )}
+              >
+                <DoorOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-500" />
+                <div className="min-w-0 flex-1">
+                  <span className="truncate text-sm font-medium">{room.title}</span>
+                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                    <span>{room.bots.length} bots</span>
+                    <span>{room.messageCount ?? 0} msgs</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showCreate && (
+        <CreateRoomDialogWrapper onClose={() => setShowCreate(false)} />
+      )}
+    </div>
+  )
+}
+
+/** Lazy-load CreateRoomDialog to avoid circular imports */
+function CreateRoomDialogWrapper({ onClose }: { onClose: () => void }) {
+  const [Dialog, setDialog] = useState<React.ComponentType<{ onClose: () => void }> | null>(null)
+
+  useEffect(() => {
+    import('../rooms/CreateRoomDialog').then((mod) => {
+      setDialog(() => mod.CreateRoomDialog)
+    })
+  }, [])
+
+  if (!Dialog) return null
+  return <Dialog onClose={onClose} />
+}
 
 // =============================================================================
 // TASK LIST
@@ -703,6 +835,7 @@ const settingsSections: { id: SettingsSection; label: string; icon: React.Compon
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
   { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'connections', label: 'Connections', icon: Plug },
+  { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'advanced', label: 'Advanced', icon: Sliders },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
 ]

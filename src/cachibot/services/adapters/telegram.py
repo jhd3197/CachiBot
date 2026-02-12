@@ -5,14 +5,23 @@ Uses aiogram library for Telegram Bot API integration.
 """
 
 import asyncio
+import io
 import logging
 from typing import Any
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
-from cachibot.models.platform import PlatformResponse
+from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
 
 logger = logging.getLogger(__name__)
+
+
+async def _download_file(bot: Any, file_id: str) -> bytes:
+    """Download a file from Telegram by file_id and return raw bytes."""
+    file = await bot.get_file(file_id)
+    buf = io.BytesIO()
+    await bot.download_file(file.file_path, buf)
+    return buf.getvalue()
 
 
 class TelegramAdapter(BasePlatformAdapter):
@@ -52,14 +61,62 @@ class TelegramAdapter(BasePlatformAdapter):
             @self._dispatcher.message()
             async def handle_message(message: Message) -> None:
                 """Handle all incoming messages including commands."""
-                if not message.text or not self.on_message:
+                if not self.on_message:
                     return
 
                 try:
+                    # Extract text from message or caption
+                    text = message.text or message.caption or ""
+
+                    # Download attached media
+                    attachments: list[IncomingMedia] = []
+
+                    if message.photo:
+                        # Largest photo is the last in the list
+                        photo = message.photo[-1]
+                        data = await _download_file(self._bot, photo.file_id)
+                        attachments.append(
+                            IncomingMedia("image/jpeg", data, "photo.jpg")
+                        )
+
+                    if message.voice:
+                        data = await _download_file(self._bot, message.voice.file_id)
+                        attachments.append(
+                            IncomingMedia("audio/ogg", data, "voice.ogg")
+                        )
+
+                    if message.audio:
+                        data = await _download_file(self._bot, message.audio.file_id)
+                        mime = message.audio.mime_type or "audio/mpeg"
+                        fname = message.audio.file_name or "audio.mp3"
+                        attachments.append(IncomingMedia(mime, data, fname))
+
+                    if message.document:
+                        data = await _download_file(self._bot, message.document.file_id)
+                        mime = message.document.mime_type or "application/octet-stream"
+                        fname = message.document.file_name or "document"
+                        attachments.append(IncomingMedia(mime, data, fname))
+
+                    if message.video:
+                        data = await _download_file(self._bot, message.video.file_id)
+                        mime = message.video.mime_type or "video/mp4"
+                        fname = message.video.file_name or "video.mp4"
+                        attachments.append(IncomingMedia(mime, data, fname))
+
+                    if message.sticker and not message.sticker.is_animated:
+                        data = await _download_file(self._bot, message.sticker.file_id)
+                        attachments.append(
+                            IncomingMedia("image/webp", data, "sticker.webp")
+                        )
+
+                    # Skip if no text and no media
+                    if not text and not attachments:
+                        return
+
                     # Get chat info
                     chat_id = str(message.chat.id)
                     user = message.from_user
-                    metadata = {
+                    metadata: dict[str, Any] = {
                         "platform": "telegram",
                         "chat_id": chat_id,
                         "chat_type": message.chat.type,
@@ -68,12 +125,24 @@ class TelegramAdapter(BasePlatformAdapter):
                         "first_name": user.first_name if user else None,
                     }
 
+                    # Pass media attachments in metadata
+                    if attachments:
+                        metadata["attachments"] = attachments
+
+                    # Capture reply context
+                    if message.reply_to_message:
+                        reply = message.reply_to_message
+                        metadata["reply_to_platform_msg_id"] = str(reply.message_id)
+                        metadata["reply_to_text"] = (
+                            reply.text or reply.caption or ""
+                        )
+
                     # Call the message handler to get bot response
                     # Commands are intercepted by PlatformManager's CommandProcessor
                     response = await self.on_message(
                         self.connection_id,
                         chat_id,
-                        message.text,
+                        text,
                         metadata,
                     )
 

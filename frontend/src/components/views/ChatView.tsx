@@ -16,6 +16,10 @@ import {
   User,
   Settings,
   Info,
+  Reply,
+  X,
+  Image,
+  Volume2,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors } from '../../stores/ui'
@@ -53,7 +57,7 @@ interface ChatViewProps {
 
 export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp }: ChatViewProps) {
   const navigate = useNavigate()
-  const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat } = useChatStore()
+  const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot, setActiveView } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
@@ -678,9 +682,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         models: activeBot?.models,
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
+        replyToId: replyToMessage?.id,
       })
     }
     setInput('')
+    setReplyTo(null)
   }
 
   // Select a command from the autocomplete menu
@@ -895,6 +901,8 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                   message={message}
                   botIcon={activeBot?.icon}
                   botColor={activeBot?.color}
+                  onReply={() => setReplyTo(message)}
+                  chatId={activeChatId || ''}
                 />
               ))}
             </div>
@@ -930,6 +938,27 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       {/* Input area */}
       <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-3 sm:p-4">
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+          {/* Reply composer bar */}
+          {replyToMessage && (
+            <div className="mb-2 flex items-center gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/70">
+              <Reply className="h-4 w-4 flex-shrink-0 text-cachi-500" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                  Replying to {replyToMessage.role === 'user' ? 'You' : (activeBot?.name || 'Assistant')}
+                </span>
+                <p className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+                  {replyToMessage.content.slice(0, 100)}{replyToMessage.content.length > 100 ? '...' : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyTo(null)}
+                className="flex-shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
             {/* Command autocomplete menu */}
             {showCommandMenu && filteredCommands.length > 0 && (
@@ -1057,19 +1086,67 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 // MESSAGE BUBBLE
 // =============================================================================
 
+// Citation parsing utilities
+function parseCiteMarkers(content: string): string[] {
+  return [...content.matchAll(/\[cite:([a-f0-9-]+)\]/g)].map(m => m[1])
+}
+
+function stripCiteMarkers(content: string): string {
+  return content.replace(/\[cite:[a-f0-9-]+\]/g, '')
+}
+
+function scrollToMessage(messageId: string) {
+  const el = document.getElementById(`msg-${messageId}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('reply-highlight')
+  setTimeout(() => el.classList.remove('reply-highlight'), 1500)
+}
+
+// Reply preview component
+function ReplyPreview({ message, onClick }: { message: ChatMessage; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-1 flex items-start gap-2 rounded-lg border-l-2 border-cachi-500 bg-zinc-900/40 px-3 py-1.5 text-left transition-colors hover:bg-zinc-900/60"
+    >
+      <Reply className="mt-0.5 h-3 w-3 flex-shrink-0 text-cachi-500" />
+      <div className="min-w-0">
+        <span className="text-[10px] font-semibold text-cachi-400">
+          {message.role === 'user' ? 'You' : 'Assistant'}
+        </span>
+        <p className="truncate text-xs text-zinc-400">
+          {stripCiteMarkers(message.content).slice(0, 80)}{message.content.length > 80 ? '...' : ''}
+        </p>
+      </div>
+    </button>
+  )
+}
+
 interface MessageBubbleProps {
   message: ChatMessage
   botIcon?: BotIcon
   botColor?: string
+  onReply?: () => void
+  chatId: string
 }
 
-function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
+function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showToolCalls, setShowToolCalls] = useState(false)
   const { accentColor } = useUIStore()
   const userColor = accentColors[accentColor].palette[600]
+  const getMessageById = useChatStore((s) => s.getMessageById)
+
+  // Resolve reply-to message
+  const replyToMessage = message.replyToId ? getMessageById(chatId, message.replyToId) : undefined
+
+  // Parse inline citations from bot messages
+  const citedIds = !isUser ? parseCiteMarkers(message.content) : []
+  const displayContent = !isUser ? stripCiteMarkers(message.content) : message.content
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content)
@@ -1084,7 +1161,7 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
   )
 
   return (
-    <div className={cn('group flex gap-4', isUser && 'flex-row-reverse')}>
+    <div id={`msg-${message.id}`} className={cn('group flex gap-4 transition-colors duration-500', isUser && 'flex-row-reverse')}>
       {/* Avatar */}
       <div
         className={cn(
@@ -1102,6 +1179,27 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 
       {/* Content */}
       <div className={cn('flex max-w-[80%] flex-col gap-1', isUser && 'items-end')}>
+        {/* Reply preview */}
+        {replyToMessage && (
+          <ReplyPreview
+            message={replyToMessage}
+            onClick={() => scrollToMessage(replyToMessage.id)}
+          />
+        )}
+
+        {/* Inline citation previews (from [cite:ID] markers) */}
+        {citedIds.length > 0 && !replyToMessage && citedIds.map((citeId) => {
+          const cited = getMessageById(chatId, citeId)
+          if (!cited) return null
+          return (
+            <ReplyPreview
+              key={citeId}
+              message={cited}
+              onClick={() => scrollToMessage(citeId)}
+            />
+          )
+        })}
+
         <div
           className={cn(
             'rounded-2xl px-4 py-3',
@@ -1112,9 +1210,14 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
           style={isUser ? { backgroundColor: userColor } : undefined}
         >
           {isUser ? (
-            <div className="whitespace-pre-wrap">{message.content}</div>
+            <div className="whitespace-pre-wrap">{displayContent}</div>
           ) : (
-            <MarkdownRenderer content={message.content} />
+            <MarkdownRenderer content={displayContent} />
+          )}
+
+          {/* Inline media previews from tool results */}
+          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+            <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
           )}
 
           {/* Tool calls collapsible section */}
@@ -1208,6 +1311,13 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
             {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Copy'}
           </button>
+          <button
+            onClick={onReply}
+            className="flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+          >
+            <Reply className="h-3 w-3" />
+            Reply
+          </button>
           {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
             <button
               onClick={() => setShowToolCalls(!showToolCalls)}
@@ -1252,6 +1362,131 @@ function MessageBubble({ message, botIcon, botColor }: MessageBubbleProps) {
 function isMediaResult(result: unknown): boolean {
   if (typeof result !== 'string') return false
   return /!\[.*?\]\(data:(?:image|audio)\//.test(result)
+}
+
+// =============================================================================
+// MEDIA EXTRACTION & INLINE PREVIEWS
+// =============================================================================
+
+interface MediaArtifact {
+  type: 'image' | 'audio'
+  dataUri: string
+  toolName: string
+  caption?: string
+}
+
+/** Extract media artifacts (images/audio) from tool call results. */
+function extractMediaArtifacts(toolCalls: ToolCall[]): MediaArtifact[] {
+  const artifacts: MediaArtifact[] = []
+  for (const call of toolCalls) {
+    if (typeof call.result !== 'string') continue
+
+    // Extract images: ![alt](data:image/...)
+    const imgMatch = call.result.match(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/)
+    if (imgMatch) {
+      // Get caption text after the media markdown
+      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:[^)]+\)/, '').trim()
+      artifacts.push({
+        type: 'image',
+        dataUri: imgMatch[2],
+        toolName: call.tool,
+        caption: afterMedia || undefined,
+      })
+      continue
+    }
+
+    // Extract audio: ![alt](data:audio/...)
+    const audioMatch = call.result.match(/!\[([^\]]*)\]\((data:audio\/[^\s)]+(?:\s[^)]*)?)\)/)
+    if (audioMatch) {
+      const rawUri = audioMatch[2].replace(/\s+/g, '')
+      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:audio\/[^)]+\)/, '').trim()
+      artifacts.push({
+        type: 'audio',
+        dataUri: rawUri,
+        toolName: call.tool,
+        caption: afterMedia || undefined,
+      })
+    }
+  }
+  return artifacts
+}
+
+/** Fullscreen image lightbox overlay. */
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={src}
+        alt="Full size"
+        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
+/** Inline media previews for message artifacts. */
+function MediaPreviews({ artifacts }: { artifacts: MediaArtifact[] }) {
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  if (artifacts.length === 0) return null
+
+  return (
+    <>
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {artifacts.map((artifact, i) => (
+          artifact.type === 'image' ? (
+            <button
+              key={i}
+              onClick={() => setLightboxSrc(artifact.dataUri)}
+              className="group/thumb relative overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/50 transition-colors hover:border-zinc-500"
+            >
+              <img
+                src={artifact.dataUri}
+                alt="Generated"
+                className="h-24 w-24 object-cover sm:h-32 sm:w-32"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/thumb:bg-black/30">
+                <Image className="h-5 w-5 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100" />
+              </div>
+              {artifact.caption && (
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                  <span className="text-[10px] text-zinc-300 line-clamp-1">{artifact.caption}</span>
+                </div>
+              )}
+            </button>
+          ) : (
+            <div
+              key={i}
+              className="flex w-full max-w-xs items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/50 px-3 py-2"
+            >
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cachi-600/20">
+                <Volume2 className="h-4 w-4 text-cachi-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <audio controls className="h-8 w-full [&::-webkit-media-controls-panel]:bg-zinc-800">
+                  <source src={artifact.dataUri} type={artifact.dataUri.split(';')[0].replace('data:', '')} />
+                </audio>
+                {artifact.caption && (
+                  <p className="mt-0.5 truncate text-[10px] text-zinc-500">{artifact.caption}</p>
+                )}
+              </div>
+            </div>
+          )
+        ))}
+      </div>
+    </>
+  )
 }
 
 // =============================================================================

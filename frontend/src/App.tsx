@@ -128,6 +128,22 @@ function App() {
         }
       />
       <Route
+        path="/:botId/rooms"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/rooms/:roomId"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/:botId/tools"
         element={
           <ProtectedRoute>
