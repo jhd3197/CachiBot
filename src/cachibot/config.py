@@ -77,6 +77,7 @@ class AgentConfig:
     approve_actions: bool = False
     temperature: float = 0.6  # Moonshot recommends 0.6 for instant mode
     max_tokens: int = 4096  # Max output tokens per LLM call
+    max_tool_result_length: int = 2000  # Truncate large tool results sent to the LLM
 
 
 @dataclass
