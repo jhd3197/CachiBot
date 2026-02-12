@@ -76,6 +76,14 @@ CLI-based agents operate in a black box — no visibility into running tasks, no
 
 ### 1. Install
 
+**One-line install** (Linux / macOS — installs Python, venv, and service):
+
+```bash
+curl -fsSL https://cachibot.com/install.sh | bash
+```
+
+**Or install with pip** (if you already have Python 3.10+):
+
 ```bash
 pip install cachibot
 ```

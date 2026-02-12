@@ -13,8 +13,10 @@ from tukuy.plugins.shell import ShellPlugin
 from tukuy.plugins.sql import SqlPlugin
 from tukuy.plugins.web import WebPlugin
 
+from cachibot.plugins.audio_generation import AudioGenerationPlugin
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 from cachibot.plugins.file_ops import FileOpsPlugin
+from cachibot.plugins.image_generation import ImageGenerationPlugin
 from cachibot.plugins.notes import NotesPlugin
 from cachibot.plugins.platform import PlatformPlugin
 from cachibot.plugins.python_sandbox import PythonSandboxPlugin
@@ -30,6 +32,8 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     "python_sandbox": PythonSandboxPlugin,
     "platform": PlatformPlugin,
     "work_management": WorkManagementPlugin,
+    "image_generation": ImageGenerationPlugin,
+    "audio_generation": AudioGenerationPlugin,
     # Tukuy built-in plugins (scoped via SecurityContext)
     "git": GitPlugin,
     "shell": ShellPlugin,
@@ -40,6 +44,7 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
 }
 
 __all__ = [
+    "AudioGenerationPlugin",
     "CachibotPlugin",
     "PluginContext",
     "CACHIBOT_PLUGINS",
@@ -49,6 +54,7 @@ __all__ = [
     "PythonSandboxPlugin",
     "PlatformPlugin",
     "WorkManagementPlugin",
+    "ImageGenerationPlugin",
     "GitPlugin",
     "ShellPlugin",
     "WebPlugin",
