@@ -14,7 +14,7 @@ from typing import Any
 from cachibot.agent import CachibotAgent
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
-from cachibot.models.platform import PlatformResponse
+from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.models.websocket import WSMessage
 from cachibot.services.context_builder import get_context_builder
 from cachibot.storage.repository import BotRepository, ChatRepository, KnowledgeRepository
@@ -74,6 +74,97 @@ def _extract_tool_calls_from_steps(steps: list) -> list[dict[str, Any]]:
                 entry["endTime"] = int(step.timestamp * 1000) if step.timestamp else 0
 
     return tool_calls
+
+
+_MAX_PDF_TEXT = 4000  # Max characters to extract from a PDF
+
+
+async def _transcribe_audio(audio: IncomingMedia) -> str:
+    """Transcribe an audio attachment using the STT driver."""
+    from prompture.drivers.audio_registry import get_async_stt_driver_for_model
+
+    stt = get_async_stt_driver_for_model("openai/whisper-1")
+    result = await stt.transcribe(audio.data, {"filename": audio.filename})
+    return result.get("text", "")
+
+
+def _extract_pdf_text(pdf: IncomingMedia) -> str:
+    """Extract text from a PDF attachment using pymupdf."""
+    try:
+        import pymupdf
+    except ImportError:
+        logger.warning("pymupdf not installed — cannot extract PDF text")
+        return ""
+
+    try:
+        doc = pymupdf.open(stream=pdf.data, filetype="pdf")
+        pages: list[str] = []
+        for page in doc:
+            pages.append(page.get_text())
+        doc.close()
+        text = "\n".join(pages).strip()
+        if len(text) > _MAX_PDF_TEXT:
+            text = text[:_MAX_PDF_TEXT] + "\n[... truncated ...]"
+        return text
+    except Exception as e:
+        logger.warning(f"Failed to extract PDF text: {e}")
+        return ""
+
+
+def _extract_text_file(attachment: IncomingMedia) -> str:
+    """Decode a plain text or markdown file attachment."""
+    try:
+        text = attachment.data.decode("utf-8", errors="replace").strip()
+        if len(text) > _MAX_PDF_TEXT:
+            text = text[:_MAX_PDF_TEXT] + "\n[... truncated ...]"
+        return text
+    except Exception as e:
+        logger.warning(f"Failed to decode text file: {e}")
+        return ""
+
+
+async def _process_attachments(
+    attachments: list[IncomingMedia],
+    message: str,
+) -> tuple[str, list[bytes]]:
+    """Process incoming media attachments.
+
+    Returns:
+        A tuple of (augmented_message_text, image_bytes_list).
+    """
+    images: list[bytes] = []
+    extra_parts: list[str] = []
+
+    for att in attachments:
+        if att.media_type.startswith("audio/"):
+            try:
+                transcript = await _transcribe_audio(att)
+                if transcript:
+                    extra_parts.append(f"[Audio transcription]: {transcript}")
+            except Exception as e:
+                logger.warning(f"Audio transcription failed: {e}")
+
+        elif att.media_type == "application/pdf":
+            text = _extract_pdf_text(att)
+            if text:
+                extra_parts.append(f"[Document: {att.filename}]\n{text}")
+
+        elif att.media_type in ("text/plain", "text/markdown") or att.filename.endswith(
+            (".txt", ".md")
+        ):
+            text = _extract_text_file(att)
+            if text:
+                extra_parts.append(f"[Document: {att.filename}]\n{text}")
+
+        elif att.media_type.startswith("image/"):
+            images.append(att.data)
+
+    # Build augmented message
+    augmented = message
+    if extra_parts:
+        augmented = "\n\n".join(extra_parts) + "\n\n" + augmented if augmented else "\n\n".join(extra_parts)
+
+    return augmented, images
 
 
 class MessageProcessor:
@@ -165,6 +256,23 @@ class MessageProcessor:
         # Update chat timestamp
         await self._chat_repo.update_chat_timestamp(chat_id)
 
+        # Process incoming media attachments
+        attachments: list[IncomingMedia] = metadata.pop("attachments", [])
+        agent_images: list[bytes] = []
+
+        if attachments:
+            message, agent_images = await _process_attachments(attachments, message)
+            # Store media metadata (without raw bytes) for frontend indicators
+            metadata["media"] = [
+                {"type": m.media_type, "filename": m.filename} for m in attachments
+            ]
+
+        # Prepend reply context if present
+        reply_text = metadata.get("reply_to_text")
+        if reply_text:
+            snippet = reply_text[:200]
+            message = f'[Replying to: "{snippet}"]\n{message}'
+
         # Save user message to history
         user_msg_id = str(uuid.uuid4())
         user_msg = BotMessage(
@@ -217,9 +325,11 @@ class MessageProcessor:
             bot_models=bot.models,
         )
 
-        # Run async agent directly
+        # Run async agent directly (pass images for vision if any)
         try:
-            result = await agent.run(message)
+            result = await agent.run(
+                message, images=agent_images if agent_images else None
+            )
             response_text = result.output_text or "Task completed."
             run_usage = result.run_usage
 

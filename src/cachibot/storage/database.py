@@ -369,6 +369,62 @@ async def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_bot_notes_bot ON bot_notes(bot_id);
         CREATE INDEX IF NOT EXISTS idx_bot_notes_tags ON bot_notes(tags);
 
+        -- =============================================================================
+        -- MULTI-AGENT ROOMS
+        -- =============================================================================
+
+        CREATE TABLE IF NOT EXISTS rooms (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            creator_id TEXT NOT NULL,
+            max_bots INTEGER NOT NULL DEFAULT 4,
+            settings TEXT DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_rooms_creator ON rooms(creator_id);
+
+        CREATE TABLE IF NOT EXISTS room_members (
+            room_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            joined_at TEXT NOT NULL,
+            PRIMARY KEY (room_id, user_id),
+            FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_room_members_user ON room_members(user_id);
+        CREATE INDEX IF NOT EXISTS idx_room_members_room ON room_members(room_id);
+
+        CREATE TABLE IF NOT EXISTS room_bots (
+            room_id TEXT NOT NULL,
+            bot_id TEXT NOT NULL,
+            added_at TEXT NOT NULL,
+            PRIMARY KEY (room_id, bot_id),
+            FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_room_bots_room ON room_bots(room_id);
+        CREATE INDEX IF NOT EXISTS idx_room_bots_bot ON room_bots(bot_id);
+
+        CREATE TABLE IF NOT EXISTS room_messages (
+            id TEXT PRIMARY KEY,
+            room_id TEXT NOT NULL,
+            sender_type TEXT NOT NULL,
+            sender_id TEXT NOT NULL,
+            sender_name TEXT NOT NULL,
+            content TEXT NOT NULL,
+            metadata TEXT DEFAULT '{}',
+            timestamp TEXT NOT NULL,
+            FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_room_messages_room ON room_messages(room_id);
+        CREATE INDEX IF NOT EXISTS idx_room_messages_room_timestamp
+            ON room_messages(room_id, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_room_messages_sender
+            ON room_messages(sender_type, sender_id);
+
         -- Todos (Reminders/Notes)
         CREATE TABLE IF NOT EXISTS todos (
             id TEXT PRIMARY KEY,

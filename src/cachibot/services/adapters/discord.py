@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
-from cachibot.models.platform import PlatformResponse
+from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -84,12 +84,25 @@ class DiscordAdapter(BasePlatformAdapter):
                         content = content.replace(f"<@{self._client.user.id}>", "").strip()
                         content = content.replace(f"<@!{self._client.user.id}>", "").strip()
 
-                    if not content:
+                    # Download attached media
+                    attachments: list[IncomingMedia] = []
+                    for att in message.attachments:
+                        try:
+                            data = await att.read()
+                            mime = att.content_type or "application/octet-stream"
+                            attachments.append(
+                                IncomingMedia(mime, data, att.filename)
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to download Discord attachment: {e}")
+
+                    # Skip if no text and no attachments
+                    if not content and not attachments:
                         return
 
                     # Get channel info
                     channel_id = str(message.channel.id)
-                    metadata = {
+                    metadata: dict[str, Any] = {
                         "platform": "discord",
                         "channel_id": channel_id,
                         "guild_id": str(message.guild.id) if message.guild else None,
@@ -99,6 +112,17 @@ class DiscordAdapter(BasePlatformAdapter):
                         "username": message.author.name,
                         "is_dm": is_dm,
                     }
+
+                    # Pass media attachments in metadata
+                    if attachments:
+                        metadata["attachments"] = attachments
+
+                    # Capture reply context
+                    if message.reference and message.reference.resolved:
+                        ref_msg = message.reference.resolved
+                        if hasattr(ref_msg, "content"):
+                            metadata["reply_to_platform_msg_id"] = str(ref_msg.id)
+                            metadata["reply_to_text"] = ref_msg.content or ""
 
                     # Call the message handler to get bot response
                     response = await adapter.on_message(

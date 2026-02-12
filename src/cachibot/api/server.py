@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from cachibot import __version__
+from cachibot.api.room_websocket import router as room_ws_router
 from cachibot.api.routes import (
     auth,
     bots,
@@ -31,6 +32,7 @@ from cachibot.api.routes import (
     models,
     plugins,
     providers,
+    rooms,
     skills,
     update,
     work,
@@ -135,8 +137,10 @@ def create_app(
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
+    app.include_router(rooms.router, tags=["rooms"])
     app.include_router(ws_router, tags=["websocket"])
     app.include_router(voice_ws_router, tags=["voice"])
+    app.include_router(room_ws_router, tags=["room-websocket"])
 
     # Check if frontend dist exists
     if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():

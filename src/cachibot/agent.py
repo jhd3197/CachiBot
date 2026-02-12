@@ -187,30 +187,37 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
             return False  # Reject by default if no callback
         return True  # Auto-approve if approval not required
 
-    async def run(self, user_message: str) -> AgentResult:
+    async def run(
+        self,
+        user_message: str,
+        *,
+        images: list[Any] | None = None,
+    ) -> AgentResult:
         """
         Process a user message and return the AgentResult.
 
         Args:
             user_message: The user's input
+            images: Optional list of ImageInput for vision models.
 
         Returns:
             The AgentResult containing output_text, run_usage, steps, etc.
         """
-        return await self._agent.run(user_message)
+        return await self._agent.run(user_message, images=images)
 
-    async def run_stream(self, user_message: str):
+    async def run_stream(self, user_message: str, *, images: list[Any] | None = None):
         """
         Process a user message with streaming output.
 
         Args:
             user_message: The user's input
+            images: Optional list of ImageInput for vision models.
 
         Yields:
             Stream events from the agent.
             The final event (StreamEventType.output) contains the complete AgentResult.
         """
-        async for event in self._agent.run_stream(user_message):
+        async for event in self._agent.run_stream(user_message, images=images):
             yield event
 
     @property
