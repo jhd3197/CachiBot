@@ -140,16 +140,22 @@ class AudioGenerationPlugin(CachibotPlugin):
                 return f"Error: Failed to initialize TTS driver for '{model}': {exc}"
 
             # Build options based on provider
-            options: dict = {
-                "voice": effective_voice,
-                "format": effective_format,
-                "speed": speed,
-            }
+            is_elevenlabs = "elevenlabs" in model.lower()
+            options: dict = {}
 
-            # ElevenLabs uses voice_id instead of voice
-            if "elevenlabs" in model.lower():
-                options["voice_id"] = effective_voice
+            if is_elevenlabs:
+                # ElevenLabs uses voice_id (opaque ID like "21m00Tcm4TlvDq8ikWAM"),
+                # not OpenAI voice names like "alloy". Only pass voice_id when the
+                # user explicitly supplied an ElevenLabs voice ID; otherwise let the
+                # driver use its own default.
+                _openai_voices = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+                if effective_voice and effective_voice not in _openai_voices:
+                    options["voice_id"] = effective_voice
                 options["output_format"] = f"{effective_format}_44100_128"
+            else:
+                options["voice"] = effective_voice
+                options["format"] = effective_format
+                options["speed"] = speed
 
             try:
                 result = await driver.synthesize(text, options)
@@ -172,7 +178,7 @@ class AudioGenerationPlugin(CachibotPlugin):
                 meta_parts.append(f"Cost: ${meta['cost']:.6f}")
             if meta.get("characters"):
                 meta_parts.append(f"Characters: {meta['characters']}")
-            meta_parts.append(f"Voice: {effective_voice}")
+            meta_parts.append(f"Voice: {meta.get('voice_id', effective_voice)}")
             meta_parts.append(f"Model: {model}")
             if meta_parts:
                 parts.append(f"\n*{' | '.join(meta_parts)}*")
@@ -190,7 +196,7 @@ class AudioGenerationPlugin(CachibotPlugin):
             requires_network=True,
             display_name="Transcribe Audio",
             icon="mic",
-            risk_level=RiskLevel.LOW,
+            risk_level=RiskLevel.SAFE,
             config_params=[
                 ConfigParam(
                     name="language",
