@@ -35,6 +35,7 @@ from cachibot.api.routes import (
     update,
     work,
 )
+from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
@@ -135,6 +136,7 @@ def create_app(
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
     app.include_router(ws_router, tags=["websocket"])
+    app.include_router(voice_ws_router, tags=["voice"])
 
     # Check if frontend dist exists
     if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():

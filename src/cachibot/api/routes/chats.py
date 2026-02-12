@@ -29,6 +29,7 @@ class MessageResponse(BaseModel):
     content: str
     timestamp: str
     metadata: dict
+    replyToId: str | None = None
 
     @classmethod
     def from_message(cls, msg: BotMessage) -> "MessageResponse":
@@ -39,6 +40,7 @@ class MessageResponse(BaseModel):
             content=msg.content,
             timestamp=msg.timestamp.isoformat(),
             metadata=msg.metadata,
+            replyToId=msg.reply_to_id,
         )
 
 

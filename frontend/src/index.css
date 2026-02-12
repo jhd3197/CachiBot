@@ -62,3 +62,13 @@ code {
 :not(pre) > code {
   @apply bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm;
 }
+
+/* Reply highlight animation (scroll-to-message) */
+@keyframes reply-flash {
+  0% { background-color: rgba(34, 197, 94, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.reply-highlight {
+  animation: reply-flash 1.5s ease-out;
+}

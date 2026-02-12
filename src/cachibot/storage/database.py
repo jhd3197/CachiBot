@@ -406,6 +406,8 @@ async def init_db() -> None:
         "ALTER TABLE chats ADD COLUMN archived INTEGER DEFAULT 0",
         # Add models column to bots table (multi-model slots)
         "ALTER TABLE bots ADD COLUMN models TEXT",
+        # Add reply_to_id column for message reply/citation system
+        "ALTER TABLE bot_messages ADD COLUMN reply_to_id TEXT",
     ]
 
     for migration in migrations:
