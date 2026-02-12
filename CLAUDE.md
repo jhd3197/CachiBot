@@ -60,6 +60,18 @@ Built-in tools registered in `agent.py`:
 ### Configuration
 Supports TOML config files (`~/.cachibot.toml` or `./cachibot.toml`) with environment variable overrides. See `cachibot.example.toml` for all options.
 
+## Owned Dependencies: Prompture & Tukuy
+
+CachiBot depends on two libraries that we own and maintain: **Prompture** and **Tukuy**. These libraries were built primarily to support CachiBot at a monolithic-repo level.
+
+When a bug or issue is encountered in Prompture or Tukuy while working on CachiBot:
+
+1. **Fix it at the source.** Do NOT work around bugs in CachiBot — fix the actual library code.
+2. We own both repos — just go fix it directly, no contribution barriers.
+3. After fixing the source library, verify the fix works in CachiBot.
+
+Treat all three repos (CachiBot, Prompture, Tukuy) as a single cohesive codebase.
+
 ## Code Style
 
 ### Python
