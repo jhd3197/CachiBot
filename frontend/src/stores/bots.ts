@@ -305,13 +305,21 @@ export const useChatStore = create<ChatState>()(
           set((state) => ({
             messages: {
               ...state.messages,
-              [chatId]: messages.map((m) => ({
-                id: m.id,
-                role: m.role as 'user' | 'assistant' | 'system',
-                content: m.content,
-                timestamp: m.timestamp,
-                metadata: m.metadata,
-              })),
+              [chatId]: messages.map((m) => {
+                // Extract toolCalls from metadata if present (persisted by message_processor)
+                const toolCalls = m.metadata?.toolCalls as ToolCall[] | undefined
+                const msg: ChatMessage = {
+                  id: m.id,
+                  role: m.role as 'user' | 'assistant' | 'system',
+                  content: m.content,
+                  timestamp: m.timestamp,
+                  metadata: m.metadata,
+                }
+                if (toolCalls && toolCalls.length > 0) {
+                  msg.toolCalls = toolCalls
+                }
+                return msg
+              }),
             },
           }))
         } catch (err) {

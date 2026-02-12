@@ -1185,7 +1185,8 @@ class BotRepository:
                 """
                 UPDATE bots SET
                     name = ?, description = ?, icon = ?, color = ?,
-                    model = ?, system_prompt = ?, capabilities = ?, updated_at = ?
+                    model = ?, system_prompt = ?, capabilities = ?,
+                    models = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -1196,6 +1197,7 @@ class BotRepository:
                     bot.model,
                     bot.system_prompt,
                     json.dumps(bot.capabilities),
+                    json.dumps(bot.models) if bot.models else None,
                     bot.updated_at.isoformat(),
                     bot.id,
                 ),
@@ -1205,8 +1207,8 @@ class BotRepository:
                 """
                 INSERT INTO bots
                 (id, name, description, icon, color, model, system_prompt,
-                 capabilities, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 capabilities, models, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     bot.id,
@@ -1217,6 +1219,7 @@ class BotRepository:
                     bot.model,
                     bot.system_prompt,
                     json.dumps(bot.capabilities),
+                    json.dumps(bot.models) if bot.models else None,
                     bot.created_at.isoformat(),
                     bot.updated_at.isoformat(),
                 ),
@@ -1230,7 +1233,7 @@ class BotRepository:
         async with db.execute(
             """
             SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, created_at, updated_at
+                   capabilities, models, created_at, updated_at
             FROM bots WHERE id = ?
             """,
             (bot_id,),
@@ -1244,7 +1247,7 @@ class BotRepository:
         async with db.execute(
             """
             SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, created_at, updated_at
+                   capabilities, models, created_at, updated_at
             FROM bots ORDER BY name
             """
         ) as cursor:
@@ -1272,8 +1275,9 @@ class BotRepository:
             model=row[5],
             systemPrompt=row[6],
             capabilities=json.loads(row[7]) if row[7] else {},
-            createdAt=datetime.fromisoformat(row[8]),
-            updatedAt=datetime.fromisoformat(row[9]),
+            models=json.loads(row[8]) if row[8] else None,
+            createdAt=datetime.fromisoformat(row[9]),
+            updatedAt=datetime.fromisoformat(row[10]),
         )
 
 

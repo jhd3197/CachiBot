@@ -2,7 +2,15 @@
 Markdown utilities for platform message formatting.
 """
 
+from __future__ import annotations
+
+import base64
+import logging
 import re
+
+from cachibot.models.platform import MediaItem
+
+logger = logging.getLogger(__name__)
 
 
 def strip_markdown(text: str) -> str:
@@ -67,3 +75,124 @@ def strip_markdown(text: str) -> str:
     result = re.sub(r"  +", " ", result)
 
     return result.strip()
+
+
+# Regex for inline base64 data URIs in markdown image syntax:
+# ![alt text](data:mime/type;base64,DATA)
+_DATA_URI_RE = re.compile(
+    r"!\[([^\]]*)\]\(data:([^;]+);base64,([A-Za-z0-9+/=\s]+)\)",
+    re.DOTALL,
+)
+
+# Italic metadata line that often follows a generated image/audio block
+# e.g., *Cost: $0.04 | Model: dall-e-3*
+_METADATA_LINE_RE = re.compile(r"^\s*\*[^*]+\*\s*$", re.MULTILINE)
+
+# Map MIME type prefixes to file extensions
+_MIME_TO_EXT: dict[str, str] = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/ogg": "ogg",
+}
+
+
+def extract_media_from_text(text: str) -> tuple[str, list[MediaItem]]:
+    """
+    Extract base64 data-URI media from markdown text.
+
+    Finds all ``![alt](data:mime;base64,DATA)`` patterns, decodes
+    the base64 payload, and returns the cleaned text plus a list
+    of MediaItem objects.
+
+    Args:
+        text: Markdown text potentially containing inline media.
+
+    Returns:
+        A tuple of (cleaned_text, media_items).
+    """
+    if not text:
+        return text, []
+
+    media_items: list[MediaItem] = []
+    counter = 0
+
+    def _replace(match: re.Match) -> str:
+        nonlocal counter
+        alt_text = match.group(1).strip()
+        mime_type = match.group(2).strip()
+        b64_data = match.group(3).strip()
+
+        try:
+            raw_bytes = base64.b64decode(b64_data)
+        except Exception:
+            logger.warning("Failed to decode base64 media in text")
+            return match.group(0)  # Leave original if decode fails
+
+        ext = _MIME_TO_EXT.get(mime_type, mime_type.split("/")[-1])
+        counter += 1
+        filename = f"media_{counter}.{ext}"
+
+        media_items.append(
+            MediaItem(
+                media_type=mime_type,
+                data=raw_bytes,
+                filename=filename,
+                alt_text=alt_text,
+            )
+        )
+        return ""
+
+    cleaned = _DATA_URI_RE.sub(_replace, text)
+
+    # If we extracted media, also capture trailing metadata lines
+    # and assign them as captions
+    if media_items:
+        meta_matches = list(_METADATA_LINE_RE.finditer(cleaned))
+        for i, meta in enumerate(meta_matches):
+            if i < len(media_items):
+                media_items[i].metadata_text = meta.group(0).strip().strip("*")
+        # Remove metadata lines from cleaned text
+        cleaned = _METADATA_LINE_RE.sub("", cleaned)
+
+    # Collapse excessive blank lines
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+    return cleaned, media_items
+
+
+def extract_media_from_steps(steps: list) -> list[MediaItem]:
+    """
+    Extract media from AgentResult steps.
+
+    Scans tool_result steps for data URIs in the result content.
+    Tool results contain the full (non-truncated) output, so they are
+    the most reliable source for media data.
+
+    Args:
+        steps: List of AgentStep objects from an AgentResult.
+
+    Returns:
+        List of MediaItem objects found in tool results.
+    """
+    all_media: list[MediaItem] = []
+
+    for step in steps:
+        # Only look at tool_result steps
+        if not hasattr(step, "step_type"):
+            continue
+        if step.step_type.value != "tool_result":
+            continue
+
+        # tool_result can be in step.tool_result or step.content
+        for source in (step.tool_result, step.content):
+            if not isinstance(source, str):
+                continue
+            _, media_items = extract_media_from_text(source)
+            all_media.extend(media_items)
+
+    return all_media

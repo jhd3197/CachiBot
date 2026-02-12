@@ -404,6 +404,8 @@ async def init_db() -> None:
     migrations = [
         # Add archived column to chats table
         "ALTER TABLE chats ADD COLUMN archived INTEGER DEFAULT 0",
+        # Add models column to bots table (multi-model slots)
+        "ALTER TABLE bots ADD COLUMN models TEXT",
     ]
 
     for migration in migrations:
