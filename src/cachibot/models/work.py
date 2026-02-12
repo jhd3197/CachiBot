@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # ENUMS
 # =============================================================================
@@ -91,9 +90,7 @@ class FunctionStep(BaseModel):
     name: str = Field(description="Step name")
     description: str | None = Field(default=None)
     action: str = Field(description="What to do (natural language or tool call)")
-    depends_on: list[int] = Field(
-        default_factory=list, description="Step orders this depends on"
-    )
+    depends_on: list[int] = Field(default_factory=list, description="Step orders this depends on")
     retry_count: int = Field(default=0, description="Number of retries on failure")
     timeout_seconds: int | None = Field(default=None, description="Step timeout")
     on_failure: FailureAction = Field(
@@ -151,35 +148,27 @@ class Schedule(BaseModel):
     description: str | None = Field(default=None)
 
     # What to run
-    function_id: str | None = Field(
-        default=None, description="Function to instantiate"
-    )
+    function_id: str | None = Field(default=None, description="Function to instantiate")
     function_params: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for function"
     )
 
     # When to run
     schedule_type: ScheduleType = Field(default=ScheduleType.CRON)
-    cron_expression: str | None = Field(
-        default=None, description="Cron expression (if type=cron)"
-    )
+    cron_expression: str | None = Field(default=None, description="Cron expression (if type=cron)")
     interval_seconds: int | None = Field(
         default=None, description="Interval in seconds (if type=interval)"
     )
     run_at: datetime | None = Field(
         default=None, description="One-time run datetime (if type=once)"
     )
-    event_trigger: str | None = Field(
-        default=None, description="Event name (if type=event)"
-    )
+    event_trigger: str | None = Field(default=None, description="Event name (if type=event)")
     timezone: str = Field(default="UTC")
 
     # Constraints
     enabled: bool = Field(default=True)
     max_concurrent: int = Field(default=1, description="Max concurrent Work instances")
-    catch_up: bool = Field(
-        default=False, description="Run missed executions on startup"
-    )
+    catch_up: bool = Field(default=False, description="Run missed executions on startup")
 
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -204,27 +193,17 @@ class Work(BaseModel):
     # Identity
     title: str = Field(description="Work title")
     description: str | None = Field(default=None)
-    goal: str | None = Field(
-        default=None, description="Success criteria / definition of done"
-    )
+    goal: str | None = Field(default=None, description="Success criteria / definition of done")
 
     # Source
-    function_id: str | None = Field(
-        default=None, description="Source function template"
-    )
-    schedule_id: str | None = Field(
-        default=None, description="Source schedule (if recurring)"
-    )
-    parent_work_id: str | None = Field(
-        default=None, description="Parent work (for sub-work)"
-    )
+    function_id: str | None = Field(default=None, description="Source function template")
+    schedule_id: str | None = Field(default=None, description="Source schedule (if recurring)")
+    parent_work_id: str | None = Field(default=None, description="Parent work (for sub-work)")
 
     # Status
     status: WorkStatus = Field(default=WorkStatus.PENDING)
     priority: Priority = Field(default=Priority.NORMAL)
-    progress: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="0.0-1.0 derived from tasks"
-    )
+    progress: float = Field(default=0.0, ge=0.0, le=1.0, description="0.0-1.0 derived from tasks")
 
     # Timing
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -263,9 +242,7 @@ class Task(BaseModel):
 
     # Ordering & Dependencies
     order: int = Field(default=0, description="Execution order within work")
-    depends_on: list[str] = Field(
-        default_factory=list, description="Task IDs this depends on"
-    )
+    depends_on: list[str] = Field(default_factory=list, description="Task IDs this depends on")
 
     # Status
     status: TaskStatus = Field(default=TaskStatus.PENDING)
@@ -350,9 +327,7 @@ class Todo(BaseModel):
     # Timing
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: datetime | None = Field(default=None)
-    remind_at: datetime | None = Field(
-        default=None, description="Optional reminder time"
-    )
+    remind_at: datetime | None = Field(default=None, description="Optional reminder time")
 
     # Conversion tracking
     converted_to_work_id: str | None = Field(default=None)

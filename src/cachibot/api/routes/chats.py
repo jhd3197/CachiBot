@@ -7,7 +7,7 @@ Endpoints for managing bot chats, including platform conversations.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import get_current_user, require_bot_access
+from cachibot.api.auth import require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.chat_model import ChatResponse
 from cachibot.models.knowledge import BotMessage

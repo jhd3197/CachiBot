@@ -74,7 +74,9 @@ class UpdateUserRequest(BaseModel):
     """Request to update a user (admin only)."""
 
     email: EmailStr | None = Field(default=None, description="New email address")
-    username: str | None = Field(default=None, description="New username", min_length=3, max_length=32)
+    username: str | None = Field(
+        default=None, description="New username", min_length=3, max_length=32
+    )
     role: UserRole | None = Field(default=None, description="New role")
     is_active: bool | None = Field(default=None, description="Set active status")
 

@@ -15,7 +15,7 @@ import aiofiles
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from cachibot.api.auth import get_current_user, require_bot_access
+from cachibot.api.auth import require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.knowledge import Document, DocumentStatus
 from cachibot.services.document_processor import get_document_processor
@@ -108,9 +108,7 @@ async def upload_document(
     # Read file content
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            400, f"File too large. Maximum size: {MAX_FILE_SIZE // 1024 // 1024}MB"
-        )
+        raise HTTPException(400, f"File too large. Maximum size: {MAX_FILE_SIZE // 1024 // 1024}MB")
 
     if len(content) == 0:
         raise HTTPException(400, "File is empty")

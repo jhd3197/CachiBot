@@ -26,7 +26,9 @@ class NameWithMeaning(BaseModel):
 
     name: str = Field(description="The bot name (1-2 words)")
     meaning: str = Field(
-        description="The meaning or origin of this name, explaining why it's suitable for an AI assistant"
+        description=(
+            "The meaning or origin of this name, explaining why it's suitable for an AI assistant"
+        )
     )
 
 

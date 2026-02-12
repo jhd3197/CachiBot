@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
@@ -14,7 +14,7 @@ from cachibot.models.chat import (
     ChatResponse,
     MessageRole,
 )
-from cachibot.storage.repository import ChatRepository
+from cachibot.storage.repository import MessageRepository
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def send_message(
     message_id = str(uuid.uuid4())
 
     # Store message in database
-    repo = ChatRepository()
+    repo = MessageRepository()
     await repo.save_message(
         ChatMessage(
             id=message_id,
@@ -57,7 +57,7 @@ async def get_history(
     user: User = Depends(get_current_user),
 ) -> ChatHistory:
     """Get chat history."""
-    repo = ChatRepository()
+    repo = MessageRepository()
     messages = await repo.get_messages(limit=limit, offset=offset)
     total = await repo.get_message_count()
 
@@ -67,6 +67,6 @@ async def get_history(
 @router.delete("/chat/history")
 async def clear_history(user: User = Depends(get_current_user)) -> dict:
     """Clear all chat history."""
-    repo = ChatRepository()
+    repo = MessageRepository()
     await repo.clear_messages()
     return {"status": "cleared"}

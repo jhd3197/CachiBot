@@ -32,38 +32,38 @@ def strip_markdown(text: str) -> str:
     result = text
 
     # Code blocks (``` ... ```) - extract content only
-    result = re.sub(r'```(?:\w+)?\n?(.*?)```', r'\1', result, flags=re.DOTALL)
+    result = re.sub(r"```(?:\w+)?\n?(.*?)```", r"\1", result, flags=re.DOTALL)
 
     # Inline code (`code`) - just remove backticks
-    result = re.sub(r'`([^`]+)`', r'\1', result)
+    result = re.sub(r"`([^`]+)`", r"\1", result)
 
     # Images ![alt](url) → alt
-    result = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', result)
+    result = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", result)
 
     # Links [text](url) → text (url)
-    result = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', result)
+    result = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", result)
 
     # Bold **text** or __text__
-    result = re.sub(r'\*\*([^*]+)\*\*', r'\1', result)
-    result = re.sub(r'__([^_]+)__', r'\1', result)
+    result = re.sub(r"\*\*([^*]+)\*\*", r"\1", result)
+    result = re.sub(r"__([^_]+)__", r"\1", result)
 
     # Italic *text* or _text_ (but not inside words like some_var)
-    result = re.sub(r'(?<!\w)\*([^*]+)\*(?!\w)', r'\1', result)
-    result = re.sub(r'(?<!\w)_([^_]+)_(?!\w)', r'\1', result)
+    result = re.sub(r"(?<!\w)\*([^*]+)\*(?!\w)", r"\1", result)
+    result = re.sub(r"(?<!\w)_([^_]+)_(?!\w)", r"\1", result)
 
     # Strikethrough ~~text~~
-    result = re.sub(r'~~([^~]+)~~', r'\1', result)
+    result = re.sub(r"~~([^~]+)~~", r"\1", result)
 
     # Headers (# Header) - just remove the # symbols
-    result = re.sub(r'^#{1,6}\s+', '', result, flags=re.MULTILINE)
+    result = re.sub(r"^#{1,6}\s+", "", result, flags=re.MULTILINE)
 
     # Blockquotes (> quote) - remove > but keep text
-    result = re.sub(r'^>\s?', '  ', result, flags=re.MULTILINE)
+    result = re.sub(r"^>\s?", "  ", result, flags=re.MULTILINE)
 
     # Horizontal rules (---, ***, ___) - replace with dashes
-    result = re.sub(r'^[-*_]{3,}$', '---', result, flags=re.MULTILINE)
+    result = re.sub(r"^[-*_]{3,}$", "---", result, flags=re.MULTILINE)
 
     # Clean up any double spaces
-    result = re.sub(r'  +', ' ', result)
+    result = re.sub(r"  +", " ", result)
 
     return result.strip()
