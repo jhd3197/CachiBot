@@ -57,6 +57,7 @@ export interface KnowledgeState {
   refreshDocument: (botId: string, documentId: string) => Promise<void>
   getDocuments: (botId: string) => DocumentResponse[]
   retryDocument: (botId: string, documentId: string) => Promise<void>
+  reindexDocuments: (botId: string) => Promise<number>
   loadDocumentChunks: (botId: string, documentId: string) => Promise<void>
 
   // Instruction actions
@@ -206,6 +207,20 @@ export const useKnowledgeStore = create<KnowledgeState>()(
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Retry failed',
+          })
+          throw error
+        }
+      },
+
+      reindexDocuments: async (botId: string) => {
+        try {
+          const result = await knowledgeApi.documents.reindex(botId)
+          // Refresh to show processing status
+          await get().loadDocuments(botId)
+          return result.documents_queued
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Reindex failed',
           })
           throw error
         }

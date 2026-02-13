@@ -349,6 +349,7 @@ export type WSMessageType =
   | 'message'
   | 'platform_message'
   | 'scheduled_notification'
+  | 'document_status'
   | 'approval_needed'
   | 'usage'
   | 'error'
@@ -427,6 +428,14 @@ export interface ScheduledNotificationPayload {
   botId: string
   chatId?: string
   content: string
+}
+
+export interface DocumentStatusPayload {
+  botId: string
+  documentId: string
+  status: 'processing' | 'ready' | 'failed'
+  chunkCount?: number
+  filename?: string
 }
 
 // Tool call tracking

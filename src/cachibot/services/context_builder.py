@@ -362,8 +362,15 @@ _builder: ContextBuilder | None = None
 
 
 def get_context_builder() -> ContextBuilder:
-    """Get the shared ContextBuilder instance."""
+    """Get the shared ContextBuilder instance (config-aware)."""
     global _builder
     if _builder is None:
-        _builder = ContextBuilder()
+        from cachibot.config import Config
+
+        config = Config.load()
+        _builder = ContextBuilder(
+            max_history_messages=config.knowledge.max_history_messages,
+            max_document_chunks=config.knowledge.top_k,
+            min_similarity_score=config.knowledge.min_similarity,
+        )
     return _builder

@@ -7,6 +7,7 @@ Notes CRUD, knowledge stats, search, document retry, and chunk preview.
 import logging
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
@@ -231,6 +232,44 @@ async def search_knowledge(
     return results[: data.limit]
 
 
+@router.post("/reindex")
+async def reindex_documents(
+    bot_id: str,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(require_bot_access),
+) -> dict:
+    """Reprocess all documents for a bot: delete chunks and re-run pipeline."""
+    repo = KnowledgeRepository()
+    docs = await repo.get_documents_by_bot(bot_id)
+
+    if not docs:
+        raise HTTPException(404, "No documents found for this bot")
+
+    queued = 0
+    upload_dir = Path.home() / ".cachibot" / "uploads"
+
+    for doc in docs:
+        file_path = upload_dir / f"{doc.file_hash}.{doc.file_type}"
+        if not file_path.exists():
+            logger.warning(f"Skipping reindex for {doc.id}: file not found on disk")
+            continue
+
+        # Delete existing chunks
+        await repo.delete_chunks_by_document(doc.id)
+
+        # Reset document status
+        await repo.reset_document_for_retry(doc.id)
+
+        # Queue background processing
+        processor = get_document_processor()
+        background_tasks.add_task(
+            processor.process_document, doc.id, bot_id, file_path, doc.file_type
+        )
+        queued += 1
+
+    return {"status": "reindexing", "documents_queued": queued}
+
+
 @router.post("/documents/{document_id}/retry")
 async def retry_document(
     bot_id: str,
@@ -254,8 +293,6 @@ async def retry_document(
         raise HTTPException(500, "Failed to reset document")
 
     # Re-trigger processing
-    from pathlib import Path
-
     upload_dir = Path.home() / ".cachibot" / "uploads"
     file_path = upload_dir / f"{doc.file_hash}.{doc.file_type}"
 

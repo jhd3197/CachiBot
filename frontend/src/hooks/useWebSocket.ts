@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { wsClient } from '../api/websocket'
 import { useChatStore, useBotStore } from '../stores/bots'
 import { useUsageStore } from '../stores/connections'
+import { useKnowledgeStore } from '../stores/knowledge'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -14,6 +15,7 @@ import type {
   MessagePayload,
   PlatformMessagePayload,
   ScheduledNotificationPayload,
+  DocumentStatusPayload,
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
@@ -187,6 +189,27 @@ export function useWebSocket() {
               content: `[Scheduled] ${payload.content}`,
               timestamp: new Date().toISOString(),
             })
+          }
+          break
+        }
+
+        case 'document_status': {
+          const payload = msg.payload as DocumentStatusPayload
+          const knowledgeStore = useKnowledgeStore.getState()
+          const botDocs = knowledgeStore.documents[payload.botId]
+          if (botDocs) {
+            const updated = botDocs.map((d) =>
+              d.id === payload.documentId
+                ? {
+                    ...d,
+                    status: payload.status,
+                    ...(payload.chunkCount !== undefined ? { chunk_count: payload.chunkCount } : {}),
+                  }
+                : d
+            )
+            useKnowledgeStore.setState((state) => ({
+              documents: { ...state.documents, [payload.botId]: updated },
+            }))
           }
           break
         }

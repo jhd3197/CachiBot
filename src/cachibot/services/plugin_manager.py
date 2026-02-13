@@ -22,6 +22,7 @@ from cachibot.plugins import (
     CachibotPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
+    KnowledgePlugin,
     NotesPlugin,
     PlatformPlugin,
     PluginContext,
@@ -48,7 +49,7 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
 }
 
 # Plugins that are always enabled regardless of capabilities
-ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin]
+ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin, KnowledgePlugin]
 
 
 def plugins_to_registry(

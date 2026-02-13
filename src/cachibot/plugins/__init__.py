@@ -17,6 +17,7 @@ from cachibot.plugins.audio_generation import AudioGenerationPlugin
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 from cachibot.plugins.file_ops import FileOpsPlugin
 from cachibot.plugins.image_generation import ImageGenerationPlugin
+from cachibot.plugins.knowledge import KnowledgePlugin
 from cachibot.plugins.notes import NotesPlugin
 from cachibot.plugins.platform import PlatformPlugin
 from cachibot.plugins.python_sandbox import PythonSandboxPlugin
@@ -28,6 +29,7 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     # CachiBot custom plugins
     "task": TaskPlugin,
     "notes": NotesPlugin,
+    "knowledge": KnowledgePlugin,
     "file_ops": FileOpsPlugin,
     "python_sandbox": PythonSandboxPlugin,
     "platform": PlatformPlugin,
@@ -48,6 +50,7 @@ __all__ = [
     "CachibotPlugin",
     "PluginContext",
     "CACHIBOT_PLUGINS",
+    "KnowledgePlugin",
     "TaskPlugin",
     "NotesPlugin",
     "FileOpsPlugin",

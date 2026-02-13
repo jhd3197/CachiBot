@@ -23,7 +23,7 @@ class DocumentProcessor:
     Processes documents into searchable chunks with embeddings.
 
     Pipeline:
-    1. Extract text from document (PDF, TXT, MD)
+    1. Extract text from document (PDF, TXT, MD, DOCX)
     2. Split text into overlapping chunks
     3. Generate embeddings for each chunk
     4. Store chunks with embeddings in database
@@ -48,6 +48,31 @@ class DocumentProcessor:
         self._vector_store = vector_store
         self._repo = KnowledgeRepository()
 
+    async def _broadcast_status(
+        self,
+        bot_id: str,
+        document_id: str,
+        status: str,
+        chunk_count: int | None = None,
+    ) -> None:
+        """Broadcast document status change via WebSocket."""
+        try:
+            from cachibot.api.websocket import get_ws_manager
+            from cachibot.models.websocket import WSMessage
+
+            ws = get_ws_manager()
+            await ws.broadcast(
+                WSMessage.document_status(
+                    bot_id=bot_id,
+                    document_id=document_id,
+                    status=status,
+                    chunk_count=chunk_count,
+                )
+            )
+        except Exception as e:
+            # Don't fail processing if broadcast fails
+            logger.debug(f"Failed to broadcast document status: {e}")
+
     @property
     def vector_store(self) -> VectorStore:
         """Get the vector store (lazy initialization)."""
@@ -61,13 +86,15 @@ class DocumentProcessor:
 
         Args:
             file_path: Path to the document file
-            file_type: Type of file ('pdf', 'txt', 'md')
+            file_type: Type of file ('pdf', 'txt', 'md', 'docx')
 
         Returns:
             Extracted text content
         """
         if file_type == "pdf":
             return self._extract_pdf(file_path)
+        elif file_type == "docx":
+            return self._extract_docx(file_path)
         else:
             # txt, md - read as plain text
             return file_path.read_text(encoding="utf-8")
@@ -85,6 +112,28 @@ class DocumentProcessor:
             return "\n\n".join(pages)
         finally:
             doc.close()
+
+    def _extract_docx(self, file_path: Path) -> str:
+        """Extract text from DOCX using python-docx."""
+        import docx
+
+        doc = docx.Document(file_path)
+        parts: list[str] = []
+
+        # Extract text from paragraphs
+        for paragraph in doc.paragraphs:
+            text = paragraph.text.strip()
+            if text:
+                parts.append(text)
+
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                if cells:
+                    parts.append(" | ".join(cells))
+
+        return "\n\n".join(parts)
 
     def chunk_text(self, text: str) -> list[str]:
         """
@@ -142,7 +191,7 @@ class DocumentProcessor:
             document_id: ID of the document record
             bot_id: Bot that owns this document
             file_path: Path to the uploaded file
-            file_type: Type of file ('pdf', 'txt', 'md')
+            file_type: Type of file ('pdf', 'txt', 'md', 'docx')
 
         Returns:
             Number of chunks created
@@ -152,6 +201,9 @@ class DocumentProcessor:
         """
         try:
             logger.info(f"Processing document {document_id} for bot {bot_id}")
+
+            # Broadcast processing start
+            await self._broadcast_status(bot_id, document_id, "processing")
 
             # Step 1: Extract text
             logger.debug(f"Extracting text from {file_path}")
@@ -204,11 +256,21 @@ class DocumentProcessor:
             )
 
             logger.info(f"Document {document_id} processed: {len(doc_chunks)} chunks")
+
+            # Broadcast ready status
+            await self._broadcast_status(
+                bot_id, document_id, "ready", chunk_count=len(doc_chunks)
+            )
+
             return len(doc_chunks)
 
         except Exception as e:
             logger.error(f"Failed to process document {document_id}: {e}")
             await self._repo.update_document_status(document_id, DocumentStatus.FAILED)
+
+            # Broadcast failure
+            await self._broadcast_status(bot_id, document_id, "failed")
+
             raise
 
 
@@ -217,8 +279,14 @@ _processor: DocumentProcessor | None = None
 
 
 def get_document_processor() -> DocumentProcessor:
-    """Get the shared DocumentProcessor instance."""
+    """Get the shared DocumentProcessor instance (config-aware)."""
     global _processor
     if _processor is None:
-        _processor = DocumentProcessor()
+        from cachibot.config import Config
+
+        config = Config.load()
+        _processor = DocumentProcessor(
+            chunk_size=config.knowledge.chunk_size,
+            chunk_overlap=config.knowledge.chunk_overlap,
+        )
     return _processor
