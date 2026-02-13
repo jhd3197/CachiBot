@@ -45,6 +45,7 @@ from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
+from cachibot.services.scheduler_service import get_scheduler_service
 from cachibot.storage.database import close_db, init_db
 
 # Find the frontend dist directory
@@ -73,9 +74,14 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass  # Don't fail startup if reconnection fails
 
+    # Start the scheduler service (polls for due schedules & reminders)
+    scheduler = get_scheduler_service()
+    await scheduler.start()
+
     yield
 
     # Shutdown
+    await scheduler.stop()
     # Disconnect all platform adapters
     await platform_manager.disconnect_all()
     await close_db()

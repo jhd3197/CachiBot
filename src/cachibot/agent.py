@@ -62,6 +62,9 @@ class CachibotAgent:
     # Bot identity (needed by work management and platform plugins)
     bot_id: str | None = None
 
+    # Chat context (auto-captured for scheduling/reminders)
+    chat_id: str | None = None
+
     # Multi-model slot configuration (e.g., {"default": "...", "image": "..."})
     bot_models: dict | None = None
 
@@ -100,6 +103,7 @@ class CachibotAgent:
             config=self.config,
             sandbox=self.sandbox,
             bot_id=self.bot_id,
+            chat_id=self.chat_id,
             tool_configs=self.tool_configs or {},
             bot_models=self.bot_models,
         )

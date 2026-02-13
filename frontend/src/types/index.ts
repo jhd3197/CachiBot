@@ -348,6 +348,7 @@ export type WSMessageType =
   | 'tool_end'
   | 'message'
   | 'platform_message'
+  | 'scheduled_notification'
   | 'approval_needed'
   | 'usage'
   | 'error'
@@ -420,6 +421,12 @@ export interface PlatformMessagePayload {
 export interface ErrorPayload {
   message: string
   code?: string
+}
+
+export interface ScheduledNotificationPayload {
+  botId: string
+  chatId?: string
+  content: string
 }
 
 // Tool call tracking

@@ -13,6 +13,7 @@ import type {
   ToolEndPayload,
   MessagePayload,
   PlatformMessagePayload,
+  ScheduledNotificationPayload,
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
@@ -172,6 +173,20 @@ export function useWebSocket() {
                 cost,
               })
             }
+          }
+          break
+        }
+
+        case 'scheduled_notification': {
+          const payload = msg.payload as ScheduledNotificationPayload
+          console.log('[WS] Scheduled notification:', payload)
+          if (payload.chatId) {
+            addMessage(payload.chatId, {
+              id: `sched-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              role: 'assistant',
+              content: `[Scheduled] ${payload.content}`,
+              timestamp: new Date().toISOString(),
+            })
           }
           break
         }
