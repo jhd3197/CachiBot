@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
+from cachibot.config import Config
 from cachibot.models.bot import Bot
 from cachibot.models.command import (
     BOT_TEMPLATES,
@@ -424,13 +425,17 @@ class CommandProcessor:
         try:
             # Create the bot
             now = datetime.utcnow()
+            try:
+                default_model = Config.load().agent.model
+            except Exception:
+                default_model = "moonshot/kimi-k2.5"
             bot = Bot(
                 id=str(uuid.uuid4()),
                 name=name,
                 description=description,
                 icon="bot",
                 color="#22c55e",
-                model="moonshot/kimi-k2.5",
+                model=default_model,
                 systemPrompt=template["system_prompt"],
                 capabilities={},
                 createdAt=now,

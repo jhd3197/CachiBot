@@ -46,7 +46,7 @@ export const DEFAULT_BOT_SETTINGS: Pick<Bot, 'name' | 'description' | 'icon' | '
   description: 'The Armored AI Agent - your general-purpose assistant',
   icon: 'shield' as const,
   color: '#22c55e',
-  model: 'moonshot/kimi-k2.5',
+  model: '',
   systemPrompt: `You are CachiBot, a helpful AI assistant created by Juan Almonte.
 
 ## About Your Name
