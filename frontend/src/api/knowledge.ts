@@ -298,6 +298,14 @@ export async function searchKnowledge(
   })
 }
 
+export async function reindexDocuments(
+  botId: string
+): Promise<{ status: string; documents_queued: number }> {
+  return request(`/${botId}/knowledge/reindex`, {
+    method: 'POST',
+  })
+}
+
 export async function retryDocument(
   botId: string,
   documentId: string
@@ -325,6 +333,7 @@ export const knowledgeApi = {
     get: getDocument,
     delete: deleteDocument,
     retry: retryDocument,
+    reindex: reindexDocuments,
     getChunks: getDocumentChunks,
   },
   instructions: {

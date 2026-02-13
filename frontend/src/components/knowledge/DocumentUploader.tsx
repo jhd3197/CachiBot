@@ -12,7 +12,7 @@ interface DocumentUploaderProps {
   botId: string
 }
 
-const ALLOWED_TYPES = ['.pdf', '.txt', '.md']
+const ALLOWED_TYPES = ['.pdf', '.txt', '.md', '.docx']
 const MAX_SIZE_MB = 10
 
 export function DocumentUploader({ botId }: DocumentUploaderProps) {
@@ -107,7 +107,7 @@ export function DocumentUploader({ botId }: DocumentUploaderProps) {
               {isDragging ? 'Drop file here' : 'Drag & drop or click to upload'}
             </p>
             <p className="text-xs text-zinc-500">
-              PDF, TXT, or MD files up to {MAX_SIZE_MB}MB
+              PDF, TXT, MD, or DOCX files up to {MAX_SIZE_MB}MB
             </p>
           </div>
         )}

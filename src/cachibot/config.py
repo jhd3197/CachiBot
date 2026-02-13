@@ -117,6 +117,18 @@ class DisplayConfig:
 
 
 @dataclass
+class KnowledgeConfig:
+    """Knowledge base / RAG pipeline configuration."""
+
+    chunk_size: int = 500  # Target words per chunk
+    chunk_overlap: int = 50  # Overlap words between chunks
+    top_k: int = 3  # Max document chunks returned per query
+    min_similarity: float = 0.3  # Minimum cosine similarity threshold
+    embedding_model: str = "BAAI/bge-small-en-v1.5"  # fastembed model name
+    max_history_messages: int = 10  # Context history limit
+
+
+@dataclass
 class AuthConfig:
     """Authentication configuration."""
 
@@ -143,6 +155,7 @@ class Config:
     sandbox: SandboxConfig = field(default_factory=SandboxConfig)
     workspace: WorkspaceConfig = field(default_factory=WorkspaceConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
+    knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
 
     # Runtime paths
@@ -307,6 +320,20 @@ class Config:
                 self.display.show_cost = display_data["show_cost"]
             if "style" in display_data:
                 self.display.style = display_data["style"]
+
+        if knowledge_data := data.get("knowledge"):
+            if "chunk_size" in knowledge_data:
+                self.knowledge.chunk_size = knowledge_data["chunk_size"]
+            if "chunk_overlap" in knowledge_data:
+                self.knowledge.chunk_overlap = knowledge_data["chunk_overlap"]
+            if "top_k" in knowledge_data:
+                self.knowledge.top_k = knowledge_data["top_k"]
+            if "min_similarity" in knowledge_data:
+                self.knowledge.min_similarity = knowledge_data["min_similarity"]
+            if "embedding_model" in knowledge_data:
+                self.knowledge.embedding_model = knowledge_data["embedding_model"]
+            if "max_history_messages" in knowledge_data:
+                self.knowledge.max_history_messages = knowledge_data["max_history_messages"]
 
         if auth_data := data.get("auth"):
             if "jwt_secret" in auth_data:

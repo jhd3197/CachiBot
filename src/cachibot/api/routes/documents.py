@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/bots/{bot_id}/documents", tags=["documents"])
 # Configuration
 UPLOAD_DIR = Path.home() / ".cachibot" / "uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md"}
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md", ".docx"}
 
 
 class DocumentResponse(BaseModel):
@@ -90,7 +90,7 @@ async def upload_document(
     """
     Upload a document to the bot's knowledge base.
 
-    Accepts PDF, TXT, and MD files up to 10MB.
+    Accepts PDF, TXT, MD, and DOCX files up to 10MB.
     Processing happens in the background.
     """
     repo = KnowledgeRepository()

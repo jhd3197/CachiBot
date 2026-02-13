@@ -21,6 +21,7 @@ class WSMessageType(str, Enum):
     MESSAGE = "message"
     PLATFORM_MESSAGE = "platform_message"  # For Telegram/Discord message sync
     SCHEDULED_NOTIFICATION = "scheduled_notification"  # Fired by the scheduler
+    DOCUMENT_STATUS = "document_status"  # Document processing progress
     APPROVAL_NEEDED = "approval_needed"
     USAGE = "usage"
     ERROR = "error"
@@ -207,6 +208,27 @@ class WSMessage(BaseModel):
         if metadata:
             payload["metadata"] = metadata
         return cls(type=WSMessageType.PLATFORM_MESSAGE, payload=payload)
+
+    @classmethod
+    def document_status(
+        cls,
+        bot_id: str,
+        document_id: str,
+        status: str,
+        chunk_count: int | None = None,
+        filename: str | None = None,
+    ) -> "WSMessage":
+        """Create a document processing status event."""
+        payload: dict[str, Any] = {
+            "botId": bot_id,
+            "documentId": document_id,
+            "status": status,
+        }
+        if chunk_count is not None:
+            payload["chunkCount"] = chunk_count
+        if filename:
+            payload["filename"] = filename
+        return cls(type=WSMessageType.DOCUMENT_STATUS, payload=payload)
 
     @classmethod
     def scheduled_notification(
