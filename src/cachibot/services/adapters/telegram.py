@@ -7,11 +7,12 @@ Uses aiogram library for Telegram Bot API integration.
 import asyncio
 import io
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,15 @@ async def _download_file(bot: Any, file_id: str) -> bytes:
     return buf.getvalue()
 
 
+@AdapterRegistry.register("telegram")
 class TelegramAdapter(BasePlatformAdapter):
     """Telegram bot adapter using aiogram."""
 
     platform = ConnectionPlatform.telegram
+    platform_name: ClassVar[str] = "telegram"
+    display_name: ClassVar[str] = "Telegram"
+    required_config: ClassVar[list[str]] = ["token"]
+    optional_config: ClassVar[dict[str, str]] = {"strip_markdown": "Strip markdown from responses"}
 
     def __init__(
         self,
@@ -38,6 +44,10 @@ class TelegramAdapter(BasePlatformAdapter):
         self._bot: Any = None
         self._dispatcher: Any = None
         self._polling_task: asyncio.Task | None = None
+
+    @property
+    def max_message_length(self) -> int:
+        return 4096
 
     async def connect(self) -> None:
         """Start the Telegram bot with polling."""
@@ -75,15 +85,11 @@ class TelegramAdapter(BasePlatformAdapter):
                         # Largest photo is the last in the list
                         photo = message.photo[-1]
                         data = await _download_file(self._bot, photo.file_id)
-                        attachments.append(
-                            IncomingMedia("image/jpeg", data, "photo.jpg")
-                        )
+                        attachments.append(IncomingMedia("image/jpeg", data, "photo.jpg"))
 
                     if message.voice:
                         data = await _download_file(self._bot, message.voice.file_id)
-                        attachments.append(
-                            IncomingMedia("audio/ogg", data, "voice.ogg")
-                        )
+                        attachments.append(IncomingMedia("audio/ogg", data, "voice.ogg"))
 
                     if message.audio:
                         data = await _download_file(self._bot, message.audio.file_id)
@@ -105,9 +111,7 @@ class TelegramAdapter(BasePlatformAdapter):
 
                     if message.sticker and not message.sticker.is_animated:
                         data = await _download_file(self._bot, message.sticker.file_id)
-                        attachments.append(
-                            IncomingMedia("image/webp", data, "sticker.webp")
-                        )
+                        attachments.append(IncomingMedia("image/webp", data, "sticker.webp"))
 
                     # Skip if no text and no media
                     if not text and not attachments:
@@ -133,9 +137,7 @@ class TelegramAdapter(BasePlatformAdapter):
                     if message.reply_to_message:
                         reply = message.reply_to_message
                         metadata["reply_to_platform_msg_id"] = str(reply.message_id)
-                        metadata["reply_to_text"] = (
-                            reply.text or reply.caption or ""
-                        )
+                        metadata["reply_to_text"] = reply.text or reply.caption or ""
 
                     # Call the message handler to get bot response
                     # Commands are intercepted by PlatformManager's CommandProcessor
@@ -223,9 +225,7 @@ class TelegramAdapter(BasePlatformAdapter):
         self._polling_task = None
         logger.info(f"Telegram adapter stopped for connection {self.connection_id}")
 
-    async def _send_platform_response(
-        self, chat_id: int, response: PlatformResponse
-    ) -> None:
+    async def _send_platform_response(self, chat_id: int, response: PlatformResponse) -> None:
         """Send a PlatformResponse with media and text to a Telegram chat."""
         from aiogram.types import BufferedInputFile
 
@@ -236,13 +236,9 @@ class TelegramAdapter(BasePlatformAdapter):
                 caption = item.metadata_text or item.alt_text or None
 
                 if item.media_type.startswith("image/"):
-                    await self._bot.send_photo(
-                        chat_id=chat_id, photo=input_file, caption=caption
-                    )
+                    await self._bot.send_photo(chat_id=chat_id, photo=input_file, caption=caption)
                 elif item.media_type.startswith("audio/"):
-                    await self._bot.send_voice(
-                        chat_id=chat_id, voice=input_file, caption=caption
-                    )
+                    await self._bot.send_voice(chat_id=chat_id, voice=input_file, caption=caption)
                 else:
                     await self._bot.send_document(
                         chat_id=chat_id, document=input_file, caption=caption
@@ -250,11 +246,12 @@ class TelegramAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.error(f"Failed to send Telegram media ({item.media_type}): {e}")
 
-        # Send text portion
+        # Send text portion with chunking
         if response.text:
             formatted = self.format_outgoing_message(response.text)
             if formatted:
-                await self._bot.send_message(chat_id=chat_id, text=formatted)
+                for chunk in self.chunk_message(formatted):
+                    await self._bot.send_message(chat_id=chat_id, text=chunk)
 
     async def send_message(self, chat_id: str, message: str) -> bool:
         """Send a message to a Telegram chat."""
@@ -264,7 +261,8 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             # Strip markdown if configured for this connection
             formatted_message = self.format_outgoing_message(message)
-            await self._bot.send_message(chat_id=int(chat_id), text=formatted_message)
+            for chunk in self.chunk_message(formatted_message):
+                await self._bot.send_message(chat_id=int(chat_id), text=chunk)
             return True
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
