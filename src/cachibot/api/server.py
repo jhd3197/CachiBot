@@ -37,6 +37,10 @@ from cachibot.api.routes import (
     update,
     work,
 )
+from cachibot.api.routes.webhooks import line as wh_line
+from cachibot.api.routes.webhooks import teams as wh_teams
+from cachibot.api.routes.webhooks import viber as wh_viber
+from cachibot.api.routes.webhooks import whatsapp as wh_whatsapp
 from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
 from cachibot.services.message_processor import get_message_processor
@@ -141,6 +145,12 @@ def create_app(
     app.include_router(ws_router, tags=["websocket"])
     app.include_router(voice_ws_router, tags=["voice"])
     app.include_router(room_ws_router, tags=["room-websocket"])
+
+    # Platform webhook routes
+    app.include_router(wh_whatsapp.router, tags=["webhooks"])
+    app.include_router(wh_teams.router, tags=["webhooks"])
+    app.include_router(wh_line.router, tags=["webhooks"])
+    app.include_router(wh_viber.router, tags=["webhooks"])
 
     # Check if frontend dist exists
     if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
