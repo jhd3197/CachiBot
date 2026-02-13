@@ -20,6 +20,7 @@ class WSMessageType(str, Enum):
     TOOL_END = "tool_end"
     MESSAGE = "message"
     PLATFORM_MESSAGE = "platform_message"  # For Telegram/Discord message sync
+    SCHEDULED_NOTIFICATION = "scheduled_notification"  # Fired by the scheduler
     APPROVAL_NEEDED = "approval_needed"
     USAGE = "usage"
     ERROR = "error"
@@ -206,3 +207,19 @@ class WSMessage(BaseModel):
         if metadata:
             payload["metadata"] = metadata
         return cls(type=WSMessageType.PLATFORM_MESSAGE, payload=payload)
+
+    @classmethod
+    def scheduled_notification(
+        cls,
+        bot_id: str,
+        chat_id: str | None,
+        content: str,
+    ) -> "WSMessage":
+        """Create a scheduled notification (fired by the scheduler service)."""
+        payload: dict[str, Any] = {
+            "botId": bot_id,
+            "content": content,
+        }
+        if chat_id:
+            payload["chatId"] = chat_id
+        return cls(type=WSMessageType.SCHEDULED_NOTIFICATION, payload=payload)

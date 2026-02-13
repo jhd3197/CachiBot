@@ -51,6 +51,8 @@ dependencies = [
     "pymupdf>=1.26.0",
     "aiofiles>=24.1.0",
     "python-multipart>=0.0.9",
+    # Scheduling
+    "croniter>=2.0.0",
     # Platform integrations
     "aiogram>=3.0.0",
     "discord.py>=2.0.0",

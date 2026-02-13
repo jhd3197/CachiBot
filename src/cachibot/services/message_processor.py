@@ -323,6 +323,7 @@ class MessageProcessor:
             system_prompt_override=enhanced_prompt,
             capabilities=bot.capabilities or None,
             bot_id=bot_id,
+            chat_id=chat_id,
             bot_models=bot.models,
         )
 
