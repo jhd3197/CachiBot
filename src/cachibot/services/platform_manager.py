@@ -11,8 +11,7 @@ from collections.abc import Awaitable, Callable
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
 from cachibot.models.platform import PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
-from cachibot.services.adapters.discord import DiscordAdapter
-from cachibot.services.adapters.telegram import TelegramAdapter
+from cachibot.services.adapters.registry import AdapterRegistry
 from cachibot.services.command_processor import get_command_processor
 from cachibot.storage.repository import ConnectionRepository
 
@@ -99,15 +98,9 @@ class PlatformManager:
             return PlatformResponse(text="Sorry, I encountered an error.")
 
     def _create_adapter(self, connection: BotConnection) -> BasePlatformAdapter:
-        """Create an adapter for the given connection."""
+        """Create an adapter for the given connection via the registry."""
         handler: MessageHandler = self._handle_message
-
-        if connection.platform == ConnectionPlatform.telegram:
-            return TelegramAdapter(connection, on_message=handler)
-        elif connection.platform == ConnectionPlatform.discord:
-            return DiscordAdapter(connection, on_message=handler)
-        else:
-            raise ValueError(f"Unknown platform: {connection.platform}")
+        return AdapterRegistry.create(connection, on_message=handler)
 
     async def connect(self, connection_id: str) -> None:
         """
@@ -196,7 +189,7 @@ class PlatformManager:
     async def send_to_bot_connection(
         self,
         bot_id: str,
-        platform: ConnectionPlatform,
+        platform: ConnectionPlatform | str,
         chat_id: str,
         message: str,
     ) -> bool:
@@ -205,17 +198,20 @@ class PlatformManager:
 
         Args:
             bot_id: The bot ID
-            platform: The platform to send to
+            platform: The platform to send to (ConnectionPlatform enum or string name)
             chat_id: The chat/channel ID
             message: The message content
 
         Returns:
             True if sent successfully
         """
+        # Normalize platform to string for comparison
+        platform_value = platform.value if isinstance(platform, ConnectionPlatform) else platform
+
         # Find connection for this bot and platform
         connections = await self._repo.get_connections_by_bot(bot_id)
         for conn in connections:
-            if conn.platform == platform and conn.status == ConnectionStatus.connected:
+            if conn.platform.value == platform_value and conn.status == ConnectionStatus.connected:
                 return await self.send_message(conn.id, chat_id, message)
         return False
 
