@@ -1,29 +1,16 @@
 /**
  * BotConnectionsPanel Component
  *
- * UI for managing bot platform connections (Telegram, Discord).
+ * UI for managing bot platform connections.
+ * Platform list and config fields are driven dynamically by the AdapterRegistry.
  */
 
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react'
 import * as connectionsApi from '../../api/connections'
-import type { Connection, ConnectionPlatform } from '../../api/connections'
+import type { Connection, ConnectionPlatform, PlatformMeta } from '../../api/connections'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { syncBot, getPlatformChatsIncludingArchived, unarchivePlatformChat, deletePlatformChat, type PlatformChat } from '../../api/client'
-
-// Platform info for UI
-const PLATFORMS: Record<ConnectionPlatform, { name: string; description: string; tokenLabel: string }> = {
-  telegram: {
-    name: 'Telegram',
-    description: 'Connect via Telegram Bot API',
-    tokenLabel: 'Bot Token (from @BotFather)',
-  },
-  discord: {
-    name: 'Discord',
-    description: 'Connect via Discord Bot',
-    tokenLabel: 'Bot Token (from Discord Developer Portal)',
-  },
-}
 
 interface BotConnectionsPanelProps {
   botId: string
@@ -31,6 +18,7 @@ interface BotConnectionsPanelProps {
 
 export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
   const [connections, setConnections] = useState<Connection[]>([])
+  const [platforms, setPlatforms] = useState<Record<string, PlatformMeta>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -44,38 +32,52 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
   // Form state
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formPlatform, setFormPlatform] = useState<ConnectionPlatform>('telegram')
+  const [formPlatform, setFormPlatform] = useState<ConnectionPlatform>('')
   const [formName, setFormName] = useState('')
-  const [formToken, setFormToken] = useState('')
-  const [formStripMarkdown, setFormStripMarkdown] = useState(false)
+  const [formConfig, setFormConfig] = useState<Record<string, string>>({})
 
-  // Load connections on mount
+  // Load connections and platforms in parallel
   useEffect(() => {
-    const loadConnections = async () => {
+    const load = async () => {
       setLoading(true)
       try {
-        const data = await connectionsApi.getConnections(botId)
-        setConnections(data)
+        const [conns, plats] = await Promise.all([
+          connectionsApi.getConnections(botId),
+          connectionsApi.getPlatforms(),
+        ])
+        setConnections(conns)
+        setPlatforms(plats)
+        // Default to first platform
+        const platformIds = Object.keys(plats)
+        if (platformIds.length > 0 && !formPlatform) {
+          setFormPlatform(platformIds[0])
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load connections')
       } finally {
         setLoading(false)
       }
     }
-    loadConnections()
+    load()
   }, [botId])
 
+  const platformIds = Object.keys(platforms)
+
   const handleAdd = async () => {
-    if (!formName.trim() || !formToken.trim()) return
+    if (!formName.trim() || !formPlatform) return
+    // Validate required config
+    const meta = platforms[formPlatform]
+    if (meta) {
+      for (const key of meta.required_config) {
+        if (!formConfig[key]?.trim()) return
+      }
+    }
     setError(null)
     try {
       const connection = await connectionsApi.createConnection(botId, {
         platform: formPlatform,
         name: formName.trim(),
-        config: {
-          token: formToken.trim(),
-          strip_markdown: formStripMarkdown ? 'true' : 'false',
-        },
+        config: formConfig,
       })
       setConnections((prev) => [connection, ...prev])
       cancelForm()
@@ -89,14 +91,14 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     setError(null)
     try {
       const updates: connectionsApi.ConnectionUpdate = { name: formName.trim() }
-      // Always update strip_markdown, and include token if provided
-      const configUpdates: Record<string, string> = {
-        strip_markdown: formStripMarkdown ? 'true' : 'false',
+      // Only include config fields that have values
+      const configUpdates: Record<string, string> = {}
+      for (const [key, val] of Object.entries(formConfig)) {
+        if (val.trim()) configUpdates[key] = val.trim()
       }
-      if (formToken.trim()) {
-        configUpdates.token = formToken.trim()
+      if (Object.keys(configUpdates).length > 0) {
+        updates.config = configUpdates
       }
-      updates.config = configUpdates
       const updated = await connectionsApi.updateConnection(botId, connectionId, updates)
       setConnections((prev) => prev.map((c) => (c.id === connectionId ? updated : c)))
       cancelForm()
@@ -120,7 +122,6 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     setActionLoading(connectionId)
     try {
       // Ensure bot is synced to backend before connecting
-      // (required for platform message processing)
       const bot = useBotStore.getState().bots.find((b) => b.id === botId)
       if (bot && bot.systemPrompt) {
         await syncBot({
@@ -163,26 +164,34 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     setEditingId(connection.id)
     setFormPlatform(connection.platform)
     setFormName(connection.name)
-    setFormToken('') // Don't show existing token for security
-    setFormStripMarkdown(connection.strip_markdown ?? false)
+    // Reset config — don't show existing secrets
+    const meta = platforms[connection.platform]
+    const cfg: Record<string, string> = {}
+    if (meta) {
+      for (const key of meta.required_config) cfg[key] = ''
+      for (const key of Object.keys(meta.optional_config)) {
+        // Carry over boolean-style options from the connection
+        cfg[key] = connection.strip_markdown && key === 'strip_markdown' ? 'true' : ''
+      }
+    }
+    setFormConfig(cfg)
     setIsAdding(false)
   }
 
   const startAdd = () => {
     setIsAdding(true)
     setEditingId(null)
-    setFormPlatform('telegram')
+    const first = platformIds[0] || ''
+    setFormPlatform(first)
     setFormName('')
-    setFormToken('')
-    setFormStripMarkdown(false)
+    setFormConfig({})
   }
 
   const cancelForm = () => {
     setIsAdding(false)
     setEditingId(null)
     setFormName('')
-    setFormToken('')
-    setFormStripMarkdown(false)
+    setFormConfig({})
   }
 
   const getStatusColor = (status: Connection['status']) => {
@@ -211,12 +220,15 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     }
   }
 
+  const getPlatformDisplayName = (platform: string) => {
+    return platforms[platform]?.display_name || platform
+  }
+
   // Load archived chats when section is expanded
   const loadArchivedChats = async () => {
     setLoadingArchived(true)
     try {
       const allChats = await getPlatformChatsIncludingArchived(botId)
-      // Filter to only archived platform chats
       const archived = allChats.filter((c) => c.archived && c.platform)
       setArchivedChats(archived)
     } catch (e) {
@@ -239,7 +251,6 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     try {
       await unarchivePlatformChat(botId, chatId)
       setArchivedChats((prev) => prev.filter((c) => c.id !== chatId))
-      // Sync platform chats to bring back the unarchived chat
       useChatStore.getState().syncPlatformChats(botId)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to unarchive chat')
@@ -265,6 +276,47 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
 
   if (loading) {
     return <div className="text-sm text-zinc-500">Loading connections...</div>
+  }
+
+  // Render config fields for the selected platform
+  const renderConfigFields = (platformId: string, isEdit: boolean) => {
+    const meta = platforms[platformId]
+    if (!meta) return null
+
+    return (
+      <>
+        {/* Required config fields */}
+        {meta.required_config.map((key) => (
+          <div key={key} className="space-y-2">
+            <label className="block text-xs text-zinc-500">
+              {formatConfigLabel(key)}
+              {isEdit ? ' (leave blank to keep current)' : ''}
+            </label>
+            <input
+              type={isSecretField(key) ? 'password' : 'text'}
+              value={formConfig[key] || ''}
+              onChange={(e) => setFormConfig({ ...formConfig, [key]: e.target.value })}
+              placeholder={isEdit ? 'Enter new value to update...' : `Enter ${key}...`}
+              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+            />
+          </div>
+        ))}
+        {/* Optional config fields */}
+        {Object.entries(meta.optional_config).map(([key, description]) => (
+          <label key={key} className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={formConfig[key] === 'true'}
+              onChange={(e) =>
+                setFormConfig({ ...formConfig, [key]: e.target.checked ? 'true' : 'false' })
+              }
+              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-cachi-500 focus:ring-cachi-500"
+            />
+            <span className="text-xs text-zinc-400">{description}</span>
+          </label>
+        ))}
+      </>
+    )
   }
 
   return (
@@ -295,29 +347,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                     autoFocus
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-xs text-zinc-500">
-                    {PLATFORMS[connection.platform].tokenLabel} (leave blank to keep current)
-                  </label>
-                  <input
-                    type="password"
-                    value={formToken}
-                    onChange={(e) => setFormToken(e.target.value)}
-                    placeholder="Enter new token to update..."
-                    className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
-                  />
-                </div>
-                <label className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formStripMarkdown}
-                    onChange={(e) => setFormStripMarkdown(e.target.checked)}
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-cachi-500 focus:ring-cachi-500"
-                  />
-                  <span className="text-xs text-zinc-400">
-                    Strip markdown formatting (send plain text to {PLATFORMS[connection.platform].name})
-                  </span>
-                </label>
+                {renderConfigFields(connection.platform, true)}
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleUpdate(connection.id)}
@@ -343,7 +373,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-zinc-200">{connection.name}</span>
                       <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
-                        {PLATFORMS[connection.platform].name}
+                        {getPlatformDisplayName(connection.platform)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
@@ -367,7 +397,6 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {/* Connect/Disconnect toggle */}
                   {actionLoading === connection.id ? (
                     <div className="p-2">
                       <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
@@ -417,12 +446,15 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             <label className="block text-xs text-zinc-500">Platform</label>
             <select
               value={formPlatform}
-              onChange={(e) => setFormPlatform(e.target.value as ConnectionPlatform)}
+              onChange={(e) => {
+                setFormPlatform(e.target.value)
+                setFormConfig({})
+              }}
               className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
             >
-              {Object.entries(PLATFORMS).map(([id, info]) => (
+              {platformIds.map((id) => (
                 <option key={id} value={id}>
-                  {info.name} - {info.description}
+                  {platforms[id].display_name}
                 </option>
               ))}
             </select>
@@ -433,37 +465,15 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
               type="text"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
-              placeholder="My Telegram Bot"
+              placeholder={`My ${getPlatformDisplayName(formPlatform)} Bot`}
               className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
             />
           </div>
-          <div className="space-y-2">
-            <label className="block text-xs text-zinc-500">
-              {PLATFORMS[formPlatform].tokenLabel}
-            </label>
-            <input
-              type="password"
-              value={formToken}
-              onChange={(e) => setFormToken(e.target.value)}
-              placeholder="Enter bot token..."
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
-            />
-          </div>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={formStripMarkdown}
-              onChange={(e) => setFormStripMarkdown(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-cachi-500 focus:ring-cachi-500"
-            />
-            <span className="text-xs text-zinc-400">
-              Strip markdown formatting (send plain text to {PLATFORMS[formPlatform].name})
-            </span>
-          </label>
+          {renderConfigFields(formPlatform, false)}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}
-              disabled={!formName.trim() || !formToken.trim()}
+              disabled={!formName.trim() || !isFormValid()}
               className="rounded bg-cachi-600 px-3 py-1 text-xs text-white hover:bg-cachi-500 disabled:opacity-50"
             >
               Add Connection
@@ -488,7 +498,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
 
       {connections.length === 0 && !isAdding && (
         <p className="text-center text-sm text-zinc-500">
-          No connections yet. Connect your bot to Telegram or Discord.
+          No connections yet. Add a connection to a messaging platform.
         </p>
       )}
 
@@ -581,4 +591,25 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
       )}
     </div>
   )
+
+  function isFormValid(): boolean {
+    const meta = platforms[formPlatform]
+    if (!meta) return false
+    return meta.required_config.every((key) => formConfig[key]?.trim())
+  }
+}
+
+/** Format a config key into a human-readable label. */
+function formatConfigLabel(key: string): string {
+  // token -> Token, app_token -> App Token, bot_token -> Bot Token
+  return key
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+/** Determine whether a config field should be masked as a password input. */
+function isSecretField(key: string): boolean {
+  const lower = key.toLowerCase()
+  return lower.includes('token') || lower.includes('secret') || lower.includes('key')
 }

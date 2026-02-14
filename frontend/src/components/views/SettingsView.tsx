@@ -984,7 +984,7 @@ function ConnectionsSection({ botId }: { botId: string }) {
     <div className="space-y-6">
       <div>
         <p className="mb-4 text-sm text-zinc-400">
-          Connect your bot to messaging platforms like Telegram and Discord to send and receive messages.
+          Connect your bot to messaging platforms to send and receive messages.
         </p>
         <BotConnectionsPanel botId={botId} />
       </div>

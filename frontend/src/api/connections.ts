@@ -9,7 +9,7 @@ import { tryRefreshToken } from './auth'
 
 const API_BASE = '/api/bots'
 
-export type ConnectionPlatform = 'telegram' | 'discord'
+export type ConnectionPlatform = string
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 export interface Connection {
@@ -36,6 +36,14 @@ export interface ConnectionCreate {
 export interface ConnectionUpdate {
   name?: string
   config?: Record<string, string>
+}
+
+/** Metadata for a registered platform adapter. */
+export interface PlatformMeta {
+  name: string
+  display_name: string
+  required_config: string[]
+  optional_config: Record<string, string>
 }
 
 function getAuthHeader(): Record<string, string> {
@@ -101,6 +109,13 @@ async function requestNoBody(
     const data = await response.json().catch(() => ({}))
     throw new Error(data.detail || `Request failed: ${response.statusText}`)
   }
+}
+
+/**
+ * Fetch available platform adapters from the registry.
+ */
+export async function getPlatforms(): Promise<Record<string, PlatformMeta>> {
+  return request('/api/platforms')
 }
 
 /**
