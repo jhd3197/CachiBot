@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from cachibot.api.auth import require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
+from cachibot.services.adapters.registry import AdapterRegistry
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.repository import ConnectionRepository
 
@@ -99,13 +100,13 @@ async def create_connection(
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Connection name is required")
 
-    # Validate platform-specific config
-    if body.platform == ConnectionPlatform.telegram:
-        if "token" not in body.config or not body.config["token"]:
-            raise HTTPException(status_code=400, detail="Telegram bot token is required")
-    elif body.platform == ConnectionPlatform.discord:
-        if "token" not in body.config or not body.config["token"]:
-            raise HTTPException(status_code=400, detail="Discord bot token is required")
+    # Validate platform-specific config via the adapter registry
+    adapter_cls = AdapterRegistry.get_adapter_class(body.platform.value)
+    if not adapter_cls:
+        raise HTTPException(status_code=400, detail=f"Unsupported platform: {body.platform.value}")
+    errors = adapter_cls.validate_config(body.config)
+    if errors:
+        raise HTTPException(status_code=400, detail="; ".join(errors))
 
     now = datetime.utcnow()
     connection = BotConnection(

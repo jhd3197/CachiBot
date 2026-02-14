@@ -211,6 +211,7 @@ async def websocket_endpoint(
                     system_prompt_override=enhanced_prompt,
                     capabilities=capabilities,
                     bot_id=bot_id,
+                    chat_id=chat_id,
                     bot_models=bot_models,
                     tool_configs=merged_tool_configs,
                     on_approval_needed=on_approval,

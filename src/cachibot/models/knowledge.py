@@ -46,7 +46,7 @@ class Document(BaseModel):
     id: str
     bot_id: str
     filename: str
-    file_type: str  # 'pdf' | 'txt' | 'md'
+    file_type: str  # 'pdf' | 'txt' | 'md' | 'docx'
     file_hash: str
     file_size: int
     chunk_count: int = 0

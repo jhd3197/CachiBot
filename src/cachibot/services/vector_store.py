@@ -208,8 +208,11 @@ _vector_store: VectorStore | None = None
 
 
 def get_vector_store() -> VectorStore:
-    """Get the shared VectorStore instance."""
+    """Get the shared VectorStore instance (config-aware)."""
     global _vector_store
     if _vector_store is None:
-        _vector_store = VectorStore()
+        from cachibot.config import Config
+
+        config = Config.load()
+        _vector_store = VectorStore(model_name=config.knowledge.embedding_model)
     return _vector_store

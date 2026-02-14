@@ -4,8 +4,8 @@
  * Displays knowledge base statistics for a bot in a card grid layout.
  */
 
-import { useEffect } from 'react'
-import { FileText, Puzzle, StickyNote, BookOpen, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileText, Puzzle, StickyNote, BookOpen, RefreshCw, RotateCcw } from 'lucide-react'
 import { useKnowledgeStore, type KnowledgeStats as KnowledgeStatsType } from '../../stores/knowledge'
 
 interface KnowledgeStatsProps {
@@ -56,10 +56,23 @@ function buildDocumentSubtitle(stats: KnowledgeStatsType): string {
 }
 
 export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
-  const { stats, loadingStats, loadStats } = useKnowledgeStore()
+  const { stats, loadingStats, loadStats, reindexDocuments } = useKnowledgeStore()
 
   const botStats = stats[botId]
   const isLoading = loadingStats[botId]
+  const [reindexing, setReindexing] = useState(false)
+  const [confirmReindex, setConfirmReindex] = useState(false)
+
+  const handleReindex = async () => {
+    setConfirmReindex(false)
+    setReindexing(true)
+    try {
+      await reindexDocuments(botId)
+      await loadStats(botId)
+    } finally {
+      setReindexing(false)
+    }
+  }
 
   useEffect(() => {
     loadStats(botId)
@@ -86,14 +99,44 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-zinc-300">Knowledge Base</h3>
-        <button
-          onClick={() => loadStats(botId)}
-          disabled={isLoading}
-          className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
-          title="Refresh stats"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          {botStats.total_documents > 0 && !confirmReindex && (
+            <button
+              onClick={() => setConfirmReindex(true)}
+              disabled={reindexing}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+              title="Re-index all documents"
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${reindexing ? 'animate-spin' : ''}`} />
+              {reindexing ? 'Re-indexing...' : 'Re-index'}
+            </button>
+          )}
+          {confirmReindex && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-zinc-400">Re-index all?</span>
+              <button
+                onClick={handleReindex}
+                className="px-2 py-0.5 text-xs rounded bg-cachi-600 text-white hover:bg-cachi-500"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setConfirmReindex(false)}
+                className="px-2 py-0.5 text-xs rounded border border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+              >
+                No
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => loadStats(botId)}
+            disabled={isLoading}
+            className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+            title="Refresh stats"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

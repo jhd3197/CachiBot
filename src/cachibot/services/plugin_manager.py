@@ -22,6 +22,8 @@ from cachibot.plugins import (
     CachibotPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
+    JobToolsPlugin,
+    KnowledgePlugin,
     NotesPlugin,
     PlatformPlugin,
     PluginContext,
@@ -42,13 +44,13 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "webAccess": [WebPlugin, HttpPlugin],
     "dataOperations": [SqlPlugin, CompressionPlugin],
     "connections": [PlatformPlugin],
-    "workManagement": [WorkManagementPlugin],
+    "workManagement": [WorkManagementPlugin, JobToolsPlugin],
     "imageGeneration": [ImageGenerationPlugin],
     "audioGeneration": [AudioGenerationPlugin],
 }
 
 # Plugins that are always enabled regardless of capabilities
-ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin]
+ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin, KnowledgePlugin]
 
 
 def plugins_to_registry(
