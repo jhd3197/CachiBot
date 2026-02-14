@@ -1,11 +1,15 @@
 """
 Repository Classes for Data Access
 
-Provides async CRUD operations for messages and jobs.
+Provides async CRUD operations using SQLAlchemy ORM with AsyncSession.
+Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 """
 
-import json
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from cachibot.models.bot import Bot
 from cachibot.models.capabilities import Contact
@@ -23,7 +27,20 @@ from cachibot.models.knowledge import (
     NoteSource,
 )
 from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSource
-from cachibot.storage.database import get_db
+from cachibot.storage.db import async_session_maker
+from cachibot.storage.models.bot import Bot as BotModel
+from cachibot.storage.models.chat import Chat as ChatModel
+from cachibot.storage.models.connection import BotConnection as BotConnectionModel
+from cachibot.storage.models.contact import BotContact as BotContactModel
+from cachibot.storage.models.job import Job as JobModel
+from cachibot.storage.models.knowledge import (
+    BotDocument as BotDocumentModel,
+    BotInstruction as BotInstructionModel,
+    BotNote as BotNoteModel,
+    DocChunk as DocChunkModel,
+)
+from cachibot.storage.models.message import BotMessage as BotMessageModel, Message as MessageModel
+from cachibot.storage.models.skill import BotSkill as BotSkillModel, Skill as SkillModel
 
 
 class MessageRepository:
@@ -31,42 +48,34 @@ class MessageRepository:
 
     async def save_message(self, message: ChatMessage) -> None:
         """Save a message to the database."""
-        db = await get_db()
-
-        await db.execute(
-            """
-            INSERT INTO messages (id, role, content, timestamp, metadata)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                message.id,
-                message.role.value,
-                message.content,
-                message.timestamp.isoformat(),
-                json.dumps(message.metadata),
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = MessageModel(
+                id=message.id,
+                role=message.role.value,
+                content=message.content,
+                timestamp=message.timestamp,
+                metadata=message.metadata,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_message(self, message_id: str) -> ChatMessage | None:
         """Get a message by ID."""
-        db = await get_db()
-
-        async with db.execute(
-            "SELECT * FROM messages WHERE id = ?",
-            (message_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(MessageModel).where(MessageModel.id == message_id)
+            )
+            row = result.scalar_one_or_none()
 
         if row is None:
             return None
 
         return ChatMessage(
-            id=row["id"],
-            role=MessageRole(row["role"]),
-            content=row["content"],
-            timestamp=datetime.fromisoformat(row["timestamp"]),
-            metadata=json.loads(row["metadata"]),
+            id=row.id,
+            role=MessageRole(row.role),
+            content=row.content,
+            timestamp=row.timestamp,
+            metadata=row.metadata,
         )
 
     async def get_messages(
@@ -75,43 +84,39 @@ class MessageRepository:
         offset: int = 0,
     ) -> list[ChatMessage]:
         """Get messages with pagination."""
-        db = await get_db()
-
-        async with db.execute(
-            """
-            SELECT * FROM messages
-            ORDER BY timestamp DESC
-            LIMIT ? OFFSET ?
-            """,
-            (limit, offset),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(MessageModel)
+                .order_by(MessageModel.timestamp.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = result.scalars().all()
 
         return [
             ChatMessage(
-                id=row["id"],
-                role=MessageRole(row["role"]),
-                content=row["content"],
-                timestamp=datetime.fromisoformat(row["timestamp"]),
-                metadata=json.loads(row["metadata"]),
+                id=row.id,
+                role=MessageRole(row.role),
+                content=row.content,
+                timestamp=row.timestamp,
+                metadata=row.metadata,
             )
             for row in reversed(rows)  # Return in chronological order
         ]
 
     async def get_message_count(self) -> int:
         """Get total message count."""
-        db = await get_db()
-
-        async with db.execute("SELECT COUNT(*) as count FROM messages") as cursor:
-            row = await cursor.fetchone()
-
-        return row["count"] if row else 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(func.count()).select_from(MessageModel)
+            )
+            return result.scalar_one()
 
     async def clear_messages(self) -> None:
         """Delete all messages."""
-        db = await get_db()
-        await db.execute("DELETE FROM messages")
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(delete(MessageModel))
+            await session.commit()
 
 
 class JobRepository:
@@ -119,64 +124,45 @@ class JobRepository:
 
     async def save_job(self, job: Job) -> None:
         """Save a job to the database."""
-        db = await get_db()
-
-        await db.execute(
-            """
-            INSERT INTO jobs (id, status, message_id, created_at, started_at,
-                completed_at, result, error, progress)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                job.id,
-                job.status.value,
-                job.message_id,
-                job.created_at.isoformat(),
-                job.started_at.isoformat() if job.started_at else None,
-                job.completed_at.isoformat() if job.completed_at else None,
-                json.dumps(job.result) if job.result else None,
-                job.error,
-                job.progress,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = JobModel(
+                id=job.id,
+                status=job.status.value,
+                message_id=job.message_id,
+                created_at=job.created_at,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+                result=job.result,
+                error=job.error,
+                progress=job.progress,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def update_job(self, job: Job) -> None:
         """Update an existing job."""
-        db = await get_db()
-
-        await db.execute(
-            """
-            UPDATE jobs SET
-                status = ?,
-                started_at = ?,
-                completed_at = ?,
-                result = ?,
-                error = ?,
-                progress = ?
-            WHERE id = ?
-            """,
-            (
-                job.status.value,
-                job.started_at.isoformat() if job.started_at else None,
-                job.completed_at.isoformat() if job.completed_at else None,
-                json.dumps(job.result) if job.result else None,
-                job.error,
-                job.progress,
-                job.id,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(
+                update(JobModel)
+                .where(JobModel.id == job.id)
+                .values(
+                    status=job.status.value,
+                    started_at=job.started_at,
+                    completed_at=job.completed_at,
+                    result=job.result,
+                    error=job.error,
+                    progress=job.progress,
+                )
+            )
+            await session.commit()
 
     async def get_job(self, job_id: str) -> Job | None:
         """Get a job by ID."""
-        db = await get_db()
-
-        async with db.execute(
-            "SELECT * FROM jobs WHERE id = ?",
-            (job_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(JobModel).where(JobModel.id == job_id)
+            )
+            row = result.scalar_one_or_none()
 
         if row is None:
             return None
@@ -189,46 +175,29 @@ class JobRepository:
         limit: int = 50,
     ) -> list[Job]:
         """Get jobs with optional status filter."""
-        db = await get_db()
-
+        stmt = select(JobModel)
         if status:
-            async with db.execute(
-                """
-                SELECT * FROM jobs
-                WHERE status = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (status.value, limit),
-            ) as cursor:
-                rows = await cursor.fetchall()
-        else:
-            async with db.execute(
-                """
-                SELECT * FROM jobs
-                ORDER BY created_at DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ) as cursor:
-                rows = await cursor.fetchall()
+            stmt = stmt.where(JobModel.status == status.value)
+        stmt = stmt.order_by(JobModel.created_at.desc()).limit(limit)
+
+        async with async_session_maker() as session:
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
 
         return [self._row_to_job(row) for row in rows]
 
-    def _row_to_job(self, row) -> Job:
+    def _row_to_job(self, row: JobModel) -> Job:
         """Convert a database row to a Job object."""
-        started = row["started_at"]
-        completed = row["completed_at"]
         return Job(
-            id=row["id"],
-            status=JobStatus(row["status"]),
-            message_id=row["message_id"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            started_at=datetime.fromisoformat(started) if started else None,
-            completed_at=datetime.fromisoformat(completed) if completed else None,
-            result=json.loads(row["result"]) if row["result"] else None,
-            error=row["error"],
-            progress=row["progress"],
+            id=row.id,
+            status=JobStatus(row.status),
+            message_id=row.message_id,
+            created_at=row.created_at,
+            started_at=row.started_at,
+            completed_at=row.completed_at,
+            result=row.result,
+            error=row.error,
+            progress=row.progress,
         )
 
 
@@ -239,25 +208,19 @@ class KnowledgeRepository:
 
     async def save_bot_message(self, message: BotMessage) -> None:
         """Save a message to bot's conversation history."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO bot_messages
-                (id, bot_id, chat_id, role, content, timestamp, metadata, reply_to_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                message.id,
-                message.bot_id,
-                message.chat_id,
-                message.role,
-                message.content,
-                message.timestamp.isoformat(),
-                json.dumps(message.metadata),
-                message.reply_to_id,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = BotMessageModel(
+                id=message.id,
+                bot_id=message.bot_id,
+                chat_id=message.chat_id,
+                role=message.role,
+                content=message.content,
+                timestamp=message.timestamp,
+                metadata=message.metadata,
+                reply_to_id=message.reply_to_id,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_bot_messages(
         self,
@@ -266,28 +229,28 @@ class KnowledgeRepository:
         limit: int = 50,
     ) -> list[BotMessage]:
         """Get messages for a specific bot and chat."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM bot_messages
-            WHERE bot_id = ? AND chat_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-            """,
-            (bot_id, chat_id, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotMessageModel)
+                .where(
+                    BotMessageModel.bot_id == bot_id,
+                    BotMessageModel.chat_id == chat_id,
+                )
+                .order_by(BotMessageModel.timestamp.desc())
+                .limit(limit)
+            )
+            rows = result.scalars().all()
 
         return [
             BotMessage(
-                id=row["id"],
-                bot_id=row["bot_id"],
-                chat_id=row["chat_id"],
-                role=row["role"],
-                content=row["content"],
-                timestamp=datetime.fromisoformat(row["timestamp"]),
-                metadata=json.loads(row["metadata"]),
-                reply_to_id=row["reply_to_id"] if "reply_to_id" in row.keys() else None,
+                id=row.id,
+                bot_id=row.bot_id,
+                chat_id=row.chat_id,
+                role=row.role,
+                content=row.content,
+                timestamp=row.timestamp,
+                metadata=row.metadata,
+                reply_to_id=row.reply_to_id,
             )
             for row in reversed(rows)  # Return in chronological order
         ]
@@ -298,113 +261,106 @@ class KnowledgeRepository:
         limit: int = 20,
     ) -> list[BotMessage]:
         """Get recent messages across all chats for a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM bot_messages
-            WHERE bot_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-            """,
-            (bot_id, limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotMessageModel)
+                .where(BotMessageModel.bot_id == bot_id)
+                .order_by(BotMessageModel.timestamp.desc())
+                .limit(limit)
+            )
+            rows = result.scalars().all()
 
         return [
             BotMessage(
-                id=row["id"],
-                bot_id=row["bot_id"],
-                chat_id=row["chat_id"],
-                role=row["role"],
-                content=row["content"],
-                timestamp=datetime.fromisoformat(row["timestamp"]),
-                metadata=json.loads(row["metadata"]),
-                reply_to_id=row["reply_to_id"] if "reply_to_id" in row.keys() else None,
+                id=row.id,
+                bot_id=row.bot_id,
+                chat_id=row.chat_id,
+                role=row.role,
+                content=row.content,
+                timestamp=row.timestamp,
+                metadata=row.metadata,
+                reply_to_id=row.reply_to_id,
             )
             for row in reversed(rows)
         ]
 
     async def delete_all_messages_for_bot(self, bot_id: str) -> int:
         """Delete all messages for a bot. Returns number of messages deleted."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_messages WHERE bot_id = ?",
-            (bot_id,),
-        )
-        await db.commit()
-        return cursor.rowcount
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotMessageModel).where(BotMessageModel.bot_id == bot_id)
+            )
+            await session.commit()
+            return result.rowcount
 
     async def delete_messages_for_chat(self, bot_id: str, chat_id: str) -> int:
         """Delete all messages for a specific chat. Returns number deleted."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_messages WHERE bot_id = ? AND chat_id = ?",
-            (bot_id, chat_id),
-        )
-        await db.commit()
-        return cursor.rowcount
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotMessageModel).where(
+                    BotMessageModel.bot_id == bot_id,
+                    BotMessageModel.chat_id == chat_id,
+                )
+            )
+            await session.commit()
+            return result.rowcount
 
     async def get_message_count_for_bot(self, bot_id: str) -> int:
         """Get the count of messages for a bot."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT COUNT(*) as count FROM bot_messages WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
-        return row["count"] if row else 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(func.count())
+                .select_from(BotMessageModel)
+                .where(BotMessageModel.bot_id == bot_id)
+            )
+            return result.scalar_one()
 
     # ===== BOT INSTRUCTIONS =====
 
     async def get_instructions(self, bot_id: str) -> BotInstruction | None:
         """Get custom instructions for a bot."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT * FROM bot_instructions WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
+            )
+            row = result.scalar_one_or_none()
 
         if row is None:
             return None
 
         return BotInstruction(
-            id=row["id"],
-            bot_id=row["bot_id"],
-            content=row["content"],
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+            id=row.id,
+            bot_id=row.bot_id,
+            content=row.content,
+            updated_at=row.updated_at,
         )
 
     async def upsert_instructions(self, bot_id: str, content: str) -> BotInstruction:
         """Create or update instructions for a bot."""
-        import uuid
-
-        db = await get_db()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Try to get existing
         existing = await self.get_instructions(bot_id)
 
-        if existing:
-            await db.execute(
-                """
-                UPDATE bot_instructions SET content = ?, updated_at = ?
-                WHERE bot_id = ?
-                """,
-                (content, now.isoformat(), bot_id),
-            )
-            instruction_id = existing.id
-        else:
-            instruction_id = str(uuid.uuid4())
-            await db.execute(
-                """
-                INSERT INTO bot_instructions (id, bot_id, content, updated_at)
-                VALUES (?, ?, ?, ?)
-                """,
-                (instruction_id, bot_id, content, now.isoformat()),
-            )
+        async with async_session_maker() as session:
+            if existing:
+                await session.execute(
+                    update(BotInstructionModel)
+                    .where(BotInstructionModel.bot_id == bot_id)
+                    .values(content=content, updated_at=now)
+                )
+                instruction_id = existing.id
+            else:
+                instruction_id = str(uuid.uuid4())
+                obj = BotInstructionModel(
+                    id=instruction_id,
+                    bot_id=bot_id,
+                    content=content,
+                    updated_at=now,
+                )
+                session.add(obj)
 
-        await db.commit()
+            await session.commit()
 
         return BotInstruction(
             id=instruction_id,
@@ -415,49 +371,40 @@ class KnowledgeRepository:
 
     async def delete_instructions(self, bot_id: str) -> bool:
         """Delete instructions for a bot."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_instructions WHERE bot_id = ?",
-            (bot_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     # ===== DOCUMENTS =====
 
     async def save_document(self, doc: Document) -> None:
         """Save document metadata."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO bot_documents
-            (id, bot_id, filename, file_type, file_hash, file_size,
-                chunk_count, status, uploaded_at, processed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                doc.id,
-                doc.bot_id,
-                doc.filename,
-                doc.file_type,
-                doc.file_hash,
-                doc.file_size,
-                doc.chunk_count,
-                doc.status.value,
-                doc.uploaded_at.isoformat(),
-                doc.processed_at.isoformat() if doc.processed_at else None,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = BotDocumentModel(
+                id=doc.id,
+                bot_id=doc.bot_id,
+                filename=doc.filename,
+                file_type=doc.file_type,
+                file_hash=doc.file_hash,
+                file_size=doc.file_size,
+                chunk_count=doc.chunk_count,
+                status=doc.status.value,
+                uploaded_at=doc.uploaded_at,
+                processed_at=doc.processed_at,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_document(self, document_id: str) -> Document | None:
         """Get a document by ID."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT * FROM bot_documents WHERE id = ?",
-            (document_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotDocumentModel).where(BotDocumentModel.id == document_id)
+            )
+            row = result.scalar_one_or_none()
 
         if row is None:
             return None
@@ -466,27 +413,26 @@ class KnowledgeRepository:
 
     async def get_documents_by_bot(self, bot_id: str) -> list[Document]:
         """Get all documents for a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM bot_documents
-            WHERE bot_id = ?
-            ORDER BY uploaded_at DESC
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotDocumentModel)
+                .where(BotDocumentModel.bot_id == bot_id)
+                .order_by(BotDocumentModel.uploaded_at.desc())
+            )
+            rows = result.scalars().all()
 
         return [self._row_to_document(row) for row in rows]
 
     async def document_exists_by_hash(self, bot_id: str, file_hash: str) -> bool:
         """Check if a document with this hash already exists for the bot."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT 1 FROM bot_documents WHERE bot_id = ? AND file_hash = ?",
-            (bot_id, file_hash),
-        ) as cursor:
-            return await cursor.fetchone() is not None
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotDocumentModel.id).where(
+                    BotDocumentModel.bot_id == bot_id,
+                    BotDocumentModel.file_hash == file_hash,
+                )
+            )
+            return result.scalar_one_or_none() is not None
 
     async def update_document_status(
         self,
@@ -495,54 +441,42 @@ class KnowledgeRepository:
         chunk_count: int | None = None,
     ) -> None:
         """Update document processing status."""
-        db = await get_db()
-        now = datetime.utcnow()
-
+        now = datetime.now(timezone.utc)
+        values: dict = {"status": status.value, "processed_at": now}
         if chunk_count is not None:
-            await db.execute(
-                """
-                UPDATE bot_documents
-                SET status = ?, chunk_count = ?, processed_at = ?
-                WHERE id = ?
-                """,
-                (status.value, chunk_count, now.isoformat(), document_id),
-            )
-        else:
-            await db.execute(
-                """
-                UPDATE bot_documents SET status = ?, processed_at = ?
-                WHERE id = ?
-                """,
-                (status.value, now.isoformat(), document_id),
-            )
+            values["chunk_count"] = chunk_count
 
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(
+                update(BotDocumentModel)
+                .where(BotDocumentModel.id == document_id)
+                .values(**values)
+            )
+            await session.commit()
 
     async def delete_document(self, document_id: str) -> bool:
         """Delete a document and its chunks."""
-        db = await get_db()
-        # Chunks deleted via CASCADE
-        cursor = await db.execute(
-            "DELETE FROM bot_documents WHERE id = ?",
-            (document_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            # Chunks deleted via CASCADE
+            result = await session.execute(
+                delete(BotDocumentModel).where(BotDocumentModel.id == document_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
-    def _row_to_document(self, row) -> Document:
+    def _row_to_document(self, row: BotDocumentModel) -> Document:
         """Convert a database row to Document."""
-        processed = row["processed_at"]
         return Document(
-            id=row["id"],
-            bot_id=row["bot_id"],
-            filename=row["filename"],
-            file_type=row["file_type"],
-            file_hash=row["file_hash"],
-            file_size=row["file_size"],
-            chunk_count=row["chunk_count"],
-            status=DocumentStatus(row["status"]),
-            uploaded_at=datetime.fromisoformat(row["uploaded_at"]),
-            processed_at=datetime.fromisoformat(processed) if processed else None,
+            id=row.id,
+            bot_id=row.bot_id,
+            filename=row.filename,
+            file_type=row.file_type,
+            file_hash=row.file_hash,
+            file_size=row.file_size,
+            chunk_count=row.chunk_count,
+            status=DocumentStatus(row.status),
+            uploaded_at=row.uploaded_at,
+            processed_at=row.processed_at,
         )
 
     # ===== DOCUMENT CHUNKS =====
@@ -552,193 +486,186 @@ class KnowledgeRepository:
         if not chunks:
             return
 
-        db = await get_db()
-        await db.executemany(
-            """
-            INSERT INTO doc_chunks (id, document_id, bot_id, chunk_index, content, embedding)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (
-                    chunk.id,
-                    chunk.document_id,
-                    chunk.bot_id,
-                    chunk.chunk_index,
-                    chunk.content,
-                    chunk.embedding,
-                )
-                for chunk in chunks
-            ],
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            session.add_all(
+                [
+                    DocChunkModel(
+                        id=chunk.id,
+                        document_id=chunk.document_id,
+                        bot_id=chunk.bot_id,
+                        chunk_index=chunk.chunk_index,
+                        content=chunk.content,
+                        embedding=chunk.embedding,
+                    )
+                    for chunk in chunks
+                ]
+            )
+            await session.commit()
 
     async def get_chunks_by_document(self, document_id: str) -> list[DocChunk]:
         """Get all chunks for a document."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM doc_chunks
-            WHERE document_id = ?
-            ORDER BY chunk_index
-            """,
-            (document_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(DocChunkModel)
+                .where(DocChunkModel.document_id == document_id)
+                .order_by(DocChunkModel.chunk_index)
+            )
+            rows = result.scalars().all()
 
         return [
             DocChunk(
-                id=row["id"],
-                document_id=row["document_id"],
-                bot_id=row["bot_id"],
-                chunk_index=row["chunk_index"],
-                content=row["content"],
-                embedding=row["embedding"],
+                id=row.id,
+                document_id=row.document_id,
+                bot_id=row.bot_id,
+                chunk_index=row.chunk_index,
+                content=row.content,
+                embedding=row.embedding,
             )
             for row in rows
         ]
 
     async def get_all_chunks_by_bot(self, bot_id: str) -> list[DocChunk]:
         """Get all chunks for a bot (for vector search)."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM doc_chunks
-            WHERE bot_id = ?
-            ORDER BY document_id, chunk_index
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(DocChunkModel)
+                .where(DocChunkModel.bot_id == bot_id)
+                .order_by(DocChunkModel.document_id, DocChunkModel.chunk_index)
+            )
+            rows = result.scalars().all()
 
         return [
             DocChunk(
-                id=row["id"],
-                document_id=row["document_id"],
-                bot_id=row["bot_id"],
-                chunk_index=row["chunk_index"],
-                content=row["content"],
-                embedding=row["embedding"],
+                id=row.id,
+                document_id=row.document_id,
+                bot_id=row.bot_id,
+                chunk_index=row.chunk_index,
+                content=row.content,
+                embedding=row.embedding,
             )
             for row in rows
         ]
 
     async def delete_chunks_by_document(self, document_id: str) -> int:
         """Delete all chunks for a document."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM doc_chunks WHERE document_id = ?",
-            (document_id,),
-        )
-        await db.commit()
-        return cursor.rowcount
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
+            )
+            await session.commit()
+            return result.rowcount
 
     # ===== KNOWLEDGE STATS =====
 
     async def get_knowledge_stats(self, bot_id: str) -> dict:
         """Get aggregated knowledge stats for a bot."""
-        db = await get_db()
+        async with async_session_maker() as session:
+            # Document counts by status
+            doc_result = await session.execute(
+                select(BotDocumentModel.status, func.count())
+                .where(BotDocumentModel.bot_id == bot_id)
+                .group_by(BotDocumentModel.status)
+            )
+            doc_counts = {row[0]: row[1] for row in doc_result.all()}
 
-        # Document counts by status
-        async with db.execute(
-            """
-            SELECT status, COUNT(*) as count FROM bot_documents
-            WHERE bot_id = ? GROUP BY status
-            """,
-            (bot_id,),
-        ) as cursor:
-            doc_rows = await cursor.fetchall()
+            # Total chunks
+            chunk_result = await session.execute(
+                select(func.count())
+                .select_from(DocChunkModel)
+                .where(DocChunkModel.bot_id == bot_id)
+            )
+            total_chunks = chunk_result.scalar_one()
 
-        doc_counts = {row["status"]: row["count"] for row in doc_rows}
+            # Total notes
+            note_result = await session.execute(
+                select(func.count())
+                .select_from(BotNoteModel)
+                .where(BotNoteModel.bot_id == bot_id)
+            )
+            total_notes = note_result.scalar_one()
 
-        # Total chunks
-        async with db.execute(
-            "SELECT COUNT(*) as count FROM doc_chunks WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            chunk_row = await cursor.fetchone()
-
-        # Total notes
-        async with db.execute(
-            "SELECT COUNT(*) as count FROM bot_notes WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            note_row = await cursor.fetchone()
-
-        # Instructions
-        async with db.execute(
-            "SELECT 1 FROM bot_instructions WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            has_instructions = await cursor.fetchone() is not None
+            # Instructions
+            instr_result = await session.execute(
+                select(BotInstructionModel.id).where(
+                    BotInstructionModel.bot_id == bot_id
+                )
+            )
+            has_instructions = instr_result.scalar_one_or_none() is not None
 
         return {
             "total_documents": sum(doc_counts.values()),
             "documents_ready": doc_counts.get("ready", 0),
             "documents_processing": doc_counts.get("processing", 0),
             "documents_failed": doc_counts.get("failed", 0),
-            "total_chunks": chunk_row["count"] if chunk_row else 0,
-            "total_notes": note_row["count"] if note_row else 0,
+            "total_chunks": total_chunks,
+            "total_notes": total_notes,
             "has_instructions": has_instructions,
         }
 
     async def reset_document_for_retry(self, document_id: str) -> bool:
         """Reset a failed document to processing status for retry."""
-        db = await get_db()
-        cursor = await db.execute(
-            """
-            UPDATE bot_documents SET status = 'processing', processed_at = NULL, chunk_count = 0
-            WHERE id = ? AND status = 'failed'
-            """,
-            (document_id,),
-        )
-        # Also delete existing chunks
-        await db.execute(
-            "DELETE FROM doc_chunks WHERE document_id = ?",
-            (document_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                update(BotDocumentModel)
+                .where(
+                    BotDocumentModel.id == document_id,
+                    BotDocumentModel.status == "failed",
+                )
+                .values(status="processing", processed_at=None, chunk_count=0)
+            )
+            # Also delete existing chunks
+            await session.execute(
+                delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     async def get_chunks_by_document_light(self, document_id: str) -> list[dict]:
         """Get chunks for a document without embedding BLOBs."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, document_id, chunk_index, content
-            FROM doc_chunks WHERE document_id = ?
-            ORDER BY chunk_index
-            """,
-            (document_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(
+                    DocChunkModel.id,
+                    DocChunkModel.document_id,
+                    DocChunkModel.chunk_index,
+                    DocChunkModel.content,
+                )
+                .where(DocChunkModel.document_id == document_id)
+                .order_by(DocChunkModel.chunk_index)
+            )
+            rows = result.all()
 
         return [
             {
-                "id": row["id"],
-                "document_id": row["document_id"],
-                "chunk_index": row["chunk_index"],
-                "content": row["content"],
+                "id": row[0],
+                "document_id": row[1],
+                "chunk_index": row[2],
+                "content": row[3],
             }
             for row in rows
         ]
 
     async def get_all_embeddings_by_bot(self, bot_id: str) -> list[dict]:
         """Get only embedding data for vector search (no content)."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, document_id, embedding
-            FROM doc_chunks WHERE bot_id = ? AND embedding IS NOT NULL
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(
+                    DocChunkModel.id,
+                    DocChunkModel.document_id,
+                    DocChunkModel.embedding,
+                )
+                .where(
+                    DocChunkModel.bot_id == bot_id,
+                    DocChunkModel.embedding.isnot(None),
+                )
+            )
+            rows = result.all()
 
         return [
             {
-                "id": row["id"],
-                "document_id": row["document_id"],
-                "embedding": row["embedding"],
+                "id": row[0],
+                "document_id": row[1],
+                "embedding": row[2],
             }
             for row in rows
         ]
@@ -747,25 +674,21 @@ class KnowledgeRepository:
         """Fetch specific chunks by ID list."""
         if not chunk_ids:
             return []
-        db = await get_db()
-        placeholders = ",".join("?" * len(chunk_ids))
-        async with db.execute(
-            f"""
-            SELECT id, document_id, bot_id, chunk_index, content, embedding
-            FROM doc_chunks WHERE id IN ({placeholders})
-            """,  # nosec B608 — parameterized with ? placeholders
-            chunk_ids,
-        ) as cursor:
-            rows = await cursor.fetchall()
+
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(DocChunkModel).where(DocChunkModel.id.in_(chunk_ids))
+            )
+            rows = result.scalars().all()
 
         return [
             DocChunk(
-                id=row["id"],
-                document_id=row["document_id"],
-                bot_id=row["bot_id"],
-                chunk_index=row["chunk_index"],
-                content=row["content"],
-                embedding=row["embedding"],
+                id=row.id,
+                document_id=row.document_id,
+                bot_id=row.bot_id,
+                chunk_index=row.chunk_index,
+                content=row.content,
+                embedding=row.embedding,
             )
             for row in rows
         ]
@@ -776,33 +699,27 @@ class NotesRepository:
 
     async def save_note(self, note: BotNote) -> None:
         """Save a new note."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO bot_notes (id, bot_id, title, content, tags, source, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                note.id,
-                note.bot_id,
-                note.title,
-                note.content,
-                json.dumps(note.tags),
-                note.source.value,
-                note.created_at.isoformat(),
-                note.updated_at.isoformat(),
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = BotNoteModel(
+                id=note.id,
+                bot_id=note.bot_id,
+                title=note.title,
+                content=note.content,
+                tags=note.tags,
+                source=note.source.value,
+                created_at=note.created_at,
+                updated_at=note.updated_at,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_note(self, note_id: str) -> BotNote | None:
         """Get a note by ID."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT * FROM bot_notes WHERE id = ?",
-            (note_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotNoteModel).where(BotNoteModel.id == note_id)
+            )
+            row = result.scalar_one_or_none()
         return self._row_to_note(row) if row else None
 
     async def get_notes_by_bot(
@@ -814,35 +731,28 @@ class NotesRepository:
         offset: int = 0,
     ) -> list[BotNote]:
         """Get notes for a bot with optional tag filtering and search."""
-        db = await get_db()
-        conditions = ["bot_id = ?"]
-        params: list = [bot_id]
+        stmt = select(BotNoteModel).where(BotNoteModel.bot_id == bot_id)
 
         if tags_filter:
-            # Match notes that contain any of the specified tags
-            tag_conditions = []
-            for tag in tags_filter:
-                tag_conditions.append("tags LIKE ?")
-                params.append(f'%"{tag}"%')
-            conditions.append(f"({' OR '.join(tag_conditions)})")
+            # JSONB containment: match notes that contain any of the specified tags
+            from sqlalchemy import or_
+
+            tag_conditions = [
+                BotNoteModel.tags.contains([tag]) for tag in tags_filter
+            ]
+            stmt = stmt.where(or_(*tag_conditions))
 
         if search:
-            conditions.append("(title LIKE ? OR content LIKE ?)")
-            params.extend([f"%{search}%", f"%{search}%"])
+            stmt = stmt.where(
+                BotNoteModel.title.ilike(f"%{search}%")
+                | BotNoteModel.content.ilike(f"%{search}%")
+            )
 
-        where = " AND ".join(conditions)
-        params.extend([limit, offset])
+        stmt = stmt.order_by(BotNoteModel.updated_at.desc()).limit(limit).offset(offset)
 
-        async with db.execute(
-            f"""
-            SELECT * FROM bot_notes
-            WHERE {where}
-            ORDER BY updated_at DESC
-            LIMIT ? OFFSET ?
-            """,  # nosec B608 — parameterized with ? placeholders
-            params,
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
 
         return [self._row_to_note(row) for row in rows]
 
@@ -854,86 +764,78 @@ class NotesRepository:
         tags: list[str] | None = None,
     ) -> BotNote | None:
         """Partial update of a note."""
-        db = await get_db()
-        now = datetime.utcnow()
-
-        updates = ["updated_at = ?"]
-        params: list = [now.isoformat()]
+        now = datetime.now(timezone.utc)
+        values: dict = {"updated_at": now}
 
         if title is not None:
-            updates.append("title = ?")
-            params.append(title)
+            values["title"] = title
         if content is not None:
-            updates.append("content = ?")
-            params.append(content)
+            values["content"] = content
         if tags is not None:
-            updates.append("tags = ?")
-            params.append(json.dumps(tags))
+            values["tags"] = tags
 
-        params.append(note_id)
-        set_clause = ", ".join(updates)
+        async with async_session_maker() as session:
+            result = await session.execute(
+                update(BotNoteModel)
+                .where(BotNoteModel.id == note_id)
+                .values(**values)
+            )
+            await session.commit()
 
-        cursor = await db.execute(
-            f"UPDATE bot_notes SET {set_clause} WHERE id = ?",  # nosec B608
-            params,
-        )
-        await db.commit()
-
-        if cursor.rowcount == 0:
+        if result.rowcount == 0:
             return None
         return await self.get_note(note_id)
 
     async def delete_note(self, note_id: str) -> bool:
         """Delete a note by ID."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_notes WHERE id = ?",
-            (note_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotNoteModel).where(BotNoteModel.id == note_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     async def get_all_tags(self, bot_id: str) -> list[str]:
         """Get all unique tags across all notes for a bot."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT tags FROM bot_notes WHERE bot_id = ?",
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotNoteModel.tags).where(BotNoteModel.bot_id == bot_id)
+            )
+            rows = result.scalars().all()
 
         all_tags: set[str] = set()
-        for row in rows:
-            tags = json.loads(row["tags"])
-            all_tags.update(tags)
+        for tags in rows:
+            if tags:
+                all_tags.update(tags)
         return sorted(all_tags)
 
     async def search_notes(self, bot_id: str, query: str, limit: int = 10) -> list[BotNote]:
         """Simple text search on title + content."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT * FROM bot_notes
-            WHERE bot_id = ? AND (title LIKE ? OR content LIKE ?)
-            ORDER BY updated_at DESC
-            LIMIT ?
-            """,
-            (bot_id, f"%{query}%", f"%{query}%", limit),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotNoteModel)
+                .where(
+                    BotNoteModel.bot_id == bot_id,
+                    BotNoteModel.title.ilike(f"%{query}%")
+                    | BotNoteModel.content.ilike(f"%{query}%"),
+                )
+                .order_by(BotNoteModel.updated_at.desc())
+                .limit(limit)
+            )
+            rows = result.scalars().all()
         return [self._row_to_note(row) for row in rows]
 
-    def _row_to_note(self, row) -> BotNote:
+    def _row_to_note(self, row: BotNoteModel) -> BotNote:
         """Convert a database row to BotNote."""
         return BotNote(
-            id=row["id"],
-            bot_id=row["bot_id"],
-            title=row["title"],
-            content=row["content"],
-            tags=json.loads(row["tags"]),
-            source=NoteSource(row["source"]),
-            created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+            id=row.id,
+            bot_id=row.bot_id,
+            title=row.title,
+            content=row.content,
+            tags=row.tags if row.tags else [],
+            source=NoteSource(row.source),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
 
 
@@ -942,75 +844,70 @@ class ContactsRepository:
 
     async def save_contact(self, contact: Contact) -> None:
         """Save a new contact."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO bot_contacts (id, bot_id, name, details, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                contact.id,
-                contact.bot_id,
-                contact.name,
-                contact.details,
-                contact.created_at.isoformat(),
-                contact.updated_at.isoformat(),
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = BotContactModel(
+                id=contact.id,
+                bot_id=contact.bot_id,
+                name=contact.name,
+                details=contact.details,
+                created_at=contact.created_at,
+                updated_at=contact.updated_at,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_contact(self, contact_id: str) -> Contact | None:
         """Get a contact by ID."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at"
-            " FROM bot_contacts WHERE id = ?",
-            (contact_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotContactModel).where(BotContactModel.id == contact_id)
+            )
+            row = result.scalar_one_or_none()
             return self._row_to_contact(row) if row else None
 
     async def get_contacts_by_bot(self, bot_id: str) -> list[Contact]:
         """Get all contacts for a bot."""
-        db = await get_db()
-        async with db.execute(
-            "SELECT id, bot_id, name, details, created_at, updated_at"
-            " FROM bot_contacts WHERE bot_id = ? ORDER BY name",
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotContactModel)
+                .where(BotContactModel.bot_id == bot_id)
+                .order_by(BotContactModel.name)
+            )
+            rows = result.scalars().all()
             return [self._row_to_contact(row) for row in rows]
 
     async def update_contact(self, contact: Contact) -> None:
         """Update an existing contact."""
-        db = await get_db()
-        await db.execute(
-            """
-            UPDATE bot_contacts SET name = ?, details = ?, updated_at = ? WHERE id = ?
-            """,
-            (contact.name, contact.details, contact.updated_at.isoformat(), contact.id),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(
+                update(BotContactModel)
+                .where(BotContactModel.id == contact.id)
+                .values(
+                    name=contact.name,
+                    details=contact.details,
+                    updated_at=contact.updated_at,
+                )
+            )
+            await session.commit()
 
     async def delete_contact(self, contact_id: str) -> bool:
         """Delete a contact by ID. Returns True if deleted, False if not found."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_contacts WHERE id = ?",
-            (contact_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotContactModel).where(BotContactModel.id == contact_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
-    def _row_to_contact(self, row) -> Contact:
+    def _row_to_contact(self, row: BotContactModel) -> Contact:
         """Convert database row to Contact model."""
         return Contact(
-            id=row[0],
-            bot_id=row[1],
-            name=row[2],
-            details=row[3],
-            created_at=datetime.fromisoformat(row[4]),
-            updated_at=datetime.fromisoformat(row[5]),
+            id=row.id,
+            bot_id=row.bot_id,
+            name=row.name,
+            details=row.details,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
 
 
@@ -1019,94 +916,71 @@ class ConnectionRepository:
 
     async def save_connection(self, connection: BotConnection) -> None:
         """Save a new connection."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO bot_connections
-            (id, bot_id, platform, name, status, config_encrypted, message_count,
-             last_activity, error, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                connection.id,
-                connection.bot_id,
-                connection.platform.value,
-                connection.name,
-                connection.status.value,
-                json.dumps(connection.config),  # TODO: Add actual encryption
-                connection.message_count,
-                connection.last_activity.isoformat() if connection.last_activity else None,
-                connection.error,
-                connection.created_at.isoformat(),
-                connection.updated_at.isoformat(),
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = BotConnectionModel(
+                id=connection.id,
+                bot_id=connection.bot_id,
+                platform=connection.platform.value,
+                name=connection.name,
+                status=connection.status.value,
+                config_encrypted=connection.config,  # TODO: Add actual encryption
+                message_count=connection.message_count,
+                last_activity=connection.last_activity,
+                error=connection.error,
+                created_at=connection.created_at,
+                updated_at=connection.updated_at,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_connection(self, connection_id: str) -> BotConnection | None:
         """Get a connection by ID."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, bot_id, platform, name, status, config_encrypted,
-                   message_count, last_activity, error, created_at, updated_at
-            FROM bot_connections WHERE id = ?
-            """,
-            (connection_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotConnectionModel).where(BotConnectionModel.id == connection_id)
+            )
+            row = result.scalar_one_or_none()
             return self._row_to_connection(row) if row else None
 
     async def get_connections_by_bot(self, bot_id: str) -> list[BotConnection]:
         """Get all connections for a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, bot_id, platform, name, status, config_encrypted,
-                   message_count, last_activity, error, created_at, updated_at
-            FROM bot_connections WHERE bot_id = ? ORDER BY created_at DESC
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotConnectionModel)
+                .where(BotConnectionModel.bot_id == bot_id)
+                .order_by(BotConnectionModel.created_at.desc())
+            )
+            rows = result.scalars().all()
             return [self._row_to_connection(row) for row in rows]
 
     async def get_all_connected(self) -> list[BotConnection]:
         """Get all connections with 'connected' status."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, bot_id, platform, name, status, config_encrypted,
-                   message_count, last_activity, error, created_at, updated_at
-            FROM bot_connections WHERE status = ?
-            """,
-            (ConnectionStatus.connected.value,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotConnectionModel).where(
+                    BotConnectionModel.status == ConnectionStatus.connected.value
+                )
+            )
+            rows = result.scalars().all()
             return [self._row_to_connection(row) for row in rows]
 
     async def update_connection(self, connection: BotConnection) -> None:
         """Update an existing connection."""
-        db = await get_db()
-        await db.execute(
-            """
-            UPDATE bot_connections SET
-                name = ?, status = ?, config_encrypted = ?, message_count = ?,
-                last_activity = ?, error = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (
-                connection.name,
-                connection.status.value,
-                json.dumps(connection.config),  # TODO: Add actual encryption
-                connection.message_count,
-                connection.last_activity.isoformat() if connection.last_activity else None,
-                connection.error,
-                connection.updated_at.isoformat(),
-                connection.id,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(
+                update(BotConnectionModel)
+                .where(BotConnectionModel.id == connection.id)
+                .values(
+                    name=connection.name,
+                    status=connection.status.value,
+                    config_encrypted=connection.config,  # TODO: Add actual encryption
+                    message_count=connection.message_count,
+                    last_activity=connection.last_activity,
+                    error=connection.error,
+                    updated_at=connection.updated_at,
+                )
+            )
+            await session.commit()
 
     async def update_connection_status(
         self,
@@ -1115,58 +989,57 @@ class ConnectionRepository:
         error: str | None = None,
     ) -> None:
         """Update connection status and optionally error message."""
-        db = await get_db()
-        now = datetime.utcnow()
-        await db.execute(
-            """
-            UPDATE bot_connections SET status = ?, error = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (status.value, error, now.isoformat(), connection_id),
-        )
-        await db.commit()
+        now = datetime.now(timezone.utc)
+        async with async_session_maker() as session:
+            await session.execute(
+                update(BotConnectionModel)
+                .where(BotConnectionModel.id == connection_id)
+                .values(
+                    status=status.value,
+                    error=error,
+                    updated_at=now,
+                )
+            )
+            await session.commit()
 
     async def increment_message_count(self, connection_id: str) -> None:
         """Increment message count and update last_activity."""
-        db = await get_db()
-        now = datetime.utcnow()
-        await db.execute(
-            """
-            UPDATE bot_connections SET
-                message_count = message_count + 1,
-                last_activity = ?,
-                updated_at = ?
-            WHERE id = ?
-            """,
-            (now.isoformat(), now.isoformat(), connection_id),
-        )
-        await db.commit()
+        now = datetime.now(timezone.utc)
+        async with async_session_maker() as session:
+            await session.execute(
+                update(BotConnectionModel)
+                .where(BotConnectionModel.id == connection_id)
+                .values(
+                    message_count=BotConnectionModel.message_count + 1,
+                    last_activity=now,
+                    updated_at=now,
+                )
+            )
+            await session.commit()
 
     async def delete_connection(self, connection_id: str) -> bool:
         """Delete a connection by ID. Returns True if deleted, False if not found."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bot_connections WHERE id = ?",
-            (connection_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotConnectionModel).where(BotConnectionModel.id == connection_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
-    def _row_to_connection(self, row) -> BotConnection:
+    def _row_to_connection(self, row: BotConnectionModel) -> BotConnection:
         """Convert database row to BotConnection model."""
-        last_activity = row[7]
         return BotConnection(
-            id=row[0],
-            bot_id=row[1],
-            platform=ConnectionPlatform(row[2]),
-            name=row[3],
-            status=ConnectionStatus(row[4]),
-            config=json.loads(row[5]),  # TODO: Add actual decryption
-            message_count=row[6],
-            last_activity=datetime.fromisoformat(last_activity) if last_activity else None,
-            error=row[8],
-            created_at=datetime.fromisoformat(row[9]),
-            updated_at=datetime.fromisoformat(row[10]),
+            id=row.id,
+            bot_id=row.bot_id,
+            platform=ConnectionPlatform(row.platform),
+            name=row.name,
+            status=ConnectionStatus(row.status),
+            config=row.config_encrypted,  # TODO: Add actual decryption
+            message_count=row.message_count,
+            last_activity=row.last_activity,
+            error=row.error,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
 
 
@@ -1175,113 +1048,78 @@ class BotRepository:
 
     async def upsert_bot(self, bot: Bot) -> None:
         """Create or update a bot."""
-        db = await get_db()
-
-        # Check if exists
-        async with db.execute(
-            "SELECT 1 FROM bots WHERE id = ?",
-            (bot.id,),
-        ) as cursor:
-            exists = await cursor.fetchone() is not None
-
-        if exists:
-            await db.execute(
-                """
-                UPDATE bots SET
-                    name = ?, description = ?, icon = ?, color = ?,
-                    model = ?, system_prompt = ?, capabilities = ?,
-                    models = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (
-                    bot.name,
-                    bot.description,
-                    bot.icon,
-                    bot.color,
-                    bot.model,
-                    bot.system_prompt,
-                    json.dumps(bot.capabilities),
-                    json.dumps(bot.models) if bot.models else None,
-                    bot.updated_at.isoformat(),
-                    bot.id,
-                ),
+        async with async_session_maker() as session:
+            stmt = pg_insert(BotModel).values(
+                id=bot.id,
+                name=bot.name,
+                description=bot.description,
+                icon=bot.icon,
+                color=bot.color,
+                model=bot.model,
+                system_prompt=bot.system_prompt,
+                capabilities=bot.capabilities,
+                models=bot.models,
+                created_at=bot.created_at,
+                updated_at=bot.updated_at,
             )
-        else:
-            await db.execute(
-                """
-                INSERT INTO bots
-                (id, name, description, icon, color, model, system_prompt,
-                 capabilities, models, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    bot.id,
-                    bot.name,
-                    bot.description,
-                    bot.icon,
-                    bot.color,
-                    bot.model,
-                    bot.system_prompt,
-                    json.dumps(bot.capabilities),
-                    json.dumps(bot.models) if bot.models else None,
-                    bot.created_at.isoformat(),
-                    bot.updated_at.isoformat(),
-                ),
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "name": stmt.excluded.name,
+                    "description": stmt.excluded.description,
+                    "icon": stmt.excluded.icon,
+                    "color": stmt.excluded.color,
+                    "model": stmt.excluded.model,
+                    "system_prompt": stmt.excluded.system_prompt,
+                    "capabilities": stmt.excluded.capabilities,
+                    "models": stmt.excluded.models,
+                    "updated_at": stmt.excluded.updated_at,
+                },
             )
-
-        await db.commit()
+            await session.execute(stmt)
+            await session.commit()
 
     async def get_bot(self, bot_id: str) -> Bot | None:
         """Get a bot by ID."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, models, created_at, updated_at
-            FROM bots WHERE id = ?
-            """,
-            (bot_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotModel).where(BotModel.id == bot_id)
+            )
+            row = result.scalar_one_or_none()
             return self._row_to_bot(row) if row else None
 
     async def get_all_bots(self) -> list[Bot]:
         """Get all bots."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, name, description, icon, color, model, system_prompt,
-                   capabilities, models, created_at, updated_at
-            FROM bots ORDER BY name
-            """
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotModel).order_by(BotModel.name)
+            )
+            rows = result.scalars().all()
             return [self._row_to_bot(row) for row in rows]
 
     async def delete_bot(self, bot_id: str) -> bool:
         """Delete a bot by ID."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM bots WHERE id = ?",
-            (bot_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotModel).where(BotModel.id == bot_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
-    def _row_to_bot(self, row) -> Bot:
+    def _row_to_bot(self, row: BotModel) -> Bot:
         """Convert database row to Bot model."""
         return Bot(
-            id=row[0],
-            name=row[1],
-            description=row[2],
-            icon=row[3],
-            color=row[4],
-            model=row[5],
-            systemPrompt=row[6],
-            capabilities=json.loads(row[7]) if row[7] else {},
-            models=json.loads(row[8]) if row[8] else None,
-            createdAt=datetime.fromisoformat(row[9]),
-            updatedAt=datetime.fromisoformat(row[10]),
+            id=row.id,
+            name=row.name,
+            description=row.description,
+            icon=row.icon,
+            color=row.color,
+            model=row.model,
+            systemPrompt=row.system_prompt,
+            capabilities=row.capabilities if row.capabilities else {},
+            models=row.models,
+            createdAt=row.created_at,
+            updatedAt=row.updated_at,
         )
 
 
@@ -1290,39 +1128,28 @@ class ChatRepository:
 
     async def create_chat(self, chat: Chat) -> None:
         """Create a new chat."""
-        db = await get_db()
-        await db.execute(
-            """
-            INSERT INTO chats (id, bot_id, title, platform, platform_chat_id,
-                               pinned, archived, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                chat.id,
-                chat.bot_id,
-                chat.title,
-                chat.platform,
-                chat.platform_chat_id,
-                1 if chat.pinned else 0,
-                1 if chat.archived else 0,
-                chat.created_at.isoformat(),
-                chat.updated_at.isoformat(),
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            obj = ChatModel(
+                id=chat.id,
+                bot_id=chat.bot_id,
+                title=chat.title,
+                platform=chat.platform,
+                platform_chat_id=chat.platform_chat_id,
+                pinned=chat.pinned,
+                archived=chat.archived,
+                created_at=chat.created_at,
+                updated_at=chat.updated_at,
+            )
+            session.add(obj)
+            await session.commit()
 
     async def get_chat(self, chat_id: str) -> Chat | None:
         """Get a chat by ID."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, bot_id, title, platform, platform_chat_id,
-                   pinned, archived, created_at, updated_at
-            FROM chats WHERE id = ?
-            """,
-            (chat_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(ChatModel).where(ChatModel.id == chat_id)
+            )
+            row = result.scalar_one_or_none()
             return self._row_to_chat(row) if row else None
 
     async def get_or_create_platform_chat(
@@ -1337,20 +1164,15 @@ class ChatRepository:
 
         Returns None if the chat exists but is archived (won't recreate archived chats).
         """
-        import uuid
-
-        db = await get_db()
-
-        # Try to find existing chat (including archived ones)
-        async with db.execute(
-            """
-            SELECT id, bot_id, title, platform, platform_chat_id,
-                   pinned, archived, created_at, updated_at
-            FROM chats WHERE bot_id = ? AND platform = ? AND platform_chat_id = ?
-            """,
-            (bot_id, platform, platform_chat_id),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(ChatModel).where(
+                    ChatModel.bot_id == bot_id,
+                    ChatModel.platform == platform,
+                    ChatModel.platform_chat_id == platform_chat_id,
+                )
+            )
+            row = result.scalar_one_or_none()
             if row:
                 chat = self._row_to_chat(row)
                 # Return None for archived chats - don't process messages
@@ -1359,7 +1181,7 @@ class ChatRepository:
                 return chat
 
         # Create new chat
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         chat = Chat(
             id=str(uuid.uuid4()),
             bot_id=bot_id,
@@ -1376,98 +1198,84 @@ class ChatRepository:
 
     async def get_chats_by_bot(self, bot_id: str, include_archived: bool = False) -> list[Chat]:
         """Get all chats for a bot. Excludes archived by default."""
-        db = await get_db()
+        stmt = select(ChatModel).where(ChatModel.bot_id == bot_id)
+        if not include_archived:
+            stmt = stmt.where(ChatModel.archived.is_(False))
+        stmt = stmt.order_by(ChatModel.pinned.desc(), ChatModel.updated_at.desc())
 
-        if include_archived:
-            query = """
-                SELECT id, bot_id, title, platform, platform_chat_id,
-                       pinned, archived, created_at, updated_at
-                FROM chats WHERE bot_id = ?
-                ORDER BY pinned DESC, updated_at DESC
-            """
-        else:
-            query = """
-                SELECT id, bot_id, title, platform, platform_chat_id,
-                       pinned, archived, created_at, updated_at
-                FROM chats WHERE bot_id = ? AND archived = 0
-                ORDER BY pinned DESC, updated_at DESC
-            """
-
-        async with db.execute(query, (bot_id,)) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
             return [self._row_to_chat(row) for row in rows]
 
     async def update_chat(self, chat: Chat) -> None:
         """Update a chat."""
-        db = await get_db()
-        await db.execute(
-            """
-            UPDATE chats SET title = ?, pinned = ?, archived = ?, updated_at = ?
-            WHERE id = ?
-            """,
-            (
-                chat.title,
-                1 if chat.pinned else 0,
-                1 if chat.archived else 0,
-                chat.updated_at.isoformat(),
-                chat.id,
-            ),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            await session.execute(
+                update(ChatModel)
+                .where(ChatModel.id == chat.id)
+                .values(
+                    title=chat.title,
+                    pinned=chat.pinned,
+                    archived=chat.archived,
+                    updated_at=chat.updated_at,
+                )
+            )
+            await session.commit()
 
     async def archive_chat(self, chat_id: str, archived: bool = True) -> bool:
         """Archive or unarchive a chat. Returns True if chat was found."""
-        db = await get_db()
-        now = datetime.utcnow()
-        cursor = await db.execute(
-            "UPDATE chats SET archived = ?, updated_at = ? WHERE id = ?",
-            (1 if archived else 0, now.isoformat(), chat_id),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        now = datetime.now(timezone.utc)
+        async with async_session_maker() as session:
+            result = await session.execute(
+                update(ChatModel)
+                .where(ChatModel.id == chat_id)
+                .values(archived=archived, updated_at=now)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     async def update_chat_timestamp(self, chat_id: str) -> None:
         """Update the chat's updated_at timestamp."""
-        db = await get_db()
-        now = datetime.utcnow()
-        await db.execute(
-            "UPDATE chats SET updated_at = ? WHERE id = ?",
-            (now.isoformat(), chat_id),
-        )
-        await db.commit()
+        now = datetime.now(timezone.utc)
+        async with async_session_maker() as session:
+            await session.execute(
+                update(ChatModel)
+                .where(ChatModel.id == chat_id)
+                .values(updated_at=now)
+            )
+            await session.commit()
 
     async def delete_chat(self, chat_id: str) -> bool:
         """Delete a chat by ID."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM chats WHERE id = ?",
-            (chat_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(ChatModel).where(ChatModel.id == chat_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     async def delete_all_chats_for_bot(self, bot_id: str) -> int:
         """Delete all chats for a bot. Returns number of chats deleted."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM chats WHERE bot_id = ?",
-            (bot_id,),
-        )
-        await db.commit()
-        return cursor.rowcount
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(ChatModel).where(ChatModel.bot_id == bot_id)
+            )
+            await session.commit()
+            return result.rowcount
 
-    def _row_to_chat(self, row) -> Chat:
+    def _row_to_chat(self, row: ChatModel) -> Chat:
         """Convert database row to Chat model."""
         return Chat(
-            id=row[0],
-            bot_id=row[1],
-            title=row[2],
-            platform=row[3],
-            platform_chat_id=row[4],
-            pinned=bool(row[5]),
-            archived=bool(row[6]),
-            created_at=datetime.fromisoformat(row[7]),
-            updated_at=datetime.fromisoformat(row[8]),
+            id=row.id,
+            bot_id=row.bot_id,
+            title=row.title,
+            platform=row.platform,
+            platform_chat_id=row.platform_chat_id,
+            pinned=row.pinned,
+            archived=row.archived,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )
 
 
@@ -1478,218 +1286,182 @@ class SkillsRepository:
 
     async def upsert_skill(self, skill: SkillDefinition) -> None:
         """Create or update a skill definition."""
-        db = await get_db()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
-        # Check if exists
-        async with db.execute(
-            "SELECT 1 FROM skills WHERE id = ?",
-            (skill.id,),
-        ) as cursor:
-            exists = await cursor.fetchone() is not None
-
-        if exists:
-            await db.execute(
-                """
-                UPDATE skills SET
-                    name = ?, description = ?, version = ?, author = ?,
-                    tags = ?, requires_tools = ?, instructions = ?,
-                    source = ?, filepath = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (
-                    skill.name,
-                    skill.description,
-                    skill.version,
-                    skill.author,
-                    json.dumps(skill.tags),
-                    json.dumps(skill.requires_tools),
-                    skill.instructions,
-                    skill.source.value,
-                    skill.filepath,
-                    now.isoformat(),
-                    skill.id,
-                ),
+        async with async_session_maker() as session:
+            stmt = pg_insert(SkillModel).values(
+                id=skill.id,
+                name=skill.name,
+                description=skill.description,
+                version=skill.version,
+                author=skill.author,
+                tags=skill.tags,
+                requires_tools=skill.requires_tools,
+                instructions=skill.instructions,
+                source=skill.source.value,
+                filepath=skill.filepath,
+                created_at=now,
+                updated_at=now,
             )
-        else:
-            await db.execute(
-                """
-                INSERT INTO skills
-                (id, name, description, version, author, tags, requires_tools,
-                 instructions, source, filepath, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    skill.id,
-                    skill.name,
-                    skill.description,
-                    skill.version,
-                    skill.author,
-                    json.dumps(skill.tags),
-                    json.dumps(skill.requires_tools),
-                    skill.instructions,
-                    skill.source.value,
-                    skill.filepath,
-                    now.isoformat(),
-                    now.isoformat(),
-                ),
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "name": stmt.excluded.name,
+                    "description": stmt.excluded.description,
+                    "version": stmt.excluded.version,
+                    "author": stmt.excluded.author,
+                    "tags": stmt.excluded.tags,
+                    "requires_tools": stmt.excluded.requires_tools,
+                    "instructions": stmt.excluded.instructions,
+                    "source": stmt.excluded.source,
+                    "filepath": stmt.excluded.filepath,
+                    "updated_at": stmt.excluded.updated_at,
+                },
             )
-
-        await db.commit()
+            await session.execute(stmt)
+            await session.commit()
 
     async def get_skill(self, skill_id: str) -> SkillDefinition | None:
         """Get a skill by ID."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, name, description, version, author, tags, requires_tools,
-                   instructions, source, filepath
-            FROM skills WHERE id = ?
-            """,
-            (skill_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(SkillModel).where(SkillModel.id == skill_id)
+            )
+            row = result.scalar_one_or_none()
             return self._row_to_skill(row) if row else None
 
     async def get_all_skills(self) -> list[SkillDefinition]:
         """Get all skill definitions."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, name, description, version, author, tags, requires_tools,
-                   instructions, source, filepath
-            FROM skills ORDER BY name
-            """
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(SkillModel).order_by(SkillModel.name)
+            )
+            rows = result.scalars().all()
             return [self._row_to_skill(row) for row in rows]
 
     async def get_skills_by_source(self, source: SkillSource) -> list[SkillDefinition]:
         """Get skills filtered by source."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT id, name, description, version, author, tags, requires_tools,
-                   instructions, source, filepath
-            FROM skills WHERE source = ? ORDER BY name
-            """,
-            (source.value,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(SkillModel)
+                .where(SkillModel.source == source.value)
+                .order_by(SkillModel.name)
+            )
+            rows = result.scalars().all()
             return [self._row_to_skill(row) for row in rows]
 
     async def delete_skill(self, skill_id: str) -> bool:
         """Delete a skill by ID. Also removes all bot activations."""
-        db = await get_db()
-        cursor = await db.execute(
-            "DELETE FROM skills WHERE id = ?",
-            (skill_id,),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(SkillModel).where(SkillModel.id == skill_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
 
-    def _row_to_skill(self, row) -> SkillDefinition:
+    def _row_to_skill(self, row: SkillModel) -> SkillDefinition:
         """Convert database row to SkillDefinition model."""
         return SkillDefinition(
-            id=row[0],
-            name=row[1],
-            description=row[2] or "",
-            version=row[3] or "1.0.0",
-            author=row[4],
-            tags=json.loads(row[5]) if row[5] else [],
-            requires_tools=json.loads(row[6]) if row[6] else [],
-            instructions=row[7],
-            source=SkillSource(row[8]) if row[8] else SkillSource.LOCAL,
-            filepath=row[9],
+            id=row.id,
+            name=row.name,
+            description=row.description or "",
+            version=row.version or "1.0.0",
+            author=row.author,
+            tags=row.tags if row.tags else [],
+            requires_tools=row.requires_tools if row.requires_tools else [],
+            instructions=row.instructions,
+            source=SkillSource(row.source) if row.source else SkillSource.LOCAL,
+            filepath=row.filepath,
         )
 
     # ===== BOT SKILL ACTIVATIONS =====
 
     async def get_bot_skills(self, bot_id: str) -> list[str]:
         """Get list of enabled skill IDs for a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT skill_id FROM bot_skills
-            WHERE bot_id = ? AND enabled = 1
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
-            return [row[0] for row in rows]
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotSkillModel.skill_id).where(
+                    BotSkillModel.bot_id == bot_id,
+                    BotSkillModel.enabled.is_(True),
+                )
+            )
+            return [row[0] for row in result.all()]
 
     async def get_bot_skill_definitions(self, bot_id: str) -> list[SkillDefinition]:
         """Get full skill definitions for all enabled skills of a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT s.id, s.name, s.description, s.version, s.author, s.tags,
-                   s.requires_tools, s.instructions, s.source, s.filepath
-            FROM skills s
-            INNER JOIN bot_skills bs ON s.id = bs.skill_id
-            WHERE bs.bot_id = ? AND bs.enabled = 1
-            ORDER BY s.name
-            """,
-            (bot_id,),
-        ) as cursor:
-            rows = await cursor.fetchall()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(SkillModel)
+                .join(BotSkillModel, SkillModel.id == BotSkillModel.skill_id)
+                .where(
+                    BotSkillModel.bot_id == bot_id,
+                    BotSkillModel.enabled.is_(True),
+                )
+                .order_by(SkillModel.name)
+            )
+            rows = result.scalars().all()
             return [self._row_to_skill(row) for row in rows]
 
     async def activate_skill(self, bot_id: str, skill_id: str) -> None:
         """Activate a skill for a bot."""
-        db = await get_db()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
-        # Use INSERT OR REPLACE to handle both new activations and re-activations
-        await db.execute(
-            """
-            INSERT OR REPLACE INTO bot_skills (bot_id, skill_id, enabled, activated_at)
-            VALUES (?, ?, 1, ?)
-            """,
-            (bot_id, skill_id, now.isoformat()),
-        )
-        await db.commit()
+        async with async_session_maker() as session:
+            stmt = pg_insert(BotSkillModel).values(
+                bot_id=bot_id,
+                skill_id=skill_id,
+                enabled=True,
+                activated_at=now,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["bot_id", "skill_id"],
+                set_={
+                    "enabled": True,
+                    "activated_at": now,
+                },
+            )
+            await session.execute(stmt)
+            await session.commit()
 
     async def deactivate_skill(self, bot_id: str, skill_id: str) -> bool:
         """Deactivate a skill for a bot."""
-        db = await get_db()
-        cursor = await db.execute(
-            """
-            DELETE FROM bot_skills WHERE bot_id = ? AND skill_id = ?
-            """,
-            (bot_id, skill_id),
-        )
-        await db.commit()
-        return cursor.rowcount > 0
+        async with async_session_maker() as session:
+            result = await session.execute(
+                delete(BotSkillModel).where(
+                    BotSkillModel.bot_id == bot_id,
+                    BotSkillModel.skill_id == skill_id,
+                )
+            )
+            await session.commit()
+            return result.rowcount > 0
 
     async def is_skill_activated(self, bot_id: str, skill_id: str) -> bool:
         """Check if a skill is activated for a bot."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT 1 FROM bot_skills
-            WHERE bot_id = ? AND skill_id = ? AND enabled = 1
-            """,
-            (bot_id, skill_id),
-        ) as cursor:
-            return await cursor.fetchone() is not None
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotSkillModel.bot_id).where(
+                    BotSkillModel.bot_id == bot_id,
+                    BotSkillModel.skill_id == skill_id,
+                    BotSkillModel.enabled.is_(True),
+                )
+            )
+            return result.scalar_one_or_none() is not None
 
     async def get_skill_activation(self, bot_id: str, skill_id: str) -> BotSkillActivation | None:
         """Get activation details for a bot/skill pair."""
-        db = await get_db()
-        async with db.execute(
-            """
-            SELECT bot_id, skill_id, enabled, activated_at FROM bot_skills
-            WHERE bot_id = ? AND skill_id = ?
-            """,
-            (bot_id, skill_id),
-        ) as cursor:
-            row = await cursor.fetchone()
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(BotSkillModel).where(
+                    BotSkillModel.bot_id == bot_id,
+                    BotSkillModel.skill_id == skill_id,
+                )
+            )
+            row = result.scalar_one_or_none()
             if row is None:
                 return None
             return BotSkillActivation(
-                bot_id=row[0],
-                skill_id=row[1],
-                enabled=bool(row[2]),
-                activated_at=datetime.fromisoformat(row[3]),
+                bot_id=row.bot_id,
+                skill_id=row.skill_id,
+                enabled=row.enabled,
+                activated_at=row.activated_at,
             )

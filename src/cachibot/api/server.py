@@ -48,7 +48,7 @@ from cachibot.services.job_runner import get_job_runner
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.services.scheduler_service import get_scheduler_service
-from cachibot.storage.database import close_db, init_db
+from cachibot.storage.db import close_db, init_db
 
 # Find the frontend dist directory
 # 1. Bundled in the package (pip install case): cachibot/frontend_dist/

@@ -73,6 +73,19 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 # Maximum recent conversation messages included in context
 max_history_messages = 10
 
+[database]
+# PostgreSQL connection URL
+# Override with DATABASE_URL environment variable for deployment
+# url = "postgresql+asyncpg://cachibot:cachibot@localhost:5433/cachibot"
+
+# Connection pool settings
+# pool_size = 10
+# max_overflow = 20
+# pool_recycle = 3600
+
+# Echo SQL statements to stdout (debug only)
+# echo = false
+
 [display]
 # Show agent's thinking process
 show_thinking = true
