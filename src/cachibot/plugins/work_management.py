@@ -45,6 +45,36 @@ class WorkManagementPlugin(CachibotPlugin):
             display_name="Create Work",
             icon="briefcase",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Title of the work item.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description of what needs to be done.",
+                    },
+                    "goal": {
+                        "type": "string",
+                        "description": "The end goal or success criteria.",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "Priority level for the work item.",
+                        "enum": ["low", "normal", "high", "urgent"],
+                        "default": "normal",
+                    },
+                    "tasks": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of task titles to create with the work.",
+                    },
+                },
+                "required": ["title"],
+                "additionalProperties": False,
+            },
         )
         async def work_create(
             title: str,
@@ -253,6 +283,36 @@ class WorkManagementPlugin(CachibotPlugin):
             display_name="Create Todo",
             icon="list-todo",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Brief title of the todo.",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Additional notes or context.",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "Priority level for the todo.",
+                        "enum": ["low", "normal", "high", "urgent"],
+                        "default": "normal",
+                    },
+                    "remind_at": {
+                        "type": "string",
+                        "description": (
+                            "When to send a reminder. Accepts full ISO datetime "
+                            "(e.g., '2025-01-15T09:00:00'), date and time "
+                            "(e.g., '2025-01-15 09:00'), or just a time for today "
+                            "(e.g., '20:45')."
+                        ),
+                    },
+                },
+                "required": ["title"],
+                "additionalProperties": False,
+            },
         )
         async def todo_create(
             title: str,
@@ -266,13 +326,16 @@ class WorkManagementPlugin(CachibotPlugin):
                 title: Brief title of the todo
                 notes: Additional notes or context
                 priority: Priority level (low, normal, high, urgent)
-                remind_at: Optional ISO datetime to remind (e.g., "2024-01-15T09:00:00").
-                    When set, a notification will be delivered at the specified time.
+                remind_at: When to send a reminder. Accepts full ISO datetime
+                    (e.g., "2025-01-15T09:00:00"), date and time
+                    (e.g., "2025-01-15 09:00"), or just a time for today
+                    (e.g., "20:45").
 
             Returns:
                 JSON with the created todo ID and details
             """
             import json
+            import re
             import uuid
             from datetime import datetime
 
@@ -290,7 +353,24 @@ class WorkManagementPlugin(CachibotPlugin):
                     try:
                         remind_datetime = datetime.fromisoformat(remind_at)
                     except ValueError:
-                        return f"Error: Invalid datetime format: {remind_at}"
+                        # Try parsing as time-only (e.g. "20:45" or "9:00")
+                        time_match = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", remind_at.strip())
+                        if time_match:
+                            h, m = int(time_match.group(1)), int(time_match.group(2))
+                            s = int(time_match.group(3)) if time_match.group(3) else 0
+                            now = datetime.utcnow()
+                            remind_datetime = now.replace(hour=h, minute=m, second=s, microsecond=0)
+                            if remind_datetime <= now:
+                                # Time already passed today, schedule for tomorrow
+                                from datetime import timedelta
+                                remind_datetime += timedelta(days=1)
+                        else:
+                            return (
+                                f"Error: Invalid time format: {remind_at}. "
+                                "Use ISO datetime (e.g., '2025-01-15T09:00:00'), "
+                                "date and time (e.g., '2025-01-15 09:00'), "
+                                "or just time for today (e.g., '20:45')."
+                            )
 
                 todo = Todo(
                     id=str(uuid.uuid4()),
@@ -404,8 +484,8 @@ class WorkManagementPlugin(CachibotPlugin):
             name="schedule_create",
             description="Schedule a one-time or recurring action. "
             "Use this to set reminders, schedule messages, or plan future tasks. "
-            "For one-time actions, provide run_at. For recurring, provide interval_seconds "
-            "or cron_expression.",
+            "Provide EXACTLY ONE of: run_at (one-time), interval_seconds (recurring), "
+            "or cron_expression (cron-based recurring).",
             category="work",
             tags=["schedule", "create", "timer", "reminder", "cron"],
             is_async=True,
@@ -413,6 +493,52 @@ class WorkManagementPlugin(CachibotPlugin):
             display_name="Create Schedule",
             icon="clock",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name/title for this schedule.",
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "The message to deliver when the schedule fires.",
+                    },
+                    "run_at": {
+                        "type": "string",
+                        "description": (
+                            "Datetime for one-time execution. Accepts full ISO datetime "
+                            "(e.g., '2025-01-15T09:00:00'), date and time "
+                            "(e.g., '2025-01-15 09:00'), or just a time for today "
+                            "(e.g., '20:45'). Mutually exclusive with interval_seconds "
+                            "and cron_expression."
+                        ),
+                    },
+                    "interval_seconds": {
+                        "type": "integer",
+                        "description": (
+                            "Repeat every N seconds (e.g., 3600 for hourly). "
+                            "Minimum 60. Mutually exclusive with run_at and cron_expression."
+                        ),
+                        "minimum": 60,
+                    },
+                    "cron_expression": {
+                        "type": "string",
+                        "description": (
+                            "Cron expression for complex recurring schedules "
+                            "(e.g., '0 9 * * 1-5' for weekdays at 9 AM). "
+                            "Mutually exclusive with run_at and interval_seconds."
+                        ),
+                    },
+                },
+                "required": ["name", "message"],
+                "oneOf": [
+                    {"required": ["run_at"]},
+                    {"required": ["interval_seconds"]},
+                    {"required": ["cron_expression"]},
+                ],
+                "additionalProperties": False,
+            },
         )
         async def schedule_create(
             name: str,
@@ -426,7 +552,10 @@ class WorkManagementPlugin(CachibotPlugin):
             Args:
                 name: Name/title for this schedule
                 message: The message to deliver when the schedule fires
-                run_at: ISO datetime for one-time execution (e.g., "2024-01-15T09:00:00")
+                run_at: Datetime for one-time execution. Accepts full ISO datetime
+                    (e.g., "2025-01-15T09:00:00"), date and time
+                    (e.g., "2025-01-15 09:00"), or just a time for today
+                    (e.g., "20:45").
                 interval_seconds: Repeat every N seconds (e.g., 3600 for hourly)
                 cron_expression: Cron expression for complex schedules (e.g., "0 9 * * 1-5")
 
@@ -434,6 +563,7 @@ class WorkManagementPlugin(CachibotPlugin):
                 JSON with the created schedule ID and details
             """
             import json
+            import re
             import uuid
             from datetime import datetime, timedelta
 
@@ -450,7 +580,22 @@ class WorkManagementPlugin(CachibotPlugin):
                 try:
                     run_at_dt = datetime.fromisoformat(run_at)
                 except ValueError:
-                    return f"Error: Invalid datetime format: {run_at}"
+                    # Try parsing as time-only (e.g. "20:45" or "9:00")
+                    time_match = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", run_at.strip())
+                    if time_match:
+                        h, m = int(time_match.group(1)), int(time_match.group(2))
+                        s = int(time_match.group(3)) if time_match.group(3) else 0
+                        now = datetime.utcnow()
+                        run_at_dt = now.replace(hour=h, minute=m, second=s, microsecond=0)
+                        if run_at_dt <= now:
+                            run_at_dt += timedelta(days=1)
+                    else:
+                        return (
+                            f"Error: Invalid time format: {run_at}. "
+                            "Use ISO datetime (e.g., '2025-01-15T09:00:00'), "
+                            "date and time (e.g., '2025-01-15 09:00'), "
+                            "or just time for today (e.g., '20:45')."
+                        )
                 next_run_at = run_at_dt
             elif interval_seconds:
                 schedule_type = ScheduleType.INTERVAL
