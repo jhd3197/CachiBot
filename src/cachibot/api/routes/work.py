@@ -1111,6 +1111,32 @@ async def fail_work(
     return WorkResponse.from_work(work, len(tasks), completed)
 
 
+@router.post("/work/{work_id}/cancel")
+async def cancel_work(
+    bot_id: str,
+    work_id: str,
+    user: User = Depends(require_bot_access),
+) -> WorkResponse:
+    """Cancel a running work item and its jobs."""
+    work = await work_repo.get(work_id)
+    if work is None or work.bot_id != bot_id:
+        raise HTTPException(status_code=404, detail="Work not found")
+
+    try:
+        from cachibot.services.job_runner import get_job_runner
+
+        runner = get_job_runner()
+        await runner.cancel_work(work_id)
+    except (ImportError, RuntimeError):
+        # Runner not available, just update status directly
+        await work_repo.update_status(work_id, WorkStatus.CANCELLED)
+
+    work = await work_repo.get(work_id)
+    tasks = await task_repo.get_by_work(work_id)
+    completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
+    return WorkResponse.from_work(work, len(tasks), completed)
+
+
 @router.delete("/work/{work_id}", status_code=204)
 async def delete_work(
     bot_id: str,

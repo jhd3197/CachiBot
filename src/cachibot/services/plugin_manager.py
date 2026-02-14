@@ -22,6 +22,7 @@ from cachibot.plugins import (
     CachibotPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
+    JobToolsPlugin,
     KnowledgePlugin,
     NotesPlugin,
     PlatformPlugin,
@@ -43,7 +44,7 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "webAccess": [WebPlugin, HttpPlugin],
     "dataOperations": [SqlPlugin, CompressionPlugin],
     "connections": [PlatformPlugin],
-    "workManagement": [WorkManagementPlugin],
+    "workManagement": [WorkManagementPlugin, JobToolsPlugin],
     "imageGeneration": [ImageGenerationPlugin],
     "audioGeneration": [AudioGenerationPlugin],
 }

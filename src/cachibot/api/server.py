@@ -45,6 +45,7 @@ from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
+from cachibot.services.job_runner import get_job_runner
 from cachibot.services.scheduler_service import get_scheduler_service
 from cachibot.storage.database import close_db, init_db
 
@@ -78,9 +79,14 @@ async def lifespan(app: FastAPI):
     scheduler = get_scheduler_service()
     await scheduler.start()
 
+    # Start the job runner service (executes Work tasks as background Jobs)
+    job_runner = get_job_runner()
+    await job_runner.start()
+
     yield
 
     # Shutdown
+    await job_runner.stop()
     await scheduler.stop()
     # Disconnect all platform adapters
     await platform_manager.disconnect_all()
