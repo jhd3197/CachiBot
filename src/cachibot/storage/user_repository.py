@@ -28,6 +28,10 @@ class UserRepository:
                 password_hash=user.password_hash,
                 role=user.role.value,
                 is_active=user.is_active,
+                is_verified=user.is_verified,
+                tier=user.tier,
+                credit_balance=user.credit_balance,
+                website_user_id=user.website_user_id,
                 created_at=user.created_at,
                 created_by=user.created_by,
                 last_login=user.last_login,
@@ -104,6 +108,10 @@ class UserRepository:
                 created_at=row.created_at,
                 created_by=row.created_by,
                 last_login=row.last_login,
+                website_user_id=row.website_user_id,
+                tier=row.tier,
+                credit_balance=row.credit_balance,
+                is_verified=row.is_verified,
             )
             for row in rows
         ]
@@ -193,6 +201,51 @@ class UserRepository:
             result = await session.execute(stmt)
             return result.scalar_one_or_none() is not None
 
+    async def get_user_by_website_id(self, website_user_id: int) -> UserInDB | None:
+        """Get a user by their website INT user ID."""
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(UserModel).where(
+                    UserModel.website_user_id == website_user_id
+                )
+            )
+            row = result.scalar_one_or_none()
+
+        if row is None:
+            return None
+
+        return self._row_to_user(row)
+
+    async def update_website_fields(
+        self,
+        user_id: str,
+        *,
+        website_user_id: int | None = None,
+        tier: str | None = None,
+        credit_balance: float | None = None,
+    ) -> bool:
+        """Update website-synced fields. Returns True if user was found and updated."""
+        values: dict = {}
+
+        if website_user_id is not None:
+            values["website_user_id"] = website_user_id
+        if tier is not None:
+            values["tier"] = tier
+        if credit_balance is not None:
+            values["credit_balance"] = credit_balance
+
+        if not values:
+            return True
+
+        async with async_session_maker() as session:
+            result = await session.execute(
+                update(UserModel)
+                .where(UserModel.id == user_id)
+                .values(**values)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
     def _row_to_user(self, row: UserModel) -> UserInDB:
         """Convert a database row to UserInDB object."""
         return UserInDB(
@@ -205,6 +258,10 @@ class UserRepository:
             created_at=row.created_at,
             created_by=row.created_by,
             last_login=row.last_login,
+            website_user_id=row.website_user_id,
+            tier=row.tier,
+            credit_balance=row.credit_balance,
+            is_verified=row.is_verified,
         )
 
 

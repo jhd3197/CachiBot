@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { MainLayout } from './components/layout/MainLayout'
+import { AuthCallback } from './components/auth/AuthCallback'
 import { LoginPage } from './components/auth/LoginPage'
 import { SetupPage } from './components/auth/SetupPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
@@ -25,6 +26,7 @@ function App() {
       {/* Auth routes (public) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Protected routes */}
       <Route

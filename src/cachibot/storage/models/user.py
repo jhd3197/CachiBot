@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Index, String, func
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -42,10 +42,16 @@ class User(Base):
         Index("idx_users_role", "role"),
         Index("idx_users_verification_token_hint", "verification_token_hint"),
         Index("idx_users_reset_token_hint", "reset_token_hint"),
+        Index("idx_users_website_user_id", "website_user_id"),
     )
 
     # --- Primary key (UUID string to match CachiBotV2 existing data) ---
     id: Mapped[str] = mapped_column(String, primary_key=True)
+
+    # --- Website link (INT user ID from CachiBot website) ---
+    website_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, unique=True, nullable=True
+    )
 
     # --- Core identity (both systems) ---
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)

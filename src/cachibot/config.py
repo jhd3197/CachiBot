@@ -142,6 +142,15 @@ class AuthConfig:
 
 
 @dataclass
+class PlatformConfig:
+    """Platform deployment configuration for website ↔ V2 auth bridge."""
+
+    deploy_mode: str = "selfhosted"  # "selfhosted" or "cloud"
+    website_jwt_secret: str = ""  # Shared secret for platform launch tokens
+    website_url: str = ""  # e.g. "https://cachibot.ai"
+
+
+@dataclass
 class DatabaseConfig:
     """Database configuration for PostgreSQL."""
 
@@ -185,6 +194,7 @@ class Config:
     knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    platform: PlatformConfig = field(default_factory=PlatformConfig)
 
     # Runtime paths
     workspace_path: Path = field(default_factory=Path.cwd)
@@ -309,6 +319,14 @@ class Config:
             except ValueError:
                 pass
 
+        # Platform settings
+        if deploy_mode := os.getenv("CACHIBOT_DEPLOY_MODE"):
+            self.platform.deploy_mode = deploy_mode
+        if website_jwt_secret := os.getenv("CACHIBOT_WEBSITE_JWT_SECRET"):
+            self.platform.website_jwt_secret = website_jwt_secret
+        if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
+            self.platform.website_url = website_url
+
     def _load_from_file(self, path: Path) -> None:
         """Load configuration from a TOML file."""
 
@@ -386,6 +404,14 @@ class Config:
                 self.auth.access_token_expire_minutes = auth_data["access_token_expire_minutes"]
             if "refresh_token_expire_days" in auth_data:
                 self.auth.refresh_token_expire_days = auth_data["refresh_token_expire_days"]
+
+        if platform_data := data.get("platform"):
+            if "deploy_mode" in platform_data:
+                self.platform.deploy_mode = platform_data["deploy_mode"]
+            if "website_jwt_secret" in platform_data:
+                self.platform.website_jwt_secret = platform_data["website_jwt_secret"]
+            if "website_url" in platform_data:
+                self.platform.website_url = platform_data["website_url"]
 
         if db_data := data.get("database"):
             if "url" in db_data:
