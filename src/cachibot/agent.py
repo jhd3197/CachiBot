@@ -176,10 +176,23 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
 ## Available Tools
 {tool_lines}
 
-## Important
+{self._get_job_tools_section()}## Important
 - All tools are automatically scoped to the workspace for security
 - Python code runs in a sandbox with restricted imports
 """
+
+    def _get_job_tools_section(self) -> str:
+        """Return system prompt section for background jobs, if tools are available."""
+        job_tools = {"job_create", "job_status", "job_cancel", "job_list"}
+        if job_tools & set(self.registry.names):
+            return (
+                "## Background Jobs\n"
+                "You can create background jobs for long-running tasks using job_create.\n"
+                "This allows you to run multi-step tasks asynchronously without blocking "
+                "the conversation.\n"
+                "Use job_status to check progress and job_cancel to stop a running job.\n\n"
+            )
+        return ""
 
     def _handle_approval(self, tool_name: str, action: str, details: dict) -> bool:
         """Handle approval requests."""

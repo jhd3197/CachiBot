@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { wsClient } from '../api/websocket'
-import { useChatStore, useBotStore } from '../stores/bots'
+import { useChatStore, useBotStore, useJobStore } from '../stores/bots'
 import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
 import type {
@@ -19,6 +19,7 @@ import type {
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
+  JobUpdatePayload,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -244,6 +245,43 @@ export function useWebSocket() {
               perModel: payload.perModel,
               latencyStats: payload.latencyStats,
             })
+          }
+          break
+        }
+
+        case 'job_update': {
+          const payload = msg.payload as JobUpdatePayload
+          const jobStore = useJobStore.getState()
+          if (payload.action === 'created') {
+            jobStore.addJob({
+              id: payload.job.id,
+              botId: payload.job.botId,
+              chatId: payload.job.chatId,
+              title: `Job ${payload.job.taskId}`,
+              status: payload.job.status === 'running' ? 'running' : payload.job.status,
+              priority: 'normal',
+              progress: payload.job.progress * 100,
+              createdAt: payload.job.createdAt,
+              startedAt: payload.job.startedAt,
+              completedAt: payload.job.completedAt,
+              result: payload.job.result as string | Record<string, unknown> | undefined,
+              error: payload.job.error,
+              logs: payload.job.logs.map(l => ({
+                timestamp: l.timestamp,
+                level: l.level,
+                message: l.message,
+              })),
+            })
+          } else if (payload.action === 'updated') {
+            jobStore.updateJob(payload.job.id, {
+              status: payload.job.status === 'running' ? 'running' : payload.job.status,
+              progress: payload.job.progress * 100,
+              completedAt: payload.job.completedAt,
+              result: payload.job.result as string | Record<string, unknown> | undefined,
+              error: payload.job.error,
+            })
+          } else if (payload.action === 'deleted') {
+            jobStore.deleteJob(payload.job.id)
           }
           break
         }
