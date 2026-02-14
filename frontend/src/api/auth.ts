@@ -3,8 +3,10 @@
  */
 
 import type {
+  AuthModeResponse,
   ChangePasswordRequest,
   CreateUserRequest,
+  ExchangeTokenRequest,
   LoginRequest,
   LoginResponse,
   RefreshRequest,
@@ -68,6 +70,17 @@ async function authRequest<T>(
 }
 
 // ===== Public endpoints (no auth required) =====
+
+export async function getAuthMode(): Promise<AuthModeResponse> {
+  return authRequest('/auth/mode')
+}
+
+export async function exchangeToken(data: ExchangeTokenRequest): Promise<LoginResponse> {
+  return authRequest('/auth/exchange', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
 
 export async function checkSetupRequired(): Promise<SetupStatusResponse> {
   return authRequest('/auth/setup-required')

@@ -13,6 +13,10 @@ export interface User {
   created_at: string
   created_by: string | null
   last_login: string | null
+  website_user_id: number | null
+  tier: string
+  credit_balance: number
+  is_verified: boolean
 }
 
 export interface LoginRequest {
@@ -68,6 +72,15 @@ export interface SetupStatusResponse {
 export interface UserListResponse {
   users: User[]
   total: number
+}
+
+export interface AuthModeResponse {
+  mode: 'selfhosted' | 'cloud'
+  login_url: string | null
+}
+
+export interface ExchangeTokenRequest {
+  token: string
 }
 
 // =============================================================================

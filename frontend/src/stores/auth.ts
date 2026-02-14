@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User } from '../types'
+import type { AuthModeResponse, User } from '../types'
 
 interface AuthState {
   // State
@@ -10,6 +10,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   setupRequired: boolean | null
+  authMode: AuthModeResponse | null
 
   // Actions
   setUser: (user: User | null) => void
@@ -17,6 +18,7 @@ interface AuthState {
   setAccessToken: (accessToken: string) => void
   setSetupRequired: (required: boolean) => void
   setLoading: (loading: boolean) => void
+  setAuthMode: (mode: AuthModeResponse) => void
   login: (user: User, accessToken: string, refreshToken: string) => void
   logout: () => void
   updateUser: (updates: Partial<User>) => void
@@ -32,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: true,
       setupRequired: null,
+      authMode: null,
 
       // Actions
       setUser: (user) =>
@@ -58,6 +61,9 @@ export const useAuthStore = create<AuthState>()(
 
       setLoading: (loading) =>
         set({ isLoading: loading }),
+
+      setAuthMode: (mode) =>
+        set({ authMode: mode }),
 
       login: (user, accessToken, refreshToken) =>
         set({

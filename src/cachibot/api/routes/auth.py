@@ -7,10 +7,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from cachibot.api.auth import get_admin_user, get_current_user
+from cachibot.api.auth import _to_user, get_admin_user, get_current_user
 from cachibot.models.auth import (
+    AuthModeResponse,
     ChangePasswordRequest,
     CreateUserRequest,
+    ExchangeTokenRequest,
     LoginRequest,
     LoginResponse,
     RefreshRequest,
@@ -24,6 +26,7 @@ from cachibot.models.auth import (
     UserRole,
 )
 from cachibot.services.auth_service import get_auth_service
+from cachibot.services.user_provisioning import UserProvisioningService
 from cachibot.storage.user_repository import UserRepository
 
 router = APIRouter(prefix="/auth")
@@ -53,9 +56,71 @@ async def rate_limit_auth(request: Request) -> None:
     _rate_limit_store[client_ip].append(now)
 
 
+@router.get("/mode", response_model=AuthModeResponse)
+async def get_auth_mode() -> AuthModeResponse:
+    """Get the platform's authentication mode."""
+    auth = get_auth_service()
+    if auth.is_cloud_mode and auth.platform_config:
+        return AuthModeResponse(
+            mode="cloud",
+            login_url=f"{auth.platform_config.website_url}/login",
+        )
+    return AuthModeResponse(mode="selfhosted")
+
+
+@router.post(
+    "/exchange",
+    response_model=LoginResponse,
+    dependencies=[Depends(rate_limit_auth)],
+)
+async def exchange_token(request: ExchangeTokenRequest) -> LoginResponse:
+    """Exchange a platform launch token for V2 native tokens.
+
+    Only available in cloud mode. The launch token is a short-lived JWT
+    signed with the shared website secret.
+    """
+    auth = get_auth_service()
+    if not auth.is_cloud_mode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not available in selfhosted mode",
+        )
+
+    payload = auth.verify_platform_launch_token(request.token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired launch token",
+        )
+
+    # Provision/update user from website identity
+    svc = UserProvisioningService()
+    user = await svc.provision_from_website(
+        email=payload["sub"],
+        website_user_id=payload["website_user_id"],
+        tier=payload.get("tier", "free"),
+        credits=payload.get("credits", 0.0),
+        is_admin=payload.get("is_admin", False),
+    )
+
+    # Issue V2 native tokens
+    access_token = auth.create_access_token(user.id, user.role.value)
+    refresh_token = auth.create_refresh_token(user.id)
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=_to_user(user),
+    )
+
+
 @router.get("/setup-required", response_model=SetupStatusResponse)
 async def check_setup_required() -> SetupStatusResponse:
     """Check if first-time setup is needed (no users exist)."""
+    auth = get_auth_service()
+    if auth.is_cloud_mode:
+        # In cloud mode, setup is never required (users come from website)
+        return SetupStatusResponse(setup_required=False)
     repo = UserRepository()
     count = await repo.get_user_count()
     return SetupStatusResponse(setup_required=count == 0)
@@ -67,7 +132,15 @@ async def setup_initial_admin(request: SetupRequest) -> LoginResponse:
     Create the initial admin user (first-time setup).
 
     This endpoint only works when no users exist in the system.
+    Not available in cloud mode (users are provisioned from the website).
     """
+    auth = get_auth_service()
+    if auth.is_cloud_mode:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use the website to create an account",
+        )
+
     repo = UserRepository()
 
     # Check if setup is still needed
@@ -135,9 +208,18 @@ async def login(request: LoginRequest) -> LoginResponse:
     Login with email or username and password.
 
     Returns access and refresh tokens on success.
+    Not available in cloud mode (login happens on the website).
     """
-    repo = UserRepository()
     auth_service = get_auth_service()
+    if auth_service.is_cloud_mode and auth_service.platform_config:
+        login_url = f"{auth_service.platform_config.website_url}/login"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Login via the website instead",
+            headers={"X-Redirect": login_url},
+        )
+
+    repo = UserRepository()
 
     # Find user by email or username
     user = await repo.get_user_by_identifier(request.identifier)

@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Shield, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../../stores/auth'
-import { checkSetupRequired, login } from '../../api/auth'
+import { checkSetupRequired, getAuthMode, login } from '../../api/auth'
 import { Button } from '../common/Button'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login: storeLogin, setSetupRequired, isLoading, setLoading } = useAuthStore()
+  const {
+    login: storeLogin,
+    setSetupRequired,
+    setAuthMode,
+    authMode,
+    isLoading,
+    setLoading,
+  } = useAuthStore()
 
   // Form state
   const [identifier, setIdentifier] = useState('')
@@ -16,23 +23,34 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Check if setup is required on mount - redirect to setup page if needed
+  // Check auth mode and setup status on mount
   useEffect(() => {
-    const checkSetup = async () => {
+    const init = async () => {
       try {
+        // Fetch auth mode first
+        const mode = await getAuthMode()
+        setAuthMode(mode)
+
+        // In cloud mode, skip setup check (handled by website)
+        if (mode.mode === 'cloud') {
+          setLoading(false)
+          return
+        }
+
+        // Selfhosted: check setup
         const { setup_required } = await checkSetupRequired()
         setSetupRequired(setup_required)
         if (setup_required) {
           navigate('/setup', { replace: true })
         }
       } catch (err) {
-        console.error('Failed to check setup status:', err)
+        console.error('Failed to check auth mode:', err)
       } finally {
         setLoading(false)
       }
     }
-    checkSetup()
-  }, [setSetupRequired, setLoading, navigate])
+    init()
+  }, [setSetupRequired, setAuthMode, setLoading, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,6 +84,40 @@ export function LoginPage() {
     )
   }
 
+  // Cloud mode: show redirect to website
+  if (authMode?.mode === 'cloud' && authMode.login_url) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
+              <Shield className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">CachiBot</h1>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1">Sign in to continue</p>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm text-center">
+            <p className="text-zinc-600 dark:text-zinc-300 text-sm mb-4">
+              This platform uses cachibot.ai for authentication.
+            </p>
+            <a href={authMode.login_url}>
+              <Button className="w-full justify-center">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Sign in via cachibot.ai
+              </Button>
+            </a>
+          </div>
+
+          <p className="text-center text-zinc-500 text-sm mt-6">
+            The Armored AI Agent
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Selfhosted mode: standard login form
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
       <div className="w-full max-w-md">
