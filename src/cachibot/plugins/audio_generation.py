@@ -61,6 +61,33 @@ class AudioGenerationPlugin(CachibotPlugin):
             display_name="Generate Audio",
             icon="audio-lines",
             risk_level=RiskLevel.MODERATE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "The text to convert to speech.",
+                    },
+                    "voice": {
+                        "type": "string",
+                        "description": (
+                            "Voice name for TTS. For OpenAI models use one of the listed voices. "
+                            "For ElevenLabs, pass an ElevenLabs voice ID. "
+                            "Defaults to plugin config."
+                        ),
+                        "enum": ["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
+                        "default": "alloy",
+                    },
+                    "format": {
+                        "type": "string",
+                        "description": "Output audio format. Defaults to plugin config.",
+                        "enum": ["mp3", "wav", "opus"],
+                        "default": "mp3",
+                    },
+                },
+                "required": ["text"],
+                "additionalProperties": False,
+            },
             config_params=[
                 ConfigParam(
                     name="voice",
@@ -189,7 +216,7 @@ class AudioGenerationPlugin(CachibotPlugin):
             name="transcribe_audio",
             description="Transcribe audio to text using speech-to-text. "
             "Supports OpenAI Whisper and ElevenLabs Scribe. "
-            "Accepts base64-encoded audio data or a file path in the workspace.",
+            "Accepts base64-encoded audio data, a data URI, or a file path in the workspace.",
             category="creative",
             tags=["audio", "stt", "transcription", "speech"],
             side_effects=False,
@@ -197,6 +224,30 @@ class AudioGenerationPlugin(CachibotPlugin):
             display_name="Transcribe Audio",
             icon="mic",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "audio_data": {
+                        "type": "string",
+                        "description": (
+                            "The audio to transcribe. Accepts three formats: "
+                            "(1) a data URI (e.g., 'data:audio/mp3;base64,...'), "
+                            "(2) a file path within the workspace "
+                            "(e.g., 'recordings/meeting.mp3'), "
+                            "or (3) raw base64-encoded audio data."
+                        ),
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": (
+                            "Language code hint for transcription (e.g., 'en', 'es'). "
+                            "Auto-detected if not provided."
+                        ),
+                    },
+                },
+                "required": ["audio_data"],
+                "additionalProperties": False,
+            },
             config_params=[
                 ConfigParam(
                     name="language",
