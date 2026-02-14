@@ -215,14 +215,18 @@ class PlatformManager:
                 return await self.send_message(conn.id, chat_id, message)
         return False
 
-    async def reconnect_all(self) -> None:
-        """Reconnect all connections that should be connected."""
+    async def reset_all_statuses(self) -> None:
+        """Reset all connection statuses to disconnected.
+
+        Called on server startup — after a restart no adapters are actually
+        running, so the DB should reflect that instead of showing stale
+        'connected' status.
+        """
         connections = await self._repo.get_all_connected()
         for conn in connections:
-            try:
-                await self.connect(conn.id)
-            except Exception as e:
-                logger.error(f"Failed to reconnect {conn.id}: {e}")
+            await self._repo.update_connection_status(conn.id, ConnectionStatus.disconnected)
+        if connections:
+            logger.info(f"Reset {len(connections)} stale connection(s) to disconnected.")
 
     async def disconnect_all(self) -> None:
         """Disconnect all active connections."""

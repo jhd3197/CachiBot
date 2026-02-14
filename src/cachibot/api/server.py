@@ -30,6 +30,7 @@ from cachibot.api.routes import (
     knowledge,
     marketplace,
     models,
+    platforms,
     plugins,
     providers,
     rooms,
@@ -43,9 +44,9 @@ from cachibot.api.routes.webhooks import viber as wh_viber
 from cachibot.api.routes.webhooks import whatsapp as wh_whatsapp
 from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
+from cachibot.services.job_runner import get_job_runner
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
-from cachibot.services.job_runner import get_job_runner
 from cachibot.services.scheduler_service import get_scheduler_service
 from cachibot.storage.database import close_db, init_db
 
@@ -69,11 +70,8 @@ async def lifespan(app: FastAPI):
     message_processor = get_message_processor()
     platform_manager.set_message_processor(message_processor.process_message)
 
-    # Reconnect platform adapters that were connected
-    try:
-        await platform_manager.reconnect_all()
-    except Exception:
-        pass  # Don't fail startup if reconnection fails
+    # Reset stale connection statuses — after a restart they are disconnected
+    await platform_manager.reset_all_statuses()
 
     # Start the scheduler service (polls for due schedules & reminders)
     scheduler = get_scheduler_service()
@@ -150,6 +148,7 @@ def create_app(
     app.include_router(instructions.router, tags=["instructions"])
     app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(marketplace.router, tags=["marketplace"])
+    app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
