@@ -1,12 +1,11 @@
 """Tests for the Knowledge Base pipeline: document processor, vector store, and context builder."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 
-import cachibot.storage.database as db_mod
 from cachibot.models.knowledge import DocChunk, DocumentStatus
 from cachibot.services.context_builder import ContextBuilder, KnowledgeContext
 from cachibot.services.document_processor import DocumentProcessor
@@ -18,17 +17,6 @@ from cachibot.services.vector_store import SearchResult, VectorStore
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-async def _setup_test_db(tmp_path):
-    """Point the database at a temp file and initialise tables for every test."""
-    test_db = tmp_path / "test.db"
-    db_mod.DB_PATH = test_db
-    db_mod._db = None
-    await db_mod.init_db()
-    yield
-    await db_mod.close_db()
-
-
 @pytest.fixture
 def mock_vector_store():
     """Create a VectorStore with a mocked fastembed embedder."""
@@ -38,7 +26,7 @@ def mock_vector_store():
 
     def fake_embed(texts):
         """Return deterministic fake embeddings (384-dim) for each text."""
-        for i, _text in enumerate(texts):
+        for _text in texts:
             rng = np.random.RandomState(hash(_text) % (2**31))
             yield rng.randn(384).astype(np.float32)
 
@@ -230,197 +218,217 @@ class TestDocumentProcessorPipeline:
 
 
 class TestVectorStoreSerialization:
-    """Tests for embedding serialization/deserialization."""
+    """Tests for embedding serialization (pgvector format: list[float])."""
 
-    def test_roundtrip_list(self):
+    def test_serialize_list_returns_list(self):
         original = [1.0, 2.0, 3.0, 0.5, -1.5]
         serialized = VectorStore.serialize_embedding(original)
-        deserialized = VectorStore.deserialize_embedding(serialized)
-        np.testing.assert_allclose(deserialized, original, atol=1e-6)
+        assert isinstance(serialized, list)
+        assert serialized == original
 
-    def test_roundtrip_numpy(self):
+    def test_serialize_numpy_returns_list(self):
         original = np.array([0.1, 0.2, 0.3, -0.4], dtype=np.float32)
         serialized = VectorStore.serialize_embedding(original)
-        deserialized = VectorStore.deserialize_embedding(serialized)
-        np.testing.assert_array_equal(deserialized, original)
+        assert isinstance(serialized, list)
+        np.testing.assert_allclose(serialized, original.tolist(), atol=1e-6)
 
-    def test_serialize_produces_bytes(self):
+    def test_serialize_preserves_values(self):
         embedding = [1.0, 2.0, 3.0]
         result = VectorStore.serialize_embedding(embedding)
-        assert isinstance(result, bytes)
-        # 3 floats * 4 bytes each
-        assert len(result) == 12
+        assert result == [1.0, 2.0, 3.0]
 
-    def test_roundtrip_384_dim(self):
-        """Roundtrip with the actual embedding dimension used in production."""
+    def test_serialize_384_dim(self):
+        """Serialize with the actual embedding dimension used in production."""
         rng = np.random.RandomState(42)
         original = rng.randn(384).astype(np.float32)
         serialized = VectorStore.serialize_embedding(original)
-        deserialized = VectorStore.deserialize_embedding(serialized)
-        np.testing.assert_array_equal(deserialized, original)
+        assert isinstance(serialized, list)
+        assert len(serialized) == 384
+        np.testing.assert_allclose(serialized, original.tolist(), atol=1e-6)
 
     def test_serialize_zeros(self):
         zeros = [0.0] * 10
         serialized = VectorStore.serialize_embedding(zeros)
-        deserialized = VectorStore.deserialize_embedding(serialized)
-        np.testing.assert_array_equal(deserialized, np.zeros(10, dtype=np.float32))
+        assert serialized == [0.0] * 10
 
 
 class TestCosineSimilarity:
-    """Tests for cosine similarity computation."""
+    """Tests for cosine similarity computation (standalone numpy tests)."""
+
+    @staticmethod
+    def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+        """Compute cosine similarity between two vectors."""
+        norm_a = np.linalg.norm(a)
+        norm_b = np.linalg.norm(b)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(a, b) / (norm_a * norm_b))
 
     def test_identical_vectors(self):
         a = np.array([1.0, 2.0, 3.0])
-        score = VectorStore.cosine_similarity(a, a)
+        score = self._cosine_similarity(a, a)
         assert abs(score - 1.0) < 1e-6
 
     def test_orthogonal_vectors(self):
         a = np.array([1.0, 0.0, 0.0])
         b = np.array([0.0, 1.0, 0.0])
-        score = VectorStore.cosine_similarity(a, b)
+        score = self._cosine_similarity(a, b)
         assert abs(score) < 1e-6
 
     def test_opposite_vectors(self):
         a = np.array([1.0, 2.0, 3.0])
         b = np.array([-1.0, -2.0, -3.0])
-        score = VectorStore.cosine_similarity(a, b)
+        score = self._cosine_similarity(a, b)
         assert abs(score - (-1.0)) < 1e-6
 
     def test_zero_vector_returns_zero(self):
         a = np.array([0.0, 0.0, 0.0])
         b = np.array([1.0, 2.0, 3.0])
-        assert VectorStore.cosine_similarity(a, b) == 0.0
-        assert VectorStore.cosine_similarity(b, a) == 0.0
+        assert self._cosine_similarity(a, b) == 0.0
+        assert self._cosine_similarity(b, a) == 0.0
 
     def test_known_value(self):
         a = np.array([1.0, 0.0])
         b = np.array([1.0, 1.0])
         # cos(45 degrees) = 1/sqrt(2) ~ 0.7071
-        score = VectorStore.cosine_similarity(a, b)
+        score = self._cosine_similarity(a, b)
         assert abs(score - (1.0 / np.sqrt(2))) < 1e-6
 
     def test_symmetry(self):
         rng = np.random.RandomState(99)
         a = rng.randn(50).astype(np.float32)
         b = rng.randn(50).astype(np.float32)
-        assert abs(VectorStore.cosine_similarity(a, b) - VectorStore.cosine_similarity(b, a)) < 1e-6
+        assert abs(self._cosine_similarity(a, b) - self._cosine_similarity(b, a)) < 1e-6
 
 
 class TestVectorStoreSearch:
-    """Tests for search_similar functionality."""
+    """Tests for search_similar functionality (mocked session for pgvector queries)."""
 
-    async def test_search_no_embeddings_returns_empty(self, mock_vector_store):
-        mock_vector_store._repo = MagicMock()
-        mock_vector_store._repo.get_all_embeddings_by_bot = AsyncMock(return_value=[])
-
-        results = await mock_vector_store.search_similar("bot-1", "test query")
-        assert results == []
-
-    async def test_search_returns_sorted_by_score(self, mock_vector_store):
-        # Create fake embedding rows with known embeddings
-        query_vec = np.array([1.0, 0.0, 0.0] + [0.0] * 381, dtype=np.float32)
-        close_vec = np.array([0.9, 0.1, 0.0] + [0.0] * 381, dtype=np.float32)
-        far_vec = np.array([0.1, 0.9, 0.0] + [0.0] * 381, dtype=np.float32)
-
-        embedding_rows = [
-            {"id": "chunk-far", "embedding": VectorStore.serialize_embedding(far_vec)},
-            {"id": "chunk-close", "embedding": VectorStore.serialize_embedding(close_vec)},
-        ]
-
-        mock_vector_store._repo = MagicMock()
-        mock_vector_store._repo.get_all_embeddings_by_bot = AsyncMock(return_value=embedding_rows)
-        mock_vector_store._repo.get_chunks_by_ids = AsyncMock(
-            return_value=[
-                DocChunk(
-                    id="chunk-close",
-                    document_id="doc-1",
-                    bot_id="bot-1",
-                    chunk_index=0,
-                    content="close content",
-                ),
-                DocChunk(
-                    id="chunk-far",
-                    document_id="doc-1",
-                    bot_id="bot-1",
-                    chunk_index=1,
-                    content="far content",
-                ),
-            ]
-        )
-
-        # Mock embed_text to return the query vector
+    async def test_search_no_results_returns_empty(self, mock_vector_store):
+        """When database returns no matching chunks, result is empty."""
+        query_vec = np.ones(384, dtype=np.float32)
         mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
 
-        results = await mock_vector_store.search_similar("bot-1", "test", limit=10, min_score=0.0)
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
+            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            results = await mock_vector_store.search_similar("bot-1", "test query")
+
+        assert results == []
+        mock_vector_store.embed_text.assert_called_once_with("test query")
+
+    async def test_search_returns_mapped_results(self, mock_vector_store):
+        """Results from database are correctly mapped to SearchResult objects."""
+        query_vec = np.ones(384, dtype=np.float32)
+        mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
+
+        # Create mock ORM objects mimicking pgvector query results
+        mock_chunk_close = MagicMock()
+        mock_chunk_close.id = "chunk-close"
+        mock_chunk_close.document_id = "doc-1"
+        mock_chunk_close.bot_id = "bot-1"
+        mock_chunk_close.chunk_index = 0
+        mock_chunk_close.content = "close content"
+
+        mock_chunk_far = MagicMock()
+        mock_chunk_far.id = "chunk-far"
+        mock_chunk_far.document_id = "doc-1"
+        mock_chunk_far.bot_id = "bot-1"
+        mock_chunk_far.chunk_index = 1
+        mock_chunk_far.content = "far content"
+
+        mock_result = MagicMock()
+        # pgvector query returns (DocChunkORM, similarity_score) tuples
+        mock_result.all.return_value = [
+            (mock_chunk_close, 0.95),
+            (mock_chunk_far, 0.72),
+        ]
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
+            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            results = await mock_vector_store.search_similar(
+                "bot-1", "test", limit=10, min_score=0.0
+            )
 
         assert len(results) == 2
-        # First result should be the closer vector
+        # Results should preserve database ordering (by cosine distance asc)
         assert results[0].chunk.id == "chunk-close"
+        assert results[0].score == 0.95
+        assert results[0].chunk.content == "close content"
         assert results[1].chunk.id == "chunk-far"
-        assert results[0].score > results[1].score
+        assert results[1].score == 0.72
 
-    async def test_search_min_score_filtering(self, mock_vector_store):
-        query_vec = np.array([1.0, 0.0, 0.0] + [0.0] * 381, dtype=np.float32)
-        # One vector very similar, one nearly orthogonal
-        similar_vec = np.array([0.95, 0.05, 0.0] + [0.0] * 381, dtype=np.float32)
-        orthogonal_vec = np.array([0.0, 1.0, 0.0] + [0.0] * 381, dtype=np.float32)
-
-        embedding_rows = [
-            {"id": "chunk-similar", "embedding": VectorStore.serialize_embedding(similar_vec)},
-            {"id": "chunk-orth", "embedding": VectorStore.serialize_embedding(orthogonal_vec)},
-        ]
-
-        mock_vector_store._repo = MagicMock()
-        mock_vector_store._repo.get_all_embeddings_by_bot = AsyncMock(return_value=embedding_rows)
-        mock_vector_store._repo.get_chunks_by_ids = AsyncMock(
-            return_value=[
-                DocChunk(
-                    id="chunk-similar",
-                    document_id="doc-1",
-                    bot_id="bot-1",
-                    chunk_index=0,
-                    content="similar",
-                ),
-            ]
-        )
-
+    async def test_search_result_embeddings_are_none(self, mock_vector_store):
+        """Returned SearchResult chunks should not include the embedding blob."""
+        query_vec = np.ones(384, dtype=np.float32)
         mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
 
-        # High min_score should filter out the orthogonal vector
-        results = await mock_vector_store.search_similar("bot-1", "test", min_score=0.5)
+        mock_chunk = MagicMock()
+        mock_chunk.id = "chunk-1"
+        mock_chunk.document_id = "doc-1"
+        mock_chunk.bot_id = "bot-1"
+        mock_chunk.chunk_index = 0
+        mock_chunk.content = "test content"
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [(mock_chunk, 0.85)]
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
+            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            results = await mock_vector_store.search_similar("bot-1", "test")
 
         assert len(results) == 1
-        assert results[0].chunk.id == "chunk-similar"
+        assert results[0].chunk.embedding is None
 
-    async def test_search_respects_limit(self, mock_vector_store):
+    async def test_search_with_filenames(self, mock_vector_store):
+        """search_with_filenames attaches document filenames to results."""
         query_vec = np.ones(384, dtype=np.float32)
-
-        # Create 5 similar embeddings
-        embedding_rows = []
-        chunks = []
-        for i in range(5):
-            vec = np.ones(384, dtype=np.float32) + np.float32(i * 0.01)
-            cid = f"chunk-{i}"
-            embedding_rows.append(
-                {"id": cid, "embedding": VectorStore.serialize_embedding(vec)}
-            )
-            chunks.append(
-                DocChunk(
-                    id=cid,
-                    document_id="doc-1",
-                    bot_id="bot-1",
-                    chunk_index=i,
-                    content=f"content {i}",
-                )
-            )
-
-        mock_vector_store._repo = MagicMock()
-        mock_vector_store._repo.get_all_embeddings_by_bot = AsyncMock(return_value=embedding_rows)
-        mock_vector_store._repo.get_chunks_by_ids = AsyncMock(return_value=chunks)
         mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
 
-        results = await mock_vector_store.search_similar("bot-1", "test", limit=2, min_score=0.0)
-        assert len(results) <= 2
+        mock_chunk = MagicMock()
+        mock_chunk.id = "chunk-1"
+        mock_chunk.document_id = "doc-1"
+        mock_chunk.bot_id = "bot-1"
+        mock_chunk.chunk_index = 0
+        mock_chunk.content = "test content"
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [(mock_chunk, 0.85)]
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        mock_vector_store._repo = MagicMock()
+        mock_doc = MagicMock()
+        mock_doc.id = "doc-1"
+        mock_doc.filename = "guide.pdf"
+        mock_vector_store._repo.get_documents_by_bot = AsyncMock(return_value=[mock_doc])
+
+        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
+            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            results = await mock_vector_store.search_with_filenames("bot-1", "test")
+
+        assert len(results) == 1
+        assert results[0].document_filename == "guide.pdf"
 
 
 # ===========================================================================
