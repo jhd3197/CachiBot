@@ -89,3 +89,4 @@ error.log
 website/*
 settings.local.json
 .marketing/
+settings.json

@@ -27,8 +27,12 @@ class WorkManagementPlugin(CachibotPlugin):
     def _get_bot_id(self) -> str | None:
         return self.ctx.bot_id
 
+    def _get_chat_id(self) -> str | None:
+        return self.ctx.chat_id
+
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
+        get_chat_id = self._get_chat_id
 
         @skill(
             name="work_create",
@@ -41,6 +45,36 @@ class WorkManagementPlugin(CachibotPlugin):
             display_name="Create Work",
             icon="briefcase",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Title of the work item.",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description of what needs to be done.",
+                    },
+                    "goal": {
+                        "type": "string",
+                        "description": "The end goal or success criteria.",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "Priority level for the work item.",
+                        "enum": ["low", "normal", "high", "urgent"],
+                        "default": "normal",
+                    },
+                    "tasks": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of task titles to create with the work.",
+                    },
+                },
+                "required": ["title"],
+                "additionalProperties": False,
+            },
         )
         async def work_create(
             title: str,
@@ -239,16 +273,46 @@ class WorkManagementPlugin(CachibotPlugin):
 
         @skill(
             name="todo_create",
-            description="Create a todo/reminder for later. "
-            "Use this to capture ideas, reminders, or tasks that should be "
-            "addressed later but don't need immediate structured work.",
+            description="Create a todo or timed reminder. "
+            "Use this to capture ideas, reminders, or tasks for later. "
+            "Set remind_at to get a notification delivered at a specific time.",
             category="work",
-            tags=["todo", "create"],
+            tags=["todo", "create", "reminder"],
             is_async=True,
             side_effects=True,
             display_name="Create Todo",
             icon="list-todo",
             risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Brief title of the todo.",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Additional notes or context.",
+                    },
+                    "priority": {
+                        "type": "string",
+                        "description": "Priority level for the todo.",
+                        "enum": ["low", "normal", "high", "urgent"],
+                        "default": "normal",
+                    },
+                    "remind_at": {
+                        "type": "string",
+                        "description": (
+                            "When to send a reminder. Accepts full ISO datetime "
+                            "(e.g., '2025-01-15T09:00:00'), date and time "
+                            "(e.g., '2025-01-15 09:00'), or just a time for today "
+                            "(e.g., '20:45')."
+                        ),
+                    },
+                },
+                "required": ["title"],
+                "additionalProperties": False,
+            },
         )
         async def todo_create(
             title: str,
@@ -256,18 +320,22 @@ class WorkManagementPlugin(CachibotPlugin):
             priority: str = "normal",
             remind_at: str | None = None,
         ) -> str:
-            """Create a todo/reminder for later.
+            """Create a todo or timed reminder.
 
             Args:
                 title: Brief title of the todo
                 notes: Additional notes or context
                 priority: Priority level (low, normal, high, urgent)
-                remind_at: Optional ISO datetime to remind (e.g., "2024-01-15T09:00:00")
+                remind_at: When to send a reminder. Accepts full ISO datetime
+                    (e.g., "2025-01-15T09:00:00"), date and time
+                    (e.g., "2025-01-15 09:00"), or just a time for today
+                    (e.g., "20:45").
 
             Returns:
                 JSON with the created todo ID and details
             """
             import json
+            import re
             import uuid
             from datetime import datetime
 
@@ -285,11 +353,29 @@ class WorkManagementPlugin(CachibotPlugin):
                     try:
                         remind_datetime = datetime.fromisoformat(remind_at)
                     except ValueError:
-                        pass
+                        # Try parsing as time-only (e.g. "20:45" or "9:00")
+                        time_match = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", remind_at.strip())
+                        if time_match:
+                            h, m = int(time_match.group(1)), int(time_match.group(2))
+                            s = int(time_match.group(3)) if time_match.group(3) else 0
+                            now = datetime.utcnow()
+                            remind_datetime = now.replace(hour=h, minute=m, second=s, microsecond=0)
+                            if remind_datetime <= now:
+                                # Time already passed today, schedule for tomorrow
+                                from datetime import timedelta
+                                remind_datetime += timedelta(days=1)
+                        else:
+                            return (
+                                f"Error: Invalid time format: {remind_at}. "
+                                "Use ISO datetime (e.g., '2025-01-15T09:00:00'), "
+                                "date and time (e.g., '2025-01-15 09:00'), "
+                                "or just time for today (e.g., '20:45')."
+                            )
 
                 todo = Todo(
                     id=str(uuid.uuid4()),
                     bot_id=bot_id,
+                    chat_id=get_chat_id(),
                     title=title,
                     notes=notes or None,
                     status=TodoStatus.OPEN,
@@ -299,15 +385,15 @@ class WorkManagementPlugin(CachibotPlugin):
                     tags=[],
                 )
                 await todo_repo.save(todo)
-                return json.dumps(
-                    {
-                        "id": todo.id,
-                        "title": todo.title,
-                        "priority": todo.priority.value,
-                        "remind_at": todo.remind_at.isoformat() if todo.remind_at else None,
-                    },
-                    indent=2,
-                )
+                result = {
+                    "id": todo.id,
+                    "title": todo.title,
+                    "priority": todo.priority.value,
+                    "remind_at": todo.remind_at.isoformat() if todo.remind_at else None,
+                }
+                if remind_datetime:
+                    result["reminder_scheduled"] = True
+                return json.dumps(result, indent=2)
             except Exception as e:
                 return f"Error creating todo: {e}"
 
@@ -394,6 +480,261 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error marking todo done: {e}"
 
+        @skill(
+            name="schedule_create",
+            description="Schedule a one-time or recurring action. "
+            "Use this to set reminders, schedule messages, or plan future tasks. "
+            "Provide EXACTLY ONE of: run_at (one-time), interval_seconds (recurring), "
+            "or cron_expression (cron-based recurring).",
+            category="work",
+            tags=["schedule", "create", "timer", "reminder", "cron"],
+            is_async=True,
+            side_effects=True,
+            display_name="Create Schedule",
+            icon="clock",
+            risk_level=RiskLevel.SAFE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name/title for this schedule.",
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "The message to deliver when the schedule fires.",
+                    },
+                    "run_at": {
+                        "type": "string",
+                        "description": (
+                            "Datetime for one-time execution. Accepts full ISO datetime "
+                            "(e.g., '2025-01-15T09:00:00'), date and time "
+                            "(e.g., '2025-01-15 09:00'), or just a time for today "
+                            "(e.g., '20:45'). Mutually exclusive with interval_seconds "
+                            "and cron_expression."
+                        ),
+                    },
+                    "interval_seconds": {
+                        "type": "integer",
+                        "description": (
+                            "Repeat every N seconds (e.g., 3600 for hourly). "
+                            "Minimum 60. Mutually exclusive with run_at and cron_expression."
+                        ),
+                        "minimum": 60,
+                    },
+                    "cron_expression": {
+                        "type": "string",
+                        "description": (
+                            "Cron expression for complex recurring schedules "
+                            "(e.g., '0 9 * * 1-5' for weekdays at 9 AM). "
+                            "Mutually exclusive with run_at and interval_seconds."
+                        ),
+                    },
+                },
+                "required": ["name", "message"],
+                "oneOf": [
+                    {"required": ["run_at"]},
+                    {"required": ["interval_seconds"]},
+                    {"required": ["cron_expression"]},
+                ],
+                "additionalProperties": False,
+            },
+        )
+        async def schedule_create(
+            name: str,
+            message: str,
+            run_at: str | None = None,
+            interval_seconds: int | None = None,
+            cron_expression: str | None = None,
+        ) -> str:
+            """Schedule a one-time or recurring action.
+
+            Args:
+                name: Name/title for this schedule
+                message: The message to deliver when the schedule fires
+                run_at: Datetime for one-time execution. Accepts full ISO datetime
+                    (e.g., "2025-01-15T09:00:00"), date and time
+                    (e.g., "2025-01-15 09:00"), or just a time for today
+                    (e.g., "20:45").
+                interval_seconds: Repeat every N seconds (e.g., 3600 for hourly)
+                cron_expression: Cron expression for complex schedules (e.g., "0 9 * * 1-5")
+
+            Returns:
+                JSON with the created schedule ID and details
+            """
+            import json
+            import re
+            import uuid
+            from datetime import datetime, timedelta
+
+            from cachibot.models.work import Schedule, ScheduleType
+            from cachibot.storage.work_repository import ScheduleRepository
+
+            bot_id = get_bot_id()
+            if not bot_id:
+                return "Error: No bot ID configured"
+
+            # Determine schedule type and validate
+            if run_at:
+                schedule_type = ScheduleType.ONCE
+                try:
+                    run_at_dt = datetime.fromisoformat(run_at)
+                except ValueError:
+                    # Try parsing as time-only (e.g. "20:45" or "9:00")
+                    time_match = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", run_at.strip())
+                    if time_match:
+                        h, m = int(time_match.group(1)), int(time_match.group(2))
+                        s = int(time_match.group(3)) if time_match.group(3) else 0
+                        now = datetime.utcnow()
+                        run_at_dt = now.replace(hour=h, minute=m, second=s, microsecond=0)
+                        if run_at_dt <= now:
+                            run_at_dt += timedelta(days=1)
+                    else:
+                        return (
+                            f"Error: Invalid time format: {run_at}. "
+                            "Use ISO datetime (e.g., '2025-01-15T09:00:00'), "
+                            "date and time (e.g., '2025-01-15 09:00'), "
+                            "or just time for today (e.g., '20:45')."
+                        )
+                next_run_at = run_at_dt
+            elif interval_seconds:
+                schedule_type = ScheduleType.INTERVAL
+                if interval_seconds < 60:
+                    return "Error: Minimum interval is 60 seconds"
+                run_at_dt = None
+                next_run_at = datetime.utcnow() + timedelta(seconds=interval_seconds)
+            elif cron_expression:
+                schedule_type = ScheduleType.CRON
+                try:
+                    from croniter import croniter
+
+                    cron = croniter(cron_expression, datetime.utcnow())
+                    next_run_at = cron.get_next(datetime)
+                except (ValueError, KeyError) as e:
+                    return f"Error: Invalid cron expression: {e}"
+                run_at_dt = None
+            else:
+                return "Error: Provide run_at, interval_seconds, or cron_expression"
+
+            try:
+                schedule_repo = ScheduleRepository()
+                now = datetime.utcnow()
+                schedule = Schedule(
+                    id=str(uuid.uuid4()),
+                    bot_id=bot_id,
+                    name=name,
+                    description=message,
+                    function_id=None,
+                    function_params={"message": message, "chat_id": get_chat_id()},
+                    schedule_type=schedule_type,
+                    cron_expression=cron_expression,
+                    interval_seconds=interval_seconds,
+                    run_at=run_at_dt,
+                    timezone="UTC",
+                    enabled=True,
+                    max_concurrent=1,
+                    catch_up=False,
+                    created_at=now,
+                    updated_at=now,
+                    next_run_at=next_run_at,
+                    last_run_at=None,
+                    run_count=0,
+                )
+                await schedule_repo.save(schedule)
+                return json.dumps(
+                    {
+                        "id": schedule.id,
+                        "name": schedule.name,
+                        "type": schedule.schedule_type.value,
+                        "next_run_at": next_run_at.isoformat() if next_run_at else None,
+                        "enabled": True,
+                    },
+                    indent=2,
+                )
+            except Exception as e:
+                return f"Error creating schedule: {e}"
+
+        @skill(
+            name="schedule_list",
+            description="List scheduled actions for this bot.",
+            category="work",
+            tags=["schedule", "list"],
+            is_async=True,
+            idempotent=True,
+            display_name="List Schedules",
+            icon="clock",
+            risk_level=RiskLevel.SAFE,
+        )
+        async def schedule_list(enabled_only: bool = False) -> str:
+            """List scheduled actions for this bot.
+
+            Args:
+                enabled_only: If True, only show enabled schedules
+
+            Returns:
+                JSON list of schedules
+            """
+            import json
+
+            from cachibot.storage.work_repository import ScheduleRepository
+
+            bot_id = get_bot_id()
+            if not bot_id:
+                return "Error: No bot ID configured"
+
+            try:
+                schedule_repo = ScheduleRepository()
+                items = await schedule_repo.get_by_bot(bot_id)
+                if enabled_only:
+                    items = [s for s in items if s.enabled]
+                result = [
+                    {
+                        "id": s.id,
+                        "name": s.name,
+                        "type": s.schedule_type.value,
+                        "enabled": s.enabled,
+                        "next_run_at": s.next_run_at.isoformat() if s.next_run_at else None,
+                        "run_count": s.run_count,
+                    }
+                    for s in items
+                ]
+                if not result:
+                    return "No schedules found"
+                return json.dumps(result, indent=2)
+            except Exception as e:
+                return f"Error listing schedules: {e}"
+
+        @skill(
+            name="schedule_delete",
+            description="Delete a scheduled action.",
+            category="work",
+            tags=["schedule", "delete"],
+            is_async=True,
+            side_effects=True,
+            display_name="Delete Schedule",
+            icon="clock",
+            risk_level=RiskLevel.SAFE,
+        )
+        async def schedule_delete(schedule_id: str) -> str:
+            """Delete a scheduled action.
+
+            Args:
+                schedule_id: The ID of the schedule to delete
+
+            Returns:
+                Confirmation message
+            """
+            from cachibot.storage.work_repository import ScheduleRepository
+
+            try:
+                schedule_repo = ScheduleRepository()
+                deleted = await schedule_repo.delete(schedule_id)
+                if deleted:
+                    return f"Schedule {schedule_id} deleted"
+                return f"Error: Schedule {schedule_id} not found"
+            except Exception as e:
+                return f"Error deleting schedule: {e}"
+
         return {
             "work_create": work_create.__skill__,
             "work_list": work_list.__skill__,
@@ -401,6 +742,9 @@ class WorkManagementPlugin(CachibotPlugin):
             "todo_create": todo_create.__skill__,
             "todo_list": todo_list.__skill__,
             "todo_done": todo_done.__skill__,
+            "schedule_create": schedule_create.__skill__,
+            "schedule_list": schedule_list.__skill__,
+            "schedule_delete": schedule_delete.__skill__,
         }
 
     @property

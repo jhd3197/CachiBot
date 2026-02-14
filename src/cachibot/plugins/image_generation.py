@@ -49,6 +49,35 @@ class ImageGenerationPlugin(CachibotPlugin):
             display_name="Generate Image",
             icon="image",
             risk_level=RiskLevel.MODERATE,
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Text description of the image to generate.",
+                    },
+                    "size": {
+                        "type": "string",
+                        "description": "Image dimensions. Defaults to plugin config.",
+                        "enum": ["1024x1024", "1792x1024", "1024x1792"],
+                        "default": "1024x1024",
+                    },
+                    "quality": {
+                        "type": "string",
+                        "description": "Image quality (OpenAI DALL-E only). 'hd' produces higher detail.",
+                        "enum": ["standard", "hd"],
+                        "default": "standard",
+                    },
+                    "style": {
+                        "type": "string",
+                        "description": "Image style (OpenAI DALL-E 3 only).",
+                        "enum": ["vivid", "natural"],
+                        "default": "vivid",
+                    },
+                },
+                "required": ["prompt"],
+                "additionalProperties": False,
+            },
             config_params=[
                 ConfigParam(
                     name="defaultSize",

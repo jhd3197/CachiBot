@@ -4,8 +4,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { wsClient } from '../api/websocket'
-import { useChatStore, useBotStore } from '../stores/bots'
+import { useChatStore, useBotStore, useJobStore } from '../stores/bots'
 import { useUsageStore } from '../stores/connections'
+import { useKnowledgeStore } from '../stores/knowledge'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -13,9 +14,12 @@ import type {
   ToolEndPayload,
   MessagePayload,
   PlatformMessagePayload,
+  ScheduledNotificationPayload,
+  DocumentStatusPayload,
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
+  JobUpdatePayload,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -176,6 +180,41 @@ export function useWebSocket() {
           break
         }
 
+        case 'scheduled_notification': {
+          const payload = msg.payload as ScheduledNotificationPayload
+          console.log('[WS] Scheduled notification:', payload)
+          if (payload.chatId) {
+            addMessage(payload.chatId, {
+              id: `sched-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              role: 'assistant',
+              content: `[Scheduled] ${payload.content}`,
+              timestamp: new Date().toISOString(),
+            })
+          }
+          break
+        }
+
+        case 'document_status': {
+          const payload = msg.payload as DocumentStatusPayload
+          const knowledgeStore = useKnowledgeStore.getState()
+          const botDocs = knowledgeStore.documents[payload.botId]
+          if (botDocs) {
+            const updated = botDocs.map((d) =>
+              d.id === payload.documentId
+                ? {
+                    ...d,
+                    status: payload.status,
+                    ...(payload.chunkCount !== undefined ? { chunk_count: payload.chunkCount } : {}),
+                  }
+                : d
+            )
+            useKnowledgeStore.setState((state) => ({
+              documents: { ...state.documents, [payload.botId]: updated },
+            }))
+          }
+          break
+        }
+
         case 'usage': {
           const payload = msg.payload as UsagePayload
           const currentBotId = useBotStore.getState().activeBotId
@@ -206,6 +245,43 @@ export function useWebSocket() {
               perModel: payload.perModel,
               latencyStats: payload.latencyStats,
             })
+          }
+          break
+        }
+
+        case 'job_update': {
+          const payload = msg.payload as JobUpdatePayload
+          const jobStore = useJobStore.getState()
+          if (payload.action === 'created') {
+            jobStore.addJob({
+              id: payload.job.id,
+              botId: payload.job.botId,
+              chatId: payload.job.chatId,
+              title: `Job ${payload.job.taskId}`,
+              status: payload.job.status === 'running' ? 'running' : payload.job.status,
+              priority: 'normal',
+              progress: payload.job.progress * 100,
+              createdAt: payload.job.createdAt,
+              startedAt: payload.job.startedAt,
+              completedAt: payload.job.completedAt,
+              result: payload.job.result as string | Record<string, unknown> | undefined,
+              error: payload.job.error,
+              logs: payload.job.logs.map(l => ({
+                timestamp: l.timestamp,
+                level: l.level,
+                message: l.message,
+              })),
+            })
+          } else if (payload.action === 'updated') {
+            jobStore.updateJob(payload.job.id, {
+              status: payload.job.status === 'running' ? 'running' : payload.job.status,
+              progress: payload.job.progress * 100,
+              completedAt: payload.job.completedAt,
+              result: payload.job.result as string | Record<string, unknown> | undefined,
+              error: payload.job.error,
+            })
+          } else if (payload.action === 'deleted') {
+            jobStore.deleteJob(payload.job.id)
           }
           break
         }

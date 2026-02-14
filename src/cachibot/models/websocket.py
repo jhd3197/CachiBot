@@ -20,6 +20,9 @@ class WSMessageType(str, Enum):
     TOOL_END = "tool_end"
     MESSAGE = "message"
     PLATFORM_MESSAGE = "platform_message"  # For Telegram/Discord message sync
+    SCHEDULED_NOTIFICATION = "scheduled_notification"  # Fired by the scheduler
+    DOCUMENT_STATUS = "document_status"  # Document processing progress
+    JOB_UPDATE = "job_update"  # Job/work execution progress
     APPROVAL_NEEDED = "approval_needed"
     USAGE = "usage"
     ERROR = "error"
@@ -206,3 +209,67 @@ class WSMessage(BaseModel):
         if metadata:
             payload["metadata"] = metadata
         return cls(type=WSMessageType.PLATFORM_MESSAGE, payload=payload)
+
+    @classmethod
+    def document_status(
+        cls,
+        bot_id: str,
+        document_id: str,
+        status: str,
+        chunk_count: int | None = None,
+        filename: str | None = None,
+    ) -> "WSMessage":
+        """Create a document processing status event."""
+        payload: dict[str, Any] = {
+            "botId": bot_id,
+            "documentId": document_id,
+            "status": status,
+        }
+        if chunk_count is not None:
+            payload["chunkCount"] = chunk_count
+        if filename:
+            payload["filename"] = filename
+        return cls(type=WSMessageType.DOCUMENT_STATUS, payload=payload)
+
+    @classmethod
+    def scheduled_notification(
+        cls,
+        bot_id: str,
+        chat_id: str | None,
+        content: str,
+    ) -> "WSMessage":
+        """Create a scheduled notification (fired by the scheduler service)."""
+        payload: dict[str, Any] = {
+            "botId": bot_id,
+            "content": content,
+        }
+        if chat_id:
+            payload["chatId"] = chat_id
+        return cls(type=WSMessageType.SCHEDULED_NOTIFICATION, payload=payload)
+
+    @classmethod
+    def job_update(
+        cls,
+        work_id: str,
+        task_id: str | None = None,
+        job_id: str | None = None,
+        status: str = "",
+        progress: float = 0.0,
+        error: str | None = None,
+        logs: list[dict] | None = None,
+    ) -> "WSMessage":
+        """Create a job/work execution progress update."""
+        payload: dict[str, Any] = {
+            "workId": work_id,
+            "status": status,
+            "progress": progress,
+        }
+        if task_id:
+            payload["taskId"] = task_id
+        if job_id:
+            payload["jobId"] = job_id
+        if error:
+            payload["error"] = error
+        if logs:
+            payload["logs"] = logs
+        return cls(type=WSMessageType.JOB_UPDATE, payload=payload)

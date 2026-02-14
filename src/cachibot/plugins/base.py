@@ -26,6 +26,7 @@ class PluginContext:
     config: Config
     sandbox: PythonSandbox
     bot_id: str | None = None
+    chat_id: str | None = None
     tool_configs: dict[str, Any] = field(default_factory=dict)
     bot_models: dict | None = None
 

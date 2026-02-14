@@ -7,19 +7,25 @@ Uses discord.py library for Discord Bot integration.
 import asyncio
 import io
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
 
 
+@AdapterRegistry.register("discord")
 class DiscordAdapter(BasePlatformAdapter):
     """Discord bot adapter using discord.py."""
 
     platform = ConnectionPlatform.discord
+    platform_name: ClassVar[str] = "discord"
+    display_name: ClassVar[str] = "Discord"
+    required_config: ClassVar[list[str]] = ["token"]
+    optional_config: ClassVar[dict[str, str]] = {"strip_markdown": "Strip markdown from responses"}
 
     def __init__(
         self,
@@ -29,6 +35,11 @@ class DiscordAdapter(BasePlatformAdapter):
         super().__init__(connection, on_message)
         self._client: Any = None
         self._client_task: asyncio.Task | None = None
+        self._ready = asyncio.Event()
+
+    @property
+    def max_message_length(self) -> int:
+        return 2000
 
     async def connect(self) -> None:
         """Start the Discord bot."""
@@ -50,26 +61,33 @@ class DiscordAdapter(BasePlatformAdapter):
 
             # Create client
             self._client = discord.Client(intents=intents)
+            self._ready.clear()
             adapter = self  # Capture self for closures
 
             @self._client.event
             async def on_ready() -> None:
                 """Called when the bot is ready."""
+                adapter._running = True
+                adapter._ready.set()
                 logger.info(
-                    f"Discord bot connected as {self._client.user} "
+                    f"Discord bot connected as {adapter._client.user} "
                     f"for connection {adapter.connection_id}"
                 )
 
             @self._client.event
             async def on_message(message: discord.Message) -> None:
                 """Handle incoming messages."""
+                # Guard against NoneType client/user during startup or shutdown
+                if not adapter._client or not adapter._client.user:
+                    return
+
                 # Ignore messages from the bot itself
-                if message.author == self._client.user:
+                if message.author == adapter._client.user:
                     return
 
                 # Only respond to mentions or DMs
                 is_dm = message.guild is None
-                is_mention = self._client.user in message.mentions if message.mentions else False
+                is_mention = adapter._client.user in message.mentions if message.mentions else False
 
                 if not (is_dm or is_mention):
                     return
@@ -81,8 +99,8 @@ class DiscordAdapter(BasePlatformAdapter):
                     # Clean the message (remove mention)
                     content = message.content
                     if is_mention:
-                        content = content.replace(f"<@{self._client.user.id}>", "").strip()
-                        content = content.replace(f"<@!{self._client.user.id}>", "").strip()
+                        content = content.replace(f"<@{adapter._client.user.id}>", "").strip()
+                        content = content.replace(f"<@!{adapter._client.user.id}>", "").strip()
 
                     # Download attached media
                     attachments: list[IncomingMedia] = []
@@ -90,9 +108,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         try:
                             data = await att.read()
                             mime = att.content_type or "application/octet-stream"
-                            attachments.append(
-                                IncomingMedia(mime, data, att.filename)
-                            )
+                            attachments.append(IncomingMedia(mime, data, att.filename))
                         except Exception as e:
                             logger.warning(f"Failed to download Discord attachment: {e}")
 
@@ -142,8 +158,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         "Sorry, I encountered an error processing your message."
                     )
 
-            # Start the client in background
-            self._running = True
+            # Start the client in background — _running is set in on_ready
             self._client_task = asyncio.create_task(self._run_client(token))
             logger.info(f"Discord adapter starting for connection {self.connection_id}")
 
@@ -163,13 +178,15 @@ class DiscordAdapter(BasePlatformAdapter):
             logger.error(f"Discord client error: {e}")
         finally:
             self._running = False
+            self._ready.clear()
 
     async def disconnect(self) -> None:
         """Stop the Discord bot."""
-        if not self._running:
+        if not self._running and not self._client_task:
             return
 
         self._running = False
+        self._ready.clear()
 
         # Close the client
         if self._client:
@@ -196,15 +213,23 @@ class DiscordAdapter(BasePlatformAdapter):
             try:
                 file = discord.File(io.BytesIO(item.data), filename=item.filename)
                 caption = item.metadata_text or item.alt_text or None
-                await channel.send(content=caption, file=file)
+                # Chunk captions too if they exceed limit
+                if caption and len(caption) > self.max_message_length:
+                    chunks = self.chunk_message(caption)
+                    await channel.send(content=chunks[0], file=file)
+                    for chunk in chunks[1:]:
+                        await channel.send(chunk)
+                else:
+                    await channel.send(content=caption, file=file)
             except Exception as e:
                 logger.error(f"Failed to send Discord media ({item.media_type}): {e}")
 
-        # Send text portion
+        # Send text portion with chunking for the 2000-char limit
         if response.text:
             formatted = self.format_outgoing_message(response.text)
             if formatted:
-                await channel.send(formatted)
+                for chunk in self.chunk_message(formatted):
+                    await channel.send(chunk)
 
     async def send_message(self, channel_id: str, message: str) -> bool:
         """Send a message to a Discord channel."""
@@ -219,7 +244,8 @@ class DiscordAdapter(BasePlatformAdapter):
             if channel:
                 # Strip markdown if configured for this connection
                 formatted_message = self.format_outgoing_message(message)
-                await channel.send(formatted_message)
+                for chunk in self.chunk_message(formatted_message):
+                    await channel.send(chunk)
                 return True
             return False
         except Exception as e:

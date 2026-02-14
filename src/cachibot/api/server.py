@@ -30,6 +30,7 @@ from cachibot.api.routes import (
     knowledge,
     marketplace,
     models,
+    platforms,
     plugins,
     providers,
     rooms,
@@ -37,10 +38,16 @@ from cachibot.api.routes import (
     update,
     work,
 )
+from cachibot.api.routes.webhooks import line as wh_line
+from cachibot.api.routes.webhooks import teams as wh_teams
+from cachibot.api.routes.webhooks import viber as wh_viber
+from cachibot.api.routes.webhooks import whatsapp as wh_whatsapp
 from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
+from cachibot.services.job_runner import get_job_runner
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
+from cachibot.services.scheduler_service import get_scheduler_service
 from cachibot.storage.database import close_db, init_db
 
 # Find the frontend dist directory
@@ -63,15 +70,22 @@ async def lifespan(app: FastAPI):
     message_processor = get_message_processor()
     platform_manager.set_message_processor(message_processor.process_message)
 
-    # Reconnect platform adapters that were connected
-    try:
-        await platform_manager.reconnect_all()
-    except Exception:
-        pass  # Don't fail startup if reconnection fails
+    # Reset stale connection statuses — after a restart they are disconnected
+    await platform_manager.reset_all_statuses()
+
+    # Start the scheduler service (polls for due schedules & reminders)
+    scheduler = get_scheduler_service()
+    await scheduler.start()
+
+    # Start the job runner service (executes Work tasks as background Jobs)
+    job_runner = get_job_runner()
+    await job_runner.start()
 
     yield
 
     # Shutdown
+    await job_runner.stop()
+    await scheduler.stop()
     # Disconnect all platform adapters
     await platform_manager.disconnect_all()
     await close_db()
@@ -134,6 +148,7 @@ def create_app(
     app.include_router(instructions.router, tags=["instructions"])
     app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(marketplace.router, tags=["marketplace"])
+    app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
@@ -141,6 +156,12 @@ def create_app(
     app.include_router(ws_router, tags=["websocket"])
     app.include_router(voice_ws_router, tags=["voice"])
     app.include_router(room_ws_router, tags=["room-websocket"])
+
+    # Platform webhook routes
+    app.include_router(wh_whatsapp.router, tags=["webhooks"])
+    app.include_router(wh_teams.router, tags=["webhooks"])
+    app.include_router(wh_line.router, tags=["webhooks"])
+    app.include_router(wh_viber.router, tags=["webhooks"])
 
     # Check if frontend dist exists
     if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():

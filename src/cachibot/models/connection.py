@@ -15,6 +15,11 @@ class ConnectionPlatform(str, Enum):
 
     telegram = "telegram"
     discord = "discord"
+    whatsapp = "whatsapp"
+    slack = "slack"
+    teams = "teams"
+    line = "line"
+    viber = "viber"
 
 
 class ConnectionStatus(str, Enum):
