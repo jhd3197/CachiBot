@@ -2,12 +2,11 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import cachibot.storage.database as db_mod
 from cachibot.models.websocket import WSMessage, WSMessageType
 from cachibot.models.work import Schedule, ScheduleType, Todo, TodoStatus
 from cachibot.services.scheduler_service import SchedulerService
@@ -17,15 +16,11 @@ from cachibot.storage.work_repository import ScheduleRepository, TodoRepository
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
-async def _setup_test_db(tmp_path):
-    """Point the database at a temp file and initialise tables for every test."""
-    test_db = tmp_path / "test.db"
-    db_mod.DB_PATH = test_db
-    db_mod._db = None
-    await db_mod.init_db()
+async def _db(pg_db):
+    """Use PostgreSQL test database for all scheduler tests."""
     yield
-    await db_mod.close_db()
 
 
 def _make_schedule(
@@ -38,7 +33,7 @@ def _make_schedule(
     run_count: int = 0,
     bot_id: str = "bot-1",
 ) -> Schedule:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return Schedule(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -68,7 +63,7 @@ def _make_todo(
     remind_at: datetime | None = None,
     bot_id: str = "bot-1",
 ) -> Todo:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return Todo(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -93,7 +88,7 @@ class TestScheduleRepository:
 
     async def test_schedule_save_and_get(self):
         repo = ScheduleRepository()
-        sched = _make_schedule(next_run_at=datetime.utcnow() + timedelta(hours=1))
+        sched = _make_schedule(next_run_at=datetime.now(timezone.utc) + timedelta(hours=1))
         await repo.save(sched)
 
         loaded = await repo.get(sched.id)
@@ -107,7 +102,7 @@ class TestScheduleRepository:
 
     async def test_get_due_schedules_returns_overdue(self):
         repo = ScheduleRepository()
-        past = datetime.utcnow() - timedelta(minutes=5)
+        past = datetime.now(timezone.utc) - timedelta(minutes=5)
         sched = _make_schedule(next_run_at=past, enabled=True)
         await repo.save(sched)
 
@@ -117,7 +112,7 @@ class TestScheduleRepository:
 
     async def test_get_due_schedules_ignores_future(self):
         repo = ScheduleRepository()
-        future = datetime.utcnow() + timedelta(hours=1)
+        future = datetime.now(timezone.utc) + timedelta(hours=1)
         sched = _make_schedule(next_run_at=future, enabled=True)
         await repo.save(sched)
 
@@ -127,7 +122,7 @@ class TestScheduleRepository:
 
     async def test_get_due_schedules_ignores_disabled(self):
         repo = ScheduleRepository()
-        past = datetime.utcnow() - timedelta(minutes=5)
+        past = datetime.now(timezone.utc) - timedelta(minutes=5)
         sched = _make_schedule(next_run_at=past, enabled=False)
         await repo.save(sched)
 
@@ -138,7 +133,7 @@ class TestScheduleRepository:
     async def test_record_run_increments_count(self):
         repo = ScheduleRepository()
         sched = _make_schedule(
-            next_run_at=datetime.utcnow() - timedelta(minutes=1),
+            next_run_at=datetime.now(timezone.utc) - timedelta(minutes=1),
             run_count=0,
         )
         await repo.save(sched)
@@ -150,10 +145,10 @@ class TestScheduleRepository:
 
     async def test_update_next_run(self):
         repo = ScheduleRepository()
-        sched = _make_schedule(next_run_at=datetime.utcnow())
+        sched = _make_schedule(next_run_at=datetime.now(timezone.utc))
         await repo.save(sched)
 
-        new_time = datetime.utcnow() + timedelta(hours=2)
+        new_time = datetime.now(timezone.utc) + timedelta(hours=2)
         await repo.update_next_run(sched.id, new_time)
         updated = await repo.get(sched.id)
         # Compare with ~1 second tolerance (isoformat round-trip)
@@ -161,7 +156,7 @@ class TestScheduleRepository:
 
     async def test_toggle_enabled(self):
         repo = ScheduleRepository()
-        sched = _make_schedule(enabled=True, next_run_at=datetime.utcnow())
+        sched = _make_schedule(enabled=True, next_run_at=datetime.now(timezone.utc))
         await repo.save(sched)
 
         await repo.toggle_enabled(sched.id, False)
@@ -170,7 +165,7 @@ class TestScheduleRepository:
 
     async def test_schedule_delete(self):
         repo = ScheduleRepository()
-        sched = _make_schedule(next_run_at=datetime.utcnow())
+        sched = _make_schedule(next_run_at=datetime.now(timezone.utc))
         await repo.save(sched)
 
         deleted = await repo.delete(sched.id)
@@ -188,7 +183,7 @@ class TestTodoRepository:
 
     async def test_get_due_reminders_returns_overdue(self):
         repo = TodoRepository()
-        past = datetime.utcnow() - timedelta(minutes=5)
+        past = datetime.now(timezone.utc) - timedelta(minutes=5)
         todo = _make_todo(remind_at=past, status=TodoStatus.OPEN)
         await repo.save(todo)
 
@@ -198,7 +193,7 @@ class TestTodoRepository:
 
     async def test_get_due_reminders_ignores_done(self):
         repo = TodoRepository()
-        past = datetime.utcnow() - timedelta(minutes=5)
+        past = datetime.now(timezone.utc) - timedelta(minutes=5)
         todo = _make_todo(remind_at=past, status=TodoStatus.DONE)
         await repo.save(todo)
 
@@ -219,7 +214,7 @@ class TestSchedulerService:
         repo = ScheduleRepository()
         sched = _make_schedule(
             schedule_type=ScheduleType.ONCE,
-            next_run_at=datetime.utcnow() - timedelta(minutes=1),
+            next_run_at=datetime.now(timezone.utc) - timedelta(minutes=1),
         )
         await repo.save(sched)
 
@@ -236,13 +231,13 @@ class TestSchedulerService:
         sched = _make_schedule(
             schedule_type=ScheduleType.INTERVAL,
             interval_seconds=3600,
-            next_run_at=datetime.utcnow() - timedelta(minutes=1),
+            next_run_at=datetime.now(timezone.utc) - timedelta(minutes=1),
         )
         await repo.save(sched)
 
         svc = SchedulerService()
         with patch.object(svc, "_deliver_message", new_callable=AsyncMock):
-            before = datetime.utcnow()
+            before = datetime.now(timezone.utc)
             await svc._fire_schedule(sched)
 
         updated = await repo.get(sched.id)
@@ -256,7 +251,7 @@ class TestSchedulerService:
         sched = _make_schedule(
             schedule_type=ScheduleType.CRON,
             cron_expression="0 9 * * *",
-            next_run_at=datetime.utcnow() - timedelta(minutes=1),
+            next_run_at=datetime.now(timezone.utc) - timedelta(minutes=1),
         )
         await repo.save(sched)
 
@@ -267,7 +262,7 @@ class TestSchedulerService:
         updated = await repo.get(sched.id)
         assert updated.next_run_at is not None
         # Next run should be in the future
-        assert updated.next_run_at > datetime.utcnow()
+        assert updated.next_run_at > datetime.now(timezone.utc)
 
 
 # ===========================================================================
@@ -327,7 +322,7 @@ class TestScheduleTools:
         plugin = self._build_plugin()
         fn = plugin.skills["schedule_create"].fn
 
-        run_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        run_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         result = await fn(name="Once Test", message="hello", run_at=run_at)
         data = json.loads(result)
         assert data["type"] == "once"
@@ -375,7 +370,7 @@ class TestScheduleTools:
         create_fn = plugin.skills["schedule_create"].fn
         list_fn = plugin.skills["schedule_list"].fn
 
-        run_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        run_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         await create_fn(name="Sched A", message="a", run_at=run_at)
         await create_fn(name="Sched B", message="b", interval_seconds=3600)
 
@@ -392,7 +387,7 @@ class TestScheduleTools:
         create_fn = plugin.skills["schedule_create"].fn
         delete_fn = plugin.skills["schedule_delete"].fn
 
-        run_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        run_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
         result = await create_fn(name="To Delete", message="bye", run_at=run_at)
         schedule_id = json.loads(result)["id"]
 
