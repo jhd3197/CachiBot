@@ -1,20 +1,22 @@
 """
 Vector Store Service for Knowledge Base.
 
-Provides embedding generation and similarity search using fastembed.
+Provides embedding generation and similarity search using fastembed + pgvector.
 """
 
 import asyncio
-import struct
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from fastembed import TextEmbedding
 
 from cachibot.models.knowledge import DocChunk
+from cachibot.storage.db import async_session_maker
+from cachibot.storage.models.knowledge import DocChunk as DocChunkORM
 from cachibot.storage.repository import KnowledgeRepository
 
 
@@ -31,8 +33,8 @@ class VectorStore:
     """
     Vector store for document chunk embeddings.
 
-    Uses fastembed for embedding generation and numpy for similarity search.
-    Embeddings are stored as BLOB in SQLite for portability.
+    Uses fastembed for embedding generation and pgvector for similarity search.
+    Embeddings are stored as Vector(384) in PostgreSQL via pgvector.
     """
 
     # Default embedding model (384 dimensions, good balance of quality/speed)
@@ -53,16 +55,15 @@ class VectorStore:
         return self._embedder
 
     @staticmethod
-    def serialize_embedding(embedding: list[float] | np.ndarray) -> bytes:
-        """Serialize embedding to bytes for SQLite storage."""
-        if isinstance(embedding, np.ndarray):
-            return embedding.astype(np.float32).tobytes()
-        return struct.pack(f"{len(embedding)}f", *embedding)
+    def serialize_embedding(embedding: list[float] | np.ndarray) -> list[float]:
+        """Convert embedding to list for pgvector storage.
 
-    @staticmethod
-    def deserialize_embedding(data: bytes) -> np.ndarray:
-        """Deserialize embedding from SQLite BLOB."""
-        return np.frombuffer(data, dtype=np.float32)
+        pgvector accepts list[float] natively via the SQLAlchemy Vector type,
+        so no binary serialization is needed.
+        """
+        if isinstance(embedding, np.ndarray):
+            return embedding.tolist()
+        return list(embedding)
 
     def _embed_sync(self, texts: list[str]) -> list[np.ndarray]:
         """Synchronous embedding generation (for use in executor)."""
@@ -89,16 +90,6 @@ class VectorStore:
         embeddings = await loop.run_in_executor(None, self._embed_sync, texts)
         return embeddings
 
-    @staticmethod
-    def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
-        """Compute cosine similarity between two vectors."""
-        dot_product = np.dot(a, b)
-        norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return float(dot_product / (norm_a * norm_b))
-
     async def search_similar(
         self,
         bot_id: str,
@@ -107,7 +98,10 @@ class VectorStore:
         min_score: float = 0.3,
     ) -> list[SearchResult]:
         """
-        Search for chunks similar to the query using vectorized numpy.
+        Search for chunks similar to the query using pgvector cosine distance.
+
+        Uses the HNSW index on doc_chunks.embedding for O(log N) search instead
+        of loading all embeddings into memory.
 
         Args:
             bot_id: Bot to search within
@@ -118,60 +112,41 @@ class VectorStore:
         Returns:
             List of SearchResult sorted by similarity (highest first)
         """
-        # Load only embeddings (no content) for efficient search
-        embedding_rows = await self._repo.get_all_embeddings_by_bot(bot_id)
-        if not embedding_rows:
-            return []
-
-        # Embed the query
+        # Generate query embedding
         query_embedding = await self.embed_text(query)
+        query_embedding_list = query_embedding.tolist()
 
-        # Build numpy matrix for vectorized cosine similarity
-        chunk_ids = []
-        embeddings = []
-        for row in embedding_rows:
-            chunk_ids.append(row["id"])
-            embeddings.append(self.deserialize_embedding(row["embedding"]))
+        # pgvector cosine distance: 0 = identical, 2 = opposite
+        # similarity = 1 - distance
+        cosine_distance = DocChunkORM.embedding.cosine_distance(query_embedding_list)
 
-        matrix = np.stack(embeddings)  # (N, dim)
-        # Normalize rows
-        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-        norms[norms == 0] = 1.0
-        matrix_normed = matrix / norms
+        stmt = (
+            select(
+                DocChunkORM,
+                (1 - cosine_distance).label("similarity"),
+            )
+            .where(DocChunkORM.bot_id == bot_id)
+            .where(DocChunkORM.embedding.isnot(None))
+            .where((1 - cosine_distance) >= min_score)
+            .order_by(cosine_distance)  # ascending = most similar first
+            .limit(limit)
+        )
 
-        # Normalize query
-        q_norm = np.linalg.norm(query_embedding)
-        if q_norm == 0:
-            return []
-        query_normed = query_embedding / q_norm
-
-        # Cosine similarity via matrix multiply
-        scores = matrix_normed @ query_normed  # (N,)
-
-        # Filter by min_score and get top-k indices
-        mask = scores >= min_score
-        if not np.any(mask):
-            return []
-
-        masked_scores = scores.copy()
-        masked_scores[~mask] = -1.0
-        top_indices = np.argsort(masked_scores)[::-1][:limit]
-        top_indices = [i for i in top_indices if mask[i]]
-
-        if not top_indices:
-            return []
-
-        # Fetch full chunk content only for top-k results
-        top_chunk_ids = [chunk_ids[i] for i in top_indices]
-        chunks = await self._repo.get_chunks_by_ids(top_chunk_ids)
-        chunk_map = {c.id: c for c in chunks}
+        async with async_session_maker() as session:
+            result = await session.execute(stmt)
+            rows = result.all()
 
         results: list[SearchResult] = []
-        for i in top_indices:
-            cid = chunk_ids[i]
-            chunk = chunk_map.get(cid)
-            if chunk:
-                results.append(SearchResult(chunk=chunk, score=float(scores[i])))
+        for row_model, similarity in rows:
+            chunk = DocChunk(
+                id=row_model.id,
+                document_id=row_model.document_id,
+                bot_id=row_model.bot_id,
+                chunk_index=row_model.chunk_index,
+                content=row_model.content,
+                embedding=None,  # Don't return the embedding blob
+            )
+            results.append(SearchResult(chunk=chunk, score=float(similarity)))
 
         return results
 
