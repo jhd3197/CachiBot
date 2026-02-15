@@ -1,10 +1,11 @@
 """
 Cachibot Storage Layer
 
-PostgreSQL-based storage using SQLAlchemy 2.0 ORM with asyncpg.
+Multi-database storage using SQLAlchemy 2.0 async ORM.
+Supports SQLite (default, zero-config) and PostgreSQL (via DATABASE_URL).
 """
 
-from cachibot.storage.db import async_session_maker, close_db, get_session, init_db
+from cachibot.storage.db import async_session_maker, close_db, db_type, get_session, init_db
 from cachibot.storage.repository import (
     BotRepository,
     ChatRepository,
@@ -38,6 +39,7 @@ __all__ = [
     "close_db",
     "get_session",
     "async_session_maker",
+    "db_type",
     # Main repositories
     "MessageRepository",
     "JobRepository",

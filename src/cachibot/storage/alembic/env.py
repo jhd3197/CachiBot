@@ -1,8 +1,8 @@
 """
 Alembic environment configuration for CachiBot.
 
-Supports async PostgreSQL migrations using asyncpg.
-Reads DATABASE_URL from environment variables, falling back to alembic.ini.
+Supports both async PostgreSQL (asyncpg) and async SQLite (aiosqlite) migrations.
+Reads DATABASE_URL from environment variables, falling back to the smart db module.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import Base and ALL models so metadata is fully populated
@@ -58,16 +57,27 @@ target_metadata = Base.metadata
 
 
 def _get_url() -> str:
-    """Resolve the database URL from environment or alembic.ini."""
+    """Resolve the database URL from environment or the smart db module."""
     url = os.getenv("CACHIBOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if url:
-        # Auto-convert postgres:// to postgresql+asyncpg://
+        # Auto-convert postgres:// to the right async driver
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgresql://"):
+        elif url.startswith("postgresql://") and "+" not in url.split("://")[0]:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
-    return config.get_main_option("sqlalchemy.url", "postgresql+asyncpg://localhost:5432/cachibot")
+
+    # Fall back to the smart resolver (which defaults to SQLite)
+    try:
+        from cachibot.storage.db import resolve_database_url
+
+        return resolve_database_url()
+    except Exception:
+        pass
+
+    return config.get_main_option(
+        "sqlalchemy.url", "sqlite+aiosqlite:///cachibot.db"
+    )
 
 
 def run_migrations_offline() -> None:
@@ -81,17 +91,20 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=url.startswith("sqlite"),  # SQLite needs batch mode for ALTER
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
 
-def do_run_migrations(connection: Connection) -> None:
+def do_run_migrations(connection) -> None:  # type: ignore[no-untyped-def]
     """Run migrations using a synchronous connection."""
+    url = _get_url()
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
+        render_as_batch=url.startswith("sqlite"),  # SQLite needs batch mode for ALTER
     )
 
     with context.begin_transaction():
@@ -103,8 +116,9 @@ async def run_async_migrations() -> None:
 
     Uses NullPool to avoid connection pool issues during migrations.
     """
+    url = _get_url()
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = _get_url()
+    configuration["sqlalchemy.url"] = url
 
     connectable = async_engine_from_config(
         configuration,

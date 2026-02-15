@@ -1,20 +1,66 @@
 """
 Knowledge base models: BotInstruction, BotDocument, DocChunk, BotNote.
+
+Uses cross-dialect types so models work on both SQLite and PostgreSQL.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Optional
 
-from pgvector.sqlalchemy import Vector
+import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
 
-__all__ = ["BotInstruction", "BotDocument", "DocChunk", "BotNote"]
+__all__ = ["BotInstruction", "BotDocument", "DocChunk", "BotNote", "VectorType"]
+
+
+class VectorType(sa.types.TypeDecorator):
+    """Vector type that uses pgvector on PostgreSQL and Text on SQLite.
+
+    On PostgreSQL: delegates to pgvector's Vector(dim) for native similarity search.
+    On SQLite: stores embeddings as JSON-encoded text (list of floats).
+    """
+
+    impl = sa.Text
+    cache_ok = True
+
+    def __init__(self, dim: int = 384):
+        super().__init__()
+        self.dim = dim
+
+    def load_dialect_impl(self, dialect):  # type: ignore[no-untyped-def]
+        if dialect.name == "postgresql":
+            try:
+                from pgvector.sqlalchemy import Vector
+
+                return dialect.type_descriptor(Vector(self.dim))
+            except ImportError:
+                # pgvector not installed, fall back to Text
+                return dialect.type_descriptor(sa.Text())
+        return dialect.type_descriptor(sa.Text())
+
+    def process_bind_param(self, value, dialect):  # type: ignore[no-untyped-def]
+        if value is None:
+            return None
+        if dialect.name != "postgresql":
+            # SQLite: serialize to JSON string
+            if isinstance(value, (list, tuple)):
+                return json.dumps(list(value))
+            return value
+        # PostgreSQL: pgvector handles list[float] natively
+        return value
+
+    def process_result_value(self, value, dialect):  # type: ignore[no-untyped-def]
+        if value is None:
+            return None
+        if dialect.name != "postgresql" and isinstance(value, str):
+            return json.loads(value)
+        return value
 
 
 class BotInstruction(Base):
@@ -67,21 +113,17 @@ class BotDocument(Base):
 class DocChunk(Base):
     """Document chunk with vector embedding for RAG search.
 
-    Uses pgvector for similarity search. The embedding column stores a
+    Uses VectorType which delegates to pgvector on PostgreSQL
+    and stores as JSON text on SQLite. The embedding column stores a
     384-dimensional vector (matching BAAI/bge-small-en-v1.5).
     """
 
     __tablename__ = "doc_chunks"
+    # HNSW index on embedding is PostgreSQL-only (pgvector).
+    # It is created conditionally via DDL in init_db when on PostgreSQL.
     __table_args__ = (
         Index("idx_doc_chunks_document", "document_id"),
         Index("idx_doc_chunks_bot", "bot_id"),
-        Index(
-            "idx_doc_chunks_embedding",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_with={"m": 16, "ef_construction": 64},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -93,7 +135,7 @@ class DocChunk(Base):
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding = mapped_column(Vector(384), nullable=True)
+    embedding = mapped_column(VectorType(384), nullable=True)
 
     # Relationships
     document: Mapped[BotDocument] = relationship(
@@ -107,7 +149,6 @@ class BotNote(Base):
     __tablename__ = "bot_notes"
     __table_args__ = (
         Index("idx_bot_notes_bot", "bot_id"),
-        Index("idx_bot_notes_tags", "tags", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -115,7 +156,7 @@ class BotNote(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tags: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     source: Mapped[str] = mapped_column(
         String, nullable=False, server_default="user"

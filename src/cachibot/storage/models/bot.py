@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -24,10 +24,8 @@ class Bot(Base):
     """Bot configuration (synced from frontend)."""
 
     __tablename__ = "bots"
-    __table_args__ = (
-        Index("idx_bots_capabilities", "capabilities", postgresql_using="gin"),
-        Index("idx_bots_models", "models", postgresql_using="gin"),
-    )
+    # GIN indexes on JSONB columns are PostgreSQL-only; omitted for cross-dialect compat.
+    __table_args__: tuple = ()
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -37,9 +35,9 @@ class Bot(Base):
     model: Mapped[str] = mapped_column(String, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     capabilities: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+        sa.JSON, nullable=False, server_default="{}"
     )
-    models: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    models: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from cachibot.models.bot import Bot
 from cachibot.models.capabilities import Contact
@@ -734,13 +733,25 @@ class NotesRepository:
         stmt = select(BotNoteModel).where(BotNoteModel.bot_id == bot_id)
 
         if tags_filter:
-            # JSONB containment: match notes that contain any of the specified tags
+            from cachibot.storage.db import db_type as _db_type
             from sqlalchemy import or_
 
-            tag_conditions = [
-                BotNoteModel.tags.contains([tag]) for tag in tags_filter
-            ]
-            stmt = stmt.where(or_(*tag_conditions))
+            if _db_type == "postgresql":
+                # PostgreSQL JSONB containment operator
+                tag_conditions = [
+                    BotNoteModel.tags.contains([tag]) for tag in tags_filter
+                ]
+                stmt = stmt.where(or_(*tag_conditions))
+            else:
+                # SQLite: use JSON_EACH + LIKE fallback for JSON arrays
+                # Cast tags column to text and check if any tag substring is present
+                from sqlalchemy import cast, String as SAString
+
+                tag_conditions = [
+                    cast(BotNoteModel.tags, SAString).like(f'%"{tag}"%')
+                    for tag in tags_filter
+                ]
+                stmt = stmt.where(or_(*tag_conditions))
 
         if search:
             stmt = stmt.where(
@@ -1049,34 +1060,33 @@ class BotRepository:
     async def upsert_bot(self, bot: Bot) -> None:
         """Create or update a bot."""
         async with async_session_maker() as session:
-            stmt = pg_insert(BotModel).values(
-                id=bot.id,
-                name=bot.name,
-                description=bot.description,
-                icon=bot.icon,
-                color=bot.color,
-                model=bot.model,
-                system_prompt=bot.system_prompt,
-                capabilities=bot.capabilities,
-                models=bot.models,
-                created_at=bot.created_at,
-                updated_at=bot.updated_at,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "name": stmt.excluded.name,
-                    "description": stmt.excluded.description,
-                    "icon": stmt.excluded.icon,
-                    "color": stmt.excluded.color,
-                    "model": stmt.excluded.model,
-                    "system_prompt": stmt.excluded.system_prompt,
-                    "capabilities": stmt.excluded.capabilities,
-                    "models": stmt.excluded.models,
-                    "updated_at": stmt.excluded.updated_at,
-                },
-            )
-            await session.execute(stmt)
+            existing = await session.get(BotModel, bot.id)
+            if existing:
+                existing.name = bot.name
+                existing.description = bot.description
+                existing.icon = bot.icon
+                existing.color = bot.color
+                existing.model = bot.model
+                existing.system_prompt = bot.system_prompt
+                existing.capabilities = bot.capabilities
+                existing.models = bot.models
+                existing.updated_at = bot.updated_at
+            else:
+                session.add(
+                    BotModel(
+                        id=bot.id,
+                        name=bot.name,
+                        description=bot.description,
+                        icon=bot.icon,
+                        color=bot.color,
+                        model=bot.model,
+                        system_prompt=bot.system_prompt,
+                        capabilities=bot.capabilities,
+                        models=bot.models,
+                        created_at=bot.created_at,
+                        updated_at=bot.updated_at,
+                    )
+                )
             await session.commit()
 
     async def get_bot(self, bot_id: str) -> Bot | None:
@@ -1289,36 +1299,35 @@ class SkillsRepository:
         now = datetime.now(timezone.utc)
 
         async with async_session_maker() as session:
-            stmt = pg_insert(SkillModel).values(
-                id=skill.id,
-                name=skill.name,
-                description=skill.description,
-                version=skill.version,
-                author=skill.author,
-                tags=skill.tags,
-                requires_tools=skill.requires_tools,
-                instructions=skill.instructions,
-                source=skill.source.value,
-                filepath=skill.filepath,
-                created_at=now,
-                updated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "name": stmt.excluded.name,
-                    "description": stmt.excluded.description,
-                    "version": stmt.excluded.version,
-                    "author": stmt.excluded.author,
-                    "tags": stmt.excluded.tags,
-                    "requires_tools": stmt.excluded.requires_tools,
-                    "instructions": stmt.excluded.instructions,
-                    "source": stmt.excluded.source,
-                    "filepath": stmt.excluded.filepath,
-                    "updated_at": stmt.excluded.updated_at,
-                },
-            )
-            await session.execute(stmt)
+            existing = await session.get(SkillModel, skill.id)
+            if existing:
+                existing.name = skill.name
+                existing.description = skill.description
+                existing.version = skill.version
+                existing.author = skill.author
+                existing.tags = skill.tags
+                existing.requires_tools = skill.requires_tools
+                existing.instructions = skill.instructions
+                existing.source = skill.source.value
+                existing.filepath = skill.filepath
+                existing.updated_at = now
+            else:
+                session.add(
+                    SkillModel(
+                        id=skill.id,
+                        name=skill.name,
+                        description=skill.description,
+                        version=skill.version,
+                        author=skill.author,
+                        tags=skill.tags,
+                        requires_tools=skill.requires_tools,
+                        instructions=skill.instructions,
+                        source=skill.source.value,
+                        filepath=skill.filepath,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
             await session.commit()
 
     async def get_skill(self, skill_id: str) -> SkillDefinition | None:
@@ -1407,20 +1416,19 @@ class SkillsRepository:
         now = datetime.now(timezone.utc)
 
         async with async_session_maker() as session:
-            stmt = pg_insert(BotSkillModel).values(
-                bot_id=bot_id,
-                skill_id=skill_id,
-                enabled=True,
-                activated_at=now,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["bot_id", "skill_id"],
-                set_={
-                    "enabled": True,
-                    "activated_at": now,
-                },
-            )
-            await session.execute(stmt)
+            existing = await session.get(BotSkillModel, (bot_id, skill_id))
+            if existing:
+                existing.enabled = True
+                existing.activated_at = now
+            else:
+                session.add(
+                    BotSkillModel(
+                        bot_id=bot_id,
+                        skill_id=skill_id,
+                        enabled=True,
+                        activated_at=now,
+                    )
+                )
             await session.commit()
 
     async def deactivate_skill(self, bot_id: str, skill_id: str) -> bool:

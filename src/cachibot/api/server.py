@@ -62,8 +62,19 @@ FRONTEND_DIST = _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _D
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    # Startup
-    await init_db()
+    import logging
+
+    startup_logger = logging.getLogger("cachibot.startup")
+
+    # Startup — initialize database
+    try:
+        await init_db()
+    except Exception as e:
+        startup_logger.error("Database initialization failed: %s", e)
+        startup_logger.error(
+            "Check your DATABASE_URL or remove it to use SQLite (default)."
+        )
+        raise
 
     # Set up message processor for platform connections
     platform_manager = get_platform_manager()
