@@ -24,6 +24,10 @@ temperature = 0.6
 # Higher values allow the agent to write longer files and tool outputs
 max_tokens = 4096
 
+# Maximum nested agent depth (Prompture recursion limit)
+# Prevents infinite sub-agent loops. Default 5 is safe for normal usage.
+# max_depth = 5
+
 [sandbox]
 # Allowed Python imports (safe modules only)
 # Add more as needed, but be careful with security implications
