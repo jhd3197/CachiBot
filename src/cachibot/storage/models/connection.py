@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, Index, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from cachibot.storage.db import Base
@@ -25,7 +25,9 @@ class BotConnection(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     platform: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="disconnected")

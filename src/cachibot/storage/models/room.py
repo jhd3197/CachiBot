@@ -98,7 +98,9 @@ class RoomBot(Base):
         ForeignKey("rooms.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    bot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), primary_key=True
+    )
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
