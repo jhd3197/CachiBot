@@ -398,10 +398,10 @@ async def run_room_bot(
             RoomWSMessage.error(room_id, f"{bot.name} was cancelled", bot_id=bot_id),
         )
     except Exception as e:
-        logger.error(f"Bot {bot_id} error in room {room_id}: {e}")
+        logger.error(f"Bot {bot_id} error in room {room_id}: {e}", exc_info=True)
         await room_manager.send_to_room(
             room_id,
-            RoomWSMessage.error(room_id, f"{bot.name} encountered an error", bot_id=bot_id),
+            RoomWSMessage.error(room_id, f"{bot.name} encountered an error: {e}", bot_id=bot_id),
         )
     finally:
         if orchestrator:

@@ -137,6 +137,7 @@ class CachibotAgent:
             persistent_conversation=True,
             security_context=security_context,
             max_tool_result_length=self.config.agent.max_tool_result_length,
+            max_depth=self.config.agent.max_depth,
             options={
                 "temperature": self.config.agent.temperature,
                 "max_tokens": self.config.agent.max_tokens,
