@@ -67,7 +67,7 @@ def _skill_info_to_definition(
         CachiBot SkillDefinition
     """
     # Generate stable ID from name and filepath
-    path_hash = hashlib.md5(  # nosec B324 — not used for security, just stable IDs
+    path_hash = hashlib.md5(  # nosec B324
         (filepath or skill_info.name).encode(), usedforsecurity=False
     ).hexdigest()[:8]
     slug = re.sub(r"[^a-z0-9]+", "-", skill_info.name.lower()).strip("-")
@@ -109,7 +109,7 @@ class SkillsService:
 
     def _generate_skill_id(self, path: Path, name: str) -> str:
         """Generate a stable ID for a skill based on its path and name."""
-        path_hash = hashlib.md5(  # nosec B324 — not used for security, just stable IDs
+        path_hash = hashlib.md5(  # nosec B324
             str(path).encode(), usedforsecurity=False
         ).hexdigest()[:8]
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")

@@ -5,7 +5,6 @@ Base class and common mixins for CachiBot ORM models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,7 +22,7 @@ class TimestampMixin:
         nullable=False,
         server_default=func.now(),
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         onupdate=func.now(),

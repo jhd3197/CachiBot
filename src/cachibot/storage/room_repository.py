@@ -22,8 +22,14 @@ from cachibot.storage.db import async_session_maker
 from cachibot.storage.models.bot import Bot as BotModel
 from cachibot.storage.models.room import (
     Room as RoomModel,
+)
+from cachibot.storage.models.room import (
     RoomBot as RoomBotModel,
+)
+from cachibot.storage.models.room import (
     RoomMember as RoomMemberModel,
+)
+from cachibot.storage.models.room import (
     RoomMessage as RoomMessageModel,
 )
 from cachibot.storage.models.user import User as UserModel
@@ -51,9 +57,7 @@ class RoomRepository:
     async def get_room(self, room_id: str) -> Room | None:
         """Get a room by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(RoomModel).where(RoomModel.id == room_id)
-            )
+            result = await session.execute(select(RoomModel).where(RoomModel.id == room_id))
             row = result.scalar_one_or_none()
         if row is None:
             return None
@@ -91,9 +95,7 @@ class RoomRepository:
 
         async with async_session_maker() as session:
             result = await session.execute(
-                update(RoomModel)
-                .where(RoomModel.id == room_id)
-                .values(**values)
+                update(RoomModel).where(RoomModel.id == room_id).values(**values)
             )
             await session.commit()
 
@@ -104,9 +106,7 @@ class RoomRepository:
     async def delete_room(self, room_id: str) -> bool:
         """Delete a room (cascades to members, bots, messages)."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(RoomModel).where(RoomModel.id == room_id)
-            )
+            result = await session.execute(delete(RoomModel).where(RoomModel.id == room_id))
             await session.commit()
             return result.rowcount > 0
 
