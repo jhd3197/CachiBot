@@ -280,7 +280,7 @@ class RoomMessageRepository:
                 sender_id=message.sender_id,
                 sender_name=message.sender_name,
                 content=message.content,
-                metadata=message.metadata,
+                meta=message.metadata,
                 timestamp=message.timestamp,
             )
             session.add(obj)
@@ -336,6 +336,6 @@ class RoomMessageRepository:
             sender_id=row.sender_id,
             sender_name=row.sender_name,
             content=row.content,
-            metadata=row.metadata if row.metadata else {},
+            metadata=row.meta if row.meta else {},
             timestamp=row.timestamp,
         )
