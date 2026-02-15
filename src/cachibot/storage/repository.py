@@ -54,7 +54,7 @@ class MessageRepository:
                 role=message.role.value,
                 content=message.content,
                 timestamp=message.timestamp,
-                metadata=message.metadata,
+                meta=message.metadata,
             )
             session.add(obj)
             await session.commit()
@@ -75,7 +75,7 @@ class MessageRepository:
             role=MessageRole(row.role),
             content=row.content,
             timestamp=row.timestamp,
-            metadata=row.metadata,
+            metadata=row.meta,
         )
 
     async def get_messages(
@@ -99,7 +99,7 @@ class MessageRepository:
                 role=MessageRole(row.role),
                 content=row.content,
                 timestamp=row.timestamp,
-                metadata=row.metadata,
+                metadata=row.meta,
             )
             for row in reversed(rows)  # Return in chronological order
         ]
@@ -216,7 +216,7 @@ class KnowledgeRepository:
                 role=message.role,
                 content=message.content,
                 timestamp=message.timestamp,
-                metadata=message.metadata,
+                meta=message.metadata,
                 reply_to_id=message.reply_to_id,
             )
             session.add(obj)
@@ -249,7 +249,7 @@ class KnowledgeRepository:
                 role=row.role,
                 content=row.content,
                 timestamp=row.timestamp,
-                metadata=row.metadata,
+                metadata=row.meta,
                 reply_to_id=row.reply_to_id,
             )
             for row in reversed(rows)  # Return in chronological order
@@ -278,7 +278,7 @@ class KnowledgeRepository:
                 role=row.role,
                 content=row.content,
                 timestamp=row.timestamp,
-                metadata=row.metadata,
+                metadata=row.meta,
                 reply_to_id=row.reply_to_id,
             )
             for row in reversed(rows)

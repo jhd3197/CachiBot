@@ -143,8 +143,8 @@ class RoomMessage(Base):
     sender_id: Mapped[str] = mapped_column(String, nullable=False)
     sender_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default="{}"
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
