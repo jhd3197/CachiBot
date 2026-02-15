@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from fastembed import TextEmbedding
 
 from cachibot.models.knowledge import DocChunk
-from cachibot.storage.db import async_session_maker, db_type
+from cachibot.storage import db
 from cachibot.storage.models.knowledge import DocChunk as DocChunkORM
 from cachibot.storage.repository import KnowledgeRepository
 
@@ -117,7 +117,7 @@ class VectorStore:
         # Generate query embedding
         query_embedding = await self.embed_text(query)
 
-        if db_type == "postgresql":
+        if db.db_type == "postgresql":
             return await self._search_pgvector(bot_id, query_embedding, limit, min_score)
         else:
             return await self._search_in_memory(bot_id, query_embedding, limit, min_score)
@@ -148,7 +148,7 @@ class VectorStore:
             .limit(limit)
         )
 
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(stmt)
             rows = result.all()
 
@@ -175,7 +175,7 @@ class VectorStore:
     ) -> list[SearchResult]:
         """Search using in-memory cosine similarity (SQLite fallback)."""
         # Load all embeddings for this bot
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(DocChunkORM).where(
                     DocChunkORM.bot_id == bot_id,
