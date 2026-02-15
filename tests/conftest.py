@@ -18,7 +18,7 @@ TEST_DATABASE_URL = os.getenv(
 
 
 @pytest.fixture
-async def pg_db():
+async def pg_db(request):
     """Set up a test PostgreSQL database with all tables.
 
     Creates fresh tables before the test and drops them after.
@@ -35,6 +35,15 @@ async def pg_db():
                 -c "CREATE EXTENSION IF NOT EXISTS vector;"
     """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    # Test connectivity — skip if Postgres is not reachable
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        await engine.dispose()
+        pytest.skip("PostgreSQL not available")
+
     session_maker = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )

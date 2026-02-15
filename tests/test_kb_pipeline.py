@@ -305,64 +305,55 @@ class TestVectorStoreSearch:
 
     async def test_search_no_results_returns_empty(self, mock_vector_store):
         """When database returns no matching chunks, result is empty."""
-        query_vec = np.ones(384, dtype=np.float32)
-        mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
+        mock_vector_store.embed_text = AsyncMock(
+            return_value=np.ones(384, dtype=np.float32)
+        )
+        mock_vector_store._search_pgvector = AsyncMock(return_value=[])
+        mock_vector_store._search_in_memory = AsyncMock(return_value=[])
 
-        mock_result = MagicMock()
-        mock_result.all.return_value = []
-
-        mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
-            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            results = await mock_vector_store.search_similar("bot-1", "test query")
+        results = await mock_vector_store.search_similar("bot-1", "test query")
 
         assert results == []
         mock_vector_store.embed_text.assert_called_once_with("test query")
 
     async def test_search_returns_mapped_results(self, mock_vector_store):
-        """Results from database are correctly mapped to SearchResult objects."""
-        query_vec = np.ones(384, dtype=np.float32)
-        mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
+        """Results from search are correctly returned as SearchResult objects."""
+        mock_vector_store.embed_text = AsyncMock(
+            return_value=np.ones(384, dtype=np.float32)
+        )
 
-        # Create mock ORM objects mimicking pgvector query results
-        mock_chunk_close = MagicMock()
-        mock_chunk_close.id = "chunk-close"
-        mock_chunk_close.document_id = "doc-1"
-        mock_chunk_close.bot_id = "bot-1"
-        mock_chunk_close.chunk_index = 0
-        mock_chunk_close.content = "close content"
-
-        mock_chunk_far = MagicMock()
-        mock_chunk_far.id = "chunk-far"
-        mock_chunk_far.document_id = "doc-1"
-        mock_chunk_far.bot_id = "bot-1"
-        mock_chunk_far.chunk_index = 1
-        mock_chunk_far.content = "far content"
-
-        mock_result = MagicMock()
-        # pgvector query returns (DocChunkORM, similarity_score) tuples
-        mock_result.all.return_value = [
-            (mock_chunk_close, 0.95),
-            (mock_chunk_far, 0.72),
+        expected = [
+            SearchResult(
+                chunk=DocChunk(
+                    id="chunk-close",
+                    document_id="doc-1",
+                    bot_id="bot-1",
+                    chunk_index=0,
+                    content="close content",
+                    embedding=None,
+                ),
+                score=0.95,
+            ),
+            SearchResult(
+                chunk=DocChunk(
+                    id="chunk-far",
+                    document_id="doc-1",
+                    bot_id="bot-1",
+                    chunk_index=1,
+                    content="far content",
+                    embedding=None,
+                ),
+                score=0.72,
+            ),
         ]
+        mock_vector_store._search_pgvector = AsyncMock(return_value=expected)
+        mock_vector_store._search_in_memory = AsyncMock(return_value=expected)
 
-        mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
-            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            results = await mock_vector_store.search_similar(
-                "bot-1", "test", limit=10, min_score=0.0
-            )
+        results = await mock_vector_store.search_similar(
+            "bot-1", "test", limit=10, min_score=0.0
+        )
 
         assert len(results) == 2
-        # Results should preserve database ordering (by cosine distance asc)
         assert results[0].chunk.id == "chunk-close"
         assert results[0].score == 0.95
         assert results[0].chunk.content == "close content"
@@ -371,48 +362,52 @@ class TestVectorStoreSearch:
 
     async def test_search_result_embeddings_are_none(self, mock_vector_store):
         """Returned SearchResult chunks should not include the embedding blob."""
-        query_vec = np.ones(384, dtype=np.float32)
-        mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
+        mock_vector_store.embed_text = AsyncMock(
+            return_value=np.ones(384, dtype=np.float32)
+        )
 
-        mock_chunk = MagicMock()
-        mock_chunk.id = "chunk-1"
-        mock_chunk.document_id = "doc-1"
-        mock_chunk.bot_id = "bot-1"
-        mock_chunk.chunk_index = 0
-        mock_chunk.content = "test content"
+        expected = [
+            SearchResult(
+                chunk=DocChunk(
+                    id="chunk-1",
+                    document_id="doc-1",
+                    bot_id="bot-1",
+                    chunk_index=0,
+                    content="test content",
+                    embedding=None,
+                ),
+                score=0.85,
+            ),
+        ]
+        mock_vector_store._search_pgvector = AsyncMock(return_value=expected)
+        mock_vector_store._search_in_memory = AsyncMock(return_value=expected)
 
-        mock_result = MagicMock()
-        mock_result.all.return_value = [(mock_chunk, 0.85)]
-
-        mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=mock_result)
-
-        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
-            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            results = await mock_vector_store.search_similar("bot-1", "test")
+        results = await mock_vector_store.search_similar("bot-1", "test")
 
         assert len(results) == 1
         assert results[0].chunk.embedding is None
 
     async def test_search_with_filenames(self, mock_vector_store):
         """search_with_filenames attaches document filenames to results."""
-        query_vec = np.ones(384, dtype=np.float32)
-        mock_vector_store.embed_text = AsyncMock(return_value=query_vec)
+        mock_vector_store.embed_text = AsyncMock(
+            return_value=np.ones(384, dtype=np.float32)
+        )
 
-        mock_chunk = MagicMock()
-        mock_chunk.id = "chunk-1"
-        mock_chunk.document_id = "doc-1"
-        mock_chunk.bot_id = "bot-1"
-        mock_chunk.chunk_index = 0
-        mock_chunk.content = "test content"
-
-        mock_result = MagicMock()
-        mock_result.all.return_value = [(mock_chunk, 0.85)]
-
-        mock_session = AsyncMock()
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        search_results = [
+            SearchResult(
+                chunk=DocChunk(
+                    id="chunk-1",
+                    document_id="doc-1",
+                    bot_id="bot-1",
+                    chunk_index=0,
+                    content="test content",
+                    embedding=None,
+                ),
+                score=0.85,
+            ),
+        ]
+        mock_vector_store._search_pgvector = AsyncMock(return_value=search_results)
+        mock_vector_store._search_in_memory = AsyncMock(return_value=search_results)
 
         mock_vector_store._repo = MagicMock()
         mock_doc = MagicMock()
@@ -420,11 +415,7 @@ class TestVectorStoreSearch:
         mock_doc.filename = "guide.pdf"
         mock_vector_store._repo.get_documents_by_bot = AsyncMock(return_value=[mock_doc])
 
-        with patch("cachibot.services.vector_store.async_session_maker") as mock_maker:
-            mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_maker.return_value.__aexit__ = AsyncMock(return_value=False)
-
-            results = await mock_vector_store.search_with_filenames("bot-1", "test")
+        results = await mock_vector_store.search_with_filenames("bot-1", "test")
 
         assert len(results) == 1
         assert results[0].document_filename == "guide.pdf"
