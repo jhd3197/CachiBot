@@ -43,6 +43,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.20.0",
     "asyncpg>=0.29.0",
     "alembic>=1.13.0",
     "pgvector>=0.3.0",
@@ -76,6 +77,7 @@ dev = [
     "ruff>=0.5.0",
     "mypy>=1.10.0",
     "bandit>=1.7.0",
+    "pre-commit>=3.0.0",
 ]
 
 [project.scripts]
@@ -113,12 +115,17 @@ strict = true
 [tool.bandit]
 targets = ["src/cachibot"]
 exclude_dirs = ["tests"]
-skips = [
-    "B110",   # try_except_pass — intentional graceful degradation throughout
-    "B112",   # try_except_continue — intentional skip-on-error loops
-    "B106",   # hardcoded_password_funcarg — false positives on token_type="access"
-    "B107",   # hardcoded_password_default — false positives on token_type defaults
-]
+# B110  try_except_pass — intentional graceful degradation
+# B112  try_except_continue — intentional skip-on-error loops
+# B105  hardcoded_password_string — false positives (docker dev defaults, token_type)
+# B106  hardcoded_password_funcarg — false positives on token_type="access"
+# B107  hardcoded_password_default — false positives on token_type defaults
+# B404  import_subprocess — CLI tool legitimately uses subprocess
+# B603  subprocess_without_shell — safe usage with literal args
+# B607  start_process_with_partial_path — calling docker/system tools by name
+# B608  hardcoded_sql_expressions — internal migration CLI, no user input
+# B104  hardcoded_bind_all_interfaces — intentional for server adapters
+skips = ["B110", "B112", "B105", "B106", "B107", "B404", "B603", "B607", "B608", "B104"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

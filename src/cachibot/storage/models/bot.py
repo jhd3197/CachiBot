@@ -5,10 +5,10 @@ Bot and BotOwnership models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -24,22 +24,18 @@ class Bot(Base):
     """Bot configuration (synced from frontend)."""
 
     __tablename__ = "bots"
-    __table_args__ = (
-        Index("idx_bots_capabilities", "capabilities", postgresql_using="gin"),
-        Index("idx_bots_models", "models", postgresql_using="gin"),
-    )
+    # GIN indexes on JSONB columns are PostgreSQL-only; omitted for cross-dialect compat.
+    __table_args__: tuple = ()
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String, nullable=True)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
     model: Mapped[str] = mapped_column(String, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
-    capabilities: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
-    )
-    models: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    capabilities: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    models: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -48,12 +44,10 @@ class Bot(Base):
     )
 
     # Relationships
-    ownership: Mapped[Optional[BotOwnership]] = relationship(
+    ownership: Mapped[BotOwnership | None] = relationship(
         "BotOwnership", back_populates="bot", uselist=False
     )
-    chats: Mapped[list[Chat]] = relationship(
-        "Chat", back_populates="bot"
-    )
+    chats: Mapped[list[Chat]] = relationship("Chat", back_populates="bot")
 
 
 class BotOwnership(Base):
@@ -66,9 +60,7 @@ class BotOwnership(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(
-        String, unique=True, nullable=False
-    )
+    bot_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     user_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -79,11 +71,10 @@ class BotOwnership(Base):
     )
 
     # Relationships
-    user: Mapped[User] = relationship(
-        "User", back_populates="bot_ownerships"
-    )
+    user: Mapped[User] = relationship("User", back_populates="bot_ownerships")
     bot: Mapped[Bot] = relationship(
-        "Bot", back_populates="ownership",
+        "Bot",
+        back_populates="ownership",
         primaryjoin="BotOwnership.bot_id == Bot.id",
         foreign_keys=[bot_id],
     )

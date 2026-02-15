@@ -5,10 +5,10 @@ Multi-agent room models: Room, RoomMember, RoomBot, RoomMessage.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -23,25 +23,18 @@ class Room(Base):
     """Multi-agent room where multiple bots can interact."""
 
     __tablename__ = "rooms"
-    __table_args__ = (
-        Index("idx_rooms_creator", "creator_id"),
-        Index("idx_rooms_settings", "settings", postgresql_using="gin"),
-    )
+    __table_args__ = (Index("idx_rooms_creator", "creator_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     creator_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    max_bots: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="4"
-    )
-    settings: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
-    )
+    max_bots: Mapped[int] = mapped_column(Integer, nullable=False, server_default="4")
+    settings: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -50,9 +43,7 @@ class Room(Base):
     )
 
     # Relationships
-    creator: Mapped[User] = relationship(
-        "User", back_populates="created_rooms"
-    )
+    creator: Mapped[User] = relationship("User", back_populates="created_rooms")
     members: Mapped[list[RoomMember]] = relationship(
         "RoomMember", back_populates="room", cascade="all, delete-orphan"
     )
@@ -83,9 +74,7 @@ class RoomMember(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    role: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="member"
-    )
+    role: Mapped[str] = mapped_column(String, nullable=False, server_default="member")
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -126,11 +115,6 @@ class RoomMessage(Base):
         Index("idx_room_messages_room", "room_id"),
         Index("idx_room_messages_room_timestamp", "room_id", "timestamp"),
         Index("idx_room_messages_sender", "sender_type", "sender_id"),
-        Index(
-            "idx_room_messages_metadata",
-            "metadata",
-            postgresql_using="gin",
-        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -143,9 +127,7 @@ class RoomMessage(Base):
     sender_id: Mapped[str] = mapped_column(String, nullable=False)
     sender_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}"
-    )
+    meta: Mapped[dict] = mapped_column("metadata", sa.JSON, nullable=False, server_default="{}")
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

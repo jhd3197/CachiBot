@@ -152,26 +152,18 @@ class PlatformConfig:
 
 @dataclass
 class DatabaseConfig:
-    """Database configuration for PostgreSQL."""
+    """Database configuration.
 
-    url: str = "postgresql+asyncpg://cachibot:cachibot@localhost:5433/cachibot"
+    When url is empty, the storage layer auto-detects the right backend:
+    SQLite at ~/.cachibot/cachibot.db by default, or PostgreSQL when
+    CACHIBOT_DATABASE_URL / DATABASE_URL is set.
+    """
+
+    url: str = ""  # Empty = auto-detect (SQLite default)
     pool_size: int = 10
     max_overflow: int = 20
     pool_recycle: int = 3600  # seconds
     echo: bool = False
-
-    def get_url(self) -> str:
-        """Get the database URL with automatic protocol conversion.
-
-        Converts postgres:// and postgresql:// to postgresql+asyncpg://
-        for SQLAlchemy async compatibility.
-        """
-        url = self.url
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgresql://") and "+asyncpg" not in url:
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return url
 
 
 @dataclass
@@ -244,16 +236,6 @@ class Config:
                 config._load_from_file(config_path)
                 config.config_path = config_path
 
-        # Backward compatibility: warn if legacy SQLite database exists
-        sqlite_path = Path.home() / ".cachibot" / "cachibot.db"
-        if sqlite_path.exists():
-            logger.warning(
-                "Legacy SQLite database found at %s. "
-                "Run 'python scripts/migrate_sqlite_to_postgres.py' to migrate your data to "
-                "PostgreSQL. The SQLite file will not be used by default.",
-                sqlite_path,
-            )
-
         return config
 
     def _load_from_env(self) -> None:
@@ -300,7 +282,7 @@ class Config:
                 pass
 
         # Database URL (highest priority override)
-        if database_url := os.getenv("DATABASE_URL"):
+        if database_url := os.getenv("CACHIBOT_DATABASE_URL") or os.getenv("DATABASE_URL"):
             self.database.url = database_url
 
         # Auth settings

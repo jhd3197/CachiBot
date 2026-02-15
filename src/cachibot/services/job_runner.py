@@ -179,13 +179,9 @@ class JobRunnerService:
             result_text = await self._run_agent_for_task(job, task)
 
             # Job completed successfully
-            await self._job_repo.update_status(
-                job.id, JobStatus.COMPLETED, result=result_text
-            )
+            await self._job_repo.update_status(job.id, JobStatus.COMPLETED, result=result_text)
             await self._job_repo.append_log(job.id, "info", "Job completed")
-            await self._task_repo.update_status(
-                task.id, TaskStatus.COMPLETED, result=result_text
-            )
+            await self._task_repo.update_status(task.id, TaskStatus.COMPLETED, result=result_text)
 
             # Update work progress
             await self._update_work_progress(work.id)
@@ -202,9 +198,7 @@ class JobRunnerService:
 
         except asyncio.CancelledError:
             # Job was cancelled externally
-            await self._job_repo.update_status(
-                job.id, JobStatus.CANCELLED, error="Cancelled"
-            )
+            await self._job_repo.update_status(job.id, JobStatus.CANCELLED, error="Cancelled")
             await self._job_repo.append_log(job.id, "warn", "Job cancelled")
             await self._task_repo.update_status(
                 task.id, TaskStatus.PENDING, error="Cancelled, will retry"
@@ -220,17 +214,13 @@ class JobRunnerService:
         except asyncio.TimeoutError:
             timeout = task.timeout_seconds or "unknown"
             error_msg = f"Timeout after {timeout} seconds"
-            await self._job_repo.update_status(
-                job.id, JobStatus.FAILED, error=error_msg
-            )
+            await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", error_msg)
             await self._handle_task_failure(task, work, job.id, error_msg)
 
         except Exception as exc:
             error_msg = str(exc)
-            await self._job_repo.update_status(
-                job.id, JobStatus.FAILED, error=error_msg
-            )
+            await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", f"Job failed: {error_msg}")
             await self._handle_task_failure(task, work, job.id, error_msg)
 
@@ -274,9 +264,7 @@ class JobRunnerService:
 
         # Wrap in timeout if configured
         if task.timeout_seconds:
-            result = await asyncio.wait_for(
-                agent.run(action), timeout=task.timeout_seconds
-            )
+            result = await asyncio.wait_for(agent.run(action), timeout=task.timeout_seconds)
         else:
             result = await agent.run(action)
 
@@ -298,9 +286,7 @@ class JobRunnerService:
 
         if new_count < task.max_retries:
             # Leave as PENDING for next poll to pick up
-            await self._task_repo.update_status(
-                task.id, TaskStatus.PENDING, error=error_msg
-            )
+            await self._task_repo.update_status(task.id, TaskStatus.PENDING, error=error_msg)
             logger.info(
                 "Task %s failed (attempt %d/%d), will retry",
                 task.id,
@@ -317,9 +303,7 @@ class JobRunnerService:
             )
         else:
             # Max retries exceeded — mark task and work as failed
-            await self._task_repo.update_status(
-                task.id, TaskStatus.FAILED, error=error_msg
-            )
+            await self._task_repo.update_status(task.id, TaskStatus.FAILED, error=error_msg)
             await self._work_repo.update_status(
                 work.id, WorkStatus.FAILED, error=f"Task '{task.title}' failed: {error_msg}"
             )

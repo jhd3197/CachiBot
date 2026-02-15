@@ -258,9 +258,7 @@ class DocumentProcessor:
             logger.info(f"Document {document_id} processed: {len(doc_chunks)} chunks")
 
             # Broadcast ready status
-            await self._broadcast_status(
-                bot_id, document_id, "ready", chunk_count=len(doc_chunks)
-            )
+            await self._broadcast_status(bot_id, document_id, "ready", chunk_count=len(doc_chunks))
 
             return len(doc_chunks)
 
