@@ -2,8 +2,9 @@
 FastAPI Authentication Dependencies
 
 Provides dependency functions for protecting routes.
-Supports dual-mode auth: V2-native tokens (selfhosted/cloud) and
-website bearer tokens (cloud mode only).
+In cloud mode, users exchange a short-lived launch token for V2-native
+tokens via /auth/exchange. After that, all auth uses V2-native tokens only.
+The website's main JWT secret is never shared with V2.
 """
 
 from fastapi import Depends, HTTPException, status
@@ -36,32 +37,26 @@ def _to_user(user_db: UserInDB) -> User:
 
 
 async def _resolve_token(token: str) -> User | None:
-    """Try to resolve a bearer token to a User.
+    """Resolve a V2-native bearer token to a User.
 
-    1. Try V2 native token (has "type": "access" claim).
-    2. In cloud mode, try website token (sub=email, no "type" claim).
+    Only verifies tokens signed with V2's own JWT secret.
+    Website users must first exchange their launch token via /auth/exchange
+    to get V2-native tokens.
     """
     auth = get_auth_service()
-    repo = UserRepository()
 
-    # 1. Try V2 native token
     payload = auth.verify_token(token, token_type="access")
-    if payload:
-        user_id = payload.get("sub")
-        if user_id:
-            user_db = await repo.get_user_by_id(user_id)
-            if user_db and user_db.is_active:
-                return _to_user(user_db)
+    if not payload:
+        return None
 
-    # 2. In cloud mode, try website token (sub=email, no "type" claim)
-    if auth.is_cloud_mode:
-        ws_payload = auth.verify_website_token(token)
-        if ws_payload:
-            email = ws_payload.get("sub")
-            if email:
-                user_db = await repo.get_user_by_email(email)
-                if user_db and user_db.is_active:
-                    return _to_user(user_db)
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    repo = UserRepository()
+    user_db = await repo.get_user_by_id(user_id)
+    if user_db and user_db.is_active:
+        return _to_user(user_db)
 
     return None
 
@@ -163,9 +158,7 @@ async def require_bot_access(
 
 def verify_token_from_query(token: str) -> dict | None:
     """
-    Verify a JWT token from query parameter (for WebSocket).
-
-    Tries V2 native token first, then website token in cloud mode.
+    Verify a V2-native JWT token from query parameter (for WebSocket).
 
     Args:
         token: JWT token string
@@ -174,17 +167,7 @@ def verify_token_from_query(token: str) -> dict | None:
         Decoded payload if valid, None otherwise
     """
     auth_service = get_auth_service()
-
-    # Try V2 native token
-    payload = auth_service.verify_token(token, token_type="access")
-    if payload:
-        return payload
-
-    # In cloud mode, try website token
-    if auth_service.is_cloud_mode:
-        return auth_service.verify_website_token(token)
-
-    return None
+    return auth_service.verify_token(token, token_type="access")
 
 
 async def get_user_from_token(token: str) -> User | None:
