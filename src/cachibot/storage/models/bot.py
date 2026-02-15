@@ -60,7 +60,12 @@ class BotOwnership(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("bots.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
     user_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -72,9 +77,4 @@ class BotOwnership(Base):
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="bot_ownerships")
-    bot: Mapped[Bot] = relationship(
-        "Bot",
-        back_populates="ownership",
-        primaryjoin="BotOwnership.bot_id == Bot.id",
-        foreign_keys=[bot_id],
-    )
+    bot: Mapped[Bot] = relationship("Bot", back_populates="ownership")
