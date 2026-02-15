@@ -63,7 +63,7 @@ class DocChunk(BaseModel):
     bot_id: str
     chunk_index: int
     content: str
-    embedding: bytes | None = None  # Serialized float32 array
+    embedding: list[float] | None = None  # pgvector-compatible float list
 
 
 class DocumentCreate(BaseModel):

@@ -4,10 +4,13 @@ Cachibot Configuration
 Handles loading and managing configuration from files and environment.
 """
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Try to import tomllib (Python 3.11+) or tomli as fallback
 try:
@@ -139,6 +142,39 @@ class AuthConfig:
 
 
 @dataclass
+class PlatformConfig:
+    """Platform deployment configuration for website ↔ V2 auth bridge."""
+
+    deploy_mode: str = "selfhosted"  # "selfhosted" or "cloud"
+    website_jwt_secret: str = ""  # Shared secret for platform launch tokens
+    website_url: str = ""  # e.g. "https://cachibot.ai"
+
+
+@dataclass
+class DatabaseConfig:
+    """Database configuration for PostgreSQL."""
+
+    url: str = "postgresql+asyncpg://cachibot:cachibot@localhost:5433/cachibot"
+    pool_size: int = 10
+    max_overflow: int = 20
+    pool_recycle: int = 3600  # seconds
+    echo: bool = False
+
+    def get_url(self) -> str:
+        """Get the database URL with automatic protocol conversion.
+
+        Converts postgres:// and postgresql:// to postgresql+asyncpg://
+        for SQLAlchemy async compatibility.
+        """
+        url = self.url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+
+@dataclass
 class Config:
     """
     Main configuration container for Cachibot.
@@ -157,6 +193,8 @@ class Config:
     display: DisplayConfig = field(default_factory=DisplayConfig)
     knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    platform: PlatformConfig = field(default_factory=PlatformConfig)
 
     # Runtime paths
     workspace_path: Path = field(default_factory=Path.cwd)
@@ -206,6 +244,16 @@ class Config:
                 config._load_from_file(config_path)
                 config.config_path = config_path
 
+        # Backward compatibility: warn if legacy SQLite database exists
+        sqlite_path = Path.home() / ".cachibot" / "cachibot.db"
+        if sqlite_path.exists():
+            logger.warning(
+                "Legacy SQLite database found at %s. "
+                "Run 'python scripts/migrate_sqlite_to_postgres.py' to migrate your data to "
+                "PostgreSQL. The SQLite file will not be used by default.",
+                sqlite_path,
+            )
+
         return config
 
     def _load_from_env(self) -> None:
@@ -251,6 +299,10 @@ class Config:
             except ValueError:
                 pass
 
+        # Database URL (highest priority override)
+        if database_url := os.getenv("DATABASE_URL"):
+            self.database.url = database_url
+
         # Auth settings
         if jwt_secret := os.getenv("CACHIBOT_JWT_SECRET"):
             self.auth.jwt_secret = jwt_secret
@@ -266,6 +318,14 @@ class Config:
                 self.auth.refresh_token_expire_days = int(expire_days)
             except ValueError:
                 pass
+
+        # Platform settings
+        if deploy_mode := os.getenv("CACHIBOT_DEPLOY_MODE"):
+            self.platform.deploy_mode = deploy_mode
+        if website_jwt_secret := os.getenv("CACHIBOT_WEBSITE_JWT_SECRET"):
+            self.platform.website_jwt_secret = website_jwt_secret
+        if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
+            self.platform.website_url = website_url
 
     def _load_from_file(self, path: Path) -> None:
         """Load configuration from a TOML file."""
@@ -344,6 +404,26 @@ class Config:
                 self.auth.access_token_expire_minutes = auth_data["access_token_expire_minutes"]
             if "refresh_token_expire_days" in auth_data:
                 self.auth.refresh_token_expire_days = auth_data["refresh_token_expire_days"]
+
+        if platform_data := data.get("platform"):
+            if "deploy_mode" in platform_data:
+                self.platform.deploy_mode = platform_data["deploy_mode"]
+            if "website_jwt_secret" in platform_data:
+                self.platform.website_jwt_secret = platform_data["website_jwt_secret"]
+            if "website_url" in platform_data:
+                self.platform.website_url = platform_data["website_url"]
+
+        if db_data := data.get("database"):
+            if "url" in db_data:
+                self.database.url = db_data["url"]
+            if "pool_size" in db_data:
+                self.database.pool_size = db_data["pool_size"]
+            if "max_overflow" in db_data:
+                self.database.max_overflow = db_data["max_overflow"]
+            if "pool_recycle" in db_data:
+                self.database.pool_recycle = db_data["pool_recycle"]
+            if "echo" in db_data:
+                self.database.echo = db_data["echo"]
 
     def is_path_allowed(self, path: Path | str) -> bool:
         """

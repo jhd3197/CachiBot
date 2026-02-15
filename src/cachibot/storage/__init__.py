@@ -1,11 +1,28 @@
 """
 Cachibot Storage Layer
 
-SQLite-based storage for chat history, jobs, and work management.
+PostgreSQL-based storage using SQLAlchemy 2.0 ORM with asyncpg.
 """
 
-from cachibot.storage.database import close_db, get_db, init_db
-from cachibot.storage.repository import ChatRepository, JobRepository
+from cachibot.storage.db import async_session_maker, close_db, get_session, init_db
+from cachibot.storage.repository import (
+    BotRepository,
+    ChatRepository,
+    ConnectionRepository,
+    ContactsRepository,
+    JobRepository,
+    KnowledgeRepository,
+    MessageRepository,
+    NotesRepository,
+    SkillsRepository,
+)
+from cachibot.storage.room_repository import (
+    RoomBotRepository,
+    RoomMemberRepository,
+    RoomMessageRepository,
+    RoomRepository,
+)
+from cachibot.storage.user_repository import OwnershipRepository, UserRepository
 from cachibot.storage.work_repository import (
     FunctionRepository,
     ScheduleRepository,
@@ -16,13 +33,21 @@ from cachibot.storage.work_repository import (
 )
 
 __all__ = [
-    # Database
+    # Database lifecycle
     "init_db",
     "close_db",
-    "get_db",
-    # Legacy repositories
-    "ChatRepository",
+    "get_session",
+    "async_session_maker",
+    # Main repositories
+    "MessageRepository",
     "JobRepository",
+    "KnowledgeRepository",
+    "NotesRepository",
+    "ContactsRepository",
+    "ConnectionRepository",
+    "BotRepository",
+    "ChatRepository",
+    "SkillsRepository",
     # Work management repositories
     "FunctionRepository",
     "ScheduleRepository",
@@ -30,4 +55,12 @@ __all__ = [
     "TaskRepository",
     "WorkJobRepository",
     "TodoRepository",
+    # Room repositories
+    "RoomRepository",
+    "RoomMemberRepository",
+    "RoomBotRepository",
+    "RoomMessageRepository",
+    # User repositories
+    "UserRepository",
+    "OwnershipRepository",
 ]

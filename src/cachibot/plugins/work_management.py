@@ -354,7 +354,8 @@ class WorkManagementPlugin(CachibotPlugin):
                         remind_datetime = datetime.fromisoformat(remind_at)
                     except ValueError:
                         # Try parsing as time-only (e.g. "20:45" or "9:00")
-                        time_match = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", remind_at.strip())
+                        pattern = r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$"
+                        time_match = re.match(pattern, remind_at.strip())
                         if time_match:
                             h, m = int(time_match.group(1)), int(time_match.group(2))
                             s = int(time_match.group(3)) if time_match.group(3) else 0
