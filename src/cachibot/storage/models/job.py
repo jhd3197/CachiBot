@@ -29,9 +29,7 @@ class Job(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    status: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="pending"
-    )
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="pending")
     message_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("messages.id"),
@@ -40,19 +38,11 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    progress: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0.0"
-    )
+    progress: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
 
     # Relationships
-    message: Mapped[Message | None] = relationship(
-        "Message", back_populates="jobs"
-    )
+    message: Mapped[Message | None] = relationship("Message", back_populates="jobs")

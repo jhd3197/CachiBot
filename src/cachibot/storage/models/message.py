@@ -23,9 +23,7 @@ class Message(Base):
     """Global message store (CLI / single-agent mode)."""
 
     __tablename__ = "messages"
-    __table_args__ = (
-        Index("idx_messages_timestamp", "timestamp"),
-    )
+    __table_args__ = (Index("idx_messages_timestamp", "timestamp"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
@@ -33,14 +31,10 @@ class Message(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    meta: Mapped[dict] = mapped_column(
-        "metadata", sa.JSON, nullable=False, server_default="{}"
-    )
+    meta: Mapped[dict] = mapped_column("metadata", sa.JSON, nullable=False, server_default="{}")
 
     # Relationships
-    jobs: Mapped[list[Job]] = relationship(
-        "Job", back_populates="message"
-    )
+    jobs: Mapped[list[Job]] = relationship("Job", back_populates="message")
 
 
 class BotMessage(Base):
@@ -60,7 +54,5 @@ class BotMessage(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    meta: Mapped[dict] = mapped_column(
-        "metadata", sa.JSON, nullable=False, server_default="{}"
-    )
+    meta: Mapped[dict] = mapped_column("metadata", sa.JSON, nullable=False, server_default="{}")
     reply_to_id: Mapped[str | None] = mapped_column(String, nullable=True)

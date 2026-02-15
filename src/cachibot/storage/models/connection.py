@@ -28,18 +28,10 @@ class BotConnection(Base):
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     platform: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="disconnected"
-    )
-    config_encrypted: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False
-    )
-    message_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    last_activity: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="disconnected")
+    config_encrypted: Mapped[dict] = mapped_column(sa.JSON, nullable=False)
+    message_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    last_activity: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

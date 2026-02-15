@@ -75,9 +75,7 @@ def _get_url() -> str:
     except Exception:
         pass
 
-    return config.get_main_option(
-        "sqlalchemy.url", "sqlite+aiosqlite:///cachibot.db"
-    )
+    return config.get_main_option("sqlalchemy.url", "sqlite+aiosqlite:///cachibot.db")
 
 
 def run_migrations_offline() -> None:

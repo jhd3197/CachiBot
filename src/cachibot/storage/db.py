@@ -261,8 +261,7 @@ async def init_db() -> None:
                     await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 except Exception:
                     logger.warning(
-                        "pgvector extension not available. "
-                        "Vector search features will be limited."
+                        "pgvector extension not available. Vector search features will be limited."
                     )
 
             # Create all tables that don't exist yet

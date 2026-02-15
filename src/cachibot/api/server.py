@@ -71,9 +71,7 @@ async def lifespan(app: FastAPI):
         await init_db()
     except Exception as e:
         startup_logger.error("Database initialization failed: %s", e)
-        startup_logger.error(
-            "Check your DATABASE_URL or remove it to use SQLite (default)."
-        )
+        startup_logger.error("Check your DATABASE_URL or remove it to use SQLite (default).")
         raise
 
     # Set up message processor for platform connections

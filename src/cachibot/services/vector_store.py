@@ -118,13 +118,9 @@ class VectorStore:
         query_embedding = await self.embed_text(query)
 
         if db_type == "postgresql":
-            return await self._search_pgvector(
-                bot_id, query_embedding, limit, min_score
-            )
+            return await self._search_pgvector(bot_id, query_embedding, limit, min_score)
         else:
-            return await self._search_in_memory(
-                bot_id, query_embedding, limit, min_score
-            )
+            return await self._search_in_memory(bot_id, query_embedding, limit, min_score)
 
     async def _search_pgvector(
         self,
@@ -181,8 +177,7 @@ class VectorStore:
         # Load all embeddings for this bot
         async with async_session_maker() as session:
             result = await session.execute(
-                select(DocChunkORM)
-                .where(
+                select(DocChunkORM).where(
                     DocChunkORM.bot_id == bot_id,
                     DocChunkORM.embedding.isnot(None),
                 )

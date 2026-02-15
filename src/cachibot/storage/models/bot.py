@@ -34,9 +34,7 @@ class Bot(Base):
     color: Mapped[str | None] = mapped_column(String, nullable=True)
     model: Mapped[str] = mapped_column(String, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
-    capabilities: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False, server_default="{}"
-    )
+    capabilities: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     models: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -49,9 +47,7 @@ class Bot(Base):
     ownership: Mapped[BotOwnership | None] = relationship(
         "BotOwnership", back_populates="bot", uselist=False
     )
-    chats: Mapped[list[Chat]] = relationship(
-        "Chat", back_populates="bot"
-    )
+    chats: Mapped[list[Chat]] = relationship("Chat", back_populates="bot")
 
 
 class BotOwnership(Base):
@@ -64,9 +60,7 @@ class BotOwnership(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(
-        String, unique=True, nullable=False
-    )
+    bot_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     user_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -77,11 +71,10 @@ class BotOwnership(Base):
     )
 
     # Relationships
-    user: Mapped[User] = relationship(
-        "User", back_populates="bot_ownerships"
-    )
+    user: Mapped[User] = relationship("User", back_populates="bot_ownerships")
     bot: Mapped[Bot] = relationship(
-        "Bot", back_populates="ownership",
+        "Bot",
+        back_populates="ownership",
         primaryjoin="BotOwnership.bot_id == Bot.id",
         foreign_keys=[bot_id],
     )

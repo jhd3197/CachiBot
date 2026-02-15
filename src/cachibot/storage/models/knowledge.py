@@ -90,18 +90,12 @@ class BotDocument(Base):
     file_type: Mapped[str] = mapped_column(String, nullable=False)
     file_hash: Mapped[str] = mapped_column(String, nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    chunk_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    status: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="processing"
-    )
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="processing")
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     chunks: Mapped[list[DocChunk]] = relationship(
@@ -137,29 +131,21 @@ class DocChunk(Base):
     embedding = mapped_column(VectorType(384), nullable=True)
 
     # Relationships
-    document: Mapped[BotDocument] = relationship(
-        "BotDocument", back_populates="chunks"
-    )
+    document: Mapped[BotDocument] = relationship("BotDocument", back_populates="chunks")
 
 
 class BotNote(Base):
     """Persistent memory notes for a bot."""
 
     __tablename__ = "bot_notes"
-    __table_args__ = (
-        Index("idx_bot_notes_bot", "bot_id"),
-    )
+    __table_args__ = (Index("idx_bot_notes_bot", "bot_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    tags: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
-    source: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="user"
-    )
+    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    source: Mapped[str] = mapped_column(String, nullable=False, server_default="user")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

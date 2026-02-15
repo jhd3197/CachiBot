@@ -23,9 +23,7 @@ class Room(Base):
     """Multi-agent room where multiple bots can interact."""
 
     __tablename__ = "rooms"
-    __table_args__ = (
-        Index("idx_rooms_creator", "creator_id"),
-    )
+    __table_args__ = (Index("idx_rooms_creator", "creator_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
@@ -35,12 +33,8 @@ class Room(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    max_bots: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="4"
-    )
-    settings: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False, server_default="{}"
-    )
+    max_bots: Mapped[int] = mapped_column(Integer, nullable=False, server_default="4")
+    settings: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -49,9 +43,7 @@ class Room(Base):
     )
 
     # Relationships
-    creator: Mapped[User] = relationship(
-        "User", back_populates="created_rooms"
-    )
+    creator: Mapped[User] = relationship("User", back_populates="created_rooms")
     members: Mapped[list[RoomMember]] = relationship(
         "RoomMember", back_populates="room", cascade="all, delete-orphan"
     )
@@ -82,9 +74,7 @@ class RoomMember(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    role: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="member"
-    )
+    role: Mapped[str] = mapped_column(String, nullable=False, server_default="member")
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -137,9 +127,7 @@ class RoomMessage(Base):
     sender_id: Mapped[str] = mapped_column(String, nullable=False)
     sender_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    meta: Mapped[dict] = mapped_column(
-        "metadata", sa.JSON, nullable=False, server_default="{}"
-    )
+    meta: Mapped[dict] = mapped_column("metadata", sa.JSON, nullable=False, server_default="{}")
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

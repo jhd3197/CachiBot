@@ -329,9 +329,7 @@ class MessageProcessor:
 
         # Run async agent directly (pass images for vision if any)
         try:
-            result = await agent.run(
-                message, images=agent_images if agent_images else None
-            )
+            result = await agent.run(message, images=agent_images if agent_images else None)
             response_text = result.output_text or "Task completed."
             run_usage = result.run_usage
 
@@ -387,9 +385,7 @@ class MessageProcessor:
 
         except Exception as e:
             logger.error(f"Error processing message: {e}")
-            return PlatformResponse(
-                text="Sorry, I encountered an error processing your message."
-            )
+            return PlatformResponse(text="Sorry, I encountered an error processing your message.")
 
 
 # Singleton instance

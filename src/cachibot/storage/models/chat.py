@@ -37,15 +37,9 @@ class Chat(Base):
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     platform: Mapped[str | None] = mapped_column(String, nullable=True)
-    platform_chat_id: Mapped[str | None] = mapped_column(
-        String, nullable=True
-    )
-    pinned: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
-    archived: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
+    platform_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -55,7 +49,8 @@ class Chat(Base):
 
     # Relationships
     bot: Mapped[Bot] = relationship(
-        "Bot", back_populates="chats",
+        "Bot",
+        back_populates="chats",
         primaryjoin="Chat.bot_id == Bot.id",
         foreign_keys=[bot_id],
     )

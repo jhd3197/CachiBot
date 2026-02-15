@@ -35,10 +35,7 @@ class AuthService:
     @property
     def is_cloud_mode(self) -> bool:
         """Whether the platform is running in cloud mode."""
-        return (
-            self._platform_config is not None
-            and self._platform_config.deploy_mode == "cloud"
-        )
+        return self._platform_config is not None and self._platform_config.deploy_mode == "cloud"
 
     @property
     def platform_config(self) -> PlatformConfig | None:
@@ -211,7 +208,6 @@ class AuthService:
             return None
         except jwt.InvalidTokenError:
             return None
-
 
 
 # Global service instance (initialized on first use)
