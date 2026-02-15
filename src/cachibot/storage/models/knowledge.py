@@ -68,7 +68,9 @@ class BotInstruction(Base):
     __tablename__ = "bot_instructions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -85,7 +87,9 @@ class BotDocument(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     filename: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)
     file_hash: Mapped[str] = mapped_column(String, nullable=False)
@@ -125,7 +129,9 @@ class DocChunk(Base):
         ForeignKey("bot_documents.id", ondelete="CASCADE"),
         nullable=False,
     )
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding = mapped_column(VectorType(384), nullable=True)
@@ -141,7 +147,9 @@ class BotNote(Base):
     __table_args__ = (Index("idx_bot_notes_bot", "bot_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
