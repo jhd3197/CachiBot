@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, func, select, update
 
 from cachibot.models.auth import BotOwnership, User, UserInDB, UserRole
-from cachibot.storage.db import async_session_maker
+from cachibot.storage import db
 from cachibot.storage.models.bot import BotOwnership as BotOwnershipModel
 from cachibot.storage.models.user import User as UserModel
 
@@ -20,7 +20,7 @@ class UserRepository:
 
     async def create_user(self, user: UserInDB) -> None:
         """Create a new user."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             obj = UserModel(
                 id=user.id,
                 email=user.email,
@@ -41,7 +41,7 @@ class UserRepository:
 
     async def get_user_by_id(self, user_id: str) -> UserInDB | None:
         """Get a user by ID."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(select(UserModel).where(UserModel.id == user_id))
             row = result.scalar_one_or_none()
 
@@ -52,7 +52,7 @@ class UserRepository:
 
     async def get_user_by_email(self, email: str) -> UserInDB | None:
         """Get a user by email."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(UserModel).where(UserModel.email == email.lower())
             )
@@ -65,7 +65,7 @@ class UserRepository:
 
     async def get_user_by_username(self, username: str) -> UserInDB | None:
         """Get a user by username."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(UserModel).where(UserModel.username == username.lower())
             )
@@ -87,7 +87,7 @@ class UserRepository:
 
     async def get_all_users(self, limit: int = 100, offset: int = 0) -> list[User]:
         """Get all users with pagination."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(UserModel).order_by(UserModel.created_at.desc()).limit(limit).offset(offset)
             )
@@ -113,7 +113,7 @@ class UserRepository:
 
     async def get_user_count(self) -> int:
         """Get total user count."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(select(func.count()).select_from(UserModel))
             return result.scalar_one()
 
@@ -140,7 +140,7 @@ class UserRepository:
         if not values:
             return True  # Nothing to update
 
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 update(UserModel).where(UserModel.id == user_id).values(**values)
             )
@@ -149,7 +149,7 @@ class UserRepository:
 
     async def update_password(self, user_id: str, password_hash: str) -> bool:
         """Update user password. Returns True if user was found and updated."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 update(UserModel).where(UserModel.id == user_id).values(password_hash=password_hash)
             )
@@ -158,7 +158,7 @@ class UserRepository:
 
     async def update_last_login(self, user_id: str) -> None:
         """Update user's last login timestamp."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             await session.execute(
                 update(UserModel)
                 .where(UserModel.id == user_id)
@@ -176,7 +176,7 @@ class UserRepository:
         if exclude_user_id:
             stmt = stmt.where(UserModel.id != exclude_user_id)
 
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(stmt)
             return result.scalar_one_or_none() is not None
 
@@ -186,13 +186,13 @@ class UserRepository:
         if exclude_user_id:
             stmt = stmt.where(UserModel.id != exclude_user_id)
 
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(stmt)
             return result.scalar_one_or_none() is not None
 
     async def get_user_by_website_id(self, website_user_id: int) -> UserInDB | None:
         """Get a user by their website INT user ID."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(UserModel).where(UserModel.website_user_id == website_user_id)
             )
@@ -224,7 +224,7 @@ class UserRepository:
         if not values:
             return True
 
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 update(UserModel).where(UserModel.id == user_id).values(**values)
             )
@@ -255,7 +255,7 @@ class OwnershipRepository:
 
     async def assign_bot_owner(self, ownership: BotOwnership) -> None:
         """Assign a bot to a user."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             obj = BotOwnershipModel(
                 id=ownership.id,
                 bot_id=ownership.bot_id,
@@ -267,7 +267,7 @@ class OwnershipRepository:
 
     async def get_bot_owner(self, bot_id: str) -> str | None:
         """Get the owner user_id for a bot."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(BotOwnershipModel.user_id).where(BotOwnershipModel.bot_id == bot_id)
             )
@@ -275,7 +275,7 @@ class OwnershipRepository:
 
     async def get_user_bots(self, user_id: str) -> list[str]:
         """Get all bot IDs owned by a user."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(BotOwnershipModel.bot_id)
                 .where(BotOwnershipModel.user_id == user_id)
@@ -285,7 +285,7 @@ class OwnershipRepository:
 
     async def user_owns_bot(self, user_id: str, bot_id: str) -> bool:
         """Check if a user owns a specific bot."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(BotOwnershipModel.id).where(
                     BotOwnershipModel.user_id == user_id,
@@ -296,7 +296,7 @@ class OwnershipRepository:
 
     async def transfer_bot(self, bot_id: str, new_owner_id: str) -> bool:
         """Transfer bot ownership to a new user. Returns True if bot was found."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 update(BotOwnershipModel)
                 .where(BotOwnershipModel.bot_id == bot_id)
@@ -307,7 +307,7 @@ class OwnershipRepository:
 
     async def delete_bot_ownership(self, bot_id: str) -> bool:
         """Delete ownership record for a bot. Returns True if record was found."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 delete(BotOwnershipModel).where(BotOwnershipModel.bot_id == bot_id)
             )
@@ -316,7 +316,7 @@ class OwnershipRepository:
 
     async def get_ownership(self, bot_id: str) -> BotOwnership | None:
         """Get the ownership record for a bot."""
-        async with async_session_maker() as session:
+        async with db.async_session_maker() as session:
             result = await session.execute(
                 select(BotOwnershipModel).where(BotOwnershipModel.bot_id == bot_id)
             )

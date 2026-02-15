@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import warnings
 
-from cachibot.storage.db import async_session_maker, close_db, init_db
+from cachibot.storage import db
+from cachibot.storage.db import close_db, init_db
 
 __all__ = ["init_db", "close_db", "get_db"]
 
@@ -24,13 +25,13 @@ async def get_db():
     Returns an async session for callers that still use `get_db()`.
 
     .. deprecated::
-        Use ``async with async_session_maker() as session:`` directly,
+        Use ``async with db.async_session_maker() as session:`` directly,
         or inject via ``get_session()`` from ``cachibot.storage.db``.
     """
     warnings.warn(
-        "get_db() is deprecated. Use async_session_maker() context manager "
+        "get_db() is deprecated. Use db.async_session_maker() context manager "
         "or cachibot.storage.db.get_session() instead.",
         DeprecationWarning,
         stacklevel=2,
     )
-    return async_session_maker()
+    return db.async_session_maker()
