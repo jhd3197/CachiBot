@@ -34,8 +34,8 @@ class Message(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    metadata: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default="{}"
     )
 
     # Relationships
@@ -62,7 +62,7 @@ class BotMessage(Base):
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    metadata: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+    meta: Mapped[dict] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default="{}"
     )
     reply_to_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
