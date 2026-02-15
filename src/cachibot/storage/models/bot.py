@@ -5,7 +5,7 @@ Bot and BotOwnership models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
@@ -29,15 +29,15 @@ class Bot(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String, nullable=True)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
     model: Mapped[str] = mapped_column(String, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     capabilities: Mapped[dict] = mapped_column(
         sa.JSON, nullable=False, server_default="{}"
     )
-    models: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
+    models: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -46,7 +46,7 @@ class Bot(Base):
     )
 
     # Relationships
-    ownership: Mapped[Optional[BotOwnership]] = relationship(
+    ownership: Mapped[BotOwnership | None] = relationship(
         "BotOwnership", back_populates="bot", uselist=False
     )
     chats: Mapped[list[Chat]] = relationship(

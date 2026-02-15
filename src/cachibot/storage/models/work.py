@@ -5,7 +5,6 @@ Work management models: Function, Schedule, Work, Task, WorkJob, Todo.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -38,7 +37,7 @@ class Function(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(
         String, nullable=False, server_default="1.0.0"
     )
@@ -60,7 +59,7 @@ class Function(Base):
     run_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"
     )
-    last_run_at: Mapped[Optional[datetime]] = mapped_column(
+    last_run_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     success_rate: Mapped[float] = mapped_column(
@@ -89,8 +88,8 @@ class Schedule(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    function_id: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    function_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("functions.id", ondelete="SET NULL"),
         nullable=True,
@@ -101,16 +100,16 @@ class Schedule(Base):
     schedule_type: Mapped[str] = mapped_column(
         String, nullable=False, server_default="cron"
     )
-    cron_expression: Mapped[Optional[str]] = mapped_column(
+    cron_expression: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
-    interval_seconds: Mapped[Optional[int]] = mapped_column(
+    interval_seconds: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )
-    run_at: Mapped[Optional[datetime]] = mapped_column(
+    run_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    event_trigger: Mapped[Optional[str]] = mapped_column(
+    event_trigger: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
     timezone: Mapped[str] = mapped_column(
@@ -131,10 +130,10 @@ class Schedule(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    next_run_at: Mapped[Optional[datetime]] = mapped_column(
+    next_run_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    last_run_at: Mapped[Optional[datetime]] = mapped_column(
+    last_run_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     run_count: Mapped[int] = mapped_column(
@@ -142,7 +141,7 @@ class Schedule(Base):
     )
 
     # Relationships
-    function: Mapped[Optional[Function]] = relationship(
+    function: Mapped[Function | None] = relationship(
         "Function", back_populates="schedules"
     )
     work_items: Mapped[list[Work]] = relationship(
@@ -164,21 +163,21 @@ class Work(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
-    chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    goal: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    function_id: Mapped[Optional[str]] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    function_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("functions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    schedule_id: Mapped[Optional[str]] = mapped_column(
+    schedule_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("schedules.id", ondelete="SET NULL"),
         nullable=True,
     )
-    parent_work_id: Mapped[Optional[str]] = mapped_column(
+    parent_work_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("work.id", ondelete="SET NULL"),
         nullable=True,
@@ -195,17 +194,17 @@ class Work(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    due_at: Mapped[Optional[datetime]] = mapped_column(
+    due_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[dict] = mapped_column(
         sa.JSON, nullable=False, server_default="{}"
     )
@@ -214,13 +213,13 @@ class Work(Base):
     )
 
     # Relationships
-    function: Mapped[Optional[Function]] = relationship(
+    function: Mapped[Function | None] = relationship(
         "Function", back_populates="work_items"
     )
-    schedule: Mapped[Optional[Schedule]] = relationship(
+    schedule: Mapped[Schedule | None] = relationship(
         "Schedule", back_populates="work_items"
     )
-    parent_work: Mapped[Optional[Work]] = relationship(
+    parent_work: Mapped[Work | None] = relationship(
         "Work", remote_side="Work.id", back_populates="child_work"
     )
     child_work: Mapped[list[Work]] = relationship(
@@ -261,10 +260,10 @@ class Task(Base):
         ForeignKey("work.id", ondelete="CASCADE"),
         nullable=False,
     )
-    chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str | None] = mapped_column(Text, nullable=True)
     task_order: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"
     )
@@ -283,20 +282,20 @@ class Task(Base):
     max_retries: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="3"
     )
-    timeout_seconds: Mapped[Optional[int]] = mapped_column(
+    timeout_seconds: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     work: Mapped[Work] = relationship("Work", back_populates="tasks")
@@ -334,7 +333,7 @@ class WorkJob(Base):
         ForeignKey("work.id", ondelete="CASCADE"),
         nullable=False,
     )
-    chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(
         String, nullable=False, server_default="pending"
     )
@@ -347,14 +346,14 @@ class WorkJob(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     logs: Mapped[list] = mapped_column(
         sa.JSON, nullable=False, server_default="[]"
     )
@@ -376,9 +375,9 @@ class Todo(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
-    chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
         String, nullable=False, server_default="open"
     )
@@ -388,18 +387,18 @@ class Todo(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    remind_at: Mapped[Optional[datetime]] = mapped_column(
+    remind_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    converted_to_work_id: Mapped[Optional[str]] = mapped_column(
+    converted_to_work_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("work.id", ondelete="SET NULL"),
         nullable=True,
     )
-    converted_to_task_id: Mapped[Optional[str]] = mapped_column(
+    converted_to_task_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("tasks.id", ondelete="SET NULL"),
         nullable=True,
@@ -409,9 +408,9 @@ class Todo(Base):
     )
 
     # Relationships
-    converted_to_work: Mapped[Optional[Work]] = relationship(
+    converted_to_work: Mapped[Work | None] = relationship(
         "Work", back_populates="converted_todos"
     )
-    converted_to_task: Mapped[Optional[Task]] = relationship(
+    converted_to_task: Mapped[Task | None] = relationship(
         "Task", back_populates="converted_todos"
     )

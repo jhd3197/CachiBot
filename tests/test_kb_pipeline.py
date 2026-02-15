@@ -11,7 +11,6 @@ from cachibot.services.context_builder import ContextBuilder, KnowledgeContext
 from cachibot.services.document_processor import DocumentProcessor
 from cachibot.services.vector_store import SearchResult, VectorStore
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

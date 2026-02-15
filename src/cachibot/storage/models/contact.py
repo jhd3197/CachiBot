@@ -5,7 +5,6 @@ BotContact model.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import DateTime, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,7 +25,7 @@ class BotContact(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

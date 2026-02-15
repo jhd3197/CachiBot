@@ -5,7 +5,7 @@ Chat model.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -36,8 +36,8 @@ class Chat(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
-    platform: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    platform_chat_id: Mapped[Optional[str]] = mapped_column(
+    platform: Mapped[str | None] = mapped_column(String, nullable=True)
+    platform_chat_id: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
     pinned: Mapped[bool] = mapped_column(

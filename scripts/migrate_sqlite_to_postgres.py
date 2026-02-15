@@ -21,12 +21,10 @@ Features:
 
 import argparse
 import asyncio
-import json
 import logging
 import struct
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 import aiosqlite
@@ -837,7 +835,8 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
         "CREATE INDEX IF NOT EXISTS idx_bot_messages_bot_chat ON bot_messages(bot_id, chat_id)",
         "CREATE INDEX IF NOT EXISTS idx_bot_messages_timestamp ON bot_messages(timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_bot_documents_bot ON bot_documents(bot_id)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_documents_hash ON bot_documents(bot_id, file_hash)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_documents_hash"
+        " ON bot_documents(bot_id, file_hash)",
         "CREATE INDEX IF NOT EXISTS idx_doc_chunks_document ON doc_chunks(document_id)",
         "CREATE INDEX IF NOT EXISTS idx_doc_chunks_bot ON doc_chunks(bot_id)",
         "CREATE INDEX IF NOT EXISTS idx_bot_contacts_bot ON bot_contacts(bot_id)",
@@ -849,7 +848,8 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
         "CREATE INDEX IF NOT EXISTS idx_bot_ownership_user ON bot_ownership(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_bot_ownership_bot ON bot_ownership(bot_id)",
         "CREATE INDEX IF NOT EXISTS idx_chats_bot ON chats(bot_id)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_platform ON chats(bot_id, platform, platform_chat_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_platform"
+        " ON chats(bot_id, platform, platform_chat_id)",
         "CREATE INDEX IF NOT EXISTS idx_skills_source ON skills(source)",
         "CREATE INDEX IF NOT EXISTS idx_bot_skills_bot ON bot_skills(bot_id)",
         "CREATE INDEX IF NOT EXISTS idx_bot_skills_skill ON bot_skills(skill_id)",
@@ -879,8 +879,10 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
         "CREATE INDEX IF NOT EXISTS idx_room_bots_room ON room_bots(room_id)",
         "CREATE INDEX IF NOT EXISTS idx_room_bots_bot ON room_bots(bot_id)",
         "CREATE INDEX IF NOT EXISTS idx_room_messages_room ON room_messages(room_id)",
-        "CREATE INDEX IF NOT EXISTS idx_room_messages_room_timestamp ON room_messages(room_id, timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_room_messages_sender ON room_messages(sender_type, sender_id)",
+        "CREATE INDEX IF NOT EXISTS idx_room_messages_room_timestamp"
+        " ON room_messages(room_id, timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_room_messages_sender"
+        " ON room_messages(sender_type, sender_id)",
         "CREATE INDEX IF NOT EXISTS idx_todos_bot ON todos(bot_id)",
         "CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status)",
         "CREATE INDEX IF NOT EXISTS idx_todos_remind ON todos(remind_at)",

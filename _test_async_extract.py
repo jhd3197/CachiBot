@@ -1,6 +1,7 @@
 """Test the new name generator."""
 import asyncio
 import logging
+
 from cachibot.services.name_generator import generate_bot_names_with_meanings
 
 logging.basicConfig(level=logging.INFO)

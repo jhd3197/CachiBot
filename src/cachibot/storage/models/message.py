@@ -5,7 +5,7 @@ Message and BotMessage models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Index, String, Text, func
@@ -63,4 +63,4 @@ class BotMessage(Base):
     meta: Mapped[dict] = mapped_column(
         "metadata", sa.JSON, nullable=False, server_default="{}"
     )
-    reply_to_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reply_to_id: Mapped[str | None] = mapped_column(String, nullable=True)
