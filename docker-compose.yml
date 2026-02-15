@@ -2,18 +2,48 @@
 # Docker Compose configuration
 
 services:
+  # =========================================================================
+  # PostgreSQL + pgvector (local development database)
+  # =========================================================================
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: cachibot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cachibot
+      POSTGRES_USER: cachibot
+      POSTGRES_PASSWORD: cachibot
+    ports:
+      - "5433:5432"
+    volumes:
+      - cachibot_pgdata:/var/lib/postgresql/data
+      - ./scripts/init_pgvector.sql:/docker-entrypoint-initdb.d/01-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cachibot -d cachibot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # =========================================================================
+  # Application services
+  # =========================================================================
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: cachibot-backend
     environment:
+      - DATABASE_URL=postgresql+asyncpg://cachibot:cachibot@db:5432/cachibot
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
     volumes:
       - cachibot-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6392/api/health"]
@@ -32,5 +62,30 @@ services:
       - backend
     restart: unless-stopped
 
+  # =========================================================================
+  # pgAdmin GUI (optional - uncomment to enable)
+  # Access at http://localhost:5050
+  # Login: admin@cachibot.local / admin
+  # =========================================================================
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: cachibot-pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@cachibot.local
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #     PGADMIN_LISTEN_PORT: 5050
+  #   ports:
+  #     - "5050:5050"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   volumes:
+  #     - cachibot_pgadmin:/var/lib/pgadmin
+
 volumes:
+  cachibot_pgdata:
+    driver: local
   cachibot-data:
+  # cachibot_pgadmin:
+  #   driver: local

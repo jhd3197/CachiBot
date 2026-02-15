@@ -2,12 +2,15 @@
 FastAPI Authentication Dependencies
 
 Provides dependency functions for protecting routes.
+In cloud mode, users exchange a short-lived launch token for V2-native
+tokens via /auth/exchange. After that, all auth uses V2-native tokens only.
+The website's main JWT secret is never shared with V2.
 """
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from cachibot.models.auth import User, UserRole
+from cachibot.models.auth import User, UserInDB, UserRole
 from cachibot.services.auth_service import get_auth_service
 from cachibot.storage.user_repository import OwnershipRepository, UserRepository
 
@@ -15,58 +18,8 @@ from cachibot.storage.user_repository import OwnershipRepository, UserRepository
 security = HTTPBearer(auto_error=False)
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-) -> User:
-    """
-    Dependency to get the current authenticated user.
-
-    Raises HTTPException 401 if not authenticated.
-    """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    auth_service = get_auth_service()
-    payload = auth_service.verify_token(credentials.credentials, token_type="access")
-
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Get user from database
-    repo = UserRepository()
-    user_db = await repo.get_user_by_id(user_id)
-
-    if user_db is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not user_db.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User account is deactivated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Return User (without password_hash)
+def _to_user(user_db: UserInDB) -> User:
+    """Convert UserInDB to User (strips password_hash)."""
     return User(
         id=user_db.id,
         email=user_db.email,
@@ -76,7 +29,64 @@ async def get_current_user(
         created_at=user_db.created_at,
         created_by=user_db.created_by,
         last_login=user_db.last_login,
+        website_user_id=user_db.website_user_id,
+        tier=user_db.tier,
+        credit_balance=user_db.credit_balance,
+        is_verified=user_db.is_verified,
     )
+
+
+async def _resolve_token(token: str) -> User | None:
+    """Resolve a V2-native bearer token to a User.
+
+    Only verifies tokens signed with V2's own JWT secret.
+    Website users must first exchange their launch token via /auth/exchange
+    to get V2-native tokens.
+    """
+    auth = get_auth_service()
+
+    payload = auth.verify_token(token, token_type="access")
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    repo = UserRepository()
+    user_db = await repo.get_user_by_id(user_id)
+    if user_db and user_db.is_active:
+        return _to_user(user_db)
+
+    return None
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> User:
+    """
+    Dependency to get the current authenticated user.
+
+    Supports both V2-native tokens and website tokens (cloud mode).
+    Raises HTTPException 401 if not authenticated.
+    """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await _resolve_token(credentials.credentials)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
 
 
 async def get_current_user_optional(
@@ -148,7 +158,7 @@ async def require_bot_access(
 
 def verify_token_from_query(token: str) -> dict | None:
     """
-    Verify a JWT token from query parameter (for WebSocket).
+    Verify a V2-native JWT token from query parameter (for WebSocket).
 
     Args:
         token: JWT token string
@@ -164,35 +174,12 @@ async def get_user_from_token(token: str) -> User | None:
     """
     Get user from a JWT token (for WebSocket authentication).
 
+    Supports both V2-native and website tokens (cloud mode).
+
     Args:
         token: JWT token string
 
     Returns:
         User if valid, None otherwise
     """
-    auth_service = get_auth_service()
-    payload = auth_service.verify_token(token, token_type="access")
-
-    if payload is None:
-        return None
-
-    user_id = payload.get("sub")
-    if not user_id:
-        return None
-
-    repo = UserRepository()
-    user_db = await repo.get_user_by_id(user_id)
-
-    if user_db is None or not user_db.is_active:
-        return None
-
-    return User(
-        id=user_db.id,
-        email=user_db.email,
-        username=user_db.username,
-        role=user_db.role,
-        is_active=user_db.is_active,
-        created_at=user_db.created_at,
-        created_by=user_db.created_by,
-        last_login=user_db.last_login,
-    )
+    return await _resolve_token(token)

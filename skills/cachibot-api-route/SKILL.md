@@ -15,7 +15,7 @@ Add new REST API endpoints following CachiBot's FastAPI patterns with Pydantic m
 - **Framework**: FastAPI with APIRouter per domain
 - **Auth**: JWT-based via `require_bot_access` dependency
 - **Models**: Pydantic BaseModel for request/response schemas
-- **Storage**: Repository pattern with async SQLite (aiosqlite)
+- **Storage**: Repository pattern with PostgreSQL (SQLAlchemy 2.0 + asyncpg)
 - **Registration**: Routers included in `server.py`
 
 ## Step-by-Step Process

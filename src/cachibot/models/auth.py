@@ -24,6 +24,10 @@ class User(BaseModel):
     created_at: datetime = Field(description="When user was created")
     created_by: str | None = Field(default=None, description="Admin who created this user")
     last_login: datetime | None = Field(default=None, description="Last login timestamp")
+    website_user_id: int | None = Field(default=None, description="Linked website user ID")
+    tier: str = Field(default="free", description="User tier (free, pro, etc.)")
+    credit_balance: float = Field(default=0.0, description="Available credits")
+    is_verified: bool = Field(default=False, description="Whether email is verified")
 
 
 class UserInDB(User):
@@ -107,6 +111,19 @@ class UserListResponse(BaseModel):
 
     users: list[User] = Field(default_factory=list, description="List of users")
     total: int = Field(default=0, description="Total user count")
+
+
+class ExchangeTokenRequest(BaseModel):
+    """Request to exchange a platform launch token for V2 native tokens."""
+
+    token: str = Field(description="Platform launch token from website")
+
+
+class AuthModeResponse(BaseModel):
+    """Response indicating the platform's auth mode."""
+
+    mode: str = Field(description="'selfhosted' or 'cloud'")
+    login_url: str | None = Field(default=None, description="Website login URL (cloud mode)")
 
 
 class BotOwnership(BaseModel):
