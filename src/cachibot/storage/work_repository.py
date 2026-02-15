@@ -29,10 +29,20 @@ from cachibot.models.work import (
 from cachibot.storage.db import async_session_maker
 from cachibot.storage.models.work import (
     Function as FunctionModel,
+)
+from cachibot.storage.models.work import (
     Schedule as ScheduleModel,
+)
+from cachibot.storage.models.work import (
     Task as TaskModel,
+)
+from cachibot.storage.models.work import (
     Todo as TodoModel,
+)
+from cachibot.storage.models.work import (
     Work as WorkModel,
+)
+from cachibot.storage.models.work import (
     WorkJob as WorkJobModel,
 )
 

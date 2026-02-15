@@ -5,7 +5,7 @@ Job model (global job queue for CLI/single-agent mode).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, func
@@ -32,7 +32,7 @@ class Job(Base):
     status: Mapped[str] = mapped_column(
         String, nullable=False, server_default="pending"
     )
-    message_id: Mapped[Optional[str]] = mapped_column(
+    message_id: Mapped[str | None] = mapped_column(
         String,
         ForeignKey("messages.id"),
         nullable=True,
@@ -40,19 +40,19 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     progress: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="0.0"
     )
 
     # Relationships
-    message: Mapped[Optional[Message]] = relationship(
+    message: Mapped[Message | None] = relationship(
         "Message", back_populates="jobs"
     )

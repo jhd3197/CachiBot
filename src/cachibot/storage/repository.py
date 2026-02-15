@@ -34,12 +34,20 @@ from cachibot.storage.models.contact import BotContact as BotContactModel
 from cachibot.storage.models.job import Job as JobModel
 from cachibot.storage.models.knowledge import (
     BotDocument as BotDocumentModel,
+)
+from cachibot.storage.models.knowledge import (
     BotInstruction as BotInstructionModel,
+)
+from cachibot.storage.models.knowledge import (
     BotNote as BotNoteModel,
+)
+from cachibot.storage.models.knowledge import (
     DocChunk as DocChunkModel,
 )
-from cachibot.storage.models.message import BotMessage as BotMessageModel, Message as MessageModel
-from cachibot.storage.models.skill import BotSkill as BotSkillModel, Skill as SkillModel
+from cachibot.storage.models.message import BotMessage as BotMessageModel
+from cachibot.storage.models.message import Message as MessageModel
+from cachibot.storage.models.skill import BotSkill as BotSkillModel
+from cachibot.storage.models.skill import Skill as SkillModel
 
 
 class MessageRepository:
@@ -733,8 +741,9 @@ class NotesRepository:
         stmt = select(BotNoteModel).where(BotNoteModel.bot_id == bot_id)
 
         if tags_filter:
-            from cachibot.storage.db import db_type as _db_type
             from sqlalchemy import or_
+
+            from cachibot.storage.db import db_type as _db_type
 
             if _db_type == "postgresql":
                 # PostgreSQL JSONB containment operator
@@ -745,7 +754,8 @@ class NotesRepository:
             else:
                 # SQLite: use JSON_EACH + LIKE fallback for JSON arrays
                 # Cast tags column to text and check if any tag substring is present
-                from sqlalchemy import cast, String as SAString
+                from sqlalchemy import String as SAString
+                from sqlalchemy import cast
 
                 tag_conditions = [
                     cast(BotNoteModel.tags, SAString).like(f'%"{tag}"%')

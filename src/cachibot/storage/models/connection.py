@@ -5,7 +5,6 @@ BotConnection model (platform integrations: Telegram, Discord, etc.).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Index, Integer, String, Text, func
@@ -38,10 +37,10 @@ class BotConnection(Base):
     message_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"
     )
-    last_activity: Mapped[Optional[datetime]] = mapped_column(
+    last_activity: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

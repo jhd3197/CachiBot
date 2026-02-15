@@ -5,7 +5,6 @@ Skill and BotSkill models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
@@ -26,11 +25,11 @@ class Skill(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(
         String, nullable=False, server_default="1.0.0"
     )
-    author: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    author: Mapped[str | None] = mapped_column(String, nullable=True)
     tags: Mapped[list] = mapped_column(
         sa.JSON, nullable=False, server_default="[]"
     )
@@ -41,7 +40,7 @@ class Skill(Base):
     source: Mapped[str] = mapped_column(
         String, nullable=False, server_default="local"
     )
-    filepath: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    filepath: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

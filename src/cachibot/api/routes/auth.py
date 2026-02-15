@@ -215,7 +215,7 @@ async def login(request: LoginRequest) -> LoginResponse:
         login_url = f"{auth_service.platform_config.website_url}/login"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Login via the website instead",
+            detail="Login via the website instead",
             headers={"X-Redirect": login_url},
         )
 

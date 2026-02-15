@@ -18,7 +18,7 @@ Unified decisions:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -49,7 +49,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
 
     # --- Website link (INT user ID from CachiBot website) ---
-    website_user_id: Mapped[Optional[int]] = mapped_column(
+    website_user_id: Mapped[int | None] = mapped_column(
         Integer, unique=True, nullable=True
     )
 
@@ -78,27 +78,27 @@ class User(Base):
     )
 
     # --- Email verification (from website) ---
-    verification_token: Mapped[Optional[str]] = mapped_column(
+    verification_token: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
-    verification_token_expires: Mapped[Optional[datetime]] = mapped_column(
+    verification_token_expires: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    verification_token_hint: Mapped[Optional[str]] = mapped_column(
+    verification_token_hint: Mapped[str | None] = mapped_column(
         String(16), nullable=True
     )
 
     # --- Password reset (from website) ---
-    reset_token: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    reset_token_expires: Mapped[Optional[datetime]] = mapped_column(
+    reset_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    reset_token_expires: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    reset_token_hint: Mapped[Optional[str]] = mapped_column(
+    reset_token_hint: Mapped[str | None] = mapped_column(
         String(16), nullable=True
     )
 
     # --- Password change tracking (from website, for JWT invalidation) ---
-    password_changed_at: Mapped[Optional[datetime]] = mapped_column(
+    password_changed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -111,8 +111,8 @@ class User(Base):
     )
 
     # --- Platform-specific fields ---
-    created_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    last_login: Mapped[Optional[datetime]] = mapped_column(
+    created_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_login: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -120,7 +120,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, onupdate=func.now()
     )
 

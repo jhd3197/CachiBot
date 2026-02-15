@@ -22,8 +22,14 @@ from cachibot.storage.db import async_session_maker
 from cachibot.storage.models.bot import Bot as BotModel
 from cachibot.storage.models.room import (
     Room as RoomModel,
+)
+from cachibot.storage.models.room import (
     RoomBot as RoomBotModel,
+)
+from cachibot.storage.models.room import (
     RoomMember as RoomMemberModel,
+)
+from cachibot.storage.models.room import (
     RoomMessage as RoomMessageModel,
 )
 from cachibot.storage.models.user import User as UserModel
