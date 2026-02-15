@@ -212,29 +212,6 @@ class AuthService:
         except jwt.InvalidTokenError:
             return None
 
-    def verify_website_token(self, token: str) -> dict[str, Any] | None:
-        """Verify a regular website JWT (for direct bearer auth in cloud mode).
-
-        Website tokens have {"sub": email, "exp": ...} but no "type" claim.
-        """
-        if not self._platform_config or not self._platform_config.website_jwt_secret:
-            return None
-
-        try:
-            payload = jwt.decode(
-                token,
-                self._platform_config.website_jwt_secret,
-                algorithms=["HS256"],
-            )
-            # Website tokens don't have a "type" claim; skip if it has one
-            # (that would be a platform_launch or V2 native token)
-            if "type" in payload:
-                return None
-            return payload
-        except jwt.ExpiredSignatureError:
-            return None
-        except jwt.InvalidTokenError:
-            return None
 
 
 # Global service instance (initialized on first use)
