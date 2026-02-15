@@ -19,27 +19,17 @@ class Skill(Base):
     """Reusable behavior module that can be activated on bots."""
 
     __tablename__ = "skills"
-    __table_args__ = (
-        Index("idx_skills_source", "source"),
-    )
+    __table_args__ = (Index("idx_skills_source", "source"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    version: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="1.0.0"
-    )
+    version: Mapped[str] = mapped_column(String, nullable=False, server_default="1.0.0")
     author: Mapped[str | None] = mapped_column(String, nullable=True)
-    tags: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
-    requires_tools: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
+    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    requires_tools: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     instructions: Mapped[str] = mapped_column(Text, nullable=False)
-    source: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="local"
-    )
+    source: Mapped[str] = mapped_column(String, nullable=False, server_default="local")
     filepath: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -69,14 +59,10 @@ class BotSkill(Base):
         ForeignKey("skills.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="true"
-    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     activated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     # Relationships
-    skill: Mapped[Skill] = relationship(
-        "Skill", back_populates="bot_skills"
-    )
+    skill: Mapped[Skill] = relationship("Skill", back_populates="bot_skills")

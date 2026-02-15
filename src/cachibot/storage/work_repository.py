@@ -128,8 +128,9 @@ class FunctionRepository:
         async with async_session_maker() as session:
             # Get current stats
             result = await session.execute(
-                select(FunctionModel.run_count, FunctionModel.success_rate)
-                .where(FunctionModel.id == function_id)
+                select(FunctionModel.run_count, FunctionModel.success_rate).where(
+                    FunctionModel.id == function_id
+                )
             )
             row = result.one_or_none()
 
@@ -436,29 +437,21 @@ class WorkRepository:
             values["error"] = error
 
         async with async_session_maker() as session:
-            await session.execute(
-                update(WorkModel)
-                .where(WorkModel.id == work_id)
-                .values(**values)
-            )
+            await session.execute(update(WorkModel).where(WorkModel.id == work_id).values(**values))
             await session.commit()
 
     async def update_progress(self, work_id: str, progress: float) -> None:
         """Update work progress."""
         async with async_session_maker() as session:
             await session.execute(
-                update(WorkModel)
-                .where(WorkModel.id == work_id)
-                .values(progress=progress)
+                update(WorkModel).where(WorkModel.id == work_id).values(progress=progress)
             )
             await session.commit()
 
     async def get(self, work_id: str) -> Work | None:
         """Get a work item by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(WorkModel).where(WorkModel.id == work_id)
-            )
+            result = await session.execute(select(WorkModel).where(WorkModel.id == work_id))
             row = result.scalar_one_or_none()
         return self._row_to_work(row) if row else None
 
@@ -518,9 +511,7 @@ class WorkRepository:
     async def delete(self, work_id: str) -> bool:
         """Delete a work item (cascades to tasks and jobs)."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(WorkModel).where(WorkModel.id == work_id)
-            )
+            result = await session.execute(delete(WorkModel).where(WorkModel.id == work_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -657,11 +648,7 @@ class TaskRepository:
             values["result"] = result
 
         async with async_session_maker() as session:
-            await session.execute(
-                update(TaskModel)
-                .where(TaskModel.id == task_id)
-                .values(**values)
-            )
+            await session.execute(update(TaskModel).where(TaskModel.id == task_id).values(**values))
             await session.commit()
 
     async def increment_retry(self, task_id: str) -> int:
@@ -683,9 +670,7 @@ class TaskRepository:
     async def get(self, task_id: str) -> Task | None:
         """Get a task by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(TaskModel).where(TaskModel.id == task_id)
-            )
+            result = await session.execute(select(TaskModel).where(TaskModel.id == task_id))
             row = result.scalar_one_or_none()
         return self._row_to_task(row) if row else None
 
@@ -738,9 +723,7 @@ class TaskRepository:
     async def delete(self, task_id: str) -> bool:
         """Delete a task (cascades to jobs)."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(TaskModel).where(TaskModel.id == task_id)
-            )
+            result = await session.execute(delete(TaskModel).where(TaskModel.id == task_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -832,9 +815,7 @@ class WorkJobRepository:
 
         async with async_session_maker() as session:
             await session.execute(
-                update(WorkJobModel)
-                .where(WorkJobModel.id == job_id)
-                .values(**values)
+                update(WorkJobModel).where(WorkJobModel.id == job_id).values(**values)
             )
             await session.commit()
 
@@ -842,9 +823,7 @@ class WorkJobRepository:
         """Update job progress."""
         async with async_session_maker() as session:
             await session.execute(
-                update(WorkJobModel)
-                .where(WorkJobModel.id == job_id)
-                .values(progress=progress)
+                update(WorkJobModel).where(WorkJobModel.id == job_id).values(progress=progress)
             )
             await session.commit()
 
@@ -875,18 +854,14 @@ class WorkJobRepository:
                 )
 
                 await session.execute(
-                    update(WorkJobModel)
-                    .where(WorkJobModel.id == job_id)
-                    .values(logs=logs)
+                    update(WorkJobModel).where(WorkJobModel.id == job_id).values(logs=logs)
                 )
                 await session.commit()
 
     async def get(self, job_id: str) -> Job | None:
         """Get a job by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(WorkJobModel).where(WorkJobModel.id == job_id)
-            )
+            result = await session.execute(select(WorkJobModel).where(WorkJobModel.id == job_id))
             row = result.scalar_one_or_none()
         return self._row_to_job(row) if row else None
 
@@ -939,9 +914,7 @@ class WorkJobRepository:
     async def delete(self, job_id: str) -> bool:
         """Delete a job."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(WorkJobModel).where(WorkJobModel.id == job_id)
-            )
+            result = await session.execute(delete(WorkJobModel).where(WorkJobModel.id == job_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -1020,11 +993,7 @@ class TodoRepository:
             values["completed_at"] = None
 
         async with async_session_maker() as session:
-            await session.execute(
-                update(TodoModel)
-                .where(TodoModel.id == todo_id)
-                .values(**values)
-            )
+            await session.execute(update(TodoModel).where(TodoModel.id == todo_id).values(**values))
             await session.commit()
 
     async def mark_converted(
@@ -1051,9 +1020,7 @@ class TodoRepository:
     async def get(self, todo_id: str) -> Todo | None:
         """Get a todo by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(TodoModel).where(TodoModel.id == todo_id)
-            )
+            result = await session.execute(select(TodoModel).where(TodoModel.id == todo_id))
             row = result.scalar_one_or_none()
         return self._row_to_todo(row) if row else None
 
@@ -1097,9 +1064,7 @@ class TodoRepository:
     async def delete(self, todo_id: str) -> bool:
         """Delete a todo."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(TodoModel).where(TodoModel.id == todo_id)
-            )
+            result = await session.execute(delete(TodoModel).where(TodoModel.id == todo_id))
             await session.commit()
             return result.rowcount > 0
 

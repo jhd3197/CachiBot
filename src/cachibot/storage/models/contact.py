@@ -18,9 +18,7 @@ class BotContact(Base):
     """Contact entry associated with a bot."""
 
     __tablename__ = "bot_contacts"
-    __table_args__ = (
-        Index("idx_bot_contacts_bot", "bot_id"),
-    )
+    __table_args__ = (Index("idx_bot_contacts_bot", "bot_id"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str] = mapped_column(String, nullable=False)

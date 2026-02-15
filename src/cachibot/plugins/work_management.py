@@ -364,6 +364,7 @@ class WorkManagementPlugin(CachibotPlugin):
                             if remind_datetime <= now:
                                 # Time already passed today, schedule for tomorrow
                                 from datetime import timedelta
+
                                 remind_datetime += timedelta(days=1)
                         else:
                             return (

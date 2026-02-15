@@ -56,8 +56,7 @@ DOCKER_DB = "cachibot"
 DOCKER_USER = "cachibot"
 DOCKER_PASSWORD = "cachibot"
 DEFAULT_PG_URL = (
-    f"postgresql+asyncpg://{DOCKER_USER}:{DOCKER_PASSWORD}"
-    f"@localhost:{DOCKER_PORT}/{DOCKER_DB}"
+    f"postgresql+asyncpg://{DOCKER_USER}:{DOCKER_PASSWORD}@localhost:{DOCKER_PORT}/{DOCKER_DB}"
 )
 
 
@@ -600,13 +599,21 @@ def _create_docker_container() -> tuple[bool, str]:
     Returns (success, message).
     """
     cmd = [
-        "docker", "run", "-d",
-        "--name", DOCKER_CONTAINER,
-        "-e", f"POSTGRES_DB={DOCKER_DB}",
-        "-e", f"POSTGRES_USER={DOCKER_USER}",
-        "-e", f"POSTGRES_PASSWORD={DOCKER_PASSWORD}",
-        "-p", f"{DOCKER_PORT}:5432",
-        "--restart", "unless-stopped",
+        "docker",
+        "run",
+        "-d",
+        "--name",
+        DOCKER_CONTAINER,
+        "-e",
+        f"POSTGRES_DB={DOCKER_DB}",
+        "-e",
+        f"POSTGRES_USER={DOCKER_USER}",
+        "-e",
+        f"POSTGRES_PASSWORD={DOCKER_PASSWORD}",
+        "-p",
+        f"{DOCKER_PORT}:5432",
+        "--restart",
+        "unless-stopped",
         DOCKER_IMAGE,
     ]
     try:
@@ -625,8 +632,14 @@ def _wait_for_postgres_ready(container: str, timeout: int = 30) -> bool:
         try:
             result = subprocess.run(
                 [
-                    "docker", "exec", container,
-                    "pg_isready", "-U", DOCKER_USER, "-d", DOCKER_DB,
+                    "docker",
+                    "exec",
+                    container,
+                    "pg_isready",
+                    "-U",
+                    DOCKER_USER,
+                    "-d",
+                    DOCKER_DB,
                 ],
                 capture_output=True,
                 text=True,
@@ -659,8 +672,17 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     # Tier 1
     (
         "users",
-        ["id", "email", "username", "password_hash", "role",
-         "is_active", "created_at", "created_by", "last_login"],
+        [
+            "id",
+            "email",
+            "username",
+            "password_hash",
+            "role",
+            "is_active",
+            "created_at",
+            "created_by",
+            "last_login",
+        ],
         ["id"],
     ),
     (
@@ -670,22 +692,52 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "bots",
-        ["id", "name", "description", "icon", "color", "model",
-         "system_prompt", "capabilities", "models", "created_at", "updated_at"],
+        [
+            "id",
+            "name",
+            "description",
+            "icon",
+            "color",
+            "model",
+            "system_prompt",
+            "capabilities",
+            "models",
+            "created_at",
+            "updated_at",
+        ],
         ["id"],
     ),
     (
         "skills",
-        ["id", "name", "description", "version", "author", "tags",
-         "requires_tools", "instructions", "source", "filepath",
-         "created_at", "updated_at"],
+        [
+            "id",
+            "name",
+            "description",
+            "version",
+            "author",
+            "tags",
+            "requires_tools",
+            "instructions",
+            "source",
+            "filepath",
+            "created_at",
+            "updated_at",
+        ],
         ["id"],
     ),
     # Tier 2
     (
         "rooms",
-        ["id", "title", "description", "creator_id", "max_bots",
-         "settings", "created_at", "updated_at"],
+        [
+            "id",
+            "title",
+            "description",
+            "creator_id",
+            "max_bots",
+            "settings",
+            "created_at",
+            "updated_at",
+        ],
         ["id"],
     ),
     (
@@ -695,8 +747,7 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "bot_messages",
-        ["id", "bot_id", "chat_id", "role", "content",
-         "timestamp", "metadata", "reply_to_id"],
+        ["id", "bot_id", "chat_id", "role", "content", "timestamp", "metadata", "reply_to_id"],
         ["id"],
     ),
     (
@@ -706,8 +757,18 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "bot_documents",
-        ["id", "bot_id", "filename", "file_type", "file_hash",
-         "file_size", "chunk_count", "status", "uploaded_at", "processed_at"],
+        [
+            "id",
+            "bot_id",
+            "filename",
+            "file_type",
+            "file_hash",
+            "file_size",
+            "chunk_count",
+            "status",
+            "uploaded_at",
+            "processed_at",
+        ],
         ["id"],
     ),
     (
@@ -717,14 +778,34 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "bot_connections",
-        ["id", "bot_id", "platform", "name", "status", "config_encrypted",
-         "message_count", "last_activity", "error", "created_at", "updated_at"],
+        [
+            "id",
+            "bot_id",
+            "platform",
+            "name",
+            "status",
+            "config_encrypted",
+            "message_count",
+            "last_activity",
+            "error",
+            "created_at",
+            "updated_at",
+        ],
         ["id"],
     ),
     (
         "chats",
-        ["id", "bot_id", "title", "platform", "platform_chat_id",
-         "pinned", "archived", "created_at", "updated_at"],
+        [
+            "id",
+            "bot_id",
+            "title",
+            "platform",
+            "platform_chat_id",
+            "pinned",
+            "archived",
+            "created_at",
+            "updated_at",
+        ],
         ["id"],
     ),
     (
@@ -734,15 +815,26 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "functions",
-        ["id", "bot_id", "name", "description", "version", "steps",
-         "parameters", "tags", "created_at", "updated_at",
-         "run_count", "last_run_at", "success_rate"],
+        [
+            "id",
+            "bot_id",
+            "name",
+            "description",
+            "version",
+            "steps",
+            "parameters",
+            "tags",
+            "created_at",
+            "updated_at",
+            "run_count",
+            "last_run_at",
+            "success_rate",
+        ],
         ["id"],
     ),
     (
         "bot_notes",
-        ["id", "bot_id", "title", "content", "tags", "source",
-         "created_at", "updated_at"],
+        ["id", "bot_id", "title", "content", "tags", "source", "created_at", "updated_at"],
         ["id"],
     ),
     # Tier 3
@@ -763,56 +855,150 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     ),
     (
         "schedules",
-        ["id", "bot_id", "name", "description", "function_id",
-         "function_params", "schedule_type", "cron_expression",
-         "interval_seconds", "run_at", "event_trigger", "timezone",
-         "enabled", "max_concurrent", "catch_up", "created_at",
-         "updated_at", "next_run_at", "last_run_at", "run_count"],
+        [
+            "id",
+            "bot_id",
+            "name",
+            "description",
+            "function_id",
+            "function_params",
+            "schedule_type",
+            "cron_expression",
+            "interval_seconds",
+            "run_at",
+            "event_trigger",
+            "timezone",
+            "enabled",
+            "max_concurrent",
+            "catch_up",
+            "created_at",
+            "updated_at",
+            "next_run_at",
+            "last_run_at",
+            "run_count",
+        ],
         ["id"],
     ),
     (
         "room_messages",
-        ["id", "room_id", "sender_type", "sender_id", "sender_name",
-         "content", "metadata", "timestamp"],
+        [
+            "id",
+            "room_id",
+            "sender_type",
+            "sender_id",
+            "sender_name",
+            "content",
+            "metadata",
+            "timestamp",
+        ],
         ["id"],
     ),
     (
         "jobs",
-        ["id", "status", "message_id", "created_at", "started_at",
-         "completed_at", "result", "error", "progress"],
+        [
+            "id",
+            "status",
+            "message_id",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
+            "progress",
+        ],
         ["id"],
     ),
     # Tier 4
     (
         "work",
-        ["id", "bot_id", "chat_id", "title", "description", "goal",
-         "function_id", "schedule_id", "parent_work_id", "status",
-         "priority", "progress", "created_at", "started_at",
-         "completed_at", "due_at", "result", "error", "context", "tags"],
+        [
+            "id",
+            "bot_id",
+            "chat_id",
+            "title",
+            "description",
+            "goal",
+            "function_id",
+            "schedule_id",
+            "parent_work_id",
+            "status",
+            "priority",
+            "progress",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "due_at",
+            "result",
+            "error",
+            "context",
+            "tags",
+        ],
         ["id"],
     ),
     # Tier 5
     (
         "tasks",
-        ["id", "bot_id", "work_id", "chat_id", "title", "description",
-         "action", "task_order", "depends_on", "status", "priority",
-         "retry_count", "max_retries", "timeout_seconds", "created_at",
-         "started_at", "completed_at", "result", "error"],
+        [
+            "id",
+            "bot_id",
+            "work_id",
+            "chat_id",
+            "title",
+            "description",
+            "action",
+            "task_order",
+            "depends_on",
+            "status",
+            "priority",
+            "retry_count",
+            "max_retries",
+            "timeout_seconds",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
+        ],
         ["id"],
     ),
     (
         "todos",
-        ["id", "bot_id", "chat_id", "title", "notes", "status",
-         "priority", "created_at", "completed_at", "remind_at",
-         "converted_to_work_id", "converted_to_task_id", "tags"],
+        [
+            "id",
+            "bot_id",
+            "chat_id",
+            "title",
+            "notes",
+            "status",
+            "priority",
+            "created_at",
+            "completed_at",
+            "remind_at",
+            "converted_to_work_id",
+            "converted_to_task_id",
+            "tags",
+        ],
         ["id"],
     ),
     # Tier 6
     (
         "work_jobs",
-        ["id", "bot_id", "task_id", "work_id", "chat_id", "status",
-         "attempt", "progress", "created_at", "started_at",
-         "completed_at", "result", "error", "logs"],
+        [
+            "id",
+            "bot_id",
+            "task_id",
+            "work_id",
+            "chat_id",
+            "status",
+            "attempt",
+            "progress",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
+            "logs",
+        ],
         ["id"],
     ),
 ]
@@ -854,9 +1040,7 @@ def _convert_value(table: str, column: str, value: object) -> object:
     return value
 
 
-def _build_upsert_sql(
-    table_name: str, columns: list[str], pk_columns: list[str]
-) -> str:
+def _build_upsert_sql(table_name: str, columns: list[str], pk_columns: list[str]) -> str:
     """Build a PostgreSQL UPSERT statement."""
     col_list = ", ".join(columns)
     placeholders = ", ".join(f":{c}" for c in columns)
@@ -905,28 +1089,20 @@ def setup_postgres() -> None:
         # Check if container already exists
         if _docker_container_exists(DOCKER_CONTAINER):
             if _docker_container_running(DOCKER_CONTAINER):
-                console.print(
-                    f"[success]Container '{DOCKER_CONTAINER}' is already running.[/]"
-                )
+                console.print(f"[success]Container '{DOCKER_CONTAINER}' is already running.[/]")
                 database_url = DEFAULT_PG_URL
             else:
-                console.print(
-                    f"[warning]Container '{DOCKER_CONTAINER}' exists but is stopped.[/]"
-                )
+                console.print(f"[warning]Container '{DOCKER_CONTAINER}' exists but is stopped.[/]")
                 if Confirm.ask("  Start the existing container?", default=True):
                     with console.status("[info]Starting container...[/]"):
                         if _start_docker_container(DOCKER_CONTAINER):
-                            console.print(
-                                f"[success]Container '{DOCKER_CONTAINER}' started.[/]"
-                            )
+                            console.print(f"[success]Container '{DOCKER_CONTAINER}' started.[/]")
                             # Wait for ready
                             if _wait_for_postgres_ready(DOCKER_CONTAINER):
                                 console.print("[success]PostgreSQL is ready.[/]")
                                 database_url = DEFAULT_PG_URL
                             else:
-                                console.print(
-                                    "[error]PostgreSQL did not become ready in time.[/]"
-                                )
+                                console.print("[error]PostgreSQL did not become ready in time.[/]")
                                 raise typer.Exit(1)
                         else:
                             console.print("[error]Failed to start the container.[/]")
@@ -961,9 +1137,7 @@ def setup_postgres() -> None:
                         console.print(
                             "[error]PostgreSQL did not become ready within 60 seconds.[/]"
                         )
-                        console.print(
-                            "[dim]Try checking: docker logs cachibot-db[/]"
-                        )
+                        console.print("[dim]Try checking: docker logs cachibot-db[/]")
                         raise typer.Exit(1)
 
     # --- Option 2: Local PostgreSQL ---
@@ -978,9 +1152,7 @@ def setup_postgres() -> None:
             db_name = Prompt.ask("  Database", default="cachibot")
             user = Prompt.ask("  User", default="cachibot")
             password = Prompt.ask("  Password", password=True, default="cachibot")
-            database_url = (
-                f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
-            )
+            database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
 
     # --- Option 3: Cloud provider ---
     if database_url is None:
@@ -1200,9 +1372,7 @@ def migrate_data() -> None:
 
     # Step 6: Run the migration
     console.print()
-    results = asyncio.run(
-        _run_migration(sqlite_path, database_url, table_info)
-    )
+    results = asyncio.run(_run_migration(sqlite_path, database_url, table_info))
 
     # Step 7: Print summary
     migrated_count = sum(r[1] for r in results if r[2] is None)
@@ -1238,17 +1408,13 @@ async def _scan_sqlite(sqlite_path: Path) -> list[tuple[str, int]]:
     async with aiosqlite.connect(str(sqlite_path)) as db:
         for table_name, columns, pk_columns in MIGRATION_ORDER:
             # Check if table exists
-            async with db.execute(
-                f"PRAGMA table_info({table_name})"
-            ) as cursor:
+            async with db.execute(f"PRAGMA table_info({table_name})") as cursor:
                 cols = await cursor.fetchall()
             if not cols:
                 continue
 
             # Get row count
-            async with db.execute(
-                f"SELECT COUNT(*) FROM {table_name}"
-            ) as cursor:
+            async with db.execute(f"SELECT COUNT(*) FROM {table_name}") as cursor:
                 row = await cursor.fetchone()
             count = row[0] if row else 0
             results.append((table_name, count))
@@ -1295,9 +1461,7 @@ async def _run_migration(
                     if table_name not in table_names_in_order:
                         continue
 
-                    row_count = next(
-                        (c for n, c in table_info if n == table_name), 0
-                    )
+                    row_count = next((c for n, c in table_info if n == table_name), 0)
 
                     task_id = progress.add_task(
                         f"[cyan]{table_name}[/]",
@@ -1619,12 +1783,8 @@ def db_status() -> None:
     # Also show SQLite if both exist
     if database_url and sqlite_path.exists():
         console.print()
-        console.print(
-            f"  [dim]Legacy SQLite database also exists at {sqlite_path}[/]"
-        )
-        console.print(
-            f"  [dim]Size: {_format_size(sqlite_path.stat().st_size)}[/]"
-        )
+        console.print(f"  [dim]Legacy SQLite database also exists at {sqlite_path}[/]")
+        console.print(f"  [dim]Size: {_format_size(sqlite_path.stat().st_size)}[/]")
 
 
 def _show_sqlite_status(sqlite_path: Path) -> None:
@@ -1720,9 +1880,7 @@ async def _get_sqlite_stats(sqlite_path: Path) -> dict:
             table_count += 1
 
             if table_name in KEY_TABLES:
-                async with db.execute(
-                    f"SELECT COUNT(*) FROM {table_name}"
-                ) as cursor:
+                async with db.execute(f"SELECT COUNT(*) FROM {table_name}") as cursor:
                     row = await cursor.fetchone()
                 count = row[0] if row else 0
                 key_stats.append((table_name, count))
@@ -1771,9 +1929,7 @@ async def _get_postgres_stats(database_url: str) -> dict:
             # Key table stats
             for tname in KEY_TABLES:
                 try:
-                    result = await conn.execute(
-                        text(f"SELECT COUNT(*) FROM {tname}")
-                    )
+                    result = await conn.execute(text(f"SELECT COUNT(*) FROM {tname}"))
                     row = result.fetchone()
                     if row:
                         stats["key_stats"].append((tname, row[0]))

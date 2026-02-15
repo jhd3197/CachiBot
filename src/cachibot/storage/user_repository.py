@@ -42,9 +42,7 @@ class UserRepository:
     async def get_user_by_id(self, user_id: str) -> UserInDB | None:
         """Get a user by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(UserModel).where(UserModel.id == user_id)
-            )
+            result = await session.execute(select(UserModel).where(UserModel.id == user_id))
             row = result.scalar_one_or_none()
 
         if row is None:
@@ -91,10 +89,7 @@ class UserRepository:
         """Get all users with pagination."""
         async with async_session_maker() as session:
             result = await session.execute(
-                select(UserModel)
-                .order_by(UserModel.created_at.desc())
-                .limit(limit)
-                .offset(offset)
+                select(UserModel).order_by(UserModel.created_at.desc()).limit(limit).offset(offset)
             )
             rows = result.scalars().all()
 
@@ -119,9 +114,7 @@ class UserRepository:
     async def get_user_count(self) -> int:
         """Get total user count."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(func.count()).select_from(UserModel)
-            )
+            result = await session.execute(select(func.count()).select_from(UserModel))
             return result.scalar_one()
 
     async def update_user(
@@ -149,9 +142,7 @@ class UserRepository:
 
         async with async_session_maker() as session:
             result = await session.execute(
-                update(UserModel)
-                .where(UserModel.id == user_id)
-                .values(**values)
+                update(UserModel).where(UserModel.id == user_id).values(**values)
             )
             await session.commit()
             return result.rowcount > 0
@@ -160,9 +151,7 @@ class UserRepository:
         """Update user password. Returns True if user was found and updated."""
         async with async_session_maker() as session:
             result = await session.execute(
-                update(UserModel)
-                .where(UserModel.id == user_id)
-                .values(password_hash=password_hash)
+                update(UserModel).where(UserModel.id == user_id).values(password_hash=password_hash)
             )
             await session.commit()
             return result.rowcount > 0
@@ -205,9 +194,7 @@ class UserRepository:
         """Get a user by their website INT user ID."""
         async with async_session_maker() as session:
             result = await session.execute(
-                select(UserModel).where(
-                    UserModel.website_user_id == website_user_id
-                )
+                select(UserModel).where(UserModel.website_user_id == website_user_id)
             )
             row = result.scalar_one_or_none()
 
@@ -239,9 +226,7 @@ class UserRepository:
 
         async with async_session_maker() as session:
             result = await session.execute(
-                update(UserModel)
-                .where(UserModel.id == user_id)
-                .values(**values)
+                update(UserModel).where(UserModel.id == user_id).values(**values)
             )
             await session.commit()
             return result.rowcount > 0
@@ -284,9 +269,7 @@ class OwnershipRepository:
         """Get the owner user_id for a bot."""
         async with async_session_maker() as session:
             result = await session.execute(
-                select(BotOwnershipModel.user_id).where(
-                    BotOwnershipModel.bot_id == bot_id
-                )
+                select(BotOwnershipModel.user_id).where(BotOwnershipModel.bot_id == bot_id)
             )
             return result.scalar_one_or_none()
 

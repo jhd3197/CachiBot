@@ -63,9 +63,7 @@ def upgrade() -> None:
     op.create_table(
         "jobs",
         sa.Column("id", sa.String(), primary_key=True),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="pending"
-        ),
+        sa.Column("status", sa.String(), nullable=False, server_default="pending"),
         sa.Column("message_id", sa.String(), sa.ForeignKey("messages.id"), nullable=True),
         sa.Column(
             "created_at",
@@ -102,9 +100,7 @@ def upgrade() -> None:
         sa.Column("metadata", JSONB(), nullable=False, server_default="{}"),
         sa.Column("reply_to_id", sa.String(), nullable=True),
     )
-    op.create_index(
-        "idx_bot_messages_bot_chat", "bot_messages", ["bot_id", "chat_id"]
-    )
+    op.create_index("idx_bot_messages_bot_chat", "bot_messages", ["bot_id", "chat_id"])
     op.create_index("idx_bot_messages_timestamp", "bot_messages", ["timestamp"])
     op.create_index(
         "idx_bot_messages_metadata",
@@ -140,12 +136,8 @@ def upgrade() -> None:
         sa.Column("file_type", sa.String(), nullable=False),
         sa.Column("file_hash", sa.String(), nullable=False),
         sa.Column("file_size", sa.Integer(), nullable=False),
-        sa.Column(
-            "chunk_count", sa.Integer(), nullable=False, server_default="0"
-        ),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="processing"
-        ),
+        sa.Column("chunk_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("status", sa.String(), nullable=False, server_default="processing"),
         sa.Column(
             "uploaded_at",
             sa.DateTime(timezone=True),
@@ -229,9 +221,7 @@ def upgrade() -> None:
             server_default="disconnected",
         ),
         sa.Column("config_encrypted", JSONB(), nullable=False),
-        sa.Column(
-            "message_count", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("message_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("last_activity", sa.DateTime(timezone=True), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column(
@@ -248,9 +238,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_bot_connections_bot", "bot_connections", ["bot_id"])
-    op.create_index(
-        "idx_bot_connections_status", "bot_connections", ["status"]
-    )
+    op.create_index("idx_bot_connections_status", "bot_connections", ["status"])
     op.create_index(
         "idx_bot_connections_config_encrypted",
         "bot_connections",
@@ -269,15 +257,9 @@ def upgrade() -> None:
         sa.Column("password_hash", sa.String(), nullable=False),
         # Authorization
         sa.Column("role", sa.String(), nullable=False, server_default="user"),
-        sa.Column(
-            "is_active", sa.Boolean(), nullable=False, server_default="true"
-        ),
-        sa.Column(
-            "is_verified", sa.Boolean(), nullable=False, server_default="false"
-        ),
-        sa.Column(
-            "is_admin", sa.Boolean(), nullable=False, server_default="false"
-        ),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("is_verified", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("is_admin", sa.Boolean(), nullable=False, server_default="false"),
         # Tier
         sa.Column("tier", sa.String(), nullable=False, server_default="free"),
         # Email verification
@@ -290,18 +272,12 @@ def upgrade() -> None:
         sa.Column("verification_token_hint", sa.String(16), nullable=True),
         # Password reset
         sa.Column("reset_token", sa.String(), nullable=True),
-        sa.Column(
-            "reset_token_expires", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("reset_token_expires", sa.DateTime(timezone=True), nullable=True),
         sa.Column("reset_token_hint", sa.String(16), nullable=True),
         # Password change tracking
-        sa.Column(
-            "password_changed_at", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=True),
         # Billing
-        sa.Column(
-            "credit_balance", sa.Float(), nullable=False, server_default="0.0"
-        ),
+        sa.Column("credit_balance", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column(
             "low_balance_alerted",
             sa.Boolean(),
@@ -328,9 +304,7 @@ def upgrade() -> None:
         "users",
         ["verification_token_hint"],
     )
-    op.create_index(
-        "idx_users_reset_token_hint", "users", ["reset_token_hint"]
-    )
+    op.create_index("idx_users_reset_token_hint", "users", ["reset_token_hint"])
 
     # =========================================================================
     # 10. bot_ownership
@@ -367,9 +341,7 @@ def upgrade() -> None:
         sa.Column("color", sa.String(), nullable=True),
         sa.Column("model", sa.String(), nullable=False),
         sa.Column("system_prompt", sa.Text(), nullable=False),
-        sa.Column(
-            "capabilities", JSONB(), nullable=False, server_default="{}"
-        ),
+        sa.Column("capabilities", JSONB(), nullable=False, server_default="{}"),
         sa.Column("models", JSONB(), nullable=True),
         sa.Column(
             "created_at",
@@ -390,9 +362,7 @@ def upgrade() -> None:
         ["capabilities"],
         postgresql_using="gin",
     )
-    op.create_index(
-        "idx_bots_models", "bots", ["models"], postgresql_using="gin"
-    )
+    op.create_index("idx_bots_models", "bots", ["models"], postgresql_using="gin")
 
     # =========================================================================
     # 12. chats
@@ -404,12 +374,8 @@ def upgrade() -> None:
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("platform", sa.String(), nullable=True),
         sa.Column("platform_chat_id", sa.String(), nullable=True),
-        sa.Column(
-            "pinned", sa.Boolean(), nullable=False, server_default="false"
-        ),
-        sa.Column(
-            "archived", sa.Boolean(), nullable=False, server_default="false"
-        ),
+        sa.Column("pinned", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("archived", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -439,18 +405,12 @@ def upgrade() -> None:
         sa.Column("id", sa.String(), primary_key=True),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "version", sa.String(), nullable=False, server_default="1.0.0"
-        ),
+        sa.Column("version", sa.String(), nullable=False, server_default="1.0.0"),
         sa.Column("author", sa.String(), nullable=True),
         sa.Column("tags", JSONB(), nullable=False, server_default="[]"),
-        sa.Column(
-            "requires_tools", JSONB(), nullable=False, server_default="[]"
-        ),
+        sa.Column("requires_tools", JSONB(), nullable=False, server_default="[]"),
         sa.Column("instructions", sa.Text(), nullable=False),
-        sa.Column(
-            "source", sa.String(), nullable=False, server_default="local"
-        ),
+        sa.Column("source", sa.String(), nullable=False, server_default="local"),
         sa.Column("filepath", sa.String(), nullable=True),
         sa.Column(
             "created_at",
@@ -466,9 +426,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_skills_source", "skills", ["source"])
-    op.create_index(
-        "idx_skills_tags", "skills", ["tags"], postgresql_using="gin"
-    )
+    op.create_index("idx_skills_tags", "skills", ["tags"], postgresql_using="gin")
     op.create_index(
         "idx_skills_requires_tools",
         "skills",
@@ -488,9 +446,7 @@ def upgrade() -> None:
             sa.ForeignKey("skills.id", ondelete="CASCADE"),
             primary_key=True,
         ),
-        sa.Column(
-            "enabled", sa.Boolean(), nullable=False, server_default="true"
-        ),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
             "activated_at",
             sa.DateTime(timezone=True),
@@ -510,9 +466,7 @@ def upgrade() -> None:
         sa.Column("bot_id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "version", sa.String(), nullable=False, server_default="1.0.0"
-        ),
+        sa.Column("version", sa.String(), nullable=False, server_default="1.0.0"),
         sa.Column("steps", JSONB(), nullable=False, server_default="[]"),
         sa.Column("parameters", JSONB(), nullable=False, server_default="[]"),
         sa.Column("tags", JSONB(), nullable=False, server_default="[]"),
@@ -528,28 +482,20 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Column(
-            "run_count", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("run_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("last_run_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "success_rate", sa.Float(), nullable=False, server_default="0.0"
-        ),
+        sa.Column("success_rate", sa.Float(), nullable=False, server_default="0.0"),
     )
     op.create_index("idx_functions_bot", "functions", ["bot_id"])
     op.create_index("idx_functions_name", "functions", ["bot_id", "name"])
-    op.create_index(
-        "idx_functions_steps", "functions", ["steps"], postgresql_using="gin"
-    )
+    op.create_index("idx_functions_steps", "functions", ["steps"], postgresql_using="gin")
     op.create_index(
         "idx_functions_parameters",
         "functions",
         ["parameters"],
         postgresql_using="gin",
     )
-    op.create_index(
-        "idx_functions_tags", "functions", ["tags"], postgresql_using="gin"
-    )
+    op.create_index("idx_functions_tags", "functions", ["tags"], postgresql_using="gin")
 
     # =========================================================================
     # 16. schedules
@@ -566,9 +512,7 @@ def upgrade() -> None:
             sa.ForeignKey("functions.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column(
-            "function_params", JSONB(), nullable=False, server_default="{}"
-        ),
+        sa.Column("function_params", JSONB(), nullable=False, server_default="{}"),
         sa.Column(
             "schedule_type",
             sa.String(),
@@ -579,21 +523,15 @@ def upgrade() -> None:
         sa.Column("interval_seconds", sa.Integer(), nullable=True),
         sa.Column("run_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("event_trigger", sa.String(), nullable=True),
-        sa.Column(
-            "timezone", sa.String(), nullable=False, server_default="UTC"
-        ),
-        sa.Column(
-            "enabled", sa.Boolean(), nullable=False, server_default="true"
-        ),
+        sa.Column("timezone", sa.String(), nullable=False, server_default="UTC"),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
             "max_concurrent",
             sa.Integer(),
             nullable=False,
             server_default="1",
         ),
-        sa.Column(
-            "catch_up", sa.Boolean(), nullable=False, server_default="false"
-        ),
+        sa.Column("catch_up", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -608,9 +546,7 @@ def upgrade() -> None:
         ),
         sa.Column("next_run_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_run_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "run_count", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("run_count", sa.Integer(), nullable=False, server_default="0"),
     )
     op.create_index("idx_schedules_bot", "schedules", ["bot_id"])
     op.create_index("idx_schedules_enabled", "schedules", ["enabled"])
@@ -651,15 +587,9 @@ def upgrade() -> None:
             sa.ForeignKey("work.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="pending"
-        ),
-        sa.Column(
-            "priority", sa.String(), nullable=False, server_default="normal"
-        ),
-        sa.Column(
-            "progress", sa.Float(), nullable=False, server_default="0.0"
-        ),
+        sa.Column("status", sa.String(), nullable=False, server_default="pending"),
+        sa.Column("priority", sa.String(), nullable=False, server_default="normal"),
+        sa.Column("progress", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -679,15 +609,9 @@ def upgrade() -> None:
     op.create_index("idx_work_schedule", "work", ["schedule_id"])
     op.create_index("idx_work_parent", "work", ["parent_work_id"])
     op.create_index("idx_work_chat", "work", ["bot_id", "chat_id"])
-    op.create_index(
-        "idx_work_result", "work", ["result"], postgresql_using="gin"
-    )
-    op.create_index(
-        "idx_work_context", "work", ["context"], postgresql_using="gin"
-    )
-    op.create_index(
-        "idx_work_tags", "work", ["tags"], postgresql_using="gin"
-    )
+    op.create_index("idx_work_result", "work", ["result"], postgresql_using="gin")
+    op.create_index("idx_work_context", "work", ["context"], postgresql_using="gin")
+    op.create_index("idx_work_tags", "work", ["tags"], postgresql_using="gin")
 
     # =========================================================================
     # 18. tasks
@@ -706,22 +630,12 @@ def upgrade() -> None:
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("action", sa.Text(), nullable=True),
-        sa.Column(
-            "task_order", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("task_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("depends_on", JSONB(), nullable=False, server_default="[]"),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="pending"
-        ),
-        sa.Column(
-            "priority", sa.String(), nullable=False, server_default="normal"
-        ),
-        sa.Column(
-            "retry_count", sa.Integer(), nullable=False, server_default="0"
-        ),
-        sa.Column(
-            "max_retries", sa.Integer(), nullable=False, server_default="3"
-        ),
+        sa.Column("status", sa.String(), nullable=False, server_default="pending"),
+        sa.Column("priority", sa.String(), nullable=False, server_default="normal"),
+        sa.Column("retry_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("max_retries", sa.Integer(), nullable=False, server_default="3"),
         sa.Column("timeout_seconds", sa.Integer(), nullable=True),
         sa.Column(
             "created_at",
@@ -744,9 +658,7 @@ def upgrade() -> None:
         ["depends_on"],
         postgresql_using="gin",
     )
-    op.create_index(
-        "idx_tasks_result", "tasks", ["result"], postgresql_using="gin"
-    )
+    op.create_index("idx_tasks_result", "tasks", ["result"], postgresql_using="gin")
 
     # =========================================================================
     # 19. work_jobs
@@ -768,13 +680,9 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("chat_id", sa.String(), nullable=True),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="pending"
-        ),
+        sa.Column("status", sa.String(), nullable=False, server_default="pending"),
         sa.Column("attempt", sa.Integer(), nullable=False, server_default="1"),
-        sa.Column(
-            "progress", sa.Float(), nullable=False, server_default="0.0"
-        ),
+        sa.Column("progress", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -797,9 +705,7 @@ def upgrade() -> None:
         ["result"],
         postgresql_using="gin",
     )
-    op.create_index(
-        "idx_work_jobs_logs", "work_jobs", ["logs"], postgresql_using="gin"
-    )
+    op.create_index("idx_work_jobs_logs", "work_jobs", ["logs"], postgresql_using="gin")
 
     # =========================================================================
     # 20. bot_notes
@@ -811,9 +717,7 @@ def upgrade() -> None:
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("tags", JSONB(), nullable=False, server_default="[]"),
-        sa.Column(
-            "source", sa.String(), nullable=False, server_default="user"
-        ),
+        sa.Column("source", sa.String(), nullable=False, server_default="user"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -828,9 +732,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_bot_notes_bot", "bot_notes", ["bot_id"])
-    op.create_index(
-        "idx_bot_notes_tags", "bot_notes", ["tags"], postgresql_using="gin"
-    )
+    op.create_index("idx_bot_notes_tags", "bot_notes", ["tags"], postgresql_using="gin")
 
     # =========================================================================
     # 21. rooms
@@ -846,9 +748,7 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column(
-            "max_bots", sa.Integer(), nullable=False, server_default="4"
-        ),
+        sa.Column("max_bots", sa.Integer(), nullable=False, server_default="4"),
         sa.Column("settings", JSONB(), nullable=False, server_default="{}"),
         sa.Column(
             "created_at",
@@ -864,9 +764,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index("idx_rooms_creator", "rooms", ["creator_id"])
-    op.create_index(
-        "idx_rooms_settings", "rooms", ["settings"], postgresql_using="gin"
-    )
+    op.create_index("idx_rooms_settings", "rooms", ["settings"], postgresql_using="gin")
 
     # =========================================================================
     # 22. room_members (composite PK)
@@ -885,9 +783,7 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             primary_key=True,
         ),
-        sa.Column(
-            "role", sa.String(), nullable=False, server_default="member"
-        ),
+        sa.Column("role", sa.String(), nullable=False, server_default="member"),
         sa.Column(
             "joined_at",
             sa.DateTime(timezone=True),
@@ -972,12 +868,8 @@ def upgrade() -> None:
         sa.Column("chat_id", sa.String(), nullable=True),
         sa.Column("title", sa.String(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column(
-            "status", sa.String(), nullable=False, server_default="open"
-        ),
-        sa.Column(
-            "priority", sa.String(), nullable=False, server_default="normal"
-        ),
+        sa.Column("status", sa.String(), nullable=False, server_default="open"),
+        sa.Column("priority", sa.String(), nullable=False, server_default="normal"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1003,9 +895,7 @@ def upgrade() -> None:
     op.create_index("idx_todos_bot", "todos", ["bot_id"])
     op.create_index("idx_todos_status", "todos", ["status"])
     op.create_index("idx_todos_remind", "todos", ["remind_at"])
-    op.create_index(
-        "idx_todos_tags", "todos", ["tags"], postgresql_using="gin"
-    )
+    op.create_index("idx_todos_tags", "todos", ["tags"], postgresql_using="gin")
 
 
 def downgrade() -> None:

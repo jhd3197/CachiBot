@@ -114,9 +114,7 @@ class MessageRepository:
     async def get_message_count(self) -> int:
         """Get total message count."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(func.count()).select_from(MessageModel)
-            )
+            result = await session.execute(select(func.count()).select_from(MessageModel))
             return result.scalar_one()
 
     async def clear_messages(self) -> None:
@@ -166,9 +164,7 @@ class JobRepository:
     async def get_job(self, job_id: str) -> Job | None:
         """Get a job by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(JobModel).where(JobModel.id == job_id)
-            )
+            result = await session.execute(select(JobModel).where(JobModel.id == job_id))
             row = result.scalar_one_or_none()
 
         if row is None:
@@ -455,9 +451,7 @@ class KnowledgeRepository:
 
         async with async_session_maker() as session:
             await session.execute(
-                update(BotDocumentModel)
-                .where(BotDocumentModel.id == document_id)
-                .values(**values)
+                update(BotDocumentModel).where(BotDocumentModel.id == document_id).values(**values)
             )
             await session.commit()
 
@@ -585,17 +579,13 @@ class KnowledgeRepository:
 
             # Total notes
             note_result = await session.execute(
-                select(func.count())
-                .select_from(BotNoteModel)
-                .where(BotNoteModel.bot_id == bot_id)
+                select(func.count()).select_from(BotNoteModel).where(BotNoteModel.bot_id == bot_id)
             )
             total_notes = note_result.scalar_one()
 
             # Instructions
             instr_result = await session.execute(
-                select(BotInstructionModel.id).where(
-                    BotInstructionModel.bot_id == bot_id
-                )
+                select(BotInstructionModel.id).where(BotInstructionModel.bot_id == bot_id)
             )
             has_instructions = instr_result.scalar_one_or_none() is not None
 
@@ -660,8 +650,7 @@ class KnowledgeRepository:
                     DocChunkModel.id,
                     DocChunkModel.document_id,
                     DocChunkModel.embedding,
-                )
-                .where(
+                ).where(
                     DocChunkModel.bot_id == bot_id,
                     DocChunkModel.embedding.isnot(None),
                 )
@@ -723,9 +712,7 @@ class NotesRepository:
     async def get_note(self, note_id: str) -> BotNote | None:
         """Get a note by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(BotNoteModel).where(BotNoteModel.id == note_id)
-            )
+            result = await session.execute(select(BotNoteModel).where(BotNoteModel.id == note_id))
             row = result.scalar_one_or_none()
         return self._row_to_note(row) if row else None
 
@@ -747,9 +734,7 @@ class NotesRepository:
 
             if _db_type == "postgresql":
                 # PostgreSQL JSONB containment operator
-                tag_conditions = [
-                    BotNoteModel.tags.contains([tag]) for tag in tags_filter
-                ]
+                tag_conditions = [BotNoteModel.tags.contains([tag]) for tag in tags_filter]
                 stmt = stmt.where(or_(*tag_conditions))
             else:
                 # SQLite: use JSON_EACH + LIKE fallback for JSON arrays
@@ -758,15 +743,13 @@ class NotesRepository:
                 from sqlalchemy import cast
 
                 tag_conditions = [
-                    cast(BotNoteModel.tags, SAString).like(f'%"{tag}"%')
-                    for tag in tags_filter
+                    cast(BotNoteModel.tags, SAString).like(f'%"{tag}"%') for tag in tags_filter
                 ]
                 stmt = stmt.where(or_(*tag_conditions))
 
         if search:
             stmt = stmt.where(
-                BotNoteModel.title.ilike(f"%{search}%")
-                | BotNoteModel.content.ilike(f"%{search}%")
+                BotNoteModel.title.ilike(f"%{search}%") | BotNoteModel.content.ilike(f"%{search}%")
             )
 
         stmt = stmt.order_by(BotNoteModel.updated_at.desc()).limit(limit).offset(offset)
@@ -797,9 +780,7 @@ class NotesRepository:
 
         async with async_session_maker() as session:
             result = await session.execute(
-                update(BotNoteModel)
-                .where(BotNoteModel.id == note_id)
-                .values(**values)
+                update(BotNoteModel).where(BotNoteModel.id == note_id).values(**values)
             )
             await session.commit()
 
@@ -810,9 +791,7 @@ class NotesRepository:
     async def delete_note(self, note_id: str) -> bool:
         """Delete a note by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(BotNoteModel).where(BotNoteModel.id == note_id)
-            )
+            result = await session.execute(delete(BotNoteModel).where(BotNoteModel.id == note_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -1102,27 +1081,21 @@ class BotRepository:
     async def get_bot(self, bot_id: str) -> Bot | None:
         """Get a bot by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(BotModel).where(BotModel.id == bot_id)
-            )
+            result = await session.execute(select(BotModel).where(BotModel.id == bot_id))
             row = result.scalar_one_or_none()
             return self._row_to_bot(row) if row else None
 
     async def get_all_bots(self) -> list[Bot]:
         """Get all bots."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(BotModel).order_by(BotModel.name)
-            )
+            result = await session.execute(select(BotModel).order_by(BotModel.name))
             rows = result.scalars().all()
             return [self._row_to_bot(row) for row in rows]
 
     async def delete_bot(self, bot_id: str) -> bool:
         """Delete a bot by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(BotModel).where(BotModel.id == bot_id)
-            )
+            result = await session.execute(delete(BotModel).where(BotModel.id == bot_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -1166,9 +1139,7 @@ class ChatRepository:
     async def get_chat(self, chat_id: str) -> Chat | None:
         """Get a chat by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(ChatModel).where(ChatModel.id == chat_id)
-            )
+            result = await session.execute(select(ChatModel).where(ChatModel.id == chat_id))
             row = result.scalar_one_or_none()
             return self._row_to_chat(row) if row else None
 
@@ -1260,27 +1231,21 @@ class ChatRepository:
         now = datetime.now(timezone.utc)
         async with async_session_maker() as session:
             await session.execute(
-                update(ChatModel)
-                .where(ChatModel.id == chat_id)
-                .values(updated_at=now)
+                update(ChatModel).where(ChatModel.id == chat_id).values(updated_at=now)
             )
             await session.commit()
 
     async def delete_chat(self, chat_id: str) -> bool:
         """Delete a chat by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(ChatModel).where(ChatModel.id == chat_id)
-            )
+            result = await session.execute(delete(ChatModel).where(ChatModel.id == chat_id))
             await session.commit()
             return result.rowcount > 0
 
     async def delete_all_chats_for_bot(self, bot_id: str) -> int:
         """Delete all chats for a bot. Returns number of chats deleted."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(ChatModel).where(ChatModel.bot_id == bot_id)
-            )
+            result = await session.execute(delete(ChatModel).where(ChatModel.bot_id == bot_id))
             await session.commit()
             return result.rowcount
 
@@ -1343,18 +1308,14 @@ class SkillsRepository:
     async def get_skill(self, skill_id: str) -> SkillDefinition | None:
         """Get a skill by ID."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(SkillModel).where(SkillModel.id == skill_id)
-            )
+            result = await session.execute(select(SkillModel).where(SkillModel.id == skill_id))
             row = result.scalar_one_or_none()
             return self._row_to_skill(row) if row else None
 
     async def get_all_skills(self) -> list[SkillDefinition]:
         """Get all skill definitions."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(SkillModel).order_by(SkillModel.name)
-            )
+            result = await session.execute(select(SkillModel).order_by(SkillModel.name))
             rows = result.scalars().all()
             return [self._row_to_skill(row) for row in rows]
 
@@ -1372,9 +1333,7 @@ class SkillsRepository:
     async def delete_skill(self, skill_id: str) -> bool:
         """Delete a skill by ID. Also removes all bot activations."""
         async with async_session_maker() as session:
-            result = await session.execute(
-                delete(SkillModel).where(SkillModel.id == skill_id)
-            )
+            result = await session.execute(delete(SkillModel).where(SkillModel.id == skill_id))
             await session.commit()
             return result.rowcount > 0
 

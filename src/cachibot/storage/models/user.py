@@ -49,9 +49,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
 
     # --- Website link (INT user ID from CachiBot website) ---
-    website_user_id: Mapped[int | None] = mapped_column(
-        Integer, unique=True, nullable=True
-    )
+    website_user_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
 
     # --- Core identity (both systems) ---
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
@@ -59,43 +57,27 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
 
     # --- Authorization ---
-    role: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="user"
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="true"
-    )
-    is_verified: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
-    is_admin: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
+    role: Mapped[str] = mapped_column(String, nullable=False, server_default="user")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
     # --- Tier (from website) ---
-    tier: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="free"
-    )
+    tier: Mapped[str] = mapped_column(String, nullable=False, server_default="free")
 
     # --- Email verification (from website) ---
-    verification_token: Mapped[str | None] = mapped_column(
-        String, nullable=True
-    )
+    verification_token: Mapped[str | None] = mapped_column(String, nullable=True)
     verification_token_expires: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    verification_token_hint: Mapped[str | None] = mapped_column(
-        String(16), nullable=True
-    )
+    verification_token_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # --- Password reset (from website) ---
     reset_token: Mapped[str | None] = mapped_column(String, nullable=True)
     reset_token_expires: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    reset_token_hint: Mapped[str | None] = mapped_column(
-        String(16), nullable=True
-    )
+    reset_token_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # --- Password change tracking (from website, for JWT invalidation) ---
     password_changed_at: Mapped[datetime | None] = mapped_column(
@@ -103,18 +85,14 @@ class User(Base):
     )
 
     # --- Billing (from website) ---
-    credit_balance: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0.0"
-    )
+    credit_balance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
     low_balance_alerted: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
 
     # --- Platform-specific fields ---
     created_by: Mapped[str | None] = mapped_column(String, nullable=True)
-    last_login: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # --- Timestamps ---
     created_at: Mapped[datetime] = mapped_column(

@@ -96,9 +96,7 @@ class KnowledgePlugin(CachibotPlugin):
                     for i, note in enumerate(note_results, 1):
                         tags_str = f" [{', '.join(note.tags)}]" if note.tags else ""
                         content = note.content.strip()
-                        results_parts.append(
-                            f"**[{i}] {note.title}**{tags_str}\n{content}\n"
-                        )
+                        results_parts.append(f"**[{i}] {note.title}**{tags_str}\n{content}\n")
 
                 if not results_parts:
                     return f"No results found for: {query}"
@@ -174,9 +172,7 @@ class KnowledgePlugin(CachibotPlugin):
                     for note in notes:
                         tags_str = f" [{', '.join(note.tags)}]" if note.tags else ""
                         preview = (
-                            note.content[:100] + "..."
-                            if len(note.content) > 100
-                            else note.content
+                            note.content[:100] + "..." if len(note.content) > 100 else note.content
                         )
                         parts.append(f"- **{note.title}**{tags_str}: {preview}")
                     parts.append("")

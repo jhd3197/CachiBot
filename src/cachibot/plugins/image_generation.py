@@ -65,8 +65,7 @@ class ImageGenerationPlugin(CachibotPlugin):
                     "quality": {
                         "type": "string",
                         "description": (
-                            "Image quality (OpenAI DALL-E only)."
-                            " 'hd' produces higher detail."
+                            "Image quality (OpenAI DALL-E only). 'hd' produces higher detail."
                         ),
                         "enum": ["standard", "hd"],
                         "default": "standard",
