@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from cachibot.storage.db import Base
@@ -23,11 +23,6 @@ class BotConnection(Base):
     __table_args__ = (
         Index("idx_bot_connections_bot", "bot_id"),
         Index("idx_bot_connections_status", "status"),
-        Index(
-            "idx_bot_connections_config_encrypted",
-            "config_encrypted",
-            postgresql_using="gin",
-        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -38,7 +33,7 @@ class BotConnection(Base):
         String, nullable=False, server_default="disconnected"
     )
     config_encrypted: Mapped[dict] = mapped_column(
-        JSONB, nullable=False
+        sa.JSON, nullable=False
     )
     message_count: Mapped[int] = mapped_column(
         Integer, nullable=False, server_default="0"

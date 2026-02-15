@@ -5,13 +5,13 @@ Skill and BotSkill models.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
-from typing import Optional
 
 __all__ = ["Skill", "BotSkill"]
 
@@ -22,8 +22,6 @@ class Skill(Base):
     __tablename__ = "skills"
     __table_args__ = (
         Index("idx_skills_source", "source"),
-        Index("idx_skills_tags", "tags", postgresql_using="gin"),
-        Index("idx_skills_requires_tools", "requires_tools", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -34,10 +32,10 @@ class Skill(Base):
     )
     author: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     tags: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     requires_tools: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     instructions: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(

@@ -1,7 +1,9 @@
 """
 Vector Store Service for Knowledge Base.
 
-Provides embedding generation and similarity search using fastembed + pgvector.
+Provides embedding generation and similarity search.
+Uses pgvector for native similarity search on PostgreSQL,
+or in-memory cosine similarity on SQLite.
 """
 
 import asyncio
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
     from fastembed import TextEmbedding
 
 from cachibot.models.knowledge import DocChunk
-from cachibot.storage.db import async_session_maker
+from cachibot.storage.db import async_session_maker, db_type
 from cachibot.storage.models.knowledge import DocChunk as DocChunkORM
 from cachibot.storage.repository import KnowledgeRepository
 
@@ -33,8 +35,9 @@ class VectorStore:
     """
     Vector store for document chunk embeddings.
 
-    Uses fastembed for embedding generation and pgvector for similarity search.
-    Embeddings are stored as Vector(384) in PostgreSQL via pgvector.
+    Uses fastembed for embedding generation.
+    On PostgreSQL: uses pgvector for native cosine distance search.
+    On SQLite: loads embeddings into memory and computes cosine similarity with numpy.
     """
 
     # Default embedding model (384 dimensions, good balance of quality/speed)
@@ -56,10 +59,9 @@ class VectorStore:
 
     @staticmethod
     def serialize_embedding(embedding: list[float] | np.ndarray) -> list[float]:
-        """Convert embedding to list for pgvector storage.
+        """Convert embedding to list for storage.
 
-        pgvector accepts list[float] natively via the SQLAlchemy Vector type,
-        so no binary serialization is needed.
+        Both pgvector and VectorType (SQLite) accept list[float].
         """
         if isinstance(embedding, np.ndarray):
             return embedding.tolist()
@@ -98,10 +100,10 @@ class VectorStore:
         min_score: float = 0.3,
     ) -> list[SearchResult]:
         """
-        Search for chunks similar to the query using pgvector cosine distance.
+        Search for chunks similar to the query.
 
-        Uses the HNSW index on doc_chunks.embedding for O(log N) search instead
-        of loading all embeddings into memory.
+        On PostgreSQL: uses pgvector cosine_distance() for O(log N) search.
+        On SQLite: loads embeddings into memory and uses numpy for similarity.
 
         Args:
             bot_id: Bot to search within
@@ -114,6 +116,24 @@ class VectorStore:
         """
         # Generate query embedding
         query_embedding = await self.embed_text(query)
+
+        if db_type == "postgresql":
+            return await self._search_pgvector(
+                bot_id, query_embedding, limit, min_score
+            )
+        else:
+            return await self._search_in_memory(
+                bot_id, query_embedding, limit, min_score
+            )
+
+    async def _search_pgvector(
+        self,
+        bot_id: str,
+        query_embedding: np.ndarray,
+        limit: int,
+        min_score: float,
+    ) -> list[SearchResult]:
+        """Search using pgvector's native cosine distance (PostgreSQL only)."""
         query_embedding_list = query_embedding.tolist()
 
         # pgvector cosine distance: 0 = identical, 2 = opposite
@@ -147,6 +167,60 @@ class VectorStore:
                 embedding=None,  # Don't return the embedding blob
             )
             results.append(SearchResult(chunk=chunk, score=float(similarity)))
+
+        return results
+
+    async def _search_in_memory(
+        self,
+        bot_id: str,
+        query_embedding: np.ndarray,
+        limit: int,
+        min_score: float,
+    ) -> list[SearchResult]:
+        """Search using in-memory cosine similarity (SQLite fallback)."""
+        # Load all embeddings for this bot
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(DocChunkORM)
+                .where(
+                    DocChunkORM.bot_id == bot_id,
+                    DocChunkORM.embedding.isnot(None),
+                )
+            )
+            rows = result.scalars().all()
+
+        if not rows:
+            return []
+
+        # Compute cosine similarity in-memory
+        query_norm = query_embedding / (np.linalg.norm(query_embedding) + 1e-10)
+        scored: list[tuple[float, DocChunkORM]] = []
+
+        for row in rows:
+            emb = row.embedding
+            if emb is None:
+                continue
+            emb_array = np.array(emb, dtype=np.float32)
+            emb_norm = emb_array / (np.linalg.norm(emb_array) + 1e-10)
+            similarity = float(np.dot(query_norm, emb_norm))
+            if similarity >= min_score:
+                scored.append((similarity, row))
+
+        # Sort by similarity descending, take top N
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:limit]
+
+        results: list[SearchResult] = []
+        for similarity, row_model in top:
+            chunk = DocChunk(
+                id=row_model.id,
+                document_id=row_model.document_id,
+                bot_id=row_model.bot_id,
+                chunk_index=row_model.chunk_index,
+                content=row_model.content,
+                embedding=None,
+            )
+            results.append(SearchResult(chunk=chunk, score=similarity))
 
         return results
 

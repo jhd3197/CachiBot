@@ -19,6 +19,7 @@ from rich.theme import Theme
 from cachibot import __version__
 from cachibot.agent import CachibotAgent
 from cachibot.config import Config
+from cachibot.db_commands import db_app, setup_db_app
 
 # Custom theme for Cachibot
 CACHIBOT_THEME = Theme(
@@ -41,6 +42,10 @@ app = typer.Typer(
     help="🛡️ Cachibot - The Armored AI Agent",
     no_args_is_help=False,
 )
+
+# Database management sub-commands
+app.add_typer(db_app, name="db", help="Database management commands")
+app.add_typer(setup_db_app, name="setup-db", help="Database setup wizards")
 
 
 def print_banner() -> None:

@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -25,7 +25,6 @@ class Room(Base):
     __tablename__ = "rooms"
     __table_args__ = (
         Index("idx_rooms_creator", "creator_id"),
-        Index("idx_rooms_settings", "settings", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -40,7 +39,7 @@ class Room(Base):
         Integer, nullable=False, server_default="4"
     )
     settings: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+        sa.JSON, nullable=False, server_default="{}"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -126,11 +125,6 @@ class RoomMessage(Base):
         Index("idx_room_messages_room", "room_id"),
         Index("idx_room_messages_room_timestamp", "room_id", "timestamp"),
         Index("idx_room_messages_sender", "sender_type", "sender_id"),
-        Index(
-            "idx_room_messages_metadata",
-            "metadata",
-            postgresql_using="gin",
-        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -144,7 +138,7 @@ class RoomMessage(Base):
     sender_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}"
+        "metadata", sa.JSON, nullable=False, server_default="{}"
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

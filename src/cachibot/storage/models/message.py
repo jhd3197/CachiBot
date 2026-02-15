@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -25,7 +25,6 @@ class Message(Base):
     __tablename__ = "messages"
     __table_args__ = (
         Index("idx_messages_timestamp", "timestamp"),
-        Index("idx_messages_metadata", "metadata", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -35,7 +34,7 @@ class Message(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}"
+        "metadata", sa.JSON, nullable=False, server_default="{}"
     )
 
     # Relationships
@@ -51,7 +50,6 @@ class BotMessage(Base):
     __table_args__ = (
         Index("idx_bot_messages_bot_chat", "bot_id", "chat_id"),
         Index("idx_bot_messages_timestamp", "timestamp"),
-        Index("idx_bot_messages_metadata", "metadata", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -63,6 +61,6 @@ class BotMessage(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     meta: Mapped[dict] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}"
+        "metadata", sa.JSON, nullable=False, server_default="{}"
     )
     reply_to_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)

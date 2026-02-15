@@ -7,8 +7,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -26,7 +26,6 @@ class Job(Base):
     __table_args__ = (
         Index("idx_jobs_status", "status"),
         Index("idx_jobs_message", "message_id"),
-        Index("idx_jobs_result", "result", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -47,7 +46,7 @@ class Job(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     progress: Mapped[float] = mapped_column(
         Float, nullable=False, server_default="0.0"

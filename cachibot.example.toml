@@ -74,11 +74,13 @@ embedding_model = "BAAI/bge-small-en-v1.5"
 max_history_messages = 10
 
 [database]
-# PostgreSQL connection URL
-# Override with DATABASE_URL environment variable for deployment
-# url = "postgresql+asyncpg://cachibot:cachibot@localhost:5433/cachibot"
+# Database connection URL
+# Leave empty for SQLite (default — auto-created at ~/.cachibot/cachibot.db)
+# For PostgreSQL: url = "postgresql+asyncpg://user:pass@localhost:5432/cachibot"
+# Run 'cachibot setup-db postgres' for guided setup
+# url = ""
 
-# Connection pool settings
+# Connection pool settings (PostgreSQL only)
 # pool_size = 10
 # max_overflow = 20
 # pool_recycle = 3600

@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import sqlalchemy as sa
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -18,7 +19,6 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -33,9 +33,6 @@ class Function(Base):
     __table_args__ = (
         Index("idx_functions_bot", "bot_id"),
         Index("idx_functions_name", "bot_id", "name"),
-        Index("idx_functions_steps", "steps", postgresql_using="gin"),
-        Index("idx_functions_parameters", "parameters", postgresql_using="gin"),
-        Index("idx_functions_tags", "tags", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -46,13 +43,13 @@ class Function(Base):
         String, nullable=False, server_default="1.0.0"
     )
     steps: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     parameters: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     tags: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -87,11 +84,6 @@ class Schedule(Base):
         Index("idx_schedules_bot", "bot_id"),
         Index("idx_schedules_enabled", "enabled"),
         Index("idx_schedules_next_run", "next_run_at"),
-        Index(
-            "idx_schedules_function_params",
-            "function_params",
-            postgresql_using="gin",
-        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -104,7 +96,7 @@ class Schedule(Base):
         nullable=True,
     )
     function_params: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+        sa.JSON, nullable=False, server_default="{}"
     )
     schedule_type: Mapped[str] = mapped_column(
         String, nullable=False, server_default="cron"
@@ -168,9 +160,6 @@ class Work(Base):
         Index("idx_work_schedule", "schedule_id"),
         Index("idx_work_parent", "parent_work_id"),
         Index("idx_work_chat", "bot_id", "chat_id"),
-        Index("idx_work_result", "result", postgresql_using="gin"),
-        Index("idx_work_context", "context", postgresql_using="gin"),
-        Index("idx_work_tags", "tags", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -215,13 +204,13 @@ class Work(Base):
     due_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     context: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, server_default="{}"
+        sa.JSON, nullable=False, server_default="{}"
     )
     tags: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
 
     # Relationships
@@ -263,8 +252,6 @@ class Task(Base):
         Index("idx_tasks_work", "work_id"),
         Index("idx_tasks_status", "status"),
         Index("idx_tasks_order", "work_id", "task_order"),
-        Index("idx_tasks_depends_on", "depends_on", postgresql_using="gin"),
-        Index("idx_tasks_result", "result", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -282,7 +269,7 @@ class Task(Base):
         Integer, nullable=False, server_default="0"
     )
     depends_on: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
     status: Mapped[str] = mapped_column(
         String, nullable=False, server_default="pending"
@@ -308,7 +295,7 @@ class Task(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -333,8 +320,6 @@ class WorkJob(Base):
         Index("idx_work_jobs_task", "task_id"),
         Index("idx_work_jobs_work", "work_id"),
         Index("idx_work_jobs_status", "status"),
-        Index("idx_work_jobs_result", "result", postgresql_using="gin"),
-        Index("idx_work_jobs_logs", "logs", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -368,10 +353,10 @@ class WorkJob(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     logs: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
 
     # Relationships
@@ -387,7 +372,6 @@ class Todo(Base):
         Index("idx_todos_bot", "bot_id"),
         Index("idx_todos_status", "status"),
         Index("idx_todos_remind", "remind_at"),
-        Index("idx_todos_tags", "tags", postgresql_using="gin"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -421,7 +405,7 @@ class Todo(Base):
         nullable=True,
     )
     tags: Mapped[list] = mapped_column(
-        JSONB, nullable=False, server_default="[]"
+        sa.JSON, nullable=False, server_default="[]"
     )
 
     # Relationships
