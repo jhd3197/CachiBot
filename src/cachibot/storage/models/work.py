@@ -35,7 +35,9 @@ class Function(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(String, nullable=False, server_default="1.0.0")
@@ -68,7 +70,9 @@ class Schedule(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     function_id: Mapped[str | None] = mapped_column(
@@ -114,8 +118,12 @@ class Work(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
-    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
+    chat_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("chats.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     goal: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -184,13 +192,17 @@ class Task(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     work_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("work.id", ondelete="CASCADE"),
         nullable=False,
     )
-    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("chats.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     action: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -234,7 +246,9 @@ class WorkJob(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     task_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("tasks.id", ondelete="CASCADE"),
@@ -245,7 +259,9 @@ class WorkJob(Base):
         ForeignKey("work.id", ondelete="CASCADE"),
         nullable=False,
     )
-    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    chat_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("chats.id", ondelete="SET NULL"), nullable=True
+    )
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="pending")
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     progress: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
@@ -274,8 +290,12 @@ class Todo(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
-    chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
+    chat_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("chats.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="open")

@@ -53,7 +53,9 @@ class BotSkill(Base):
         Index("idx_bot_skills_skill", "skill_id"),
     )
 
-    bot_id: Mapped[str] = mapped_column(String, primary_key=True)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), primary_key=True
+    )
     skill_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("skills.id", ondelete="CASCADE"),

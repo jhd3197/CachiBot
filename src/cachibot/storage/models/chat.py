@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Index, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -34,7 +34,9 @@ class Chat(Base):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    bot_id: Mapped[str] = mapped_column(String, nullable=False)
+    bot_id: Mapped[str] = mapped_column(
+        String, ForeignKey("bots.id", ondelete="CASCADE"), nullable=False
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     platform: Mapped[str | None] = mapped_column(String, nullable=True)
     platform_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -48,9 +50,4 @@ class Chat(Base):
     )
 
     # Relationships
-    bot: Mapped[Bot] = relationship(
-        "Bot",
-        back_populates="chats",
-        primaryjoin="Chat.bot_id == Bot.id",
-        foreign_keys=[bot_id],
-    )
+    bot: Mapped[Bot] = relationship("Bot", back_populates="chats")
