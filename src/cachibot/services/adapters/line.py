@@ -15,7 +15,7 @@ import aiohttp
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import PlatformResponse
-from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler, StatusChangeHandler
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
@@ -39,8 +39,9 @@ class LineAdapter(BasePlatformAdapter):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        super().__init__(connection, on_message)
+        super().__init__(connection, on_message, on_status_change)
         self._session: aiohttp.ClientSession | None = None
         self._channel_access_token: str = connection.config.get("channel_access_token", "")
         self._channel_secret: str = connection.config.get("channel_secret", "")

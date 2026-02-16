@@ -363,6 +363,7 @@ export type WSMessageType =
   | 'platform_message'
   | 'scheduled_notification'
   | 'document_status'
+  | 'connection_status'
   | 'approval_needed'
   | 'usage'
   | 'error'
@@ -451,6 +452,14 @@ export interface DocumentStatusPayload {
   filename?: string
 }
 
+export interface ConnectionStatusPayload {
+  connectionId: string
+  botId: string
+  status: ConnectionStatus
+  platform: string
+  error?: string
+}
+
 // Tool call tracking
 export interface ToolCall {
   id: string
@@ -488,17 +497,6 @@ export interface Connection {
   messageCount: number
   createdAt: string
   error?: string
-}
-
-export interface PlatformInfo {
-  id: ConnectionPlatform
-  name: string
-  description: string
-  icon: string
-  library: string
-  docsUrl: string
-  free: boolean
-  setupSteps: string[]
 }
 
 // =============================================================================

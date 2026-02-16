@@ -11,7 +11,12 @@ import time
 from typing import Any, ClassVar
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
-from cachibot.services.adapters.base import AdapterHealth, BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.base import (
+    AdapterHealth,
+    BasePlatformAdapter,
+    MessageHandler,
+    StatusChangeHandler,
+)
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
@@ -36,8 +41,9 @@ class ViberAdapter(BasePlatformAdapter):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        super().__init__(connection, on_message)
+        super().__init__(connection, on_message, on_status_change)
         self._session: Any = None
         self._auth_token: str = self.connection.config.get("auth_token", "")
         self._bot_name: str = self.connection.config.get("bot_name", "")

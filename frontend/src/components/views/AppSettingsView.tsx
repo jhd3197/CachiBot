@@ -55,7 +55,7 @@ import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useAuthStore } from '../../stores/auth'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
-import { useConnectionStore, useUsageStore } from '../../stores/connections'
+import { useUsageStore } from '../../stores/connections'
 import { useUpdateStore } from '../../stores/update'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
 import { checkHealth, type HealthInfo } from '../../api/client'
@@ -1335,7 +1335,6 @@ function BotDataManager() {
   const { chats, messages } = useChatStore()
   const { jobs } = useJobStore()
   const { tasks } = useTaskStore()
-  const { connections } = useConnectionStore()
   const { stats, clearBotStats } = useUsageStore()
 
   const [expandedBots, setExpandedBots] = useState<Set<string>>(new Set())
@@ -1403,10 +1402,6 @@ function BotDataManager() {
       }
     })
   }, [bots, chats, messages, jobs, tasks, stats.byBot, platformCounts])
-
-  // Get connection count for a bot (shown as preserved)
-  const getConnectionCount = (botId: string) =>
-    connections.filter((c) => c.botId === botId).length
 
   // Toggle bot expansion
   const toggleBot = (botId: string) => {
@@ -1585,7 +1580,6 @@ function BotDataManager() {
           {botDataInfos.map((info) => {
             const isExpanded = expandedBots.has(info.botId)
             const botSelected = selectedItems.get(info.botId)
-            const connectionCount = getConnectionCount(info.botId)
             const hasData =
               info.chatsCount > 0 ||
               info.jobsCount > 0 ||
@@ -1620,9 +1614,6 @@ function BotDataManager() {
                       {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
                       {info.platformChatsCount > 0 && (
                         <span className="text-cyan-400"> · {info.platformChatsCount} platform chats</span>
-                      )}
-                      {connectionCount > 0 && (
-                        <span className="text-green-400"> · {connectionCount} connections (preserved)</span>
                       )}
                     </div>
                   </div>
@@ -1720,15 +1711,6 @@ function BotDataManager() {
                           )}
                         </div>
 
-                        {/* Preserved notice */}
-                        {connectionCount > 0 && (
-                          <div className="mt-3 flex items-center gap-2 text-xs text-green-400/80">
-                            <Shield className="h-3 w-3" />
-                            <span>
-                              {connectionCount} connection{connectionCount !== 1 ? 's' : ''} will be preserved
-                            </span>
-                          </div>
-                        )}
                       </>
                     )}
                   </div>

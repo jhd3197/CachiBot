@@ -10,7 +10,12 @@ from typing import Any, ClassVar
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import IncomingMedia, PlatformResponse
-from cachibot.services.adapters.base import AdapterHealth, BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.base import (
+    AdapterHealth,
+    BasePlatformAdapter,
+    MessageHandler,
+    StatusChangeHandler,
+)
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
@@ -30,8 +35,9 @@ class SlackAdapter(BasePlatformAdapter):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        super().__init__(connection, on_message)
+        super().__init__(connection, on_message, on_status_change)
         self._app: Any = None
         self._socket_handler: Any = None
         self._task: asyncio.Task | None = None

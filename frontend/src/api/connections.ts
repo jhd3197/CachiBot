@@ -111,11 +111,17 @@ async function requestNoBody(
   }
 }
 
+// Module-level cache for platform metadata (static data that rarely changes)
+let _platformsCache: Record<string, PlatformMeta> | null = null
+
 /**
  * Fetch available platform adapters from the registry.
  */
 export async function getPlatforms(): Promise<Record<string, PlatformMeta>> {
-  return request('/api/platforms')
+  if (_platformsCache) return _platformsCache
+  const result = await request<Record<string, PlatformMeta>>('/api/platforms')
+  _platformsCache = result
+  return result
 }
 
 /**
