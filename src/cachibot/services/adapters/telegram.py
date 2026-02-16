@@ -11,7 +11,7 @@ from typing import Any, ClassVar
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import IncomingMedia, PlatformResponse
-from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler, StatusChangeHandler
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
@@ -39,8 +39,9 @@ class TelegramAdapter(BasePlatformAdapter):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        super().__init__(connection, on_message)
+        super().__init__(connection, on_message, on_status_change)
         self._bot: Any = None
         self._dispatcher: Any = None
         self._polling_task: asyncio.Task | None = None

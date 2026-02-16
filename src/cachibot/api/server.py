@@ -82,6 +82,12 @@ async def lifespan(app: FastAPI):
     # Reset stale connection statuses — after a restart they are disconnected
     await platform_manager.reset_all_statuses()
 
+    # Auto-reconnect connections that were active before restart
+    await platform_manager.auto_reconnect_all()
+
+    # Start health monitoring for active adapters
+    await platform_manager.start_health_monitor()
+
     # Start the scheduler service (polls for due schedules & reminders)
     scheduler = get_scheduler_service()
     await scheduler.start()
@@ -95,6 +101,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await job_runner.stop()
     await scheduler.stop()
+    await platform_manager.stop_health_monitor()
     # Disconnect all platform adapters
     await platform_manager.disconnect_all()
     await close_db()

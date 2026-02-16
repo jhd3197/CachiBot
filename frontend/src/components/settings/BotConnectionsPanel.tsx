@@ -61,6 +61,30 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     load()
   }, [botId])
 
+  // Listen for real-time connection status changes via WebSocket
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        connectionId: string
+        botId: string
+        status: string
+        platform: string
+        error?: string
+      }
+      // Only update connections for this bot
+      if (detail.botId !== botId) return
+      setConnections((prev) =>
+        prev.map((c) =>
+          c.id === detail.connectionId
+            ? { ...c, status: detail.status as Connection['status'], error: detail.error || null }
+            : c
+        )
+      )
+    }
+    window.addEventListener('connection-status-change', handler)
+    return () => window.removeEventListener('connection-status-change', handler)
+  }, [botId])
+
   const platformIds = Object.keys(platforms)
 
   const handleAdd = async () => {
