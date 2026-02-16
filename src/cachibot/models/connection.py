@@ -43,5 +43,6 @@ class BotConnection(BaseModel):
     message_count: int = 0
     last_activity: datetime | None = None
     error: str | None = None
+    auto_connect: bool = False
     created_at: datetime
     updated_at: datetime

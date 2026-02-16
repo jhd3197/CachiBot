@@ -90,3 +90,4 @@ website/*
 settings.local.json
 .marketing/
 settings.json
+/feedback_connection

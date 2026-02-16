@@ -18,6 +18,10 @@ MessageHandler = Callable[[str, str, str, dict], Awaitable[PlatformResponse]]
 # Args: connection_id, chat_id, user_message, metadata
 # Returns: PlatformResponse with text and optional media
 
+# Type for status change callback
+StatusChangeHandler = Callable[[str, str], Awaitable[None]]
+# Args: connection_id, new_status ("connected", "error", "disconnected")
+
 
 @dataclass
 class AdapterHealth:
@@ -43,16 +47,18 @@ class BasePlatformAdapter(ABC):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        """
-        Initialize the adapter.
+        """Initialize the adapter.
 
         Args:
-            connection: The connection configuration
-            on_message: Callback when a message is received
+            connection: The connection configuration.
+            on_message: Callback when a message is received.
+            on_status_change: Callback when the connection status changes.
         """
         self.connection = connection
         self.on_message = on_message
+        self.on_status_change = on_status_change
         self._running = False
 
     @property
@@ -64,6 +70,21 @@ class BasePlatformAdapter(ABC):
     def bot_id(self) -> str:
         """Get the bot ID."""
         return self.connection.bot_id
+
+    async def wait_until_ready(self, timeout: float = 30.0) -> None:
+        """Wait until the adapter is fully ready.
+
+        Default implementation returns immediately if _running is True.
+        Subclasses can override for platform-specific readiness checks.
+
+        Args:
+            timeout: Maximum seconds to wait.
+
+        Raises:
+            asyncio.TimeoutError: If the adapter doesn't become ready in time.
+        """
+        if self._running:
+            return
 
     @abstractmethod
     async def connect(self) -> None:

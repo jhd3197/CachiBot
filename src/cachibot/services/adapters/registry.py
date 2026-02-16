@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from cachibot.models.connection import BotConnection
-    from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler
+    from cachibot.services.adapters.base import (
+        BasePlatformAdapter,
+        MessageHandler,
+        StatusChangeHandler,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +55,14 @@ class AdapterRegistry:
         cls,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ) -> BasePlatformAdapter:
         """Create an adapter instance by looking up the connection's platform.
 
         Args:
             connection: The bot connection configuration.
             on_message: Callback for incoming messages.
+            on_status_change: Callback for connection status changes.
 
         Returns:
             An initialized adapter instance.
@@ -72,7 +78,7 @@ class AdapterRegistry:
                 f"No adapter registered for platform '{platform_name}'. "
                 f"Registered platforms: {registered}"
             )
-        return adapter_cls(connection, on_message=on_message)
+        return adapter_cls(connection, on_message=on_message, on_status_change=on_status_change)
 
     @classmethod
     def get_adapter_class(cls, platform_name: str) -> type[BasePlatformAdapter] | None:

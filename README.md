@@ -7,6 +7,7 @@
   <p><em>Visual. Transparent. Secure.</em></p>
 
   <p>
+    <a href="https://cachibot.ai">Website</a> ·
     <a href="docs/README.es.md">Español</a> ·
     <a href="docs/README.zh-CN.md">中文版</a> ·
     <a href="docs/README.pt.md">Português</a>
@@ -33,7 +34,7 @@
   </p>
 
   <p>
-    <a href="#-quick-start">Quick Start</a> ·
+    <a href="#-install">Install</a> ·
     <a href="#-features">Features</a> ·
     <a href="#-architecture">Architecture</a> ·
     <a href="#-security">Security</a> ·
@@ -45,13 +46,11 @@
 
 ---
 
-## Why Visual?
+## Why CachiBot?
 
-Most AI agents run in terminals where you can't see what's happening. That's a security nightmare.
+Most AI platforms force you to choose: chatbot UIs with no automation, workflow builders with no conversational AI, or developer frameworks that take weeks to ship.
 
-CLI-based agents operate in a black box — no visibility into running tasks, no way to monitor multiple bots, no real-time insight into what the agent is doing.
-
-**CachiBot gives you full visibility.** Watch your bots work through a dashboard, see every task and job in a clean interface, approve or reject actions before they execute, and maintain a full audit trail of everything your bots do.
+**CachiBot gives you all three.** Build specialized bots, deploy them to any messaging platform, run them in collaborative rooms, and automate workflows — all from a visual dashboard with full transparency into what your agents are doing.
 
 <p align="center">
   <img src="assets/dashboard.jpeg" alt="Dashboard" width="800" />
@@ -61,93 +60,138 @@ CLI-based agents operate in a black box — no visibility into running tasks, no
   <img src="assets/chat.png" alt="Chat Interface" width="800" />
 </p>
 
-## Features
+## Install
 
-- **Visual Dashboard** — See all your bots, their status, and activity at a glance
-- **Real-time Monitoring** — Watch tasks and jobs execute with live WebSocket updates
-- **Multi-Bot Management** — Create and manage multiple specialized bots
-- **Platform Connections** — Connect bots to Telegram, Discord, and more
-- **Knowledge Base** — Upload documents to give bots specialized knowledge
-- **Secure Sandbox** — Code runs in isolation with AST-based risk analysis
-- **Approval Flow** — Visual approval for risky operations before they execute
-- **Multi-Provider** — Kimi K2.5, Claude, OpenAI, Ollama, Groq, and more
-
-## Quick Start
-
-### 1. Install
-
-**One-line install** (Linux / macOS — installs Python, venv, and service):
+### Linux / macOS
 
 ```bash
-curl -fsSL https://cachibot.com/install.sh | bash
+curl -fsSL cachibot.ai/install.sh | bash
 ```
 
-**Or install with pip** (if you already have Python 3.10+):
+Sets up Python, a virtual environment, and a systemd service — everything you need in one command.
+
+### Windows
+
+```powershell
+irm cachibot.ai/install.ps1 | iex
+```
+
+### pip
 
 ```bash
 pip install cachibot
 ```
 
-### 2. Set your API key
-
-```bash
-# Moonshot/Kimi (default)
-export MOONSHOT_API_KEY="your-key"
-
-# Or Claude
-export ANTHROPIC_API_KEY="your-key"
-
-# Or OpenAI
-export OPENAI_API_KEY="your-key"
-```
-
-### 3. Launch
+Then start the server:
 
 ```bash
 cachibot server
 ```
 
-Open **http://localhost:6392** — the frontend is bundled and served automatically.
+Open **http://localhost:6392** — the frontend is bundled and served automatically. No separate build step.
+
+### Configure your API keys
+
+You can set API keys directly from the dashboard UI — no environment variables required. Just open the settings panel and add your keys there.
+
+If you prefer environment variables, those work too:
+
+```bash
+export OPENAI_API_KEY="your-key"       # OpenAI / GPT-4
+export ANTHROPIC_API_KEY="your-key"    # Claude
+export MOONSHOT_API_KEY="your-key"     # Kimi
+# or use Ollama locally (no key needed)
+```
 
 ### CLI Usage
 
 ```bash
-cachibot server                              # Start the dashboard
-cachibot "list all Python files"             # Run a single task
-cachibot                                     # Interactive mode
-cachibot --model anthropic/claude-sonnet-4-20250514 "explain this"  # Specific model
-cachi server                                 # Short alias
+cachibot server                    # Start the dashboard
+cachibot "summarize this project"  # Run a single task
+cachibot                           # Interactive mode
+cachi server                       # Short alias
 ```
+
+## Features
+
+### Multi-Agent Platform
+
+- **Unlimited Specialized Bots** — Create bots with custom system prompts, tool selections, and model routing
+- **Collaborative Rooms** — Run 2-4 bots together in real-time to solve complex tasks
+- **Bot Marketplace** — Pre-built templates for common use cases (code review, data analysis, writing, support)
+
+### Platform Integrations
+
+Deploy bots to **7 messaging platforms** with built-in adapters:
+
+Telegram · Discord · Slack · Microsoft Teams · WhatsApp · Viber · LINE
+
+### Multimodal AI
+
+- **Voice Conversations** — Talk to your bots with real-time speech-to-text and text-to-speech
+- **Image Generation** — DALL-E, Google Imagen, Stability AI, Grok
+- **Audio Synthesis** — OpenAI TTS, ElevenLabs
+- **12+ LLM Providers** — Claude, GPT-4, Kimi, Gemini, Ollama, Groq, and more
+
+### 50+ Built-in Tools
+
+Powered by [Tukuy](https://github.com/jhd3197/Tukuy) plugins:
+
+- File operations, sandboxed Python execution, web search
+- Knowledge base with vector search and document upload
+- Task management, scheduling (cron, interval, event-triggered), background jobs
+- Git operations, HTTP requests, SQL queries
+- Reusable functions with step-level dependencies and retries
+
+### Security & Control
+
+- **Visual Approval Flows** — Approve or reject risky operations before they execute
+- **Sandboxed Execution** — Python runs in isolation with AST-based risk analysis
+- **Workspace Isolation** — All file access scoped to the workspace
+- **Full Audit Trail** — Every action logged and visible in the dashboard
+
+## What Can You Build?
+
+- **Customer Support Bot** — Deploy to Telegram with a knowledge base of your docs, auto-answer FAQs
+- **Data Analysis Room** — 3 bots (SQL specialist + Python analyst + report writer) collaborating on insights
+- **Voice Assistant** — Talk to a bot with STT/TTS, manage tasks and reminders hands-free
+- **Content Pipeline** — Research bot + writer bot + image generator producing blog posts end-to-end
+- **DevOps Agent** — Monitor repos, run sandboxed scripts, send alerts to Slack on schedule
 
 ## Architecture
 
 ```mermaid
 graph TB
     subgraph Frontend["React Dashboard"]
-        Bots[Bots]
-        Chats[Chats]
-        Jobs[Jobs & Tasks]
+        Bots[Bots & Rooms]
+        Chats[Chats & Voice]
+        Work[Jobs, Tasks & Schedules]
         KB[Knowledge Base]
-        Conn[Connections]
+        Market[Marketplace]
     end
 
     subgraph Backend["FastAPI Backend"]
         Agent["Prompture Agent"]
-        Tools["Tool Registry"]
-        Sandbox["Sandbox Executor"]
+        Plugins["Tukuy Plugin System"]
+        Sandbox["Python Sandbox"]
+        Auth["Auth & RBAC"]
+        Scheduler["Scheduler Service"]
     end
 
-    subgraph Providers["LLM Providers"]
-        Moonshot[Moonshot/Kimi]
-        Claude[Claude]
-        OpenAI[OpenAI]
-        Ollama[Ollama]
-        Groq[Groq]
+    subgraph Providers["AI Providers"]
+        LLM["LLMs (Claude, GPT-4, Kimi, Ollama, Groq, ...)"]
+        ImgGen["Image Gen (DALL-E, Imagen, Stability)"]
+        Audio["Audio (Whisper, ElevenLabs)"]
     end
 
-    subgraph Platforms["Platform Connections"]
-        Telegram[Telegram]
-        Discord[Discord]
+    subgraph Platforms["Platform Integrations"]
+        TG[Telegram]
+        DC[Discord]
+        SL[Slack]
+        TM[Teams]
+        WA[WhatsApp]
+        VB[Viber]
+        LN[LINE]
     end
 
     Frontend -- "WebSocket / REST" --> Backend
@@ -155,15 +199,21 @@ graph TB
     Backend --> Platforms
 ```
 
-## Supported Models
+## Supported Providers
 
-| Provider | Model | Environment Variable |
-|----------|-------|---------------------|
-| Moonshot | `moonshot/kimi-k2.5` | `MOONSHOT_API_KEY` |
-| Claude | `anthropic/claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
-| OpenAI | `openai/gpt-4o` | `OPENAI_API_KEY` |
-| Ollama | `ollama/llama3.1:8b` | (local, no key needed) |
-| Groq | `groq/llama-3.1-70b` | `GROQ_API_KEY` |
+CachiBot uses [Prompture](https://github.com/jhd3197/Prompture) for model management with auto-discovery — set an API key and available models appear automatically.
+
+| Provider | Example Models | Environment Variable |
+|----------|---------------|---------------------|
+| OpenAI | GPT-4o, GPT-4, o1 | `OPENAI_API_KEY` |
+| Anthropic | Claude Sonnet, Opus, Haiku | `ANTHROPIC_API_KEY` |
+| Moonshot | Kimi K2.5 | `MOONSHOT_API_KEY` |
+| Google | Gemini Pro, Flash | `GOOGLE_API_KEY` |
+| Groq | Llama 3, Mixtral | `GROQ_API_KEY` |
+| Grok/xAI | Grok-2 | `GROK_API_KEY` |
+| Ollama | Any local model | *(no key needed)* |
+
+All keys can also be configured from the dashboard UI without touching environment variables.
 
 ## Security
 
@@ -174,9 +224,10 @@ CachiBot is built with security as a core principle. **Visibility is security** 
 Python code runs in a restricted environment:
 
 - **Import Restrictions** — Only safe modules allowed (json, math, datetime, etc.)
-- **Path Restrictions** — File access limited to the workspace
+- **Path Restrictions** — File access limited to the workspace via SecurityContext
 - **Execution Timeout** — Code killed after timeout (default: 30s)
-- **Risk Analysis** — AST-based detection of dangerous operations
+- **Risk Analysis** — AST-based scoring (SAFE / MODERATE / DANGEROUS) before execution
+- **Approval Flow** — Dangerous operations require explicit approval through the dashboard
 
 ### Always Blocked
 
@@ -185,19 +236,23 @@ These are never allowed regardless of configuration: `subprocess`, `os.system`, 
 ## Roadmap
 
 - [x] Visual dashboard with real-time monitoring
-- [x] Multi-bot management
-- [x] Sandboxed Python execution
-- [x] Multi-provider LLM support
-- [x] Knowledge base with document upload
-- [x] Telegram integration
-- [x] Discord integration
-- [x] Plugin marketplace
-- [ ] Voice interface
+- [x] Multi-bot management with marketplace templates
+- [x] Sandboxed Python execution with AST risk analysis
+- [x] Multi-provider LLM support (12+ providers)
+- [x] Knowledge base with vector search and document upload
+- [x] 7 platform integrations (Telegram, Discord, Slack, Teams, WhatsApp, Viber, LINE)
+- [x] Plugin system with 50+ tools (via Tukuy)
+- [x] Multi-agent collaborative rooms
+- [x] Voice conversations (STT/TTS)
+- [x] Image and audio generation
+- [x] Background jobs with cron/interval/event scheduling
+- [x] Work management (tasks, todos, functions)
+- [x] Authentication and role-based access control
 - [ ] Mobile companion app
 
 ## Contributing
 
-Contributions are welcome!
+Contributions are welcome! We use **Ruff** for Python formatting and **ESLint** for TypeScript.
 
 ```bash
 git clone https://github.com/jhd3197/CachiBot.git
@@ -212,13 +267,16 @@ cd frontend && npm install && npm run dev
 
 # Tests & linting
 pytest
-ruff check src/
+ruff check src/ && ruff format src/
 cd frontend && npm run lint
 ```
 
 ## Community
 
 <p align="center">
+  <a href="https://cachibot.ai">
+    <img src="https://img.shields.io/badge/Website-cachibot.ai-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website" />
+  </a>
   <a href="https://discord.gg/V9bKwYVJ">
     <img src="https://img.shields.io/badge/Discord-Join_the_community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
   </a>
@@ -233,7 +291,8 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Credits
 
-- Built with [Prompture](https://github.com/jhd3197/Prompture) for structured LLM interaction
+- Built with [Prompture](https://github.com/jhd3197/Prompture) for structured LLM interaction and multimodal drivers
+- Plugin system powered by [Tukuy](https://github.com/jhd3197/Tukuy)
 - Named after the Venezuelan *cachicamo* (armadillo)
 
 ---

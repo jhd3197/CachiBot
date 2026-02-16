@@ -927,6 +927,7 @@ class ConnectionRepository:
                 message_count=connection.message_count,
                 last_activity=connection.last_activity,
                 error=connection.error,
+                auto_connect=connection.auto_connect,
                 created_at=connection.created_at,
                 updated_at=connection.updated_at,
             )
@@ -1026,6 +1027,46 @@ class ConnectionRepository:
             await session.commit()
             return result.rowcount > 0
 
+    async def bulk_reset_connected(self) -> int:
+        """Reset all non-disconnected connections to disconnected in a single query."""
+        now = datetime.now(timezone.utc)
+        async with db.async_session_maker() as session:
+            result = await session.execute(
+                update(BotConnectionModel)
+                .where(
+                    BotConnectionModel.status.in_(
+                        [
+                            ConnectionStatus.connected.value,
+                            ConnectionStatus.connecting.value,
+                            ConnectionStatus.error.value,
+                        ]
+                    )
+                )
+                .values(status=ConnectionStatus.disconnected.value, updated_at=now)
+            )
+            await session.commit()
+            return result.rowcount
+
+    async def get_auto_connect_connections(self) -> list[BotConnection]:
+        """Get all connections marked for auto-connect."""
+        async with db.async_session_maker() as session:
+            result = await session.execute(
+                select(BotConnectionModel).where(BotConnectionModel.auto_connect.is_(True))
+            )
+            rows = result.scalars().all()
+            return [self._row_to_connection(row) for row in rows]
+
+    async def set_auto_connect(self, connection_id: str, auto_connect: bool) -> None:
+        """Set the auto_connect flag for a connection."""
+        now = datetime.now(timezone.utc)
+        async with db.async_session_maker() as session:
+            await session.execute(
+                update(BotConnectionModel)
+                .where(BotConnectionModel.id == connection_id)
+                .values(auto_connect=auto_connect, updated_at=now)
+            )
+            await session.commit()
+
     def _row_to_connection(self, row: BotConnectionModel) -> BotConnection:
         """Convert database row to BotConnection model."""
         return BotConnection(
@@ -1038,6 +1079,7 @@ class ConnectionRepository:
             message_count=row.message_count,
             last_activity=row.last_activity,
             error=row.error,
+            auto_connect=getattr(row, "auto_connect", False),
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

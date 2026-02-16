@@ -13,7 +13,12 @@ from typing import Any, ClassVar
 import aiohttp
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
-from cachibot.services.adapters.base import AdapterHealth, BasePlatformAdapter, MessageHandler
+from cachibot.services.adapters.base import (
+    AdapterHealth,
+    BasePlatformAdapter,
+    MessageHandler,
+    StatusChangeHandler,
+)
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
@@ -42,8 +47,9 @@ class WhatsAppAdapter(BasePlatformAdapter):
         self,
         connection: BotConnection,
         on_message: MessageHandler | None = None,
+        on_status_change: StatusChangeHandler | None = None,
     ):
-        super().__init__(connection, on_message)
+        super().__init__(connection, on_message, on_status_change)
         self._session: aiohttp.ClientSession | None = None
         self._phone_number_id: str = ""
         self._access_token: str = ""
