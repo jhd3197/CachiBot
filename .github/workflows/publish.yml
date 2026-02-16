@@ -182,16 +182,6 @@ jobs:
         with:
           ref: v${{ needs.release.outputs.new_version }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - name: Install CachiBot + PyInstaller
-        run: |
-          pip install -e .
-          pip install pyinstaller
-
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
 
@@ -200,6 +190,17 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot + PyInstaller
+        run: |
+          echo "${{ needs.release.outputs.new_version }}" > VERSION
+          pip install -e .
+          pip install pyinstaller
 
       - name: Build backend binary
         run: >
