@@ -5,6 +5,7 @@ Beautiful command-line interface using Typer and Rich.
 """
 
 import asyncio
+import sys
 from pathlib import Path
 
 import typer
@@ -350,6 +351,87 @@ def server(
 
     console.print(f"[info]🚀 Starting Cachibot server on http://{host}:{port}[/]")
     start_api_server(host=host, port=port, workspace=workspace, reload=reload)
+
+
+@app.command("repair")
+def repair() -> None:
+    """Repair a corrupted CachiBot installation.
+
+    Detects tilde-prefixed corrupted packages left by interrupted pip installs,
+    removes them, force-reinstalls the current version, and verifies the result.
+    """
+    from cachibot.services.update_service import repair_installation
+
+    console.print("[info]Running installation repair...[/]\n")
+    ok, detail = asyncio.run(repair_installation())
+
+    for line in detail.splitlines():
+        if "corrupted" in line.lower() or "failed" in line.lower():
+            console.print(f"  [warning]{line}[/]")
+        else:
+            console.print(f"  {line}")
+
+    console.print()
+    if ok:
+        console.print("[success]Repair completed successfully.[/]")
+    else:
+        console.print(
+            "[error]Repair failed. Try manually running:[/]\n"
+            f"  {sys.executable} -m pip install --force-reinstall --no-cache-dir cachibot"
+        )
+        raise typer.Exit(1)
+
+
+@app.command("diagnose")
+def diagnose() -> None:
+    """Run installation diagnostics and show environment info."""
+    from cachibot.services.update_service import (
+        _is_venv,
+        _python_info,
+        detect_corruption,
+        verify_installation,
+    )
+
+    console.print("[info]CachiBot Installation Diagnostics[/]\n")
+
+    # Environment info
+    py = _python_info()
+    table = Table(title="Environment")
+    table.add_column("Property", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("CachiBot Version", __version__)
+    table.add_row("Python Version", py["version"].split()[0])
+    table.add_row("Python Executable", py["executable"])
+    table.add_row("Platform", py["platform"])
+    table.add_row("Virtual Environment", str(_is_venv()))
+    table.add_row("Prefix", py["prefix"])
+    if py["prefix"] != py["base_prefix"]:
+        table.add_row("Base Prefix", py["base_prefix"])
+    console.print(table)
+    console.print()
+
+    # Corruption check
+    report = detect_corruption()
+    if report.is_corrupted:
+        console.print(f"[warning]Corruption: {report.details}[/]")
+    else:
+        console.print("[success]No corruption detected.[/]")
+
+    # Verification
+    ok, detail = verify_installation()
+    if ok:
+        console.print(f"[success]{detail}[/]")
+    else:
+        console.print(f"[error]Verification failed: {detail}[/]")
+
+    # venv warning
+    if not _is_venv():
+        console.print(
+            "\n[warning]Not running in a virtual environment. "
+            "Consider using a venv for isolation.[/]"
+        )
+
+    console.print()
 
 
 def print_help() -> None:

@@ -57,11 +57,26 @@ class ConnectionResponse(BaseModel):
     updated_at: str
     # Safe config values (excludes sensitive data like tokens)
     strip_markdown: bool = False
+    # Custom platform config (safe values only — no api_key)
+    custom_config: dict[str, str | bool] | None = None
 
     @classmethod
     def from_connection(cls, connection: BotConnection) -> "ConnectionResponse":
         # Extract safe config values
         strip_markdown = connection.config.get("strip_markdown", "false").lower() == "true"
+
+        # Expose safe custom config (base_url + capability toggles, NOT api_key)
+        custom_config: dict[str, str | bool] | None = None
+        if connection.platform.value == "custom":
+            capability_keys = [
+                "send_messages",
+                "typing_indicator",
+                "read_receipts",
+                "message_status",
+            ]
+            custom_config = {"base_url": connection.config.get("base_url", "")}
+            for key in capability_keys:
+                custom_config[key] = connection.config.get(key, "false").lower() == "true"
 
         return cls(
             id=connection.id,
@@ -77,6 +92,7 @@ class ConnectionResponse(BaseModel):
             created_at=connection.created_at.isoformat(),
             updated_at=connection.updated_at.isoformat(),
             strip_markdown=strip_markdown,
+            custom_config=custom_config,
         )
 
 
