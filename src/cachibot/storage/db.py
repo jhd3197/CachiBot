@@ -17,7 +17,7 @@ import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from sqlalchemy import event, text
+from sqlalchemy import event, inspect, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -188,6 +188,41 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def _reconcile_schema(connection) -> None:  # type: ignore[no-untyped-def]
+    """Add missing columns to existing tables.
+
+    SQLAlchemy's create_all only creates new tables — it won't ALTER existing
+    ones when the ORM model gains new columns.  This function inspects the
+    live schema, compares it to Base.metadata, and issues ALTER TABLE … ADD
+    COLUMN for anything that's missing.  Runs inside the ``begin`` block so
+    all changes are committed together.
+    """
+    inspector = inspect(connection)
+    for table in Base.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue  # create_all already handled it
+
+        existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in existing_cols:
+                continue
+
+            # Build a dialect-appropriate column type string
+            col_type = col.type.compile(dialect=connection.dialect)
+            nullable = "NULL" if col.nullable else "NOT NULL"
+            default = ""
+            if col.server_default is not None:
+                default_val = col.server_default.arg
+                # server_default.arg can be a TextClause or plain string
+                if hasattr(default_val, "text"):
+                    default_val = default_val.text
+                default = f" DEFAULT {default_val}"
+
+            ddl = f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type} {nullable}{default}"
+            logger.info("Auto-migrating: %s", ddl)
+            connection.execute(text(ddl))
+
+
 async def init_db() -> None:
     """Initialize the database connection and create tables if needed.
 
@@ -266,6 +301,9 @@ async def init_db() -> None:
 
             # Create all tables that don't exist yet
             await conn.run_sync(Base.metadata.create_all)
+
+            # Add any missing columns to existing tables (schema reconciliation)
+            await conn.run_sync(_reconcile_schema)
 
     except Exception as e:
         if db_type == "postgresql":
