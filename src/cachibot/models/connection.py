@@ -20,6 +20,7 @@ class ConnectionPlatform(str, Enum):
     teams = "teams"
     line = "line"
     viber = "viber"
+    custom = "custom"
 
 
 class ConnectionStatus(str, Enum):
