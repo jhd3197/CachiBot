@@ -21,6 +21,7 @@ class WSMessageType(str, Enum):
     MESSAGE = "message"
     PLATFORM_MESSAGE = "platform_message"  # For Telegram/Discord message sync
     SCHEDULED_NOTIFICATION = "scheduled_notification"  # Fired by the scheduler
+    CONNECTION_STATUS = "connection_status"  # Platform connection state changes
     DOCUMENT_STATUS = "document_status"  # Document processing progress
     JOB_UPDATE = "job_update"  # Job/work execution progress
     APPROVAL_NEEDED = "approval_needed"
@@ -209,6 +210,26 @@ class WSMessage(BaseModel):
         if metadata:
             payload["metadata"] = metadata
         return cls(type=WSMessageType.PLATFORM_MESSAGE, payload=payload)
+
+    @classmethod
+    def connection_status(
+        cls,
+        connection_id: str,
+        bot_id: str,
+        status: str,
+        platform: str,
+        error: str | None = None,
+    ) -> "WSMessage":
+        """Create a connection status change notification."""
+        payload: dict[str, Any] = {
+            "connectionId": connection_id,
+            "botId": bot_id,
+            "status": status,
+            "platform": platform,
+        }
+        if error:
+            payload["error"] = error
+        return cls(type=WSMessageType.CONNECTION_STATUS, payload=payload)
 
     @classmethod
     def document_status(

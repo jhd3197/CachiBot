@@ -16,6 +16,7 @@ import type {
   PlatformMessagePayload,
   ScheduledNotificationPayload,
   DocumentStatusPayload,
+  ConnectionStatusPayload,
   ApprovalPayload,
   ErrorPayload,
   UsagePayload,
@@ -162,6 +163,17 @@ export function useWebSocket() {
             ...(platformToolCalls && platformToolCalls.length > 0 ? { toolCalls: platformToolCalls } : {}),
           })
 
+          // Ensure the chat object exists in the sidebar for new platform conversations
+          const chatStore = useChatStore.getState()
+          const botId = payload.botId
+          if (botId) {
+            const existingChats = chatStore.getChatsByBot(botId)
+            const chatExists = existingChats.some(c => c.id === payload.chatId)
+            if (!chatExists) {
+              chatStore.syncPlatformChats(botId)
+            }
+          }
+
           // Record usage to dashboard stats for assistant messages with usage data
           if (payload.role === 'assistant' && payload.metadata) {
             const tokens = payload.metadata.tokens as number | undefined
@@ -212,6 +224,15 @@ export function useWebSocket() {
               documents: { ...state.documents, [payload.botId]: updated },
             }))
           }
+          break
+        }
+
+        case 'connection_status': {
+          const payload = msg.payload as ConnectionStatusPayload
+          // Emit a custom event so BotConnectionsPanel can listen
+          window.dispatchEvent(
+            new CustomEvent('connection-status-change', { detail: payload })
+          )
           break
         }
 

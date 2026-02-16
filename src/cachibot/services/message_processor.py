@@ -317,6 +317,19 @@ class MessageProcessor:
             agent_config = copy.deepcopy(self._config)
             agent_config.agent.model = bot.models["default"]
 
+        # Send typing indicator before agent processing
+        connection_id = metadata.get("connection_id")
+        if connection_id:
+            try:
+                from cachibot.services.platform_manager import get_platform_manager
+
+                pm = get_platform_manager()
+                adapter = pm.get_adapter(connection_id)
+                if adapter:
+                    await adapter.send_typing(platform_chat_id)
+            except Exception as e:
+                logger.debug(f"Failed to send typing indicator: {e}")
+
         # Create agent with bot capabilities for tool access
         agent = CachibotAgent(
             config=agent_config,
