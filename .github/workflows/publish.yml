@@ -119,7 +119,7 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
 
       - name: Setup Python
@@ -188,7 +188,7 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
 
       - uses: actions/setup-python@v5
@@ -264,7 +264,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: desktop
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Download backend binary
         uses: actions/download-artifact@v4
