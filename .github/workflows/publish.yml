@@ -1,4 +1,4 @@
-name: Publish to PyPI and GitHub Release
+name: Release — PyPI + Desktop
 
 on:
   push:
@@ -10,20 +10,28 @@ permissions:
   pull-requests: read
 
 jobs:
+  # =========================================================================
+  # 1. Tag, create GitHub Release, publish to PyPI
+  # =========================================================================
   release:
     runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump_version.outputs.new_version }}
+      new_tag: ${{ steps.bump_version.outputs.new_tag }}
+      release_id: ${{ steps.create_release.outputs.id }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Ignore bot
+      - name: Ignore bot commits
         if: github.actor == 'github-actions[bot]'
         run: |
-          echo "Commit made by GitHub Actions. Exiting."
+          echo "Commit made by GitHub Actions — skipping."
           exit 0
 
-      - name: Bump Version and Push Tag
+      - name: Bump version and push tag
         id: bump_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
@@ -32,81 +40,77 @@ jobs:
           default_bump: patch
           tag_prefix: 'v'
 
-      - name: Update VERSION (main only)
+      - name: Update VERSION file
         run: |
           echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f VERSION
-          git commit -m "🔖 Version v${{ steps.bump_version.outputs.new_version }} [skip ci]" || true
+          git commit -m "v${{ steps.bump_version.outputs.new_version }} [skip ci]" || true
           git push origin main || true
 
-      - name: Fetch Latest Pull Request Info
+      - name: Fetch latest PR info
         id: fetch_pr
         uses: actions/github-script@v6
         with:
           script: |
-            // Get the latest merged PR from dev to main
             const prs = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'closed',
-              base: 'main',
-              head: 'dev',
-              sort: 'updated',
-              direction: 'desc',
-              per_page: 1
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'closed', base: 'main', head: 'dev',
+              sort: 'updated', direction: 'desc', per_page: 1,
             });
-
             if (prs.data.length > 0) {
               const pr = prs.data[0];
-              const prTitle = pr.title;
-              const prBody = pr.body || 'No description provided';
-              const prNumber = pr.number;
-              const prUrl = pr.html_url;
-              const prAuthor = pr.user.login;
-
-              // Format PR body to remove any markdown or special characters if needed
-              const formattedBody = prBody.replace(/\r\n/g, '\n');
-
-              const releaseInfo = {
-                title: prTitle,
-                body: formattedBody,
-                number: prNumber,
-                url: prUrl,
-                author: prAuthor
+              return {
+                title: pr.title,
+                body: (pr.body || 'No description provided').replace(/\r\n/g, '\n'),
+                number: pr.number,
+                url: pr.html_url,
+                author: pr.user.login,
               };
-
-              console.log('Latest PR Info:', releaseInfo);
-              return releaseInfo;
-            } else {
-              console.log('No recent PRs from dev to main found');
-              return null;
             }
+            return null;
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: create_release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.bump_version.outputs.new_version }}
-          release_name: v${{ steps.bump_version.outputs.new_version }}
+          name: v${{ steps.bump_version.outputs.new_version }}
           body: |
+            ## Downloads
+
+            ### Desktop App
+            | Platform | Download | Size |
+            |----------|----------|------|
+            | **Windows** (x64) | [`CachiBot-Setup-${{ steps.bump_version.outputs.new_version }}-win.exe`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-Setup-${{ steps.bump_version.outputs.new_version }}-win.exe) | — |
+            | **macOS** (Universal) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg) | — |
+            | **Linux** (x64 AppImage) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.AppImage`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.AppImage) | — |
+            | **Linux** (x64 .deb) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb) | — |
+
+            > Desktop downloads become available once the build pipeline completes (~10 min after release).
+
+            ### Python Package (pip)
+            ```bash
+            pip install cachibot==${{ steps.bump_version.outputs.new_version }}
+            ```
+
+            ---
+
             ## Changes
             ${{ steps.fetch_pr.outputs.result != 'null' && fromJSON(steps.fetch_pr.outputs.result).body || 'Version update' }}
 
             ## Details
-            - Version: v${{ steps.bump_version.outputs.new_version }}
+            - Version: `v${{ steps.bump_version.outputs.new_version }}`
             ${{ steps.fetch_pr.outputs.result != 'null' && format('- PR: #{0} by @{1}', fromJSON(steps.fetch_pr.outputs.result).number, fromJSON(steps.fetch_pr.outputs.result).author) || '' }}
             ${{ steps.fetch_pr.outputs.result != 'null' && format('- PR URL: {0}', fromJSON(steps.fetch_pr.outputs.result).url) || '' }}
           draft: false
           prerelease: false
 
-      - name: Fetch all tags so setuptools_scm can detect the tag
-        run: |
-          git fetch --all --tags --prune
-          git tag --list
-          git describe --tags --long || true
+      # --- Build & Publish to PyPI ---
+
+      - name: Fetch all tags
+        run: git fetch --all --tags --prune
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -119,41 +123,175 @@ jobs:
           npm run build
 
       - name: Setup Python
-        uses: actions/setup-python@v4
-        with: { python-version: '3.x' }
+        uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
 
       - name: Cache pip
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          key: ${{ runner.os }}-pip-publish
+          restore-keys: ${{ runner.os }}-pip-
 
-      - name: Install build deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+      - name: Install build tools
+        run: pip install --upgrade pip build twine
 
       - name: Set version in pyproject.toml
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.bump_version.outputs.new_version }}"/' pyproject.toml
-          echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
-          grep '^version' pyproject.toml
+          VERSION="${{ steps.bump_version.outputs.new_version }}"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          echo "$VERSION" > VERSION
 
       - name: Fix README images for PyPI
         run: |
           sed -i 's|src="assets/|src="https://raw.githubusercontent.com/${{ github.repository }}/main/assets/|g' README.md
           sed -i 's|href="docs/|href="https://github.com/${{ github.repository }}/blob/main/docs/|g' README.md
 
-      - name: Build (release)
-        run: |
-          python -m build -o dist/cachibot
+      - name: Build Python package
+        run: python -m build -o dist/cachibot
 
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: python -m twine upload dist/cachibot/* --non-interactive
+
+  # =========================================================================
+  # 2. Build Python backend binary with PyInstaller  (3 platforms)
+  # =========================================================================
+  build-backend:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: backend-linux
+            data_sep: ':'
+          - os: macos-latest
+            artifact: backend-mac
+            data_sep: ':'
+          - os: windows-latest
+            artifact: backend-win
+            data_sep: ';'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot + PyInstaller
         run: |
-          ls -al dist/cachibot
-          python -m twine upload dist/cachibot/* --non-interactive
+          pip install -e .
+          pip install pyinstaller
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build backend binary
+        run: >
+          pyinstaller
+          --onefile
+          --name cachibot-server
+          --hidden-import=uvicorn.logging
+          --hidden-import=uvicorn.loops.auto
+          --hidden-import=uvicorn.protocols.http.auto
+          --hidden-import=uvicorn.protocols.websockets.auto
+          --hidden-import=uvicorn.lifespan.on
+          --hidden-import=asyncpg
+          --hidden-import=aiosqlite
+          --hidden-import=sqlite_vec
+          --hidden-import=fastembed
+          --hidden-import=cachibot.api.routes
+          --hidden-import=cachibot.plugins
+          --hidden-import=cachibot.services
+          --hidden-import=cachibot.storage
+          --add-data "src/cachibot${{ matrix.data_sep }}cachibot"
+          --add-data "frontend/dist${{ matrix.data_sep }}cachibot/frontend_dist"
+          desktop/pyinstaller-server.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/cachibot-server*
+
+  # =========================================================================
+  # 3. Build Electron desktop app  (3 platforms)
+  # =========================================================================
+  build-desktop:
+    needs: [release, build-backend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            backend_artifact: backend-linux
+          - os: macos-latest
+            platform: mac
+            backend_artifact: backend-mac
+          - os: windows-latest
+            platform: win
+            backend_artifact: backend-win
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Set desktop app version
+        working-directory: desktop
+        run: npm version ${{ needs.release.outputs.new_version }} --no-git-tag-version
+
+      - name: Install Electron dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.backend_artifact }}
+          path: build/backend
+
+      - name: Make backend executable
+        if: matrix.platform != 'win'
+        run: chmod +x build/backend/cachibot-server
+
+      # macOS code signing
+      - name: Import macOS certificates
+        if: matrix.platform == 'mac'
+        uses: apple-actions/import-codesign-certs@v2
+        continue-on-error: true
+        with:
+          p12-file-base64: ${{ secrets.MAC_CERTS_P12 }}
+          p12-password: ${{ secrets.MAC_CERTS_PASSWORD }}
+
+      # Build and upload to the GitHub Release
+      - name: Build Electron app
+        working-directory: desktop
+        run: npx electron-builder --${{ matrix.platform }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
