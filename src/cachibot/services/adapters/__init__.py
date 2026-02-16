@@ -1,6 +1,7 @@
 """Platform adapters for messaging integrations."""
 
 # Import adapter modules so @register decorators execute
+import cachibot.services.adapters.custom  # noqa: F401
 import cachibot.services.adapters.discord  # noqa: F401
 import cachibot.services.adapters.line  # noqa: F401
 import cachibot.services.adapters.slack  # noqa: F401

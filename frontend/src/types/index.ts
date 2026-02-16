@@ -483,6 +483,7 @@ export type ConnectionPlatform =
   | 'messenger'
   | 'matrix'
   | 'email'
+  | 'custom'
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 

@@ -38,6 +38,7 @@ from cachibot.api.routes import (
     update,
     work,
 )
+from cachibot.api.routes.webhooks import custom as wh_custom
 from cachibot.api.routes.webhooks import line as wh_line
 from cachibot.api.routes.webhooks import teams as wh_teams
 from cachibot.api.routes.webhooks import viber as wh_viber
@@ -65,6 +66,26 @@ async def lifespan(app: FastAPI):
     import logging
 
     startup_logger = logging.getLogger("cachibot.startup")
+
+    # ---- Installation health check (P1) ----
+    try:
+        from cachibot.services.update_service import (
+            cleanup_corrupted_packages,
+            detect_corruption,
+        )
+
+        report = detect_corruption()
+        if report.is_corrupted:
+            startup_logger.warning("Installation corruption detected: %s", report.details)
+            removed = cleanup_corrupted_packages()
+            if removed:
+                startup_logger.info(
+                    "Auto-cleaned %d corrupted artifact(s): %s",
+                    len(removed),
+                    ", ".join(removed),
+                )
+    except Exception as exc:
+        startup_logger.debug("Corruption check skipped: %s", exc)
 
     # Startup — initialize database
     try:
@@ -178,6 +199,7 @@ def create_app(
     app.include_router(wh_teams.router, tags=["webhooks"])
     app.include_router(wh_line.router, tags=["webhooks"])
     app.include_router(wh_viber.router, tags=["webhooks"])
+    app.include_router(wh_custom.router, tags=["webhooks"])
 
     # Check if frontend dist exists
     if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
