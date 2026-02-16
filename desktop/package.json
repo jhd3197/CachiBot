@@ -1,0 +1,83 @@
+{
+  "name": "cachibot-desktop",
+  "version": "0.2.23",
+  "description": "CachiBot - The Armored AI Agent (Desktop App)",
+  "main": "main.js",
+  "author": {
+    "name": "Juan Denis",
+    "email": "juan@vene.co"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.cachibot.desktop",
+    "productName": "CachiBot",
+    "copyright": "Copyright © 2025-2026 Juan Denis",
+    "directories": {
+      "output": "../release",
+      "buildResources": "../build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/backend/",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "../assets/hero.png",
+      "artifactName": "CachiBot-Setup-${version}-win.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "icon": "../assets/hero.png",
+      "artifactName": "CachiBot-${version}-mac.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "../build/entitlements.mac.plist",
+      "entitlementsInherit": "../build/entitlements.mac.plist"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "icon": "../assets/hero.png",
+      "artifactName": "CachiBot-${version}-linux.${ext}",
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "jhd3197",
+      "repo": "cachibot"
+    }
+  }
+}
