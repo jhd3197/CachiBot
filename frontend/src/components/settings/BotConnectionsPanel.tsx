@@ -6,9 +6,9 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react'
 import * as connectionsApi from '../../api/connections'
-import type { Connection, ConnectionPlatform, PlatformMeta } from '../../api/connections'
+import type { Connection, ConnectionPlatform, PlatformMeta, CustomPlatformSpec } from '../../api/connections'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { syncBot, getPlatformChatsIncludingArchived, unarchivePlatformChat, deletePlatformChat, type PlatformChat } from '../../api/client'
 
@@ -28,6 +28,10 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
   const [archivedChats, setArchivedChats] = useState<PlatformChat[]>([])
   const [loadingArchived, setLoadingArchived] = useState(false)
   const [archiveActionLoading, setArchiveActionLoading] = useState<string | null>(null)
+
+  // Custom platform spec
+  const [customSpec, setCustomSpec] = useState<CustomPlatformSpec | null>(null)
+  const [copiedText, setCopiedText] = useState<string | null>(null)
 
   // Form state
   const [isAdding, setIsAdding] = useState(false)
@@ -84,6 +88,19 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     window.addEventListener('connection-status-change', handler)
     return () => window.removeEventListener('connection-status-change', handler)
   }, [botId])
+
+  // Load custom spec when custom platform is selected
+  useEffect(() => {
+    if (formPlatform === 'custom' && !customSpec) {
+      connectionsApi.getCustomSpec().then(setCustomSpec).catch(() => {})
+    }
+  }, [formPlatform, customSpec])
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedText(text)
+    setTimeout(() => setCopiedText(null), 2000)
+  }
 
   const platformIds = Object.keys(platforms)
 
@@ -418,6 +435,27 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                     {connection.error && (
                       <div className="mt-1 text-xs text-red-400">{connection.error}</div>
                     )}
+                    {connection.platform === 'custom' && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <code className="text-xs text-cachi-400 truncate max-w-[280px]">
+                          {window.location.origin}/api/webhooks/custom/{connection.id}
+                        </code>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyToClipboard(`${window.location.origin}/api/webhooks/custom/${connection.id}`)
+                          }}
+                          className="rounded p-0.5 text-zinc-500 hover:text-cachi-400"
+                          title="Copy webhook URL"
+                        >
+                          {copiedText === `${window.location.origin}/api/webhooks/custom/${connection.id}` ? (
+                            <Check className="h-3 w-3 text-green-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -494,6 +532,73 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             />
           </div>
           {renderConfigFields(formPlatform, false)}
+          {/* Custom platform: API Key + API Contract docs */}
+          {formPlatform === 'custom' && (
+            <>
+              <div className="space-y-2">
+                <label className="block text-xs text-zinc-500">
+                  API Key (optional)
+                </label>
+                <input
+                  type="password"
+                  value={formConfig['api_key'] || ''}
+                  onChange={(e) => setFormConfig({ ...formConfig, api_key: e.target.value })}
+                  placeholder="Shared secret for webhook authentication"
+                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+                />
+                <p className="text-xs text-zinc-600">
+                  If set, CachiBot will require this key on inbound webhooks and send it on outbound requests.
+                </p>
+              </div>
+              {customSpec && (
+                <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    API Contract
+                  </div>
+                  {/* Inbound webhook */}
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-zinc-400">Inbound Webhook</div>
+                    <p className="text-xs text-zinc-500">
+                      Your platform POSTs messages to this URL (available after creating the connection):
+                    </p>
+                    <code className="block rounded bg-zinc-800 px-2 py-1 text-xs text-cachi-400">
+                      POST {window.location.origin}/api/webhooks/custom/{'<connection_id>'}
+                    </code>
+                    <div className="mt-1 text-xs text-zinc-500">Expected JSON body:</div>
+                    <pre className="rounded bg-zinc-800 px-2 py-1.5 text-xs text-zinc-300 overflow-x-auto">
+{JSON.stringify(customSpec.inbound.example, null, 2)}
+                    </pre>
+                  </div>
+                  {/* Outbound endpoints */}
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-zinc-400">Outbound Endpoints</div>
+                    <p className="text-xs text-zinc-500">
+                      CachiBot will POST to these endpoints on your API:
+                    </p>
+                    <div className="space-y-1">
+                      {customSpec.outbound.map((ep) => {
+                        const isActive = ep.default
+                          ? formConfig[ep.capability] !== 'false'
+                          : formConfig[ep.capability] === 'true'
+                        return (
+                          <div key={ep.capability} className="flex items-center gap-2 text-xs">
+                            <span className={isActive ? 'text-green-400' : 'text-zinc-600'}>
+                              {isActive ? '\u25CF' : '\u25CB'}
+                            </span>
+                            <code className="text-zinc-400">{ep.endpoint}</code>
+                            <span className={isActive ? 'text-green-400' : 'text-zinc-600'}>
+                              {isActive ? 'active' : 'inactive'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           <div className="flex gap-2">
             <button
               onClick={handleAdd}

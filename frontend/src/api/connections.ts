@@ -25,6 +25,14 @@ export interface Connection {
   updated_at: string
   // Safe config values (excludes sensitive data like tokens)
   strip_markdown: boolean
+  // Custom platform config (safe values only — no api_key)
+  custom_config?: {
+    base_url: string
+    send_messages: boolean
+    typing_indicator: boolean
+    read_receipts: boolean
+    message_status: boolean
+  } | null
 }
 
 export interface ConnectionCreate {
@@ -189,4 +197,29 @@ export async function disconnectPlatform(
   return request(`${API_BASE}/${botId}/connections/${connectionId}/disconnect`, {
     method: 'POST',
   })
+}
+
+/** Custom platform API spec. */
+export interface CustomPlatformSpec {
+  inbound: {
+    description: string
+    method: string
+    url_template: string
+    headers: Record<string, string>
+    body: Record<string, { type: string; required: boolean; description: string }>
+    example: Record<string, unknown>
+  }
+  outbound: {
+    endpoint: string
+    capability: string
+    default: boolean
+    body: Record<string, unknown>
+  }[]
+}
+
+/**
+ * Fetch the Custom platform API contract / spec.
+ */
+export async function getCustomSpec(): Promise<CustomPlatformSpec> {
+  return request('/api/platforms/custom/spec')
 }

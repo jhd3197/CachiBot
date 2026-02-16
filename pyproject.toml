@@ -35,7 +35,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "prompture>=1.0.28",
+    "prompture>=1.0.31",
     "tukuy>=0.0.22",
     "typer>=0.12.0",
     "rich>=13.0.0",

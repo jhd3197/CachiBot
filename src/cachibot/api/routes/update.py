@@ -6,14 +6,19 @@ from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
 from cachibot.models.update import (
     UpdateCheckResponse,
+    UpdateDiagnosticsResponse,
     UpdatePerformRequest,
     UpdatePerformResponse,
     UpdateRestartResponse,
 )
 from cachibot.services.update_service import (
+    _is_venv,
+    _python_info,
     check_for_updates,
+    detect_corruption,
     perform_update,
     restart_server,
+    verify_installation,
 )
 
 router = APIRouter()
@@ -64,4 +69,26 @@ async def restart(
     return UpdateRestartResponse(
         restarting=True,
         message=f"Server restarting on {server_host}:{server_port}...",
+    )
+
+
+@router.get("/update/diagnostics", response_model=UpdateDiagnosticsResponse)
+async def diagnostics(
+    user: User = Depends(get_current_user),
+) -> UpdateDiagnosticsResponse:
+    """Run installation diagnostics: corruption check, verify, environment info."""
+    report = detect_corruption()
+    ok, verify_detail = verify_installation()
+    py_info = _python_info()
+
+    return UpdateDiagnosticsResponse(
+        is_corrupted=report.is_corrupted,
+        corrupted_artifacts=report.corrupted_dirs + report.corrupted_dists,
+        corruption_details=report.details,
+        install_verified=ok,
+        verify_detail=verify_detail,
+        python_version=py_info["version"],
+        python_executable=py_info["executable"],
+        platform=py_info["platform"],
+        is_venv=_is_venv(),
     )

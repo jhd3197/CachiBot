@@ -40,3 +40,17 @@ class UpdateRestartResponse(BaseModel):
 
     restarting: bool
     message: str
+
+
+class UpdateDiagnosticsResponse(BaseModel):
+    """Response from installation diagnostics."""
+
+    is_corrupted: bool = False
+    corrupted_artifacts: list[str] = []
+    corruption_details: str = ""
+    install_verified: bool = False
+    verify_detail: str = ""
+    python_version: str = ""
+    python_executable: str = ""
+    platform: str = ""
+    is_venv: bool = False
