@@ -160,9 +160,7 @@ class CustomAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.debug(f"Custom adapter send_read_receipt error: {e}")
 
-    async def send_message_status(
-        self, chat_id: str, message_id: str, status: str
-    ) -> None:
+    async def send_message_status(self, chat_id: str, message_id: str, status: str) -> None:
         """POST a message status to {base_url}/status if enabled."""
         if not self._capability_enabled("message_status"):
             return

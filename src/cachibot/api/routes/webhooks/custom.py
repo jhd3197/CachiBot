@@ -68,9 +68,7 @@ async def handle_custom_webhook(
                 api_key = auth_header[len("Bearer ") :]
 
         if api_key != expected_key:
-            logger.warning(
-                f"Custom webhook: API key mismatch for connection {connection_id}"
-            )
+            logger.warning(f"Custom webhook: API key mismatch for connection {connection_id}")
             raise HTTPException(status_code=403, detail="Invalid API key")
 
     # Get the adapter

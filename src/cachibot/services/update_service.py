@@ -190,10 +190,7 @@ def verify_installation(expected_version: str | None = None) -> tuple[bool, str]
         return False, f"Cannot load {_PKG_NAME} metadata: {exc}"
 
     if expected_version and installed_version != expected_version:
-        return False, (
-            f"Version mismatch: expected {expected_version}, "
-            f"got {installed_version}"
-        )
+        return False, (f"Version mismatch: expected {expected_version}, got {installed_version}")
 
     # Smoke-test critical submodules
     critical_modules = [
@@ -378,9 +375,7 @@ async def _pip_install_with_retry(
             return last_rc, last_output
 
         if attempt < max_retries:
-            logger.warning(
-                "pip install failed (exit %d), retrying in %.1fs...", last_rc, backoff
-            )
+            logger.warning("pip install failed (exit %d), retrying in %.1fs...", last_rc, backoff)
             # Clean up any corruption left by the failed attempt before retrying
             await asyncio.to_thread(cleanup_corrupted_packages)
             await asyncio.sleep(backoff)
@@ -560,8 +555,14 @@ async def restart_server(host: str, port: int) -> None:
     releases file locks before the new server starts.
     """
     server_cmd = [
-        sys.executable, "-m", "cachibot", "server",
-        "--host", host, "--port", str(port),
+        sys.executable,
+        "-m",
+        "cachibot",
+        "server",
+        "--host",
+        host,
+        "--port",
+        str(port),
     ]
 
     if sys.platform == "win32":
@@ -582,7 +583,8 @@ async def restart_server(host: str, port: int) -> None:
         tmp.close()
 
         await asyncio.create_subprocess_exec(
-            sys.executable, tmp.name,
+            sys.executable,
+            tmp.name,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
             creationflags=0x00000200 | 0x00000008,  # DETACHED
