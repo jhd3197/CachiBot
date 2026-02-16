@@ -220,15 +220,6 @@ def main(
 
         cachibot --model claude/claude-sonnet-4-20250514 "explain this code"
     """
-    # Python version gate (P2)
-    if sys.version_info < (3, 10):
-        console.print(
-            f"[error]CachiBot requires Python 3.10+, but you are running "
-            f"Python {sys.version_info.major}.{sys.version_info.minor}.[/]\n"
-            "Please install a supported Python version from https://python.org"
-        )
-        raise typer.Exit(1)
-
     # Handle version flag
     if version:
         console.print(f"Cachibot v{__version__}")

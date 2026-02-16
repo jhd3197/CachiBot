@@ -64,18 +64,8 @@ FRONTEND_DIST = _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _D
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     import logging
-    import sys
 
     startup_logger = logging.getLogger("cachibot.startup")
-
-    # ---- Python version gate (P2) ----
-    if sys.version_info < (3, 10):
-        startup_logger.error(
-            "CachiBot requires Python 3.10+, but you are running %s. "
-            "Please install a supported Python version.",
-            sys.version,
-        )
-        raise SystemExit(1)
 
     # ---- Installation health check (P1) ----
     try:
