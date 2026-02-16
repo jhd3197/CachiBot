@@ -7,6 +7,7 @@
     "name": "Juan Denis",
     "email": "juan@vene.co"
   },
+  "homepage": "https://cachibot.ai",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -55,8 +56,8 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["universal"] },
-        { "target": "zip", "arch": ["universal"] }
+        { "target": "dmg" },
+        { "target": "zip" }
       ],
       "icon": "../assets/hero.png",
       "artifactName": "CachiBot-${version}-mac.${ext}",
@@ -77,7 +78,8 @@
     "publish": {
       "provider": "github",
       "owner": "jhd3197",
-      "repo": "cachibot"
+      "repo": "cachibot",
+      "releaseType": "release"
     }
   }
 }
