@@ -1,7 +1,7 @@
 # Per-Bot Environment Variable System — Complete Architecture
 
 **Date**: 2026-02-16
-**Status**: Design Complete — Ready for Implementation
+**Status**: Implemented (Phase 1 — no Prompture/Tukuy changes needed)
 **Scope**: CachiBotV2, Prompture, Tukuy, CachiBot Website
 
 ---
