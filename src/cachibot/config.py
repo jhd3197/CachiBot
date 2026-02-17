@@ -168,6 +168,20 @@ class DatabaseConfig:
 
 
 @dataclass
+class TelemetryConfig:
+    """Anonymous telemetry configuration (opt-in, disabled by default)."""
+
+    enabled: bool = False
+    install_id: str = ""  # Generated UUID v4 on first run
+    terms_accepted: bool = False
+    terms_version: str = ""
+    terms_accepted_at: str = ""  # ISO timestamp
+    matomo_url: str = "https://matomo.builditdesign.com/matomo.php"
+    matomo_site_id: str = "7"
+    last_sent: str = ""  # ISO timestamp of last telemetry batch
+
+
+@dataclass
 class Config:
     """
     Main configuration container for Cachibot.
@@ -188,6 +202,7 @@ class Config:
     auth: AuthConfig = field(default_factory=AuthConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
+    telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
 
     # Runtime paths
     workspace_path: Path = field(default_factory=Path.cwd)
@@ -310,6 +325,10 @@ class Config:
         if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
             self.platform.website_url = website_url
 
+        # Telemetry override — CACHIBOT_TELEMETRY_DISABLED=1 force-disables
+        if os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes"):
+            self.telemetry.enabled = False
+
     def _load_from_file(self, path: Path) -> None:
         """Load configuration from a TOML file."""
 
@@ -407,6 +426,97 @@ class Config:
                 self.database.pool_recycle = db_data["pool_recycle"]
             if "echo" in db_data:
                 self.database.echo = db_data["echo"]
+
+        if telemetry_data := data.get("telemetry"):
+            if "enabled" in telemetry_data:
+                self.telemetry.enabled = telemetry_data["enabled"]
+            if "install_id" in telemetry_data:
+                self.telemetry.install_id = telemetry_data["install_id"]
+            if "terms_accepted" in telemetry_data:
+                self.telemetry.terms_accepted = telemetry_data["terms_accepted"]
+            if "terms_version" in telemetry_data:
+                self.telemetry.terms_version = telemetry_data["terms_version"]
+            if "terms_accepted_at" in telemetry_data:
+                self.telemetry.terms_accepted_at = telemetry_data["terms_accepted_at"]
+            if "matomo_url" in telemetry_data:
+                self.telemetry.matomo_url = telemetry_data["matomo_url"]
+            if "matomo_site_id" in telemetry_data:
+                self.telemetry.matomo_site_id = telemetry_data["matomo_site_id"]
+            if "last_sent" in telemetry_data:
+                self.telemetry.last_sent = telemetry_data["last_sent"]
+
+    def save_telemetry_config(self) -> None:
+        """Persist telemetry settings to the user config file (~/.cachibot.toml).
+
+        Uses a simple read-modify-write approach: loads the existing file,
+        updates just the [telemetry] section, and writes it back. If the file
+        doesn't exist yet it is created with only the telemetry section.
+        """
+        user_config = Path.home() / ".cachibot.toml"
+
+        try:
+            # Try to import tomli_w for writing TOML
+            import tomli_w
+        except ImportError:
+            # Fallback: write a minimal TOML snippet manually
+            self._save_telemetry_manual(user_config)
+            return
+
+        data: dict[str, Any] = {}
+        if user_config.exists() and tomllib is not None:
+            try:
+                with open(user_config, "rb") as f:
+                    data = tomllib.load(f)
+            except Exception:
+                pass
+
+        data["telemetry"] = {
+            "enabled": self.telemetry.enabled,
+            "install_id": self.telemetry.install_id,
+            "terms_accepted": self.telemetry.terms_accepted,
+            "terms_version": self.telemetry.terms_version,
+            "terms_accepted_at": self.telemetry.terms_accepted_at,
+            "last_sent": self.telemetry.last_sent,
+        }
+
+        try:
+            with open(user_config, "wb") as f:
+                tomli_w.dump(data, f)
+        except Exception as exc:
+            logger.debug("Failed to write telemetry config: %s", exc)
+
+    def _save_telemetry_manual(self, path: Path) -> None:
+        """Write telemetry config without tomli_w (plain-text TOML append)."""
+        import re
+
+        t = self.telemetry
+        section = (
+            "\n[telemetry]\n"
+            f"enabled = {'true' if t.enabled else 'false'}\n"
+            f'install_id = "{t.install_id}"\n'
+            f"terms_accepted = {'true' if t.terms_accepted else 'false'}\n"
+            f'terms_version = "{t.terms_version}"\n'
+            f'terms_accepted_at = "{t.terms_accepted_at}"\n'
+            f'last_sent = "{t.last_sent}"\n'
+        )
+
+        try:
+            if path.exists():
+                content = path.read_text(encoding="utf-8")
+                # Remove existing [telemetry] section if present
+                content = re.sub(
+                    r"\n?\[telemetry\][^\[]*",
+                    "",
+                    content,
+                    flags=re.DOTALL,
+                )
+                content = content.rstrip() + "\n" + section
+            else:
+                content = section.lstrip()
+
+            path.write_text(content, encoding="utf-8")
+        except Exception as exc:
+            logger.debug("Failed to write telemetry config (manual): %s", exc)
 
     def is_path_allowed(self, path: Path | str) -> bool:
         """

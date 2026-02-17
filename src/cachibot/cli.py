@@ -48,6 +48,10 @@ app = typer.Typer(
 app.add_typer(db_app, name="db", help="Database management commands")
 app.add_typer(setup_db_app, name="setup-db", help="Database setup wizards")
 
+# Telemetry sub-commands
+telemetry_app = typer.Typer(name="telemetry", help="Anonymous telemetry management")
+app.add_typer(telemetry_app, name="telemetry")
+
 
 def print_banner() -> None:
     """Print the Cachibot banner."""
@@ -490,6 +494,75 @@ def diagnose() -> None:
         )
 
     console.print()
+
+
+@telemetry_app.command("status")
+def telemetry_status() -> None:
+    """Show current telemetry state."""
+    import os
+
+    config = Config.load()
+    t = config.telemetry
+
+    env_disabled = os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes")
+
+    table = Table(title="Telemetry Status")
+    table.add_column("Setting", style="cyan")
+    table.add_column("Value", style="green")
+
+    effective_enabled = t.enabled and not env_disabled
+    table.add_row("Enabled", str(effective_enabled))
+    if env_disabled:
+        table.add_row("", "[warning]Overridden by CACHIBOT_TELEMETRY_DISABLED[/]")
+    table.add_row("Install ID", t.install_id or "[dim]not generated[/]")
+    table.add_row("Terms Accepted", str(t.terms_accepted))
+    table.add_row("Terms Version", t.terms_version or "[dim]none[/]")
+    table.add_row("Terms Accepted At", t.terms_accepted_at or "[dim]never[/]")
+    table.add_row("Last Sent", t.last_sent or "[dim]never[/]")
+    table.add_row("Matomo URL", t.matomo_url)
+    table.add_row("Site ID", t.matomo_site_id)
+
+    console.print(table)
+
+
+@telemetry_app.command("enable")
+def telemetry_enable() -> None:
+    """Enable anonymous telemetry."""
+    import uuid
+
+    config = Config.load()
+    config.telemetry.enabled = True
+    if not config.telemetry.install_id:
+        config.telemetry.install_id = uuid.uuid4().hex
+    config.save_telemetry_config()
+    console.print("[success]Telemetry enabled.[/]")
+
+
+@telemetry_app.command("disable")
+def telemetry_disable() -> None:
+    """Disable anonymous telemetry."""
+    config = Config.load()
+    config.telemetry.enabled = False
+    config.save_telemetry_config()
+    console.print("[success]Telemetry disabled.[/]")
+
+
+@telemetry_app.command("show")
+def telemetry_show() -> None:
+    """Show what telemetry data would be sent (debug)."""
+    import json
+
+    from cachibot.telemetry.collector import collect_telemetry
+
+    payload = collect_telemetry()
+    syntax = Syntax(json.dumps(payload, indent=2), "json", theme="monokai")
+    console.print(
+        Panel(
+            syntax,
+            title="Telemetry Payload Preview",
+            border_style="cyan",
+        )
+    )
 
 
 def print_help() -> None:
