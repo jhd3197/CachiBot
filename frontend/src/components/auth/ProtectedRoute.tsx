@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
+import { useTelemetryStore } from '../../stores/telemetry'
 import { checkSetupRequired, getCurrentUser } from '../../api/auth'
 
 interface ProtectedRouteProps {
@@ -21,8 +22,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     setLoading,
     logout,
   } = useAuthStore()
+  const { status: telemetryStatus, refresh: refreshTelemetry } = useTelemetryStore()
 
   const [checked, setChecked] = useState(false)
+  const [consentChecked, setConsentChecked] = useState(false)
 
   useEffect(() => {
     const verifyAuth = async () => {
@@ -60,8 +63,17 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     verifyAuth()
   }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLoading, logout])
 
+  // Check consent status after auth is verified
+  useEffect(() => {
+    if (!checked || !isAuthenticated) return
+
+    refreshTelemetry()
+      .then(() => setConsentChecked(true))
+      .catch(() => setConsentChecked(true))
+  }, [checked, isAuthenticated, refreshTelemetry])
+
   // Show loading spinner while checking auth
-  if (isLoading || !checked) {
+  if (isLoading || !checked || (isAuthenticated && !consentChecked)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
@@ -76,6 +88,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Redirect to consent page if terms not yet accepted
+  if (telemetryStatus && !telemetryStatus.terms_accepted) {
+    return <Navigate to="/consent" state={{ from: location }} replace />
   }
 
   // Check admin requirement

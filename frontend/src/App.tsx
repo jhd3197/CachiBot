@@ -5,6 +5,7 @@ import { TitleBar } from './components/layout/TitleBar'
 import { AuthCallback } from './components/auth/AuthCallback'
 import { LoginPage } from './components/auth/LoginPage'
 import { SetupPage } from './components/auth/SetupPage'
+import { ConsentPage } from './components/auth/ConsentPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { UsersView } from './components/views/UsersView'
 import { useUIStore } from './stores/ui'
@@ -29,6 +30,7 @@ function App() {
       {/* Auth routes (public) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/consent" element={<ConsentPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Protected routes */}

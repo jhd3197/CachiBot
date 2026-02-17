@@ -101,3 +101,11 @@ show_cost = true
 
 # Output style: "detailed" or "compact"
 style = "detailed"
+
+[telemetry]
+# Enable anonymous usage analytics (opt-in, default: false)
+# Set to true to help improve CachiBot by sending anonymous statistics
+# See https://cachibot.ai/telemetry for details on what is collected
+enabled = false
+# install_id = ""  # Auto-generated UUID, do not edit manually
+# Override with environment variable: CACHIBOT_TELEMETRY_DISABLED=1

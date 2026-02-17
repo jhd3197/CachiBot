@@ -57,6 +57,12 @@ import { useAuthStore } from '../../stores/auth'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
 import { useUsageStore } from '../../stores/connections'
 import { useUpdateStore } from '../../stores/update'
+import { useTelemetryStore } from '../../stores/telemetry'
+import {
+  updateTelemetrySettings,
+  resetTelemetryId,
+  getTelemetryPreview,
+} from '../../api/telemetry'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
 import { checkHealth, type HealthInfo } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
@@ -1173,6 +1179,45 @@ function AdvancedSettings({
 
 function DataSettings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showTelemetryPreview, setShowTelemetryPreview] = useState(false)
+  const [telemetryPayload, setTelemetryPayload] = useState<Record<string, unknown> | null>(null)
+  const [showResetIdConfirm, setShowResetIdConfirm] = useState(false)
+  const { status: telemetryStatus, refresh: refreshTelemetry } = useTelemetryStore()
+
+  useEffect(() => {
+    refreshTelemetry()
+  }, [refreshTelemetry])
+
+  const handleToggleTelemetry = async () => {
+    try {
+      await updateTelemetrySettings({ enabled: !telemetryStatus?.enabled })
+      await refreshTelemetry()
+      toast.success(telemetryStatus?.enabled ? 'Telemetry disabled' : 'Telemetry enabled')
+    } catch {
+      toast.error('Failed to update telemetry settings')
+    }
+  }
+
+  const handleViewTelemetryReport = async () => {
+    try {
+      const payload = await getTelemetryPreview()
+      setTelemetryPayload(payload)
+      setShowTelemetryPreview(true)
+    } catch {
+      toast.error('Failed to load telemetry preview')
+    }
+  }
+
+  const handleResetId = async () => {
+    try {
+      await resetTelemetryId()
+      await refreshTelemetry()
+      setShowResetIdConfirm(false)
+      toast.success('Install ID has been reset')
+    } catch {
+      toast.error('Failed to reset install ID')
+    }
+  }
 
   const handleExport = () => {
     const data = {
@@ -1209,6 +1254,150 @@ function DataSettings() {
 
   return (
     <>
+      <Section icon={Shield} title="Privacy & Telemetry">
+        <div className="space-y-4">
+          {/* Telemetry toggle */}
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <div>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Anonymous Analytics</h4>
+              <p className="text-sm text-zinc-500">
+                Send anonymous usage statistics to help improve CachiBot
+              </p>
+            </div>
+            <button
+              onClick={handleToggleTelemetry}
+              className={cn(
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                telemetryStatus?.enabled
+                  ? 'bg-accent-600'
+                  : 'bg-zinc-300 dark:bg-zinc-600'
+              )}
+            >
+              <span
+                className={cn(
+                  'inline-block h-4 w-4 rounded-full bg-white transition-transform',
+                  telemetryStatus?.enabled ? 'translate-x-6' : 'translate-x-1'
+                )}
+              />
+            </button>
+          </div>
+
+          {/* View report */}
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <div>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">View Telemetry Report</h4>
+              <p className="text-sm text-zinc-500">
+                See exactly what data would be sent
+              </p>
+            </div>
+            <button
+              onClick={handleViewTelemetryReport}
+              className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+            >
+              <EyeIcon className="h-4 w-4" />
+              View
+            </button>
+          </div>
+
+          {/* Reset ID */}
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+            <div>
+              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Reset Install ID</h4>
+              <p className="text-sm text-zinc-500">
+                Generate a new anonymous identifier{telemetryStatus?.install_id && (
+                  <span className="ml-1 font-mono text-xs text-zinc-400">
+                    ({telemetryStatus.install_id.slice(0, 8)}...)
+                  </span>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowResetIdConfirm(true)}
+              className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reset
+            </button>
+          </div>
+
+          {/* Last sent */}
+          {telemetryStatus?.last_sent && (
+            <p className="text-xs text-zinc-500">
+              Last sent: {new Date(telemetryStatus.last_sent).toLocaleString()}
+            </p>
+          )}
+
+          {/* Telemetry info link */}
+          <a
+            href="https://cachibot.ai/telemetry"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-accent-500 hover:text-accent-400"
+          >
+            Learn more about what we collect
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </Section>
+
+      {/* Telemetry preview modal */}
+      {showTelemetryPreview && telemetryPayload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Telemetry Report Preview</h2>
+              <button
+                onClick={() => setShowTelemetryPreview(false)}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <pre className="max-h-96 overflow-auto rounded-lg bg-zinc-100 p-4 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+              {JSON.stringify(telemetryPayload, null, 2)}
+            </pre>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowTelemetryPreview(false)}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset ID confirmation modal */}
+      {showResetIdConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
+              <RefreshCw className="h-6 w-6" />
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Reset Install ID?</h2>
+            </div>
+            <p className="mb-6 text-sm text-zinc-500">
+              This will generate a new anonymous identifier. Your previous telemetry data
+              will no longer be associated with this installation.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowResetIdConfirm(false)}
+                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetId}
+                className="rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
+              >
+                Reset ID
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Section icon={Database} title="Data Management">
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
