@@ -1,13 +1,14 @@
-import { Plus, Settings, LayoutDashboard, Github, Activity } from 'lucide-react'
+import { Plus, Settings, LayoutDashboard, Github, Activity, Users } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
+import { useAuthStore } from '../../stores/auth'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { cn } from '../../lib/utils'
 import type { Bot } from '../../types'
 
 // App-level paths (not bot views)
-const appPaths = ['/dashboard', '/settings', '/admin/logs']
+const appPaths = ['/dashboard', '/settings', '/admin/logs', '/groups']
 
 interface BotRailProps {
   onNavigate?: () => void
@@ -19,6 +20,8 @@ export function BotRail({ onNavigate }: BotRailProps) {
   const { bots, activeBotId, setActiveBot } = useBotStore()
   const { setActiveChat } = useChatStore()
   const { setCreateBotOpen } = useUIStore()
+  const { user } = useAuthStore()
+  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager'
 
   // Derive current app view from URL
   const currentPath = location.pathname
@@ -87,6 +90,22 @@ export function BotRail({ onNavigate }: BotRailProps) {
       <div className="mt-auto flex flex-col items-center gap-2 pt-3">
         <Divider />
 
+        {/* Groups (manager+) */}
+        {isManagerOrAdmin && (
+          <button
+            onClick={() => handleAppViewClick('/groups')}
+            className={cn(
+              'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
+              currentPath === '/groups'
+                ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
+                : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+            )}
+          >
+            <Users className="h-5 w-5" />
+            <Tooltip>Groups</Tooltip>
+          </button>
+        )}
+
         {/* Admin Logs */}
         <button
           onClick={() => handleAppViewClick('/admin/logs')}
@@ -137,6 +156,9 @@ interface BotAvatarProps {
 }
 
 function BotAvatar({ bot, active, onClick }: BotAvatarProps) {
+  const accessLevel = (bot as unknown as Record<string, unknown>).access_level as string | undefined
+  const isShared = accessLevel && accessLevel !== 'owner'
+
   return (
     <button
       onClick={onClick}
@@ -167,7 +189,20 @@ function BotAvatar({ bot, active, onClick }: BotAvatarProps) {
         />
       </div>
 
-      <Tooltip>{bot.name}</Tooltip>
+      {/* Shared bot indicator */}
+      {isShared && (
+        <div
+          className={cn(
+            'absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-zinc-200 dark:border-zinc-950',
+            accessLevel === 'viewer' ? 'bg-blue-400' :
+            accessLevel === 'operator' ? 'bg-amber-400' :
+            'bg-green-400'
+          )}
+          title={`Shared (${accessLevel})`}
+        />
+      )}
+
+      <Tooltip>{bot.name}{isShared ? ` (${accessLevel})` : ''}</Tooltip>
     </button>
   )
 }

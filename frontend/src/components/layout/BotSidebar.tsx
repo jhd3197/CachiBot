@@ -40,19 +40,24 @@ import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
 import { cn } from '../../lib/utils'
+import { useBotAccess } from '../../hooks/useBotAccess'
 import type { BotView, Chat, Task } from '../../types'
 
-const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'chats', label: 'Chats', icon: MessageSquare },
-  { id: 'rooms', label: 'Rooms', icon: DoorOpen },
-  { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { id: 'work', label: 'Work', icon: FolderKanban },
-  { id: 'schedules', label: 'Schedules', icon: CalendarClock },
-  { id: 'automations', label: 'Automations', icon: Blocks },
-  { id: 'voice', label: 'Voice', icon: Mic },
-  { id: 'tools', label: 'Tools', icon: Wrench },
-  { id: 'settings', label: 'Settings', icon: Settings },
+type MinAccessLevel = 'viewer' | 'operator' | 'editor'
+
+const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
+  { id: 'chats', label: 'Chats', icon: MessageSquare, minLevel: 'viewer' },
+  { id: 'rooms', label: 'Rooms', icon: DoorOpen, minLevel: 'viewer' },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, minLevel: 'viewer' },
+  { id: 'work', label: 'Work', icon: FolderKanban, minLevel: 'operator' },
+  { id: 'schedules', label: 'Schedules', icon: CalendarClock, minLevel: 'operator' },
+  { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
+  { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator' },
+  { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor' },
+  { id: 'settings', label: 'Settings', icon: Settings, minLevel: 'editor' },
 ]
+
+const LEVEL_RANK: Record<string, number> = { viewer: 1, operator: 2, editor: 3, owner: 4, admin: 4 }
 
 interface BotSidebarProps {
   onNavigate?: () => void
@@ -63,8 +68,12 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const { getActiveBot, activeView, setActiveView, activeBotId } = useBotStore()
   const { sidebarCollapsed } = useUIStore()
   const activeBot = getActiveBot()
+  const { accessLevel } = useBotAccess(activeBotId)
 
   if (!activeBot) return null
+
+  const userRank = LEVEL_RANK[accessLevel ?? 'owner'] ?? 4
+  const visibleNavItems = navItems.filter((item) => userRank >= LEVEL_RANK[item.minLevel])
 
   const handleNavClick = (viewId: typeof activeView) => {
     setActiveView(viewId)
@@ -98,7 +107,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
 
       {/* Navigation tabs - compact icon-only style */}
       <nav className="flex items-center justify-center gap-1 border-b border-zinc-300 px-3 py-2 dark:border-zinc-800">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavButton
             key={item.id}
             icon={item.icon}

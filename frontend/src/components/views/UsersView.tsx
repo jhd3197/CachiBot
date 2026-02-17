@@ -206,7 +206,9 @@ export function UsersView() {
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
                       user.role === 'admin'
                         ? 'bg-purple-500/20 text-purple-300'
-                        : 'bg-zinc-700 text-zinc-300'
+                        : user.role === 'manager'
+                          ? 'bg-teal-500/20 text-teal-300'
+                          : 'bg-zinc-700 text-zinc-300'
                     }`}
                   >
                     {user.role === 'admin' ? (
@@ -343,6 +345,7 @@ export function UsersView() {
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="user">User</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -419,6 +422,7 @@ export function UsersView() {
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="user">User</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

@@ -11,7 +11,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from cachibot.models.auth import User, UserInDB, UserRole
+from cachibot.models.group import BotAccessLevel
 from cachibot.services.auth_service import get_auth_service
+from cachibot.storage.group_repository import BotAccessRepository
 from cachibot.storage.user_repository import OwnershipRepository, UserRepository
 
 # HTTP Bearer token scheme
@@ -122,6 +124,22 @@ async def get_admin_user(
     return user
 
 
+async def get_manager_or_admin_user(
+    user: User = Depends(get_current_user),
+) -> User:
+    """
+    Dependency to get the current user and verify they are a manager or admin.
+
+    Raises HTTPException 403 if not manager or admin.
+    """
+    if user.role not in (UserRole.ADMIN, UserRole.MANAGER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or admin access required",
+        )
+    return user
+
+
 async def require_bot_access(
     bot_id: str,
     user: User = Depends(get_current_user),
@@ -129,7 +147,8 @@ async def require_bot_access(
     """
     Dependency to verify user has access to a bot.
 
-    Admins can access any bot. Regular users can only access their own bots.
+    Admins can access any bot. Regular users can access their own bots
+    or bots shared with them via groups (any access level).
 
     Args:
         bot_id: The bot ID to check access for
@@ -145,15 +164,54 @@ async def require_bot_access(
     if user.role == UserRole.ADMIN:
         return user
 
-    # Check ownership for regular users
+    # Check ownership
     ownership_repo = OwnershipRepository()
-    if not await ownership_repo.user_owns_bot(user.id, bot_id):
+    if await ownership_repo.user_owns_bot(user.id, bot_id):
+        return user
+
+    # Check group-based access
+    access_repo = BotAccessRepository()
+    level = await access_repo.get_user_bot_access_level(user.id, bot_id)
+    if level is not None:
+        return user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You don't have access to this bot",
+    )
+
+
+def require_bot_access_level(min_level: BotAccessLevel):
+    """Factory that returns a dependency checking the user has at least min_level access.
+
+    Admin and bot owner always pass. Group members need effective level >= min_level.
+    """
+
+    async def _check(
+        bot_id: str,
+        user: User = Depends(get_current_user),
+    ) -> User:
+        # Admins bypass
+        if user.role == UserRole.ADMIN:
+            return user
+
+        # Owner bypass
+        ownership_repo = OwnershipRepository()
+        if await ownership_repo.user_owns_bot(user.id, bot_id):
+            return user
+
+        # Check group-based access level
+        access_repo = BotAccessRepository()
+        level = await access_repo.get_user_bot_access_level(user.id, bot_id)
+        if level is not None and level >= min_level:
+            return user
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this bot",
+            detail=f"Requires at least {min_level.value} access to this bot",
         )
 
-    return user
+    return _check
 
 
 def verify_token_from_query(token: str) -> dict | None:

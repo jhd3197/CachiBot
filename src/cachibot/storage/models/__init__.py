@@ -42,6 +42,7 @@ from cachibot.storage.models.env_var import (
     EnvAuditLog,
     PlatformEnvironment,
 )
+from cachibot.storage.models.group import BotGroupAccess, Group, GroupMember
 from cachibot.storage.models.job import Job
 from cachibot.storage.models.knowledge import BotDocument, BotInstruction, BotNote, DocChunk
 from cachibot.storage.models.message import BotMessage, Message
@@ -92,6 +93,10 @@ __all__ = [
     "Task",
     "WorkJob",
     "Todo",
+    # Groups & access
+    "Group",
+    "GroupMember",
+    "BotGroupAccess",
     # Rooms
     "Room",
     "RoomMember",

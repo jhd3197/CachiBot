@@ -2,7 +2,7 @@
 // AUTH TYPES
 // =============================================================================
 
-export type UserRole = 'admin' | 'user'
+export type UserRole = 'admin' | 'manager' | 'user'
 
 export interface User {
   id: string
@@ -81,6 +81,70 @@ export interface AuthModeResponse {
 
 export interface ExchangeTokenRequest {
   token: string
+}
+
+// =============================================================================
+// GROUP & ACCESS TYPES
+// =============================================================================
+
+export type GroupRole = 'owner' | 'member'
+export type BotAccessLevel = 'viewer' | 'operator' | 'editor'
+
+export interface Group {
+  id: string
+  name: string
+  description: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+  member_count: number
+}
+
+export interface GroupMember {
+  user_id: string
+  username: string
+  email: string
+  role: GroupRole
+  joined_at: string
+}
+
+export interface GroupWithMembers extends Group {
+  members: GroupMember[]
+}
+
+export interface BotAccessRecord {
+  id: string
+  bot_id: string
+  bot_name: string | null
+  group_id: string
+  group_name: string | null
+  access_level: BotAccessLevel
+  granted_by: string
+  granted_at: string
+}
+
+export interface CreateGroupRequest {
+  name: string
+  description?: string
+}
+
+export interface UpdateGroupRequest {
+  name?: string
+  description?: string
+}
+
+export interface AddMemberRequest {
+  user_id: string
+  role?: GroupRole
+}
+
+export interface ShareBotRequest {
+  group_id: string
+  access_level?: BotAccessLevel
+}
+
+export interface UpdateAccessRequest {
+  access_level: BotAccessLevel
 }
 
 // =============================================================================

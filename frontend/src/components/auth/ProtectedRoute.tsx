@@ -8,9 +8,10 @@ import { checkSetupRequired, getCurrentUser } from '../../api/auth'
 interface ProtectedRouteProps {
   children: React.ReactNode
   requireAdmin?: boolean
+  requireManager?: boolean
 }
 
-export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requireAdmin = false, requireManager = false }: ProtectedRouteProps) {
   const location = useLocation()
   const {
     isAuthenticated,
@@ -97,6 +98,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   // Check admin requirement
   if (requireAdmin && user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+
+  // Check manager requirement (admin also passes)
+  if (requireManager && user?.role !== 'admin' && user?.role !== 'manager') {
     return <Navigate to="/" replace />
   }
 

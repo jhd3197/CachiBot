@@ -7,8 +7,9 @@ Endpoints for managing bot custom instructions.
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
+from cachibot.models.group import BotAccessLevel
 from cachibot.storage.repository import KnowledgeRepository
 
 router = APIRouter(prefix="/api/bots/{bot_id}/instructions", tags=["instructions"])
@@ -49,7 +50,7 @@ async def get_instructions(
 async def update_instructions(
     bot_id: str,
     data: InstructionsUpdate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> InstructionsResponse:
     """Update custom instructions for a bot."""
     repo = KnowledgeRepository()
@@ -64,7 +65,7 @@ async def update_instructions(
 @router.delete("/")
 async def delete_instructions(
     bot_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete custom instructions for a bot."""
     repo = KnowledgeRepository()

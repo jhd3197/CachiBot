@@ -9,9 +9,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
 from cachibot.models.automations import ExecutionLog, ExecutionLogLine
+from cachibot.models.group import BotAccessLevel
 from cachibot.storage.automations_repository import (
     ExecutionLogLineRepository,
     ExecutionLogRepository,
@@ -216,7 +217,7 @@ async def get_execution_lines(
 async def cancel_execution(
     bot_id: str,
     exec_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> dict:
     """Cancel a running execution."""
     log = await exec_log_repo.get(exec_id)

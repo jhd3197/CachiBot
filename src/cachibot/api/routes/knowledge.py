@@ -11,8 +11,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
+from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import (
     BotNote,
     ChunkResponse,
@@ -74,7 +75,7 @@ async def list_notes(
 async def create_note(
     bot_id: str,
     data: NoteCreate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> NoteResponse:
     """Create a new note (source='user')."""
     repo = NotesRepository()
@@ -122,7 +123,7 @@ async def update_note(
     bot_id: str,
     note_id: str,
     data: NoteUpdate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> NoteResponse:
     """Update a note."""
     repo = NotesRepository()
@@ -146,7 +147,7 @@ async def update_note(
 async def delete_note(
     bot_id: str,
     note_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete a note."""
     repo = NotesRepository()
@@ -179,7 +180,7 @@ async def get_knowledge_stats(
 async def search_knowledge(
     bot_id: str,
     data: SearchRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> list[SearchResultResponse]:
     """Search the knowledge base (documents + notes)."""
     results: list[SearchResultResponse] = []
@@ -236,7 +237,7 @@ async def search_knowledge(
 async def reindex_documents(
     bot_id: str,
     background_tasks: BackgroundTasks,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> dict:
     """Reprocess all documents for a bot: delete chunks and re-run pipeline."""
     repo = KnowledgeRepository()
@@ -275,7 +276,7 @@ async def retry_document(
     bot_id: str,
     document_id: str,
     background_tasks: BackgroundTasks,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> dict:
     """Retry processing a failed document."""
     repo = KnowledgeRepository()

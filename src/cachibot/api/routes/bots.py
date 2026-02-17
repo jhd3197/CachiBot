@@ -13,7 +13,14 @@ from pydantic import BaseModel, Field
 from cachibot.api.auth import get_current_user, require_bot_access
 from cachibot.models.auth import BotOwnership, User, UserRole
 from cachibot.models.bot import Bot, BotResponse
+from cachibot.models.group import (
+    BotAccessLevel,
+    BotAccessRecord,
+    ShareBotRequest,
+    UpdateAccessRequest,
+)
 from cachibot.models.skill import BotSkillRequest, SkillResponse
+from cachibot.storage.group_repository import BotAccessRepository
 from cachibot.storage.repository import BotRepository, SkillsRepository
 from cachibot.storage.user_repository import OwnershipRepository
 
@@ -25,6 +32,7 @@ router = APIRouter(prefix="/api/bots", tags=["bots"])
 repo = BotRepository()
 skills_repo = SkillsRepository()
 ownership_repo = OwnershipRepository()
+access_repo = BotAccessRepository()
 
 
 class BotSyncRequest(BaseModel):
@@ -46,14 +54,41 @@ class BotSyncRequest(BaseModel):
 @router.get("")
 async def list_bots(
     user: User = Depends(get_current_user),
-) -> list[BotResponse]:
-    """Get bots accessible to the current user."""
+) -> list[dict]:
+    """Get bots accessible to the current user.
+
+    For non-admin users, includes both owned bots and bots shared via groups.
+    Each bot includes an `access_level` field: "owner", "admin", or the group access level.
+    """
     if user.role == UserRole.ADMIN:
         bots = await repo.get_all_bots()
-    else:
-        bot_ids = await ownership_repo.get_user_bots(user.id)
-        bots = [b for b in [await repo.get_bot(bid) for bid in bot_ids] if b is not None]
-    return [BotResponse.from_bot(b) for b in bots]
+        return [
+            {**BotResponse.from_bot(b).model_dump(), "access_level": "admin"}
+            for b in bots
+        ]
+
+    # Owned bots
+    owned_ids = set(await ownership_repo.get_user_bots(user.id))
+    owned_bots = [
+        b for b in [await repo.get_bot(bid) for bid in owned_ids] if b is not None
+    ]
+    results = [
+        {**BotResponse.from_bot(b).model_dump(), "access_level": "owner"}
+        for b in owned_bots
+    ]
+
+    # Shared bots via groups
+    shared = await access_repo.get_accessible_bot_ids(user.id)
+    for bot_id, level in shared:
+        if bot_id in owned_ids:
+            continue  # Already in owned list
+        bot = await repo.get_bot(bot_id)
+        if bot is not None:
+            results.append(
+                {**BotResponse.from_bot(bot).model_dump(), "access_level": level.value}
+            )
+
+    return results
 
 
 @router.get("/{bot_id}")
@@ -400,3 +435,114 @@ async def import_bot(
         imported=True,
         message=f"Successfully imported bot '{bot.name}'",
     )
+
+
+# =============================================================================
+# BOT SHARING / GROUP ACCESS ENDPOINTS
+# =============================================================================
+
+
+async def _require_bot_owner_or_admin(bot_id: str, user: User) -> None:
+    """Helper: require user is bot owner or system admin."""
+    if user.role == UserRole.ADMIN:
+        return
+    if not await ownership_repo.user_owns_bot(user.id, bot_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only bot owners or admins can manage sharing",
+        )
+
+
+@router.get("/{bot_id}/access")
+async def get_bot_access(
+    bot_id: str,
+    user: User = Depends(require_bot_access),
+) -> list[BotAccessRecord]:
+    """List group access records for a bot. Bot owner or admin only."""
+    await _require_bot_owner_or_admin(bot_id, user)
+
+    shares = await access_repo.get_bot_shares(bot_id)
+    return [
+        BotAccessRecord(
+            id=record.id,
+            bot_id=record.bot_id,
+            bot_name=None,
+            group_id=record.group_id,
+            group_name=group.name,
+            access_level=BotAccessLevel(record.access_level),
+            granted_by=record.granted_by or "",
+            granted_at=record.granted_at,
+        )
+        for record, group in shares
+    ]
+
+
+@router.post("/{bot_id}/access", status_code=201)
+async def share_bot_with_group(
+    bot_id: str,
+    body: ShareBotRequest,
+    user: User = Depends(require_bot_access),
+) -> BotAccessRecord:
+    """Share a bot with a group. Bot owner or admin only."""
+    await _require_bot_owner_or_admin(bot_id, user)
+
+    from cachibot.storage.group_repository import GroupRepository
+
+    group_repo = GroupRepository()
+    group = await group_repo.get_group_by_id(body.group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    try:
+        record = await access_repo.share_bot(
+            bot_id=bot_id,
+            group_id=body.group_id,
+            access_level=body.access_level,
+            granted_by=user.id,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=409, detail="Bot is already shared with this group"
+        )
+
+    return BotAccessRecord(
+        id=record.id,
+        bot_id=record.bot_id,
+        bot_name=None,
+        group_id=record.group_id,
+        group_name=group.name,
+        access_level=BotAccessLevel(record.access_level),
+        granted_by=record.granted_by or "",
+        granted_at=record.granted_at,
+    )
+
+
+@router.put("/{bot_id}/access/{group_id}")
+async def update_bot_access(
+    bot_id: str,
+    group_id: str,
+    body: UpdateAccessRequest,
+    user: User = Depends(require_bot_access),
+) -> dict:
+    """Update access level for a bot-group pair. Bot owner or admin only."""
+    await _require_bot_owner_or_admin(bot_id, user)
+
+    updated = await access_repo.update_access_level(bot_id, group_id, body.access_level)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Access record not found")
+
+    return {"status": "updated", "access_level": body.access_level.value}
+
+
+@router.delete("/{bot_id}/access/{group_id}", status_code=204)
+async def revoke_bot_access(
+    bot_id: str,
+    group_id: str,
+    user: User = Depends(require_bot_access),
+) -> None:
+    """Revoke a group's access to a bot. Bot owner or admin only."""
+    await _require_bot_owner_or_admin(bot_id, user)
+
+    revoked = await access_repo.revoke_access(bot_id, group_id)
+    if not revoked:
+        raise HTTPException(status_code=404, detail="Access record not found")
