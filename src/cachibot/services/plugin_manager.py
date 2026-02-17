@@ -3,16 +3,23 @@ Plugin Manager Service
 
 Bridges Tukuy plugins to Prompture's ToolRegistry, gated by bot capabilities.
 Includes both CachiBot custom plugins and Tukuy's built-in plugins
-(scoped via SecurityContext).
+(scoped via SecurityContext), and Tukuy instruction packs.
 """
 
 from __future__ import annotations
+
+import logging
 
 from prompture import ToolRegistry
 from tukuy.plugins.base import TransformerPlugin
 from tukuy.plugins.compression import CompressionPlugin
 from tukuy.plugins.git import GitPlugin
 from tukuy.plugins.http import HttpPlugin
+from tukuy.plugins.instructions import (
+    AnalysisInstructionPack,
+    DeveloperInstructionPack,
+    WritingInstructionPack,
+)
 from tukuy.plugins.shell import ShellPlugin
 from tukuy.plugins.sql import SqlPlugin
 from tukuy.plugins.web import WebPlugin
@@ -22,6 +29,7 @@ from cachibot.plugins import (
     CachibotPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
+    InstructionManagementPlugin,
     JobToolsPlugin,
     KnowledgePlugin,
     NotesPlugin,
@@ -31,6 +39,8 @@ from cachibot.plugins import (
     TaskPlugin,
     WorkManagementPlugin,
 )
+
+logger = logging.getLogger(__name__)
 
 # Type alias: plugins can be CachiBot custom or Tukuy built-in
 PluginClass = type[CachibotPlugin] | type[TransformerPlugin]
@@ -47,6 +57,12 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "workManagement": [WorkManagementPlugin, JobToolsPlugin],
     "imageGeneration": [ImageGenerationPlugin],
     "audioGeneration": [AudioGenerationPlugin],
+    "instructions": [
+        AnalysisInstructionPack,
+        WritingInstructionPack,
+        DeveloperInstructionPack,
+        InstructionManagementPlugin,
+    ],
 }
 
 # Plugins that are always enabled regardless of capabilities
@@ -55,14 +71,19 @@ ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin, KnowledgePlugin]
 
 def plugins_to_registry(
     plugins: list[CachibotPlugin | TransformerPlugin],
+    *,
+    skill_config: dict | None = None,
 ) -> ToolRegistry:
-    """Bridge Tukuy skills to a Prompture ToolRegistry.
+    """Bridge Tukuy skills and instructions to a Prompture ToolRegistry.
 
-    Each skill's underlying function is registered directly,
-    since Prompture infers name/description from the callable.
+    Registers all skills from each plugin. For plugins that also expose
+    instructions (LLM-powered tools), those are registered too with the
+    provided skill_config (which carries ``llm_backend`` for instructions).
 
     Args:
         plugins: Instantiated plugins (CachiBot custom or Tukuy built-in)
+        skill_config: Optional config dict injected as SkillContext into
+            instruction calls.  Should contain ``llm_backend`` key.
 
     Returns:
         Populated ToolRegistry
@@ -70,7 +91,10 @@ def plugins_to_registry(
     registry = ToolRegistry()
     for plugin in plugins:
         for _name, skill_obj in plugin.skills.items():
-            registry.add_tukuy_skill(skill_obj)
+            registry.add_tukuy_skill(skill_obj, config=skill_config)
+        # Also register instructions (LLM-powered tools)
+        for _name, instr_obj in plugin.instructions.items():
+            registry.add_tukuy_skill(instr_obj, config=skill_config)
     return registry
 
 
@@ -78,6 +102,8 @@ def build_registry(
     ctx: PluginContext,
     capabilities: dict | None = None,
     disabled_capabilities: set[str] | None = None,
+    *,
+    skill_config: dict | None = None,
 ) -> ToolRegistry:
     """Build a ToolRegistry from capabilities and plugin context.
 
@@ -88,12 +114,15 @@ def build_registry(
         disabled_capabilities: Set of capability keys globally disabled by
             the platform admin.  These are excluded even if the bot has
             them enabled.
+        skill_config: Optional config dict injected as SkillContext into
+            instruction/skill calls.  Should contain ``llm_backend`` key
+            for instruction execution.
 
     Returns:
         ToolRegistry with tools from enabled plugins
     """
     plugins = _instantiate_plugins(ctx, capabilities, disabled_capabilities)
-    return plugins_to_registry(plugins)
+    return plugins_to_registry(plugins, skill_config=skill_config)
 
 
 def get_enabled_plugins(

@@ -2,6 +2,7 @@ import { Check, Star, ExternalLink } from 'lucide-react'
 import { useProvidersStore } from '../../../../stores/providers'
 import { useModelsStore } from '../../../../stores/models'
 import { useUIStore } from '../../../../stores/ui'
+import { useOnboardingStore } from '../../../../stores/onboarding'
 
 const PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
@@ -19,6 +20,7 @@ export function CompleteStep() {
   const { providers } = useProvidersStore()
   const { defaultModel } = useModelsStore()
   const { theme, accentColor } = useUIStore()
+  const { databaseType, smtpConfigured } = useOnboardingStore()
 
   const configuredProviders = providers
     .filter((p) => p.configured)
@@ -49,6 +51,20 @@ export function CompleteStep() {
             <p className="mt-1 font-mono text-sm text-zinc-200">{defaultModel}</p>
           </div>
         )}
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Database</p>
+          <p className="mt-1 text-sm text-zinc-200">
+            {databaseType === 'postgresql' ? 'PostgreSQL' : 'SQLite (default)'}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Email (SMTP)</p>
+          <p className="mt-1 text-sm text-zinc-200">
+            {smtpConfigured ? 'Configured' : 'Not configured (can be set up later)'}
+          </p>
+        </div>
 
         <div className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Appearance</p>

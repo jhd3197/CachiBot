@@ -24,6 +24,7 @@ import {
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { useUIStore } from '../../stores/ui'
+import { useVoiceStore } from '../../stores/voice'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../common/BotIconRenderer'
 import { ModelSelect } from '../common/ModelSelect'
 import { useModelsStore } from '../../stores/models'
@@ -39,7 +40,6 @@ import {
 } from '../knowledge'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
-import { useVoiceStore } from '../../stores/voice'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
 import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
@@ -114,8 +114,6 @@ export function SettingsView() {
     skills: 'Skills',
     connections: 'Connections',
     environment: 'Environment',
-    voice: 'Voice',
-    advanced: 'Advanced',
     danger: 'Danger Zone',
   }
 
@@ -175,12 +173,6 @@ export function SettingsView() {
           {settingsSection === 'environment' && (
             <BotEnvironmentPanel botId={activeBot.id} />
           )}
-          {settingsSection === 'voice' && (
-            <VoiceSettingsSection botId={activeBot.id} />
-          )}
-          {settingsSection === 'advanced' && (
-            <AdvancedSection />
-          )}
           {settingsSection === 'danger' && (
             <DangerSection
               botId={activeBot.id}
@@ -235,11 +227,29 @@ interface GeneralSectionProps {
   onReset: () => void
 }
 
+const TTS_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
+
+const STT_LANGUAGES = [
+  { value: '', label: 'Auto-detect' },
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'it', label: 'Italian' },
+  { value: 'ru', label: 'Russian' },
+  { value: 'ar', label: 'Arabic' },
+]
+
 function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const { imageGroups, audioGroups } = useModelsStore()
   const { getActiveBot, updateBot } = useBotStore()
   const { isCapabilityDisabled } = usePlatformToolsStore()
+  const { voiceSettings, updateVoiceSettings } = useVoiceStore()
   const activeBot = getActiveBot()
 
   const toggleCapability = (key: string, value: boolean) => {
@@ -378,7 +388,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             </div>
           )}
 
-          {/* Audio Generation toggle + model (hidden if globally disabled) */}
+          {/* Audio Generation toggle + model + voice settings (hidden if globally disabled) */}
           {!isCapabilityDisabled('audioGeneration') && (
             <div>
               <CapabilityToggle
@@ -389,24 +399,126 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                 onToggle={(v) => toggleCapability('audioGeneration', v)}
               />
               {!!activeBot?.capabilities?.audioGeneration && (
-                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
-                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
-                    <AudioLines className="h-3 w-3 text-zinc-500" />
-                    Audio Model
-                  </label>
-                  <ModelSelect
-                    value={form.models?.audio || ''}
-                    onChange={(model) => {
-                      const models: BotModels = { ...(form.models || { default: '' }), audio: model }
-                      setForm({ ...form, models })
-                    }}
-                    placeholder="Use plugin default"
-                    className="w-full"
-                    groups={audioGroups}
-                  />
-                  <p className="mt-1 text-xs text-zinc-500">
-                    e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
-                  </p>
+                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30 space-y-4">
+                  {/* Audio Model */}
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                      <AudioLines className="h-3 w-3 text-zinc-500" />
+                      Audio Model
+                    </label>
+                    <ModelSelect
+                      value={form.models?.audio || ''}
+                      onChange={(model) => {
+                        const models: BotModels = { ...(form.models || { default: '' }), audio: model }
+                        setForm({ ...form, models })
+                      }}
+                      placeholder="Use plugin default"
+                      className="w-full"
+                      groups={audioGroups}
+                    />
+                    <p className="mt-1 text-xs text-zinc-500">
+                      e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
+                    </p>
+                  </div>
+
+                  {/* TTS Voice */}
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                      <Mic className="h-3 w-3 text-zinc-500" />
+                      TTS Voice
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {TTS_VOICES.map((voice) => (
+                        <button
+                          key={voice}
+                          onClick={() => updateVoiceSettings({ ttsVoice: voice })}
+                          className={cn(
+                            'rounded-md border px-2.5 py-1 text-xs capitalize transition-all',
+                            voiceSettings.ttsVoice === voice
+                              ? 'border-cachi-500 bg-cachi-500/20 text-cachi-300'
+                              : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
+                          )}
+                        >
+                          {voice}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Custom voice ID (ElevenLabs)"
+                      value={voiceSettings.ttsVoice}
+                      onChange={(e) => updateVoiceSettings({ ttsVoice: e.target.value })}
+                      className="mt-1.5 h-8 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+                    />
+                  </div>
+
+                  {/* Speech Speed */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                      Speech Speed
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2"
+                        step="0.1"
+                        value={voiceSettings.ttsSpeed}
+                        onChange={(e) => updateVoiceSettings({ ttsSpeed: parseFloat(e.target.value) })}
+                        className="flex-1"
+                      />
+                      <span className="w-10 text-center text-xs text-zinc-400">{voiceSettings.ttsSpeed}x</span>
+                    </div>
+                  </div>
+
+                  {/* STT Language */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-zinc-400">
+                      Speech Recognition Language
+                    </label>
+                    <select
+                      value={voiceSettings.sttLanguage || ''}
+                      onChange={(e) => updateVoiceSettings({ sttLanguage: e.target.value || null })}
+                      className="h-8 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100 outline-none focus:border-cachi-500"
+                    >
+                      {STT_LANGUAGES.map((lang) => (
+                        <option key={lang.value} value={lang.value}>{lang.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Voice toggles */}
+                  <div className="space-y-2">
+                    <label className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-zinc-300">Enable Interruption</p>
+                        <p className="text-[11px] text-zinc-500">Allow interrupting the bot while it speaks</p>
+                      </div>
+                      <button
+                        onClick={() => updateVoiceSettings({ enableInterruption: !voiceSettings.enableInterruption })}
+                        className="text-zinc-400"
+                      >
+                        {voiceSettings.enableInterruption
+                          ? <ToggleRight className="h-5 w-5 text-cachi-500" />
+                          : <ToggleLeft className="h-5 w-5" />}
+                      </button>
+                    </label>
+
+                    <label className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-zinc-300">Save Transcripts</p>
+                        <p className="text-[11px] text-zinc-500">Save voice conversations to chat history</p>
+                      </div>
+                      <button
+                        onClick={() => updateVoiceSettings({ saveTranscripts: !voiceSettings.saveTranscripts })}
+                        className="text-zinc-400"
+                      >
+                        {voiceSettings.saveTranscripts
+                          ? <ToggleRight className="h-5 w-5 text-cachi-500" />
+                          : <ToggleLeft className="h-5 w-5" />}
+                      </button>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -1007,209 +1119,6 @@ function ConnectionsSection({ botId }: { botId: string }) {
           Connect your bot to messaging platforms to send and receive messages.
         </p>
         <BotConnectionsPanel botId={botId} />
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// VOICE SETTINGS SECTION
-// =============================================================================
-
-const TTS_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-
-const STT_LANGUAGES = [
-  { value: '', label: 'Auto-detect' },
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'pt', label: 'Portuguese' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'zh', label: 'Chinese' },
-  { value: 'ko', label: 'Korean' },
-  { value: 'it', label: 'Italian' },
-  { value: 'ru', label: 'Russian' },
-  { value: 'ar', label: 'Arabic' },
-]
-
-function VoiceSettingsSection({ botId: _botId }: { botId: string }) {
-  const { getActiveBot } = useBotStore()
-  const { voiceSettings, updateVoiceSettings } = useVoiceStore()
-  const activeBot = getActiveBot()
-  void _botId
-
-  const audioEnabled = !!activeBot?.capabilities?.audioGeneration
-
-  if (!audioEnabled) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <AudioLines className="h-5 w-5 text-amber-400" />
-          <div>
-            <p className="text-sm font-medium text-amber-300">Audio Generation Required</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Enable the "Audio Generation" capability in the General settings to use voice features.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* TTS Voice */}
-      <div>
-        <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-          <Mic className="h-4 w-4 text-zinc-400" />
-          TTS Voice
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {TTS_VOICES.map((voice) => (
-            <button
-              key={voice}
-              onClick={() => updateVoiceSettings({ ttsVoice: voice })}
-              className={cn(
-                'rounded-lg border px-3 py-1.5 text-sm capitalize transition-all',
-                voiceSettings.ttsVoice === voice
-                  ? 'border-cachi-500 bg-cachi-500/20 text-cachi-300'
-                  : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
-              )}
-            >
-              {voice}
-            </button>
-          ))}
-        </div>
-        <p className="mt-1 text-xs text-zinc-500">
-          For ElevenLabs, set a voice ID in the input below instead.
-        </p>
-        <input
-          type="text"
-          placeholder="Custom voice ID (ElevenLabs)"
-          value={voiceSettings.ttsVoice}
-          onChange={(e) => updateVoiceSettings({ ttsVoice: e.target.value })}
-          className="mt-2 h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
-        />
-      </div>
-
-      {/* Speech Speed */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
-          Speech Speed
-        </label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="0.5"
-            max="2"
-            step="0.1"
-            value={voiceSettings.ttsSpeed}
-            onChange={(e) => updateVoiceSettings({ ttsSpeed: parseFloat(e.target.value) })}
-            className="flex-1"
-          />
-          <span className="w-12 text-center text-sm text-zinc-400">{voiceSettings.ttsSpeed}x</span>
-        </div>
-      </div>
-
-      {/* STT Language */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
-          Speech Recognition Language
-        </label>
-        <select
-          value={voiceSettings.sttLanguage || ''}
-          onChange={(e) => updateVoiceSettings({ sttLanguage: e.target.value || null })}
-          className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none focus:border-cachi-500"
-        >
-          {STT_LANGUAGES.map((lang) => (
-            <option key={lang.value} value={lang.value}>{lang.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Toggles */}
-      <div className="space-y-4 border-t border-zinc-800 pt-6">
-        <label className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-zinc-300">Enable Interruption</p>
-            <p className="text-xs text-zinc-500">Allow interrupting the bot while it speaks</p>
-          </div>
-          <button
-            onClick={() => updateVoiceSettings({ enableInterruption: !voiceSettings.enableInterruption })}
-            className="text-zinc-400"
-          >
-            {voiceSettings.enableInterruption
-              ? <ToggleRight className="h-6 w-6 text-cachi-500" />
-              : <ToggleLeft className="h-6 w-6" />}
-          </button>
-        </label>
-
-        <label className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-zinc-300">Save Transcripts</p>
-            <p className="text-xs text-zinc-500">Save voice conversations to chat history</p>
-          </div>
-          <button
-            onClick={() => updateVoiceSettings({ saveTranscripts: !voiceSettings.saveTranscripts })}
-            className="text-zinc-400"
-          >
-            {voiceSettings.saveTranscripts
-              ? <ToggleRight className="h-6 w-6 text-cachi-500" />
-              : <ToggleLeft className="h-6 w-6" />}
-          </button>
-        </label>
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// ADVANCED SECTION
-// =============================================================================
-
-function AdvancedSection() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">Temperature</label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            defaultValue="0.7"
-            className="flex-1"
-          />
-          <span className="w-12 text-center text-sm text-zinc-400">0.7</span>
-        </div>
-        <p className="mt-1 text-xs text-zinc-500">Lower = focused, higher = creative</p>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">Max Iterations</label>
-        <input
-          type="number"
-          defaultValue={20}
-          min={1}
-          max={50}
-          className="h-10 w-32 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-cachi-500"
-        />
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">Approval Mode</label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input type="radio" name="approval" defaultChecked className="text-cachi-500" />
-            <span className="text-sm text-zinc-300">Auto-approve safe actions</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="radio" name="approval" className="text-cachi-500" />
-            <span className="text-sm text-zinc-300">Approve all actions</span>
-          </label>
-        </div>
       </div>
     </div>
   )

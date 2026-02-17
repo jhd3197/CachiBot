@@ -321,13 +321,33 @@ async def run_room_bot(
         if effective_model:
             agent_config.agent.model = effective_model
 
+        # Build instruction delta sender for streaming instruction
+        # LLM output to all room members in real time.
+        async def _instruction_delta_sender(tool_call_id: str, text: str) -> None:
+            await room_manager.send_to_room(
+                room_id,
+                RoomWSMessage.bot_instruction_delta(
+                    room_id=room_id,
+                    bot_id=bot_id,
+                    bot_name=bot.name,
+                    tool_id=tool_call_id,
+                    text=text,
+                ),
+            )
+
         disabled_caps = await load_disabled_capabilities()
         agent = CachibotAgent(
             config=agent_config,
             system_prompt_override=enhanced_prompt,
             bot_id=bot_id,
             disabled_capabilities=disabled_caps,
+            on_instruction_delta=_instruction_delta_sender,
         )
+
+        # Load custom instructions from DB
+        from cachibot.agent import load_dynamic_instructions
+
+        await load_dynamic_instructions(agent)
 
         # Stream response
         response_parts: list[str] = []

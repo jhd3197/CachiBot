@@ -83,6 +83,11 @@ class CachibotAgent:
     # When provided, these capabilities are excluded even if the bot enables them.
     disabled_capabilities: set[str] | None = None
 
+    # Async callback for streaming instruction LLM deltas via WebSocket.
+    # Signature: async (tool_call_id: str, text: str) -> None
+    # When set, instruction executions broadcast incremental text chunks.
+    on_instruction_delta: Callable[..., Any] | None = None
+
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
         self._setup_sandbox()
@@ -122,9 +127,105 @@ class CachibotAgent:
             tool_configs=self.tool_configs or {},
             bot_models=self.bot_models,
         )
+
+        # Build skill_config with llm_backend for instruction execution
+        skill_config = self._build_skill_config()
+
         self.registry = build_registry(
-            ctx, self.capabilities, self.disabled_capabilities
+            ctx,
+            self.capabilities,
+            self.disabled_capabilities,
+            skill_config=skill_config,
         )
+
+    def _build_skill_config(self) -> dict | None:
+        """Build the config dict injected into Tukuy SkillContext for instructions.
+
+        Creates a TukuyLLMBackend from the bot's provider environment and model
+        configuration so that @instruction-decorated tools can call an LLM.
+        Returns None if the backend cannot be created (graceful degradation).
+        """
+        try:
+            from prompture.bridges import create_tukuy_backend
+
+            # Determine the model to use for instructions
+            model = None
+            if self.bot_models and self.bot_models.get("default"):
+                model = self.bot_models["default"]
+            if not model and self.provider_environment and self.provider_environment.model:
+                model = self.provider_environment.model
+            if not model:
+                model = self.config.agent.model
+            if not model:
+                return None
+
+            # Build per-bot ProviderEnvironment for isolated API keys
+            env = None
+            if self.provider_environment and self.provider_environment.provider_keys:
+                from prompture.infra.provider_env import ProviderEnvironment
+
+                # Map CachiBotV2 provider names to ProviderEnvironment field names
+                _PROVIDER_TO_FIELD = {
+                    "openai": "openai_api_key",
+                    "claude": "claude_api_key",
+                    "google": "google_api_key",
+                    "groq": "groq_api_key",
+                    "grok": "grok_api_key",
+                    "openrouter": "openrouter_api_key",
+                    "moonshot": "moonshot_api_key",
+                    "zai": "zhipu_api_key",
+                    "modelscope": "modelscope_api_key",
+                    "stability": "stability_api_key",
+                    "elevenlabs": "elevenlabs_api_key",
+                    "azure": "azure_api_key",
+                    "ollama": "ollama_endpoint",
+                    "lmstudio": "lmstudio_endpoint",
+                }
+                kwargs = {}
+                for provider_name, api_key in self.provider_environment.provider_keys.items():
+                    field_name = _PROVIDER_TO_FIELD.get(provider_name)
+                    if field_name:
+                        kwargs[field_name] = api_key
+                env = ProviderEnvironment(**kwargs) if kwargs else None
+
+            # Create the backend with an on_complete callback for logging
+            bot_id = self.bot_id
+            chat_id = self.chat_id
+
+            def _on_complete(result: dict) -> None:
+                """Fire-and-forget logging for instruction LLM calls."""
+                import asyncio
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(
+                        _log_instruction_completion(bot_id, chat_id, result)
+                    )
+                except RuntimeError:
+                    pass  # No event loop — skip logging
+
+            backend = create_tukuy_backend(
+                model,
+                env=env,
+                on_complete=_on_complete,
+            )
+
+            config: dict[str, Any] = {"llm_backend": backend}
+
+            # Wire instruction delta streaming when a WebSocket sender is set
+            if self.on_instruction_delta is not None:
+                config["on_instruction_delta"] = self.on_instruction_delta
+
+            return config
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "Could not create LLM backend for instructions; "
+                "instruction tools will return errors if invoked",
+                exc_info=True,
+            )
+            return None
 
     def _create_agent(self) -> None:
         """Create the Prompture agent with callbacks and SecurityContext."""
@@ -300,6 +401,129 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
     def clear_history(self) -> None:
         """Clear the conversation history."""
         self._agent.clear_history()
+
+
+async def load_dynamic_instructions(agent: CachibotAgent) -> None:
+    """Load custom instructions from DB and add them to the agent's registry.
+
+    Call this after constructing a ``CachibotAgent`` in an async context.
+    Dynamic instructions are converted to Tukuy Instruction objects and
+    registered as tools alongside static plugin skills.
+
+    No-ops gracefully if the bot has no custom instructions or if the
+    database is unavailable.
+    """
+    if not agent.bot_id:
+        return
+
+    try:
+        from tukuy.instruction import Instruction, InstructionDescriptor
+
+        from cachibot.storage.instruction_repository import InstructionRepository
+
+        repo = InstructionRepository()
+        records = await repo.get_by_bot(agent.bot_id)
+
+        if not records:
+            return
+
+        # Get the skill_config (with llm_backend) from the agent
+        skill_config = agent._build_skill_config()
+
+        for record in records:
+            if not record.is_active:
+                continue
+
+            descriptor = InstructionDescriptor(
+                name=record.name,
+                description=record.description or f"Custom instruction: {record.name}",
+                prompt=record.prompt,
+                system_prompt=record.system_prompt,
+                output_format=record.output_format,
+                model_hint=record.model_hint,
+                temperature=record.temperature,
+                max_tokens=record.max_tokens,
+                few_shot_examples=record.few_shot_examples,
+                category=record.category,
+                tags=record.tags or [],
+            )
+            instr = Instruction(descriptor=descriptor, fn=None)
+            agent.registry.add_tukuy_skill(instr, config=skill_config)
+
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "Failed to load dynamic instructions for bot %s",
+            agent.bot_id,
+            exc_info=True,
+        )
+
+
+async def _log_instruction_completion(
+    bot_id: str | None,
+    chat_id: str | None,
+    result: dict,
+) -> None:
+    """Log an instruction LLM completion to the execution log.
+
+    Called from the on_complete callback of the TukuyLLMBackend.
+    Runs as a fire-and-forget task so it doesn't block the instruction.
+    """
+    if not bot_id:
+        return
+
+    import logging
+    import uuid
+    from datetime import datetime, timezone
+
+    logger = logging.getLogger(__name__)
+    try:
+        from cachibot.models.automations import ExecutionLog, ExecutionStatus, TriggerType
+        from cachibot.storage.automations_repository import ExecutionLogRepository
+
+        meta = result.get("meta", {})
+        log_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+
+        log = ExecutionLog(
+            id=log_id,
+            execution_type="instruction",
+            source_type="instruction",
+            source_id=None,
+            source_name=meta.get("model", "unknown"),
+            bot_id=bot_id,
+            chat_id=chat_id,
+            trigger=TriggerType.MANUAL,
+            started_at=now,
+            finished_at=now,
+            duration_ms=0,
+            status=ExecutionStatus.SUCCESS,
+            credits_consumed=meta.get("cost", 0.0),
+            tokens_used=meta.get("prompt_tokens", 0) + meta.get("completion_tokens", 0),
+            prompt_tokens=meta.get("prompt_tokens", 0),
+            completion_tokens=meta.get("completion_tokens", 0),
+            llm_calls=1,
+            metadata_json={"model": meta.get("model", "unknown")},
+        )
+
+        repo = ExecutionLogRepository()
+        await repo.save(log)
+
+        # Credit deduction
+        cost = meta.get("cost", 0.0)
+        if cost > 0:
+            try:
+                from cachibot.services.credit_guard import CreditGuard
+
+                guard = CreditGuard()
+                # We don't have user_id here, but the guard handles missing users gracefully
+                await guard.deduct_after_execution(bot_id, cost)
+            except Exception:
+                logger.debug("Credit deduction skipped for instruction", exc_info=True)
+
+    except Exception:
+        logger.debug("Failed to log instruction completion", exc_info=True)
 
 
 async def load_disabled_capabilities() -> set[str]:

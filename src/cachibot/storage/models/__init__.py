@@ -32,6 +32,9 @@ from cachibot.storage.models.automations import (
     ScriptVersion,
     TimelineEvent,
 )
+
+# Custom instructions
+from cachibot.storage.models.instruction import InstructionRecord, InstructionVersion
 from cachibot.storage.models.bot import Bot, BotOwnership
 from cachibot.storage.models.chat import Chat
 from cachibot.storage.models.connection import BotConnection
@@ -109,4 +112,7 @@ __all__ = [
     "ExecutionLogLine",
     "TimelineEvent",
     "ExecutionDailySummary",
+    # Custom instructions
+    "InstructionRecord",
+    "InstructionVersion",
 ]

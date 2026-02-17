@@ -29,6 +29,7 @@ class WSMessageType(str, Enum):
     EXECUTION_PROGRESS = "execution_progress"  # Progress update
     EXECUTION_END = "execution_end"  # Execution completed/failed
     APPROVAL_NEEDED = "approval_needed"
+    INSTRUCTION_DELTA = "instruction_delta"
     USAGE = "usage"
     ERROR = "error"
     DONE = "done"
@@ -121,6 +122,14 @@ class WSMessage(BaseModel):
         return cls(
             type=WSMessageType.TOOL_END,
             payload={"id": id, "result": result, "success": success},
+        )
+
+    @classmethod
+    def instruction_delta(cls, tool_call_id: str, text: str) -> "WSMessage":
+        """Incremental text from an instruction's LLM execution."""
+        return cls(
+            type=WSMessageType.INSTRUCTION_DELTA,
+            payload={"id": tool_call_id, "text": text},
         )
 
     @classmethod

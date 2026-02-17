@@ -13,7 +13,6 @@ import {
   BookOpen,
   Sparkles,
   Plug,
-  Sliders,
   AlertTriangle,
   MessageCircle,
   FolderKanban,
@@ -909,8 +908,6 @@ const settingsSections: { id: SettingsSection; label: string; icon: React.Compon
   { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'connections', label: 'Connections', icon: Plug },
   { id: 'environment', label: 'Environment', icon: Key },
-  { id: 'voice', label: 'Voice', icon: Mic },
-  { id: 'advanced', label: 'Advanced', icon: Sliders },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
 ]
 

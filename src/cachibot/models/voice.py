@@ -24,6 +24,7 @@ class VoiceMessageType(str, Enum):
     THINKING = "thinking"
     TOOL_START = "tool_start"
     TOOL_END = "tool_end"
+    INSTRUCTION_DELTA = "instruction_delta"
     AUDIO_START = "audio_start"
     AUDIO_END = "audio_end"
     TURN_COMPLETE = "turn_complete"
@@ -89,6 +90,14 @@ class VoiceMessage(BaseModel):
     @classmethod
     def tool_end(cls, tool_id: str, result: str) -> "VoiceMessage":
         return cls(type=VoiceMessageType.TOOL_END, payload={"id": tool_id, "result": result})
+
+    @classmethod
+    def instruction_delta(cls, tool_call_id: str, text: str) -> "VoiceMessage":
+        """Incremental text from an instruction's LLM execution."""
+        return cls(
+            type=VoiceMessageType.INSTRUCTION_DELTA,
+            payload={"id": tool_call_id, "text": text},
+        )
 
     @classmethod
     def audio_start(cls, sample_rate: int = 24000, channels: int = 1) -> "VoiceMessage":
