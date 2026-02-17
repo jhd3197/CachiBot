@@ -279,6 +279,7 @@ jobs:
       # Build and upload to the GitHub Release (unsigned)
       - name: Build Electron app
         working-directory: desktop
+        shell: bash
         run: |
           unset CSC_LINK CSC_KEY_PASSWORD
           npx electron-builder --${{ matrix.platform }} --publish always
