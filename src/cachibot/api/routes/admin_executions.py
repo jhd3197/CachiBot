@@ -130,9 +130,7 @@ async def admin_export_csv(
     from_dt = datetime.fromisoformat(from_date) if from_date else None
     to_dt = datetime.fromisoformat(to_date) if to_date else None
 
-    csv_data = await exec_log_repo.export_csv(
-        bot_id=bot_id, from_date=from_dt, to_date=to_dt
-    )
+    csv_data = await exec_log_repo.export_csv(bot_id=bot_id, from_date=from_dt, to_date=to_dt)
     return PlainTextResponse(
         content=csv_data,
         media_type="text/csv",

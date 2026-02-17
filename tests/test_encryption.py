@@ -18,7 +18,6 @@ from cryptography.exceptions import InvalidTag
 
 from cachibot.services.encryption import EncryptionService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -45,9 +45,7 @@ class BotEnvironment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    created_by: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    created_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
 
 
 class PlatformEnvironment(Base):
@@ -71,9 +69,7 @@ class PlatformEnvironment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    created_by: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    created_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
 
 
 class BotSkillConfig(Base):
@@ -110,9 +106,7 @@ class EnvAuditLog(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     bot_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    user_id: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    user_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     action: Mapped[str] = mapped_column(String, nullable=False)
     key_name: Mapped[str] = mapped_column(String, nullable=False)
     source: Mapped[str] = mapped_column(String, nullable=False)

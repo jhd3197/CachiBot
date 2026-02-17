@@ -14,16 +14,14 @@ import os
 import secrets
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cachibot.services.bot_environment import (
     BotEnvironmentContext,
     BotEnvironmentService,
-    ResolvedEnvironment,
 )
 from cachibot.services.encryption import EncryptionService
 from cachibot.storage.models.env_var import (
@@ -31,7 +29,6 @@ from cachibot.storage.models.env_var import (
     BotSkillConfig,
     PlatformEnvironment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -157,9 +154,7 @@ class TestResolutionOrder:
     async def test_platform_overrides_global(self, pg_db, enc):
         """Layer 2: Platform defaults override global."""
         async with pg_db() as session:
-            await _seed_platform_env(
-                session, enc, "web", "OPENAI_API_KEY", "sk-platform-key"
-            )
+            await _seed_platform_env(session, enc, "web", "OPENAI_API_KEY", "sk-platform-key")
             await session.commit()
 
         async with pg_db() as session:
@@ -174,12 +169,8 @@ class TestResolutionOrder:
     async def test_bot_overrides_platform(self, pg_db, enc):
         """Layer 3: Bot overrides override platform."""
         async with pg_db() as session:
-            await _seed_platform_env(
-                session, enc, "web", "OPENAI_API_KEY", "sk-platform-key"
-            )
-            await _seed_bot_env(
-                session, enc, "bot-1", "OPENAI_API_KEY", "sk-bot-key"
-            )
+            await _seed_platform_env(session, enc, "web", "OPENAI_API_KEY", "sk-platform-key")
+            await _seed_bot_env(session, enc, "bot-1", "OPENAI_API_KEY", "sk-bot-key")
             await session.commit()
 
         async with pg_db() as session:
@@ -194,9 +185,7 @@ class TestResolutionOrder:
     async def test_request_overrides_bot(self, pg_db, enc):
         """Layer 5: Request overrides take highest priority for settings."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-1", "model", "openai/gpt-4o"
-            )
+            await _seed_bot_env(session, enc, "bot-1", "model", "openai/gpt-4o")
             await session.commit()
 
         async with pg_db() as session:
@@ -215,9 +204,7 @@ class TestResolutionOrder:
     async def test_skill_configs_loaded(self, pg_db, enc):
         """Layer 4: Skill configs are loaded from the database."""
         async with pg_db() as session:
-            await _seed_skill_config(
-                session, "bot-1", "shell_execute", {"timeout_seconds": 60}
-            )
+            await _seed_skill_config(session, "bot-1", "shell_execute", {"timeout_seconds": 60})
             await session.commit()
 
         async with pg_db() as session:
@@ -239,9 +226,7 @@ class TestFallthrough:
     async def test_no_bot_env_falls_to_platform(self, pg_db, enc):
         """If no bot env var, platform value is used."""
         async with pg_db() as session:
-            await _seed_platform_env(
-                session, enc, "web", "GROQ_API_KEY", "gsk_platform"
-            )
+            await _seed_platform_env(session, enc, "web", "GROQ_API_KEY", "gsk_platform")
             await session.commit()
 
         async with pg_db() as session:
@@ -305,12 +290,8 @@ class TestIsolation:
     async def test_two_bots_different_keys(self, pg_db, enc):
         """Bot A and Bot B resolve different keys for the same provider."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-a", "OPENAI_API_KEY", "sk-AAA"
-            )
-            await _seed_bot_env(
-                session, enc, "bot-b", "OPENAI_API_KEY", "sk-BBB"
-            )
+            await _seed_bot_env(session, enc, "bot-a", "OPENAI_API_KEY", "sk-AAA")
+            await _seed_bot_env(session, enc, "bot-b", "OPENAI_API_KEY", "sk-BBB")
             await session.commit()
 
         # Resolve in parallel
@@ -331,9 +312,7 @@ class TestIsolation:
     async def test_resolved_envs_are_independent_objects(self, pg_db, enc):
         """Mutating one resolved env does not affect another."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-a", "OPENAI_API_KEY", "sk-AAA"
-            )
+            await _seed_bot_env(session, enc, "bot-a", "OPENAI_API_KEY", "sk-AAA")
             await session.commit()
 
         async with pg_db() as session:
@@ -362,9 +341,7 @@ class TestBotEnvironmentContext:
     async def test_context_provides_keys(self, pg_db, enc):
         """Keys are available inside the context."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-1", "OPENAI_API_KEY", "sk-ctx-key"
-            )
+            await _seed_bot_env(session, enc, "bot-1", "OPENAI_API_KEY", "sk-ctx-key")
             await session.commit()
 
         async with pg_db() as session:
@@ -378,9 +355,7 @@ class TestBotEnvironmentContext:
     async def test_context_clears_on_exit(self, pg_db, enc):
         """Keys are cleared after exiting the context."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-1", "OPENAI_API_KEY", "sk-temp-key"
-            )
+            await _seed_bot_env(session, enc, "bot-1", "OPENAI_API_KEY", "sk-temp-key")
             await session.commit()
 
         async with pg_db() as session:
@@ -407,15 +382,12 @@ class TestBotEnvironmentContext:
     async def test_keys_never_in_os_environ(self, pg_db, enc):
         """Per-bot keys must NEVER be placed in os.environ."""
         async with pg_db() as session:
-            await _seed_bot_env(
-                session, enc, "bot-1", "OPENAI_API_KEY", "sk-never-in-environ"
-            )
+            await _seed_bot_env(session, enc, "bot-1", "OPENAI_API_KEY", "sk-never-in-environ")
             await session.commit()
 
         async with pg_db() as session:
             svc = BotEnvironmentService(session, enc)
 
-            original_env = os.environ.copy()
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("OPENAI_API_KEY", None)
                 async with BotEnvironmentContext("bot-1", svc) as ctx:

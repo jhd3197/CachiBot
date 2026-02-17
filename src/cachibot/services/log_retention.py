@@ -68,10 +68,10 @@ class LogRetentionService:
 
     async def _run_retention(self) -> None:
         """Execute one retention cycle."""
+        from sqlalchemy import select
+
         from cachibot.storage import db
         from cachibot.storage.models.automations import ExecutionLog as ExecutionLogORM
-
-        from sqlalchemy import delete, select
 
         tier_limits = get_tier_limits()  # Default tier for self-hosted
         cutoff = datetime.now(timezone.utc) - timedelta(days=tier_limits.log_retention_days)
@@ -139,7 +139,7 @@ class LogRetentionService:
         summary_date = log.started_at.date()
 
         # Try to find existing summary for this source/date
-        existing = await self._summary_repo.get_by_bot_date(
+        await self._summary_repo.get_by_bot_date(
             bot_id=log.bot_id,
             from_date=datetime.combine(summary_date, datetime.min.time()),
             to_date=datetime.combine(summary_date, datetime.max.time()),

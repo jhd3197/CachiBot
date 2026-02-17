@@ -215,9 +215,7 @@ class JobRunnerService:
                 and getattr(function, "execution_type", "agent") == "script"
                 and getattr(function, "script_id", None)
             ):
-                result_text, usage_data = await self._run_script_for_task(
-                    job, task, work, function
-                )
+                result_text, usage_data = await self._run_script_for_task(job, task, work, function)
             else:
                 result_text, usage_data = await self._run_agent_for_task(job, task)
 
@@ -247,7 +245,7 @@ class JobRunnerService:
                         source_id=work.function_id or work.id,
                         event_type="execution",
                         title=f"Executed: {work.title}",
-                        description=f"Completed successfully",
+                        description="Completed successfully",
                         execution_log_id=exec_log_id,
                     )
                 )
@@ -294,9 +292,7 @@ class JobRunnerService:
             await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", error_msg)
             try:
-                await self._exec_log_repo.complete(
-                    exec_log_id, status="timeout", error=error_msg
-                )
+                await self._exec_log_repo.complete(exec_log_id, status="timeout", error=error_msg)
             except Exception:
                 pass
             await self._handle_task_failure(task, work, job.id, error_msg)
@@ -307,9 +303,7 @@ class JobRunnerService:
             await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", f"Job failed: {error_msg}")
             try:
-                await self._exec_log_repo.complete(
-                    exec_log_id, status="error", error=error_msg
-                )
+                await self._exec_log_repo.complete(exec_log_id, status="error", error=error_msg)
                 await self._timeline_repo.save(
                     TimelineEvent(
                         id=str(uuid.uuid4()),
@@ -412,9 +406,7 @@ class JobRunnerService:
 
         return result.output_text or "", usage_data
 
-    async def _run_script_for_task(
-        self, job: Job, task, work: Work, function
-    ) -> tuple[str, dict]:
+    async def _run_script_for_task(self, job: Job, task, work: Work, function) -> tuple[str, dict]:
         """Execute a script in the sandbox.
 
         Returns:
@@ -427,9 +419,7 @@ class JobRunnerService:
         script = await script_repo.get(function.script_id)
 
         if not script or script.status.value != "active":
-            raise RuntimeError(
-                f"Script {function.script_id} not found or not active"
-            )
+            raise RuntimeError(f"Script {function.script_id} not found or not active")
 
         sandbox = ScriptSandbox(
             bot_id=task.bot_id,
@@ -449,9 +439,7 @@ class JobRunnerService:
         result = await sandbox.execute(script.source_code, context)
 
         # Update script run stats
-        await script_repo.increment_run_count(
-            script.id, success=result.success
-        )
+        await script_repo.increment_run_count(script.id, success=result.success)
 
         return result.output or "", {}
 
@@ -580,7 +568,9 @@ class JobRunnerService:
                 bot_id=exec_log.bot_id,
                 source_name=exec_log.source_name,
                 execution_type=exec_log.execution_type,
-                trigger=exec_log.trigger.value if hasattr(exec_log.trigger, "value") else str(exec_log.trigger),
+                trigger=exec_log.trigger.value
+                if hasattr(exec_log.trigger, "value")
+                else str(exec_log.trigger),
             )
             await ws.broadcast(msg)
         except Exception:

@@ -7,7 +7,6 @@ Covers:
 - DB unreachable -> falls back to os.environ gracefully
 """
 
-import json
 import os
 import secrets
 import uuid
@@ -20,12 +19,10 @@ from sqlalchemy import select
 from cachibot.services.bot_environment import (
     BotEnvironmentContext,
     BotEnvironmentService,
-    ResolvedEnvironment,
 )
-from cachibot.services.driver_factory import DRIVER_MAP, build_driver_with_key
+from cachibot.services.driver_factory import build_driver_with_key
 from cachibot.services.encryption import EncryptionService
-from cachibot.storage.models.env_var import BotEnvironment, PlatformEnvironment
-
+from cachibot.storage.models.env_var import BotEnvironment
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -163,7 +160,7 @@ class TestInvalidKeyErrors:
 
         with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
             mock_importlib.import_module.return_value = mock_module
-            driver = build_driver_with_key("openai/gpt-4o", api_key="sk-INVALID-key")
+            build_driver_with_key("openai/gpt-4o", api_key="sk-INVALID-key")
 
         # Driver is created — no fallback to platform key
         mock_cls.assert_called_once_with(api_key="sk-INVALID-key", model="gpt-4o")
@@ -285,9 +282,7 @@ class TestEndToEndFlow:
         bot_id = "bot-e2e"
 
         async with pg_db() as session:
-            await _insert_bot_env(
-                session, enc, bot_id, "OPENAI_API_KEY", "sk-bot-specific-key"
-            )
+            await _insert_bot_env(session, enc, bot_id, "OPENAI_API_KEY", "sk-bot-specific-key")
             await session.commit()
 
         # Resolve
@@ -304,7 +299,7 @@ class TestEndToEndFlow:
 
         with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
             mock_importlib.import_module.return_value = mock_module
-            driver = build_driver_with_key(
+            build_driver_with_key(
                 env.model or "openai/gpt-4o",
                 api_key=env.provider_keys.get("openai"),
             )
@@ -322,9 +317,7 @@ class TestEndToEndFlow:
         bot_id = "bot-ctx-e2e"
 
         async with pg_db() as session:
-            await _insert_bot_env(
-                session, enc, bot_id, "OPENAI_API_KEY", "sk-context-key"
-            )
+            await _insert_bot_env(session, enc, bot_id, "OPENAI_API_KEY", "sk-context-key")
             await session.commit()
 
         async with pg_db() as session:
@@ -342,15 +335,11 @@ class TestEndToEndFlow:
                     mock_module = MagicMock()
                     mock_module.AsyncOpenAIDriver = mock_cls
 
-                    with patch(
-                        "cachibot.services.driver_factory.importlib"
-                    ) as mock_importlib:
+                    with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
                         mock_importlib.import_module.return_value = mock_module
                         build_driver_with_key("openai/gpt-4o", api_key=api_key)
 
-                    mock_cls.assert_called_once_with(
-                        api_key="sk-context-key", model="gpt-4o"
-                    )
+                    mock_cls.assert_called_once_with(api_key="sk-context-key", model="gpt-4o")
 
                 # After context exit, keys are cleared
                 assert ctx.get("openai") is None

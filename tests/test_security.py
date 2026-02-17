@@ -10,12 +10,11 @@ Covers:
 
 import logging
 import re
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from cachibot.api.routes.providers import _mask_value
-
 
 # ---------------------------------------------------------------------------
 # Secret Masking Patterns (from architecture doc 4.8)
@@ -108,10 +107,10 @@ class TestLogSecretMasking:
     def test_key_in_traceback_detected(self):
         """If a key appears in a traceback string, our patterns catch it."""
         traceback = (
-            'Traceback (most recent call last):\n'
+            "Traceback (most recent call last):\n"
             '  File "driver.py", line 42, in _call_api\n'
             f'    headers["Authorization"] = "Bearer {SAMPLE_KEYS["openai"]}"\n'
-            'openai.AuthenticationError: Invalid API key'
+            "openai.AuthenticationError: Invalid API key"
         )
         matched = any(p.search(traceback) for p in SECRET_PATTERNS)
         assert matched, "API key in traceback not detected"

@@ -55,9 +55,7 @@ async def seed_platform_env() -> None:
     async for session in get_session():
         # Load existing keys to skip
         result = await session.execute(
-            select(PlatformEnvironment.key).where(
-                PlatformEnvironment.platform == "global"
-            )
+            select(PlatformEnvironment.key).where(PlatformEnvironment.platform == "global")
         )
         existing_keys = {row[0] for row in result.all()}
 

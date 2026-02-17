@@ -14,13 +14,33 @@ logger = logging.getLogger(__name__)
 
 # Stricter than interactive mode — no archive modules
 AUTOMATION_ALLOWED_IMPORTS = [
-    "json", "csv", "re", "string", "textwrap",
-    "math", "statistics", "decimal", "fractions", "random",
-    "collections", "itertools", "functools", "operator",
-    "datetime", "time", "calendar",
-    "dataclasses", "enum", "typing",
-    "copy", "pprint", "bisect", "heapq",
-    "base64", "hashlib", "hmac",
+    "json",
+    "csv",
+    "re",
+    "string",
+    "textwrap",
+    "math",
+    "statistics",
+    "decimal",
+    "fractions",
+    "random",
+    "collections",
+    "itertools",
+    "functools",
+    "operator",
+    "datetime",
+    "time",
+    "calendar",
+    "dataclasses",
+    "enum",
+    "typing",
+    "copy",
+    "pprint",
+    "bisect",
+    "heapq",
+    "base64",
+    "hashlib",
+    "hmac",
 ]
 
 AUTOMATION_ALLOWED_IMPORTS_SET = set(AUTOMATION_ALLOWED_IMPORTS)
@@ -57,9 +77,7 @@ class ScriptSandbox:
     timeout_seconds: int = 300
     max_memory_mb: int = 256
     allowed_imports: list[str] = field(default_factory=list)
-    resource_limits: AutomationResourceLimits = field(
-        default_factory=AutomationResourceLimits
-    )
+    resource_limits: AutomationResourceLimits = field(default_factory=AutomationResourceLimits)
 
     async def execute(
         self,
@@ -141,7 +159,7 @@ class ScriptSandbox:
             )
 
 
-def validate_script_before_save(code: str) -> "ScriptValidationResult":
+def validate_script_before_save(code: str) -> "ScriptValidationResult":  # noqa: F821
     """Validate a script before saving (static analysis).
 
     Uses Tukuy's analyze_python() for risk assessment and import checking.

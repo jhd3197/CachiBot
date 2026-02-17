@@ -90,25 +90,19 @@ def get_tier_limits(tier: str | None = None) -> TierLimits:
     return _TIER_LIMITS.get(tier, _TIER_LIMITS[_DEFAULT_TIER])
 
 
-def check_automation_count(
-    current_count: int, tier: str | None = None
-) -> bool:
+def check_automation_count(current_count: int, tier: str | None = None) -> bool:
     """Check if a new automation can be created within tier limits."""
     limits = get_tier_limits(tier)
     return current_count < limits.max_automations
 
 
-def check_interval(
-    interval_seconds: int, tier: str | None = None
-) -> bool:
+def check_interval(interval_seconds: int, tier: str | None = None) -> bool:
     """Check if a schedule interval meets tier minimum."""
     limits = get_tier_limits(tier)
     return interval_seconds >= limits.min_interval_seconds
 
 
-def check_concurrency(
-    running_count: int, tier: str | None = None
-) -> bool:
+def check_concurrency(running_count: int, tier: str | None = None) -> bool:
     """Check if another concurrent run is allowed."""
     limits = get_tier_limits(tier)
     return running_count < limits.max_concurrent_runs
