@@ -14,8 +14,8 @@ export function BotEditPanel({
   open,
   onClose,
   scriptName,
-  currentCode,
-  onApplyEdit,
+  currentCode: _currentCode,
+  onApplyEdit: _onApplyEdit,
 }: BotEditPanelProps) {
   const [instruction, setInstruction] = useState('')
   const [loading, setLoading] = useState(false)

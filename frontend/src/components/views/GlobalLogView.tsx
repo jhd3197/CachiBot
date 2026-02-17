@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import {
   Activity,
   AlertCircle,
-  DollarSign,
   Download,
   Loader2,
   Search,
@@ -10,7 +9,6 @@ import {
   StopCircle,
   CheckCircle2,
   Clock,
-  Filter,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {

@@ -1,9 +1,7 @@
 import {
   Play,
   Pause,
-  MoreHorizontal,
   Clock,
-  AlertCircle,
   CheckCircle2,
   Code,
   CalendarClock,

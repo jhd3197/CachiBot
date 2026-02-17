@@ -27,7 +27,6 @@ import {
   Mic,
   DoorOpen,
   Key,
-  Blocks,
   Code2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -806,7 +805,7 @@ const automationSections: { id: AutomationSection; label: string; icon: React.Co
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
 ]
 
-function AutomationsSectionsList({ botId, collapsed }: { botId: string; collapsed: boolean }) {
+function AutomationsSectionsList({ collapsed }: { botId: string; collapsed: boolean }) {
   const { automationSection, setAutomationSection } = useUIStore()
 
   if (collapsed) {
