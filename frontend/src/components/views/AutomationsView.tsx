@@ -8,7 +8,6 @@ import {
   CalendarClock,
   Loader2,
   LayoutGrid,
-  Filter,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
@@ -120,7 +119,7 @@ export function AutomationsView() {
         type: 'schedule',
         status: sch.enabled ? 'enabled' : 'disabled',
         lastRunAt: sch.lastRunAt || null,
-        runCount: sch.totalRuns || 0,
+        runCount: sch.runCount || 0,
         raw: sch,
       })
     }

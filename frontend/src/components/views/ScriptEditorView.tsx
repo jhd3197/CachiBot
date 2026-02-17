@@ -4,16 +4,12 @@ import {
   ArrowLeft,
   Play,
   Save,
-  Clock,
   GitBranch,
   CheckCircle2,
-  XCircle,
   Loader2,
-  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
-import { useAutomationsStore } from '../../stores/automations'
 import { ConsoleOutput } from '../automations/ConsoleOutput'
 import { TimelineTab } from '../automations/TimelineTab'
 import { VersionDiffModal } from '../automations/VersionDiffModal'
@@ -22,13 +18,12 @@ import {
   updateScript,
   runScript,
   getScriptVersions,
-  getScriptVersion,
   approveScriptVersion,
   rollbackScriptVersion,
   type Script,
   type ScriptVersion,
 } from '../../api/automations'
-import { getExecutionLines, type LogLine } from '../../api/execution-log'
+import type { LogLine } from '../../api/execution-log'
 import { cn } from '../../lib/utils'
 
 type EditorTab = 'code' | 'versions' | 'timeline' | 'console'
@@ -107,7 +102,7 @@ export function ScriptEditorView() {
     setActiveTab('console')
     setConsoleLines([])
     try {
-      const { workId } = await runScript(activeBotId, scriptId)
+      await runScript(activeBotId, scriptId)
       toast.success('Script execution started')
       // Poll for log lines (simplified)
       setTimeout(() => setRunning(false), 3000)
