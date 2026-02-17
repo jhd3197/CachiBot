@@ -168,6 +168,18 @@ class DatabaseConfig:
 
 
 @dataclass
+class SmtpConfig:
+    """SMTP email configuration."""
+
+    host: str = ""
+    port: int = 587
+    username: str = ""
+    password: str = ""
+    from_address: str = ""
+    use_tls: bool = True
+
+
+@dataclass
 class TelemetryConfig:
     """Anonymous telemetry configuration (opt-in, disabled by default)."""
 
@@ -201,6 +213,7 @@ class Config:
     knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    smtp: SmtpConfig = field(default_factory=SmtpConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
 
@@ -325,6 +338,23 @@ class Config:
         if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
             self.platform.website_url = website_url
 
+        # SMTP settings
+        if smtp_host := os.getenv("CACHIBOT_SMTP_HOST"):
+            self.smtp.host = smtp_host
+        if smtp_port := os.getenv("CACHIBOT_SMTP_PORT"):
+            try:
+                self.smtp.port = int(smtp_port)
+            except ValueError:
+                pass
+        if smtp_user := os.getenv("CACHIBOT_SMTP_USERNAME"):
+            self.smtp.username = smtp_user
+        if smtp_pass := os.getenv("CACHIBOT_SMTP_PASSWORD"):
+            self.smtp.password = smtp_pass
+        if smtp_from := os.getenv("CACHIBOT_SMTP_FROM"):
+            self.smtp.from_address = smtp_from
+        if smtp_tls := os.getenv("CACHIBOT_SMTP_TLS"):
+            self.smtp.use_tls = smtp_tls.lower() in ("1", "true", "yes")
+
         # Telemetry override — CACHIBOT_TELEMETRY_DISABLED=1 force-disables
         if os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes"):
             self.telemetry.enabled = False
@@ -415,6 +445,20 @@ class Config:
             if "website_url" in platform_data:
                 self.platform.website_url = platform_data["website_url"]
 
+        if smtp_data := data.get("smtp"):
+            if "host" in smtp_data:
+                self.smtp.host = smtp_data["host"]
+            if "port" in smtp_data:
+                self.smtp.port = smtp_data["port"]
+            if "username" in smtp_data:
+                self.smtp.username = smtp_data["username"]
+            if "password" in smtp_data:
+                self.smtp.password = smtp_data["password"]
+            if "from_address" in smtp_data:
+                self.smtp.from_address = smtp_data["from_address"]
+            if "use_tls" in smtp_data:
+                self.smtp.use_tls = smtp_data["use_tls"]
+
         if db_data := data.get("database"):
             if "url" in db_data:
                 self.database.url = db_data["url"]
@@ -484,6 +528,105 @@ class Config:
                 tomli_w.dump(data, f)
         except Exception as exc:
             logger.debug("Failed to write telemetry config: %s", exc)
+
+    def save_database_config(self) -> None:
+        """Persist database settings to the user config file (~/.cachibot.toml)."""
+        user_config = Path.home() / ".cachibot.toml"
+
+        try:
+            import tomli_w
+        except ImportError:
+            self._save_section_manual(user_config, "database", {
+                "url": self.database.url,
+            })
+            return
+
+        data: dict[str, Any] = {}
+        if user_config.exists() and tomllib is not None:
+            try:
+                with open(user_config, "rb") as f:
+                    data = tomllib.load(f)
+            except Exception:
+                pass
+
+        data["database"] = {"url": self.database.url}
+
+        try:
+            with open(user_config, "wb") as f:
+                tomli_w.dump(data, f)
+        except Exception as exc:
+            logger.debug("Failed to write database config: %s", exc)
+
+    def save_smtp_config(self) -> None:
+        """Persist SMTP settings to the user config file (~/.cachibot.toml)."""
+        user_config = Path.home() / ".cachibot.toml"
+
+        try:
+            import tomli_w
+        except ImportError:
+            self._save_section_manual(user_config, "smtp", {
+                "host": self.smtp.host,
+                "port": self.smtp.port,
+                "username": self.smtp.username,
+                "password": self.smtp.password,
+                "from_address": self.smtp.from_address,
+                "use_tls": self.smtp.use_tls,
+            })
+            return
+
+        data: dict[str, Any] = {}
+        if user_config.exists() and tomllib is not None:
+            try:
+                with open(user_config, "rb") as f:
+                    data = tomllib.load(f)
+            except Exception:
+                pass
+
+        data["smtp"] = {
+            "host": self.smtp.host,
+            "port": self.smtp.port,
+            "username": self.smtp.username,
+            "password": self.smtp.password,
+            "from_address": self.smtp.from_address,
+            "use_tls": self.smtp.use_tls,
+        }
+
+        try:
+            with open(user_config, "wb") as f:
+                tomli_w.dump(data, f)
+        except Exception as exc:
+            logger.debug("Failed to write SMTP config: %s", exc)
+
+    def _save_section_manual(self, path: Path, section: str, values: dict[str, Any]) -> None:
+        """Write a config section without tomli_w (plain-text TOML append)."""
+        import re
+
+        lines = [f"\n[{section}]\n"]
+        for key, val in values.items():
+            if isinstance(val, bool):
+                lines.append(f"{key} = {'true' if val else 'false'}\n")
+            elif isinstance(val, int):
+                lines.append(f"{key} = {val}\n")
+            else:
+                lines.append(f'{key} = "{val}"\n')
+        section_text = "".join(lines)
+
+        try:
+            if path.exists():
+                content = path.read_text(encoding="utf-8")
+                content = re.sub(
+                    rf"\n?\[{re.escape(section)}\][^\[]*",
+                    "",
+                    content,
+                    flags=re.DOTALL,
+                )
+                content = content.rstrip() + "\n" + section_text
+            else:
+                content = section_text.lstrip()
+
+            path.write_text(content, encoding="utf-8")
+        except Exception as exc:
+            logger.debug("Failed to write %s config (manual): %s", section, exc)
 
     def _save_telemetry_manual(self, path: Path) -> None:
         """Write telemetry config without tomli_w (plain-text TOML append)."""

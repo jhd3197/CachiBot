@@ -19,6 +19,7 @@ class RoomWSMessageType(str, Enum):
     ROOM_BOT_THINKING = "room_bot_thinking"
     ROOM_BOT_TOOL_START = "room_bot_tool_start"
     ROOM_BOT_TOOL_END = "room_bot_tool_end"
+    ROOM_BOT_INSTRUCTION_DELTA = "room_bot_instruction_delta"
     ROOM_BOT_DONE = "room_bot_done"
     ROOM_TYPING_INDICATOR = "room_typing_indicator"
     ROOM_PRESENCE = "room_presence"
@@ -106,6 +107,27 @@ class RoomWSMessage(BaseModel):
                 "toolId": tool_id,
                 "result": result,
                 "success": success,
+            },
+        )
+
+    @classmethod
+    def bot_instruction_delta(
+        cls,
+        room_id: str,
+        bot_id: str,
+        bot_name: str,
+        tool_id: str,
+        text: str,
+    ) -> "RoomWSMessage":
+        """Incremental text from a bot's instruction LLM execution."""
+        return cls(
+            type=RoomWSMessageType.ROOM_BOT_INSTRUCTION_DELTA,
+            payload={
+                "roomId": room_id,
+                "botId": bot_id,
+                "botName": bot_name,
+                "toolId": tool_id,
+                "text": text,
             },
         )
 

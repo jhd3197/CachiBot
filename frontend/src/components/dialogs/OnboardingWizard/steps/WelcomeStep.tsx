@@ -1,4 +1,4 @@
-import { Bot, Sparkles, Key, Palette } from 'lucide-react'
+import { Bot, Sparkles, Key, Palette, HardDrive, Mail } from 'lucide-react'
 
 export function WelcomeStep() {
   return (
@@ -30,6 +30,26 @@ export function WelcomeStep() {
           <div>
             <p className="text-sm font-medium text-zinc-200">Pick a Model</p>
             <p className="text-xs text-zinc-500">Choose your default AI model</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-800/50 p-3 text-left">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20">
+            <HardDrive className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-zinc-200">Database</p>
+            <p className="text-xs text-zinc-500">SQLite or PostgreSQL</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-800/50 p-3 text-left">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/20">
+            <Mail className="h-4 w-4 text-sky-400" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-zinc-200">Email</p>
+            <p className="text-xs text-zinc-500">SMTP for notifications (optional)</p>
           </div>
         </div>
 

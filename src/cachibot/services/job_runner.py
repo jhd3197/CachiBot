@@ -383,6 +383,11 @@ class JobRunnerService:
             disabled_capabilities=disabled_caps,
         )
 
+        # Load custom instructions from DB
+        from cachibot.agent import load_dynamic_instructions
+
+        await load_dynamic_instructions(agent)
+
         # Build the user message from task action
         action = task.action or task.title
         if task.description:

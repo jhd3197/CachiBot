@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from cachibot.agent import CachibotAgent, load_disabled_capabilities
+from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.platform import IncomingMedia, PlatformResponse
@@ -378,6 +378,9 @@ class MessageProcessor:
             provider_environment=resolved_env,
             disabled_capabilities=disabled_caps,
         )
+
+        # Load custom instructions from DB (async)
+        await load_dynamic_instructions(agent)
 
         # Run async agent directly (pass images for vision if any)
         try:
