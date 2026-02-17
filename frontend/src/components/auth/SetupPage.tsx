@@ -69,7 +69,7 @@ export function SetupPage() {
       })
       storeLogin(response.user, response.access_token, response.refresh_token)
       toast.success('Admin account created successfully!')
-      navigate('/')
+      navigate('/consent')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Setup failed'
       toast.error(message)
