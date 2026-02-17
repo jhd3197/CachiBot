@@ -1,4 +1,10 @@
-"""Provider API key management endpoints."""
+"""Provider API key management endpoints.
+
+DEPRECATED: These endpoints manage global API keys via the .env file.
+Use the per-bot environment system instead:
+  - PUT /api/bots/{bot_id}/environment/{key}
+  - PUT /api/platforms/{platform}/environment/{key}
+"""
 
 from __future__ import annotations
 
@@ -8,6 +14,7 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
@@ -144,7 +151,12 @@ async def update_provider(
     body: ProviderUpdate,
     user: User = Depends(get_current_user),
 ):
-    """Set a provider's API key or endpoint."""
+    """Set a provider's API key or endpoint.
+
+    Deprecated: use PUT /api/bots/{bot_id}/environment/{key} or
+    PUT /api/platforms/{platform}/environment/{key} instead.
+    """
+    logger.warning("Deprecated: PUT /providers/%s — use per-bot environment endpoints", name)
     if name not in PROVIDERS:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {name}")
 
@@ -160,7 +172,10 @@ async def update_provider(
     except Exception as exc:
         logger.warning("Model re-discovery after provider update failed: %s", exc)
 
-    return {"ok": True, "models": models}
+    return JSONResponse(
+        content={"ok": True, "models": models},
+        headers={"Deprecation": "true", "Link": "</api/bots/{bot_id}/environment>; rel=successor"},
+    )
 
 
 @router.delete("/providers/{name}")
@@ -168,10 +183,18 @@ async def delete_provider(
     name: str,
     user: User = Depends(get_current_user),
 ):
-    """Remove a provider's API key or endpoint."""
+    """Remove a provider's API key or endpoint.
+
+    Deprecated: use DELETE /api/bots/{bot_id}/environment/{key} or
+    DELETE /api/platforms/{platform}/environment/{key} instead.
+    """
+    logger.warning("Deprecated: DELETE /providers/%s — use per-bot environment endpoints", name)
     if name not in PROVIDERS:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {name}")
 
     info = PROVIDERS[name]
     _remove_env_value(info["env_key"])
-    return {"ok": True}
+    return JSONResponse(
+        content={"ok": True},
+        headers={"Deprecation": "true", "Link": "</api/bots/{bot_id}/environment>; rel=successor"},
+    )
