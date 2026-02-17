@@ -26,6 +26,12 @@ from cachibot.storage.models.bot import Bot, BotOwnership
 from cachibot.storage.models.chat import Chat
 from cachibot.storage.models.connection import BotConnection
 from cachibot.storage.models.contact import BotContact
+from cachibot.storage.models.env_var import (
+    BotEnvironment,
+    BotSkillConfig,
+    EnvAuditLog,
+    PlatformEnvironment,
+)
 from cachibot.storage.models.job import Job
 from cachibot.storage.models.knowledge import BotDocument, BotInstruction, BotNote, DocChunk
 from cachibot.storage.models.message import BotMessage, Message
@@ -58,6 +64,11 @@ __all__ = [
     "BotContact",
     # Connections
     "BotConnection",
+    # Environment variables
+    "BotEnvironment",
+    "PlatformEnvironment",
+    "BotSkillConfig",
+    "EnvAuditLog",
     # Skills
     "Skill",
     "BotSkill",

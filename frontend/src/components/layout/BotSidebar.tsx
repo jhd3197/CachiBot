@@ -25,6 +25,7 @@ import {
   Eraser,
   Mic,
   DoorOpen,
+  Key,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -835,6 +836,7 @@ const settingsSections: { id: SettingsSection; label: string; icon: React.Compon
   { id: 'knowledge', label: 'Knowledge', icon: BookOpen },
   { id: 'skills', label: 'Skills', icon: Sparkles },
   { id: 'connections', label: 'Connections', icon: Plug },
+  { id: 'environment', label: 'Environment', icon: Key },
   { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'advanced', label: 'Advanced', icon: Sliders },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },

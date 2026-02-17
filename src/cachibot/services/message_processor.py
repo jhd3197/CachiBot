@@ -330,6 +330,40 @@ class MessageProcessor:
             except Exception as e:
                 logger.debug(f"Failed to send typing indicator: {e}")
 
+        # Resolve per-bot environment (keys, temperature, etc.)
+        resolved_env = None
+        per_bot_driver = None
+        merged_tool_configs: dict = {}
+        try:
+            from cachibot.services.bot_environment import BotEnvironmentService
+            from cachibot.services.driver_factory import build_driver_with_key
+            from cachibot.services.encryption import get_encryption_service
+            from cachibot.storage.db import ensure_initialized
+
+            session_maker = ensure_initialized()
+            async with session_maker() as session:
+                encryption = get_encryption_service()
+                env_service = BotEnvironmentService(session, encryption)
+                resolved_env = await env_service.resolve(bot_id, platform=platform)
+
+            # Build a per-bot driver if we have a key for the effective provider
+            effective_model = agent_config.agent.model
+            if effective_model and "/" in effective_model:
+                provider = effective_model.split("/", 1)[0].lower()
+                api_key = resolved_env.provider_keys.get(provider)
+                if api_key:
+                    per_bot_driver = build_driver_with_key(effective_model, api_key=api_key)
+
+            # Merge skill configs from resolved environment
+            if resolved_env.skill_configs:
+                merged_tool_configs = dict(resolved_env.skill_configs)
+        except Exception:
+            logger.warning(
+                "Per-bot environment resolution failed for bot %s; using global keys",
+                bot_id,
+                exc_info=True,
+            )
+
         # Create agent with bot capabilities for tool access
         agent = CachibotAgent(
             config=agent_config,
@@ -338,6 +372,9 @@ class MessageProcessor:
             bot_id=bot_id,
             chat_id=chat_id,
             bot_models=bot.models,
+            tool_configs=merged_tool_configs,
+            driver=per_bot_driver,
+            provider_environment=resolved_env,
         )
 
         # Run async agent directly (pass images for vision if any)
