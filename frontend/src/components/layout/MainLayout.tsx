@@ -3,7 +3,6 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { BotRail } from './BotRail'
 import { BotSidebar } from './BotSidebar'
-import { TitleBar } from './TitleBar'
 import {
   ChatView,
   RoomsView,
@@ -257,8 +256,7 @@ export function MainLayout() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <TitleBar />
+    <div className="flex flex-1 min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <div className="flex flex-1 overflow-hidden">
       {/* Mobile overlay backdrop */}
       {mobileMenuOpen && (

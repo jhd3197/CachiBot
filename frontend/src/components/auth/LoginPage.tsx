@@ -78,7 +78,7 @@ export function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
       </div>
     )
@@ -87,7 +87,7 @@ export function LoginPage() {
   // Cloud mode: show redirect to website
   if (authMode?.mode === 'cloud' && authMode.login_url) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
@@ -119,7 +119,7 @@ export function LoginPage() {
 
   // Selfhosted mode: standard login form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
