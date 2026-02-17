@@ -45,7 +45,9 @@ def collect_telemetry() -> dict:
         "app_version": __version__,
         "os_type": platform.system().lower(),
         "os_version": platform.release(),
-        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "python_version": (
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        ),
         "db_type": db_type,
         "uptime_seconds": uptime_seconds,
         "collected_at": datetime.now(timezone.utc).isoformat(),
