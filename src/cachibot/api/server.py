@@ -35,6 +35,7 @@ from cachibot.api.routes import (
     providers,
     rooms,
     skills,
+    telemetry,
     update,
     work,
 )
@@ -117,9 +118,23 @@ async def lifespan(app: FastAPI):
     job_runner = get_job_runner()
     await job_runner.start()
 
+    # Start telemetry scheduler (opt-in, non-blocking, silent on failure)
+    try:
+        from cachibot.telemetry.scheduler import start_telemetry_scheduler
+
+        await start_telemetry_scheduler()
+    except Exception as exc:
+        startup_logger.debug("Telemetry scheduler start skipped: %s", exc)
+
     yield
 
     # Shutdown
+    try:
+        from cachibot.telemetry.scheduler import stop_telemetry_scheduler
+
+        await stop_telemetry_scheduler()
+    except Exception:
+        pass
     await job_runner.stop()
     await scheduler.stop()
     await platform_manager.stop_health_monitor()
@@ -189,6 +204,7 @@ def create_app(
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
+    app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
     app.include_router(rooms.router, tags=["rooms"])
     app.include_router(ws_router, tags=["websocket"])
     app.include_router(voice_ws_router, tags=["voice"])
