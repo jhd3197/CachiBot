@@ -40,7 +40,7 @@ CACHIBOT_THEME = Theme(
 console = Console(theme=CACHIBOT_THEME)
 app = typer.Typer(
     name="cachibot",
-    help="🛡️ Cachibot - The Armored AI Agent",
+    help="Cachibot - The Armored AI Agent",
     no_args_is_help=False,
 )
 
@@ -77,7 +77,7 @@ def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
     console.print()
     console.print(
         Panel(
-            f"[warning]⚠️  Approval Required[/]\n\nTool: [bold]{tool_name}[/]\nAction: {action}",
+            f"[warning]Approval Required[/]\n\nTool: [bold]{tool_name}[/]\nAction: {action}",
             title="Security Check",
             border_style="yellow",
         )
@@ -97,7 +97,7 @@ def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
     if "reasons" in details:
         console.print("[dim]Risk factors:[/]")
         for reason in details["reasons"]:
-            console.print(f"  • {reason}")
+            console.print(f"  - {reason}")
 
     console.print()
     return Confirm.ask("  [bold]Approve this action?[/]", default=False)
@@ -119,7 +119,7 @@ def print_usage(run_usage: dict, steps: int = 0) -> None:
             parts.append(f"Time: {elapsed_ms / 1000:.1f}s")
         if tps > 0:
             parts.append(f"Speed: {tps:.0f} tok/s")
-        console.print(f"\n  [cost]📊 {' | '.join(parts)}[/]")
+        console.print(f"\n  [cost]{' | '.join(parts)}[/]")
 
 
 def create_agent_with_callbacks(config: Config) -> CachibotAgent:
@@ -130,14 +130,14 @@ def create_agent_with_callbacks(config: Config) -> CachibotAgent:
             # Truncate long thinking
             if len(text) > 200:
                 text = text[:197] + "..."
-            console.print(f"  [thinking]💭 {text}[/]")
+            console.print(f"  [thinking]{text}[/]")
 
     def on_tool_start(name: str, args: dict) -> None:
         # Show tool being called
         args_str = ", ".join(f"{k}={repr(v)[:30]}" for k, v in list(args.items())[:3])
         if len(args_str) > 60:
             args_str = args_str[:57] + "..."
-        console.print(f"  [tool]⚡ {name}[/]([dim]{args_str}[/])")
+        console.print(f"  [tool]> {name}[/]([dim]{args_str}[/])")
 
     def on_tool_end(name: str, result: str) -> None:
         # Show brief result
@@ -146,7 +146,7 @@ def create_agent_with_callbacks(config: Config) -> CachibotAgent:
             preview = lines[0][:80]
             if len(lines) > 1 or len(lines[0]) > 80:
                 preview += "..."
-            console.print(f"  [success]✓[/] [dim]{preview}[/]")
+            console.print(f"  [success]OK[/] [dim]{preview}[/]")
 
     def on_approval_needed(tool_name: str, action: str, details: dict) -> bool:
         return format_approval_dialog(tool_name, action, details)
@@ -206,7 +206,7 @@ def main(
     ),
 ) -> None:
     """
-    🛡️ Cachibot - The Armored AI Agent
+    Cachibot - The Armored AI Agent
 
     Run with a task argument for single execution, or without for interactive mode.
 
@@ -272,7 +272,7 @@ def main(
 
             # Handle special commands
             if user_input.lower() in ("exit", "quit", "q"):
-                console.print("\n[dim]Goodbye! 🛡️[/]\n")
+                console.print("\n[dim]Goodbye![/]\n")
                 break
 
             if user_input.lower() == "help":
@@ -349,8 +349,66 @@ def server(
     """Start the Cachibot API server."""
     from cachibot.api.server import run_server as start_api_server
 
-    console.print(f"[info]🚀 Starting Cachibot server on http://{host}:{port}[/]")
+    console.print(f"[info]Starting Cachibot server on http://{host}:{port}[/]")
     start_api_server(host=host, port=port, workspace=workspace, reload=reload)
+
+
+@app.command("reset-password")
+def reset_password(
+    identifier: str = typer.Argument(..., help="Username or email of the user"),
+) -> None:
+    """Reset a user's password from the command line.
+
+    The password is SHA-256 hashed before bcrypt (matching the frontend).
+
+    Examples:
+
+        cachibot reset-password admin
+
+        cachibot reset-password user@example.com
+    """
+    import hashlib
+
+    async def _reset() -> None:
+        from cachibot.services.auth_service import get_auth_service
+        from cachibot.storage import db
+        from cachibot.storage.user_repository import UserRepository
+
+        await db.init_db()
+        repo = UserRepository()
+        user = await repo.get_user_by_identifier(identifier)
+
+        if user is None:
+            console.print(f"[error]User '{identifier}' not found.[/]")
+            raise typer.Exit(1)
+
+        console.print(f"  [info]User:[/] {user.username} ({user.email})")
+        console.print(f"  [info]Role:[/] {user.role.value}")
+        console.print()
+
+        new_password = Prompt.ask("  New password", password=True)
+        if len(new_password) < 8:
+            console.print("[error]Password must be at least 8 characters.[/]")
+            raise typer.Exit(1)
+
+        confirm_password = Prompt.ask("  Confirm password", password=True)
+        if new_password != confirm_password:
+            console.print("[error]Passwords do not match.[/]")
+            raise typer.Exit(1)
+
+        # SHA-256 hash first (matches frontend), then bcrypt on top
+        sha256_digest = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
+        auth_service = get_auth_service()
+        new_hash = auth_service.hash_password(sha256_digest)
+
+        success = await repo.update_password(user.id, new_hash)
+        if success:
+            console.print("[success]Password reset successfully.[/]")
+        else:
+            console.print("[error]Failed to update password.[/]")
+            raise typer.Exit(1)
+
+    asyncio.run(_reset())
 
 
 @app.command("repair")

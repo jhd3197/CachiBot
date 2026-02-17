@@ -18,6 +18,22 @@ $procs = @()
 
 $startBackend = $Mode -in "backend", "browser", "desktop", "all"
 $startFrontend = $Mode -in "frontend", "browser", "desktop", "all"
+
+# --- Kill stale processes on required ports ---
+$ports = @()
+if ($startBackend)  { $ports += 6392 }
+if ($startFrontend) { $ports += 5173 }
+
+foreach ($port in $ports) {
+    $lines = netstat -ano | Select-String ":$port\s.*LISTENING"
+    foreach ($line in $lines) {
+        if ($line -match '\s(\d+)\s*$') {
+            $pid = $Matches[1]
+            Write-Host "[dev] Killing stale process on port $port (PID $pid)" -ForegroundColor Yellow
+            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
 $startElectron = $Mode -in "desktop", "all"
 
 # --- Backend ---

@@ -248,15 +248,24 @@ def run_server(
         workspace: Workspace path
         reload: Enable auto-reload for development
     """
-    app = create_app(workspace=workspace)
-
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info",
-    )
+    if reload:
+        # Reload mode requires an import string, not an app object
+        uvicorn.run(
+            "cachibot.api.server:app",
+            host=host,
+            port=port,
+            reload=True,
+            reload_dirs=[str(Path(__file__).parent.parent)],
+            log_level="info",
+        )
+    else:
+        app = create_app(workspace=workspace)
+        uvicorn.run(
+            app,
+            host=host,
+            port=port,
+            log_level="info",
+        )
 
 
 # For running with `uvicorn cachibot.api.server:app`

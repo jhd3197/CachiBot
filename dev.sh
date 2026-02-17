@@ -15,6 +15,7 @@ MODE="${1:-browser}"
 
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
 DIM='\033[2m'
 RESET='\033[0m'
 
@@ -28,6 +29,20 @@ cleanup() {
   echo -e "${GREEN}[dev]${RESET} Done."
 }
 trap cleanup EXIT INT TERM
+
+# --- Kill stale processes on required ports ---
+kill_port() {
+  local port=$1
+  local pid
+  pid=$(lsof -ti :"$port" 2>/dev/null || true)
+  if [ -n "$pid" ]; then
+    echo -e "${YELLOW}[dev]${RESET} Killing stale process on port $port (PID $pid)"
+    kill -9 $pid 2>/dev/null || true
+  fi
+}
+
+case "$MODE" in backend|browser|desktop|all) kill_port 6392 ;; esac
+case "$MODE" in frontend|browser|desktop|all) kill_port 5173 ;; esac
 
 # --- Backend ---
 case "$MODE" in backend|browser|desktop|all)
