@@ -17,6 +17,7 @@ from cachibot import __version__
 from cachibot.api.room_websocket import router as room_ws_router
 from cachibot.api.routes import (
     auth,
+    bot_env,
     bots,
     chat,
     chats,
@@ -67,6 +68,11 @@ async def lifespan(app: FastAPI):
     import logging
 
     startup_logger = logging.getLogger("cachibot.startup")
+
+    # ---- Secret masking (must be first — before any secrets could be logged) ----
+    from cachibot.services.secret_masking import install_secret_masking
+
+    install_secret_masking()
 
     # ---- Installation health check (P1) ----
     try:
@@ -196,6 +202,9 @@ def create_app(
     app.include_router(chats.router, tags=["chats"])
     app.include_router(contacts.router, tags=["contacts"])
     app.include_router(connections.router, tags=["connections"])
+    app.include_router(bot_env.router, tags=["bot-environment"])
+    app.include_router(bot_env.platform_router, tags=["platform-environment"])
+    app.include_router(bot_env.skill_config_router, tags=["skill-config"])
     app.include_router(documents.router, tags=["documents"])
     app.include_router(instructions.router, tags=["instructions"])
     app.include_router(knowledge.router, tags=["knowledge"])
