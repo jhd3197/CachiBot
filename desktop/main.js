@@ -117,7 +117,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     title: 'CachiBot',
-    icon: path.join(__dirname, '..', 'assets', 'hero.png'),
+    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
