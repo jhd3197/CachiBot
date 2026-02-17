@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 from prompture.drivers import get_async_stt_driver_for_model, get_async_tts_driver_for_model
 
-from cachibot.agent import CachibotAgent
+from cachibot.agent import CachibotAgent, load_disabled_capabilities
 from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
@@ -290,6 +290,7 @@ async def voice_websocket_endpoint(
                         agent_config.agent.model = effective_model
 
                     # Create agent
+                    disabled_caps = await load_disabled_capabilities()
                     agent = CachibotAgent(
                         config=agent_config,
                         system_prompt_override=start_payload.system_prompt,
@@ -297,6 +298,7 @@ async def voice_websocket_endpoint(
                         bot_id=start_payload.bot_id,
                         bot_models=start_payload.models,
                         tool_configs=start_payload.tool_configs or {},
+                        disabled_capabilities=disabled_caps,
                     )
 
                     await _send_json(websocket, VoiceMessage.session_ready(session_id))

@@ -79,6 +79,10 @@ class CachibotAgent:
     # Per-bot resolved environment (temperature/max_tokens/etc. overrides)
     provider_environment: ResolvedEnvironment | None = None
 
+    # Platform-level disabled capabilities (loaded by the caller from DB).
+    # When provided, these capabilities are excluded even if the bot enables them.
+    disabled_capabilities: set[str] | None = None
+
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
         self._setup_sandbox()
@@ -118,7 +122,9 @@ class CachibotAgent:
             tool_configs=self.tool_configs or {},
             bot_models=self.bot_models,
         )
-        self.registry = build_registry(ctx, self.capabilities)
+        self.registry = build_registry(
+            ctx, self.capabilities, self.disabled_capabilities
+        )
 
     def _create_agent(self) -> None:
         """Create the Prompture agent with callbacks and SecurityContext."""
@@ -294,6 +300,24 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
     def clear_history(self) -> None:
         """Clear the conversation history."""
         self._agent.clear_history()
+
+
+async def load_disabled_capabilities() -> set[str]:
+    """Load globally disabled capabilities from the platform tool config.
+
+    Call this from async agent-creation sites (websocket, message processor,
+    job runner, etc.) and pass the result as ``disabled_capabilities`` when
+    constructing a ``CachibotAgent``.
+
+    Returns an empty set on any error (graceful degradation).
+    """
+    try:
+        from cachibot.storage.repository import PlatformToolConfigRepository
+
+        repo = PlatformToolConfigRepository()
+        return set(await repo.get_disabled_capabilities())
+    except Exception:
+        return set()
 
 
 # Backwards compatibility alias

@@ -12,7 +12,7 @@ from datetime import datetime
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 
-from cachibot.agent import CachibotAgent
+from cachibot.agent import CachibotAgent, load_disabled_capabilities
 from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
@@ -321,10 +321,12 @@ async def run_room_bot(
         if effective_model:
             agent_config.agent.model = effective_model
 
+        disabled_caps = await load_disabled_capabilities()
         agent = CachibotAgent(
             config=agent_config,
             system_prompt_override=enhanced_prompt,
             bot_id=bot_id,
+            disabled_capabilities=disabled_caps,
         )
 
         # Stream response

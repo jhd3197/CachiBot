@@ -14,7 +14,7 @@ from datetime import datetime
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 
-from cachibot.agent import CachibotAgent
+from cachibot.agent import CachibotAgent, load_disabled_capabilities
 from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
@@ -266,6 +266,7 @@ async def websocket_endpoint(
                 # Create fresh agent with current systemPrompt
                 # Capabilities are passed directly; the plugin system
                 # handles mapping capabilities to tools.
+                disabled_caps = await load_disabled_capabilities()
                 agent = CachibotAgent(
                     config=agent_config,
                     system_prompt_override=enhanced_prompt,
@@ -277,6 +278,7 @@ async def websocket_endpoint(
                     on_approval_needed=on_approval,
                     driver=per_bot_driver,
                     provider_environment=resolved_env,
+                    disabled_capabilities=disabled_caps,
                 )
 
                 # Extract replyToId from client payload

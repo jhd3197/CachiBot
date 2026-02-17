@@ -33,6 +33,7 @@ from cachibot.api.routes import (
     knowledge,
     marketplace,
     models,
+    platform_tools,
     platforms,
     plugins,
     providers,
@@ -221,6 +222,7 @@ def create_app(
     app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
+    app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])

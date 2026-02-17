@@ -567,6 +567,20 @@ export interface SkillDefinition {
 }
 
 // =============================================================================
+// PLATFORM TOOL CONFIG TYPES
+// =============================================================================
+
+export interface PlatformToolConfig {
+  disabledCapabilities: string[]
+  disabledSkills: string[]
+}
+
+export interface PlatformToolConfigUpdate {
+  disabled_capabilities?: string[]
+  disabled_skills?: string[]
+}
+
+// =============================================================================
 // PLUGIN TYPES
 // =============================================================================
 
