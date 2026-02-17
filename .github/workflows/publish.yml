@@ -276,25 +276,12 @@ jobs:
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
 
-      # macOS code signing (skipped gracefully if secrets are not configured)
-      - name: Import macOS certificates
-        if: matrix.platform == 'mac'
-        id: mac_certs
-        uses: apple-actions/import-codesign-certs@v2
-        continue-on-error: true
-        with:
-          p12-file-base64: ${{ secrets.MAC_CERTS_P12 }}
-          p12-password: ${{ secrets.MAC_CERTS_PASSWORD }}
-
       # Build and upload to the GitHub Release
       - name: Build Electron app
         working-directory: desktop
         run: npx electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.mac_certs.outcome == 'success' || matrix.platform != 'mac' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
           CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}

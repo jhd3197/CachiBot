@@ -60,11 +60,7 @@
         { "target": "zip" }
       ],
       "icon": "../assets/hero.png",
-      "artifactName": "CachiBot-${version}-mac.${ext}",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "../build/entitlements.mac.plist",
-      "entitlementsInherit": "../build/entitlements.mac.plist"
+      "artifactName": "CachiBot-${version}-mac.${ext}"
     },
     "linux": {
       "target": [
