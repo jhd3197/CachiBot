@@ -286,3 +286,61 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+  # =========================================================================
+  # 4. Update release body with actual asset sizes
+  # =========================================================================
+  update-release:
+    needs: [release, build-desktop]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update release body with asset sizes
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const version = '${{ needs.release.outputs.new_version }}';
+            const releaseId = ${{ needs.release.outputs.release_id }};
+
+            // Fetch release to get assets and current body
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+            });
+
+            // Build a map of asset name -> human-readable size
+            const sizeMap = {};
+            for (const asset of release.data.assets) {
+              const bytes = asset.size;
+              let size;
+              if (bytes >= 1024 * 1024 * 1024) {
+                size = (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+              } else if (bytes >= 1024 * 1024) {
+                size = (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+              } else if (bytes >= 1024) {
+                size = (bytes / 1024).toFixed(1) + ' KB';
+              } else {
+                size = bytes + ' B';
+              }
+              sizeMap[asset.name] = size;
+            }
+
+            // Replace "— |" placeholders in the table with actual sizes
+            let body = release.data.body;
+            for (const [name, size] of Object.entries(sizeMap)) {
+              // Match the table row containing this filename and replace the trailing "— |"
+              const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const pattern = new RegExp(`(\\[` + '`' + escaped + '`' + `\\][^|]+\\|)\\s*—\\s*\\|`);
+              body = body.replace(pattern, `$1 ${size} |`);
+            }
+
+            // Remove the "downloads become available" note since they're ready now
+            body = body.replace(/\n> Desktop downloads become available[^\n]*\n?/, '\n');
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              body: body,
+            });
