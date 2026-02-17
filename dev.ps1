@@ -1,35 +1,68 @@
-# Start CachiBot backend + frontend for development.
-# Usage: .\dev.ps1
+# CachiBot dev launcher.
 #
-# Prerequisites:
-#   pip install -e .          (backend in dev mode)
-#   cd frontend; npm install  (frontend deps)
+# Usage:
+#   .\dev.ps1                  # backend + frontend in browser (default)
+#   .\dev.ps1 backend          # backend only
+#   .\dev.ps1 frontend         # frontend only (Vite dev server)
+#   .\dev.ps1 desktop          # backend + frontend + Electron
+#   .\dev.ps1 all              # backend + frontend + browser + Electron
+
+param(
+    [ValidateSet("browser", "backend", "frontend", "desktop", "all")]
+    [string]$Mode = "browser"
+)
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$procs = @()
 
-# Start backend
-Write-Host "[dev] Starting backend on " -ForegroundColor Cyan -NoNewline
-Write-Host "http://127.0.0.1:6392" -ForegroundColor Green
-$backend = Start-Process -NoNewWindow -PassThru -FilePath "cachibot" -ArgumentList "server","--port","6392","--reload"
+$startBackend = $Mode -in "backend", "browser", "desktop", "all"
+$startFrontend = $Mode -in "frontend", "browser", "desktop", "all"
+$startElectron = $Mode -in "desktop", "all"
 
-# Start frontend
-Write-Host "[dev] Starting frontend on " -ForegroundColor Cyan -NoNewline
-Write-Host "http://localhost:5173" -ForegroundColor Green
-$frontend = Start-Process -NoNewWindow -PassThru -FilePath "npm" -ArgumentList "run","dev" -WorkingDirectory "$Root\frontend"
+# --- Backend ---
+if ($startBackend) {
+    Write-Host "[dev] backend  -> " -ForegroundColor Cyan -NoNewline
+    Write-Host "http://127.0.0.1:6392" -ForegroundColor Green
+    $procs += Start-Process -NoNewWindow -PassThru -FilePath "cachibot" `
+        -ArgumentList "server","--port","6392","--reload"
+}
 
-Write-Host ""
-Write-Host "[dev] Both servers running. Press Ctrl+C to stop." -ForegroundColor Cyan
+# --- Frontend (Vite) ---
+if ($startFrontend) {
+    Write-Host "[dev] frontend -> " -ForegroundColor Cyan -NoNewline
+    Write-Host "http://localhost:5173" -ForegroundColor Green
+    $procs += Start-Process -NoNewWindow -PassThru -FilePath "npm" `
+        -ArgumentList "run","dev" -WorkingDirectory "$Root\frontend"
+}
+
+# --- Electron ---
+if ($startElectron) {
+    Start-Sleep -Seconds 3
+    $env:ELECTRON_DEV_URL = "http://localhost:5173"
+    Write-Host "[dev] electron -> " -ForegroundColor Cyan -NoNewline
+    Write-Host "loading from Vite" -ForegroundColor Green
+    $procs += Start-Process -NoNewWindow -PassThru `
+        -FilePath "$Root\desktop\node_modules\.bin\electron.cmd" `
+        -ArgumentList "$Root\desktop" -WorkingDirectory "$Root\desktop"
+}
+
+Write-Host "[dev] Running ($Mode). Press Ctrl+C to stop." -ForegroundColor DarkGray
 Write-Host ""
 
 try {
-    # Wait for either to exit
-    while (!$backend.HasExited -and !$frontend.HasExited) {
+    while ($true) {
+        foreach ($p in $procs) {
+            if ($p.HasExited) { throw "exit" }
+        }
         Start-Sleep -Milliseconds 500
     }
-} finally {
+} catch {} finally {
+    Write-Host ""
     Write-Host "[dev] Shutting down..." -ForegroundColor Cyan
-    if (!$backend.HasExited) { Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue }
-    if (!$frontend.HasExited) { Stop-Process -Id $frontend.Id -Force -ErrorAction SilentlyContinue }
+    foreach ($p in $procs) {
+        if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+    }
+    Remove-Item Env:\ELECTRON_DEV_URL -ErrorAction SilentlyContinue
     Write-Host "[dev] Done." -ForegroundColor Green
 }
