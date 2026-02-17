@@ -52,7 +52,7 @@ class FunctionRepository:
 
     async def save(self, fn: BotFunction) -> None:
         """Save a new function."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = FunctionModel(
                 id=fn.id,
                 bot_id=fn.bot_id,
@@ -73,7 +73,7 @@ class FunctionRepository:
 
     async def update(self, fn: BotFunction) -> None:
         """Update an existing function."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(FunctionModel)
                 .where(FunctionModel.id == fn.id)
@@ -94,7 +94,7 @@ class FunctionRepository:
 
     async def get(self, function_id: str) -> BotFunction | None:
         """Get a function by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(FunctionModel).where(FunctionModel.id == function_id)
             )
@@ -103,7 +103,7 @@ class FunctionRepository:
 
     async def get_by_bot(self, bot_id: str) -> list[BotFunction]:
         """Get all functions for a bot."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(FunctionModel)
                 .where(FunctionModel.bot_id == bot_id)
@@ -114,7 +114,7 @@ class FunctionRepository:
 
     async def delete(self, function_id: str) -> bool:
         """Delete a function by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 delete(FunctionModel).where(FunctionModel.id == function_id)
             )
@@ -125,7 +125,7 @@ class FunctionRepository:
         """Increment run count and update success rate."""
         now = datetime.now(timezone.utc)
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             # Get current stats
             result = await session.execute(
                 select(FunctionModel.run_count, FunctionModel.success_rate).where(
@@ -203,7 +203,7 @@ class ScheduleRepository:
 
     async def save(self, schedule: Schedule) -> None:
         """Save a new schedule."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = ScheduleModel(
                 id=schedule.id,
                 bot_id=schedule.bot_id,
@@ -231,7 +231,7 @@ class ScheduleRepository:
 
     async def update(self, schedule: Schedule) -> None:
         """Update an existing schedule."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(ScheduleModel)
                 .where(ScheduleModel.id == schedule.id)
@@ -259,7 +259,7 @@ class ScheduleRepository:
 
     async def get(self, schedule_id: str) -> Schedule | None:
         """Get a schedule by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(ScheduleModel).where(ScheduleModel.id == schedule_id)
             )
@@ -268,7 +268,7 @@ class ScheduleRepository:
 
     async def get_by_bot(self, bot_id: str) -> list[Schedule]:
         """Get all schedules for a bot."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(ScheduleModel)
                 .where(ScheduleModel.bot_id == bot_id)
@@ -280,7 +280,7 @@ class ScheduleRepository:
     async def get_due_schedules(self) -> list[Schedule]:
         """Get all enabled schedules that are due to run."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(ScheduleModel)
                 .where(
@@ -296,7 +296,7 @@ class ScheduleRepository:
     async def toggle_enabled(self, schedule_id: str, enabled: bool) -> None:
         """Enable or disable a schedule."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(ScheduleModel)
                 .where(ScheduleModel.id == schedule_id)
@@ -307,7 +307,7 @@ class ScheduleRepository:
     async def update_next_run(self, schedule_id: str, next_run_at: datetime | None) -> None:
         """Update the next run time for a schedule."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(ScheduleModel)
                 .where(ScheduleModel.id == schedule_id)
@@ -318,7 +318,7 @@ class ScheduleRepository:
     async def record_run(self, schedule_id: str) -> None:
         """Record that a schedule has run."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(ScheduleModel)
                 .where(ScheduleModel.id == schedule_id)
@@ -332,7 +332,7 @@ class ScheduleRepository:
 
     async def delete(self, schedule_id: str) -> bool:
         """Delete a schedule by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 delete(ScheduleModel).where(ScheduleModel.id == schedule_id)
             )
@@ -370,7 +370,7 @@ class WorkRepository:
 
     async def save(self, work: Work) -> None:
         """Save a new work item."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = WorkModel(
                 id=work.id,
                 bot_id=work.bot_id,
@@ -398,7 +398,7 @@ class WorkRepository:
 
     async def update(self, work: Work) -> None:
         """Update an existing work item."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(WorkModel)
                 .where(WorkModel.id == work.id)
@@ -436,13 +436,13 @@ class WorkRepository:
             values["completed_at"] = now
             values["error"] = error
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(update(WorkModel).where(WorkModel.id == work_id).values(**values))
             await session.commit()
 
     async def update_progress(self, work_id: str, progress: float) -> None:
         """Update work progress."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(WorkModel).where(WorkModel.id == work_id).values(progress=progress)
             )
@@ -450,7 +450,7 @@ class WorkRepository:
 
     async def get(self, work_id: str) -> Work | None:
         """Get a work item by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(select(WorkModel).where(WorkModel.id == work_id))
             row = result.scalar_one_or_none()
         return self._row_to_work(row) if row else None
@@ -467,14 +467,14 @@ class WorkRepository:
             stmt = stmt.where(WorkModel.status == status.value)
         stmt = stmt.order_by(WorkModel.created_at.desc()).limit(limit)
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
         return [self._row_to_work(row) for row in rows]
 
     async def get_active(self, bot_id: str) -> list[Work]:
         """Get active (pending/in_progress) work for a bot."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkModel)
                 .where(
@@ -488,7 +488,7 @@ class WorkRepository:
 
     async def get_by_schedule(self, schedule_id: str) -> list[Work]:
         """Get work items created by a schedule."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkModel)
                 .where(WorkModel.schedule_id == schedule_id)
@@ -499,7 +499,7 @@ class WorkRepository:
 
     async def get_children(self, parent_work_id: str) -> list[Work]:
         """Get child work items."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkModel)
                 .where(WorkModel.parent_work_id == parent_work_id)
@@ -510,7 +510,7 @@ class WorkRepository:
 
     async def delete(self, work_id: str) -> bool:
         """Delete a work item (cascades to tasks and jobs)."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(delete(WorkModel).where(WorkModel.id == work_id))
             await session.commit()
             return result.rowcount > 0
@@ -546,7 +546,7 @@ class TaskRepository:
 
     async def save(self, task: Task) -> None:
         """Save a new task."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = TaskModel(
                 id=task.id,
                 bot_id=task.bot_id,
@@ -575,7 +575,7 @@ class TaskRepository:
         """Save multiple tasks at once."""
         if not tasks:
             return
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             session.add_all(
                 [
                     TaskModel(
@@ -606,7 +606,7 @@ class TaskRepository:
 
     async def update(self, task: Task) -> None:
         """Update an existing task."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(TaskModel)
                 .where(TaskModel.id == task.id)
@@ -647,13 +647,13 @@ class TaskRepository:
             values["error"] = error
             values["result"] = result
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(update(TaskModel).where(TaskModel.id == task_id).values(**values))
             await session.commit()
 
     async def increment_retry(self, task_id: str) -> int:
         """Increment retry count and return new value."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(TaskModel)
                 .where(TaskModel.id == task_id)
@@ -669,14 +669,14 @@ class TaskRepository:
 
     async def get(self, task_id: str) -> Task | None:
         """Get a task by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(select(TaskModel).where(TaskModel.id == task_id))
             row = result.scalar_one_or_none()
         return self._row_to_task(row) if row else None
 
     async def get_by_work(self, work_id: str) -> list[Task]:
         """Get all tasks for a work item."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(TaskModel)
                 .where(TaskModel.work_id == work_id)
@@ -715,14 +715,14 @@ class TaskRepository:
             stmt = stmt.where(TaskModel.status == status.value)
         stmt = stmt.order_by(TaskModel.created_at.desc()).limit(limit)
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
         return [self._row_to_task(row) for row in rows]
 
     async def delete(self, task_id: str) -> bool:
         """Delete a task (cascades to jobs)."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(delete(TaskModel).where(TaskModel.id == task_id))
             await session.commit()
             return result.rowcount > 0
@@ -757,7 +757,7 @@ class WorkJobRepository:
 
     async def save(self, job: Job) -> None:
         """Save a new job."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = WorkJobModel(
                 id=job.id,
                 bot_id=job.bot_id,
@@ -779,7 +779,7 @@ class WorkJobRepository:
 
     async def update(self, job: Job) -> None:
         """Update an existing job."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(WorkJobModel)
                 .where(WorkJobModel.id == job.id)
@@ -813,7 +813,7 @@ class WorkJobRepository:
             values["error"] = error
             values["result"] = result
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(WorkJobModel).where(WorkJobModel.id == job_id).values(**values)
             )
@@ -821,7 +821,7 @@ class WorkJobRepository:
 
     async def update_progress(self, job_id: str, progress: float) -> None:
         """Update job progress."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(WorkJobModel).where(WorkJobModel.id == job_id).values(progress=progress)
             )
@@ -835,7 +835,7 @@ class WorkJobRepository:
         data: any = None,
     ) -> None:
         """Append a log entry to a job."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             # Get current logs
             result = await session.execute(
                 select(WorkJobModel.logs).where(WorkJobModel.id == job_id)
@@ -860,14 +860,14 @@ class WorkJobRepository:
 
     async def get(self, job_id: str) -> Job | None:
         """Get a job by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(select(WorkJobModel).where(WorkJobModel.id == job_id))
             row = result.scalar_one_or_none()
         return self._row_to_job(row) if row else None
 
     async def get_by_task(self, task_id: str) -> list[Job]:
         """Get all jobs for a task."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkJobModel)
                 .where(WorkJobModel.task_id == task_id)
@@ -878,7 +878,7 @@ class WorkJobRepository:
 
     async def get_by_work(self, work_id: str) -> list[Job]:
         """Get all jobs for a work item."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkJobModel)
                 .where(WorkJobModel.work_id == work_id)
@@ -889,7 +889,7 @@ class WorkJobRepository:
 
     async def get_latest_for_task(self, task_id: str) -> Job | None:
         """Get the latest job for a task."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(WorkJobModel)
                 .where(WorkJobModel.task_id == task_id)
@@ -906,14 +906,14 @@ class WorkJobRepository:
             stmt = stmt.where(WorkJobModel.bot_id == bot_id)
         stmt = stmt.order_by(WorkJobModel.started_at.asc())
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
         return [self._row_to_job(row) for row in rows]
 
     async def delete(self, job_id: str) -> bool:
         """Delete a job."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(delete(WorkJobModel).where(WorkJobModel.id == job_id))
             await session.commit()
             return result.rowcount > 0
@@ -943,7 +943,7 @@ class TodoRepository:
 
     async def save(self, todo: Todo) -> None:
         """Save a new todo."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = TodoModel(
                 id=todo.id,
                 bot_id=todo.bot_id,
@@ -964,7 +964,7 @@ class TodoRepository:
 
     async def update(self, todo: Todo) -> None:
         """Update an existing todo."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(TodoModel)
                 .where(TodoModel.id == todo.id)
@@ -992,7 +992,7 @@ class TodoRepository:
         else:
             values["completed_at"] = None
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(update(TodoModel).where(TodoModel.id == todo_id).values(**values))
             await session.commit()
 
@@ -1004,7 +1004,7 @@ class TodoRepository:
     ) -> None:
         """Mark a todo as converted to work or task."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             await session.execute(
                 update(TodoModel)
                 .where(TodoModel.id == todo_id)
@@ -1019,7 +1019,7 @@ class TodoRepository:
 
     async def get(self, todo_id: str) -> Todo | None:
         """Get a todo by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(select(TodoModel).where(TodoModel.id == todo_id))
             row = result.scalar_one_or_none()
         return self._row_to_todo(row) if row else None
@@ -1036,7 +1036,7 @@ class TodoRepository:
             stmt = stmt.where(TodoModel.status == status.value)
         stmt = stmt.order_by(TodoModel.priority.desc(), TodoModel.created_at.desc()).limit(limit)
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
         return [self._row_to_todo(row) for row in rows]
@@ -1048,7 +1048,7 @@ class TodoRepository:
     async def get_due_reminders(self) -> list[Todo]:
         """Get todos with reminders that are due."""
         now = datetime.now(timezone.utc)
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(TodoModel)
                 .where(
@@ -1063,7 +1063,7 @@ class TodoRepository:
 
     async def delete(self, todo_id: str) -> bool:
         """Delete a todo."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(delete(TodoModel).where(TodoModel.id == todo_id))
             await session.commit()
             return result.rowcount > 0

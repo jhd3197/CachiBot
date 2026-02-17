@@ -1,108 +1,208 @@
-# Contributing to Cachibot
+# Contributing to CachiBot
 
-Thank you for your interest in contributing to Cachibot! 🛡️
+Thank you for your interest in contributing to CachiBot!
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+| Tool | Version | Check |
+|------|---------|-------|
+| Python | 3.10+ | `python --version` |
+| Node.js | 18+ | `node --version` |
+| npm | 9+ | `npm --version` |
+| Git | any | `git --version` |
 
-- Python 3.10 or higher
-- An Anthropic API key
+## Development Setup
 
-### Development Setup
-
-1. **Clone the repository**
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/jhd3197/cachibot.git
-cd cachibot
+git clone https://github.com/jhd3197/CachiBot.git
+cd CachiBot
 ```
 
-2. **Create a virtual environment**
+### 2. Backend (Python / FastAPI)
 
 ```bash
+# Create and activate a virtual environment
 python -m venv venv
 
-# Windows
+# Windows PowerShell
 .\venv\Scripts\activate
 
-# Unix/macOS
+# macOS / Linux
 source venv/bin/activate
-```
 
-3. **Install in development mode**
-
-```bash
+# Install in dev mode with all dependencies
 pip install -e ".[dev]"
 ```
 
-4. **Set up your API key**
+### 3. Frontend (React / TypeScript)
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### 4. Desktop (Electron) — optional
+
+Only needed if you're working on the Electron shell.
+
+```bash
+cd desktop
+npm install
+cd ..
+```
+
+### 5. Configure API keys
+
+You can set API keys from the dashboard UI, or via environment variables:
 
 ```bash
 # Windows PowerShell
-$env:ANTHROPIC_API_KEY = "your-api-key"
+$env:OPENAI_API_KEY = "your-key"
+$env:ANTHROPIC_API_KEY = "your-key"
 
-# Unix/macOS
-export ANTHROPIC_API_KEY="your-api-key"
+# macOS / Linux
+export OPENAI_API_KEY="your-key"
+export ANTHROPIC_API_KEY="your-key"
+```
+
+## Running in Development
+
+Use the dev script to start everything with a single command:
+
+### Windows (PowerShell)
+
+```powershell
+.\dev.ps1                  # backend + frontend (browser)
+.\dev.ps1 backend          # backend only
+.\dev.ps1 frontend         # frontend only (Vite dev server)
+.\dev.ps1 desktop          # backend + frontend + Electron
+.\dev.ps1 all              # backend + frontend + Electron
+```
+
+### macOS / Linux
+
+```bash
+bash dev.sh                # backend + frontend (browser)
+bash dev.sh backend        # backend only
+bash dev.sh frontend       # frontend only (Vite dev server)
+bash dev.sh desktop        # backend + frontend + Electron
+bash dev.sh all            # backend + frontend + Electron
+```
+
+### Running services individually
+
+If you prefer to run things in separate terminals:
+
+```bash
+# Terminal 1 — Backend (port 6392)
+cachibot server --port 6392 --reload
+
+# Terminal 2 — Frontend (port 5173, proxies API to backend)
+cd frontend && npm run dev
+
+# Terminal 3 — Electron (optional, loads from Vite for hot reload)
+cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
+```
+
+### What each mode does
+
+| Mode | Backend (6392) | Vite (5173) | Electron | Use case |
+|------|:-:|:-:|:-:|------|
+| `browser` | x | x | | Frontend/backend work, open browser to localhost:5173 |
+| `backend` | x | | | API-only work, testing endpoints |
+| `frontend` | | x | | UI-only work (needs backend running separately) |
+| `desktop` | x | x | x | Electron shell work with hot reload |
+| `all` | x | x | x | Full stack with browser + Electron |
+
+## Project Structure
+
+```
+CachiBot/
+├── src/cachibot/          # Python backend (FastAPI)
+│   ├── agent.py           #   Core agent with tool registration
+│   ├── cli.py             #   CLI entry point (cachibot / cachi)
+│   ├── api/               #   REST + WebSocket endpoints
+│   ├── models/            #   Pydantic schemas
+│   └── storage/           #   SQLite async data layer
+├── frontend/              # React + TypeScript frontend
+│   └── src/
+│       ├── api/           #   REST client + WebSocket
+│       ├── components/    #   UI components
+│       └── stores/        #   Zustand state management
+├── desktop/               # Electron shell
+│   ├── main.js            #   Main process
+│   └── preload.js         #   Preload script (IPC bridge)
+├── dev.ps1                # Dev launcher (Windows)
+├── dev.sh                 # Dev launcher (macOS/Linux)
+└── pyproject.toml         # Python project config
 ```
 
 ## Development Workflow
 
-### Running Tests
+### Tests
 
 ```bash
-pytest
+pytest                     # Run all tests
+pytest -v                  # Verbose output
+pytest tests/test_agent.py # Run a specific file
 ```
 
-### Linting
+### Linting & Formatting
 
 ```bash
-ruff check src/
-ruff format src/
-```
+# Python
+ruff check src/            # Lint
+ruff format src/           # Format
 
-### Type Checking
+# TypeScript
+cd frontend && npm run lint
 
-```bash
+# Type checking
 mypy src/cachibot
 ```
 
 ## Code Style
 
-- We use [Ruff](https://github.com/astral-sh/ruff) for linting and formatting
-- Type hints are required for all public functions
-- Docstrings follow Google style
+### Python
 
-### Example
+- [Ruff](https://github.com/astral-sh/ruff) for linting and formatting (line length: 100)
+- Type hints required for all public functions
+- Google-style docstrings
 
 ```python
 def process_file(path: str, encoding: str = "utf-8") -> str:
-    """
-    Process a file and return its contents.
-    
+    """Process a file and return its contents.
+
     Args:
-        path: Path to the file to process
-        encoding: File encoding (default: utf-8)
-        
+        path: Path to the file to process.
+        encoding: File encoding (default: utf-8).
+
     Returns:
-        The processed file contents
-        
+        The processed file contents.
+
     Raises:
-        FileNotFoundError: If the file doesn't exist
+        FileNotFoundError: If the file doesn't exist.
     """
     ...
 ```
 
+### TypeScript
+
+- Strict mode enabled
+- ESLint with React Hooks and React Refresh plugins
+- Path alias: `@/*` maps to `src/*`
+
 ## Adding New Tools
 
-Tools are the actions Cachibot can take. To add a new tool:
+Tools are the actions CachiBot can take. To add a new tool:
 
 1. Create a new file in `src/cachibot/tools/`
 2. Inherit from `BaseTool`
 3. Implement the `execute` method
 4. Register in `agent.py`
-
-### Example Tool
 
 ```python
 from cachibot.tools import BaseTool, ToolResult
@@ -110,7 +210,7 @@ from cachibot.tools import BaseTool, ToolResult
 class MyTool(BaseTool):
     name = "my_tool"
     description = "Does something useful"
-    
+
     def execute(self, param1: str, **kwargs) -> ToolResult:
         try:
             # Do something
@@ -140,16 +240,16 @@ class MyTool(BaseTool):
 
 When reporting issues, please include:
 
-- Python version
-- Operating system
+- Python version and OS
+- Node.js version (if frontend related)
 - Steps to reproduce
 - Expected vs actual behavior
-- Any error messages
+- Any error messages or logs
 
 ## Questions?
 
-Feel free to open an issue for questions or join discussions.
+Feel free to open an issue or join the [Discord](https://discord.gg/V9bKwYVJ).
 
 ---
 
-Made with 🛡️ by [jhd3197](https://jhd3197.com)
+Made with care by [Juan Denis](https://juandenis.com)

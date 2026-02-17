@@ -91,3 +91,4 @@ settings.local.json
 .marketing/
 settings.json
 /feedback_connection
+/desktop/node_modules

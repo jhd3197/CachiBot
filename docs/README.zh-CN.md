@@ -252,24 +252,28 @@ Python 代码在受限环境中运行：
 
 ## 贡献
 
-欢迎贡献！我们使用 **Ruff** 格式化 Python 代码，使用 **ESLint** 检查 TypeScript。
+欢迎贡献！完整指南请参阅 [CONTRIBUTING.md](../CONTRIBUTING.md)。快速开始：
 
 ```bash
 git clone https://github.com/jhd3197/CachiBot.git
 cd CachiBot
 
 # 后端
+python -m venv venv && source venv/bin/activate  # Windows 上使用 .\venv\Scripts\activate
 pip install -e ".[dev]"
-cachibot server --reload
 
-# 前端（在另一个终端）
-cd frontend && npm install && npm run dev
+# 前端
+cd frontend && npm install && cd ..
 
-# 测试和代码检查
-pytest
-ruff check src/ && ruff format src/
-cd frontend && npm run lint
+# 桌面端（可选 — 仅在开发 Electron 外壳时需要）
+cd desktop && npm install && cd ..
+
+# 运行所有服务
+bash dev.sh              # Windows 上使用 .\dev.ps1
+bash dev.sh desktop      # 包含 Electron
 ```
+
+请参阅 [CONTRIBUTING.md](../CONTRIBUTING.md) 了解所有开发脚本模式、项目结构、测试和代码风格指南。
 
 ## 社区
 
