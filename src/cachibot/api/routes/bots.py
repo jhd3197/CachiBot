@@ -4,6 +4,7 @@ Bots API Routes
 CRUD endpoints for syncing bot configuration from frontend.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +16,8 @@ from cachibot.models.bot import Bot, BotResponse
 from cachibot.models.skill import BotSkillRequest, SkillResponse
 from cachibot.storage.repository import BotRepository, SkillsRepository
 from cachibot.storage.user_repository import OwnershipRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bots", tags=["bots"])
 
@@ -154,6 +157,106 @@ async def deactivate_bot_skill(
     deactivated = await skills_repo.deactivate_skill(bot_id, skill_id)
     if not deactivated:
         raise HTTPException(status_code=404, detail="Skill not activated for this bot")
+
+
+# =============================================================================
+# PER-BOT MODEL DISCOVERY
+# =============================================================================
+
+
+class BotModelInfo(BaseModel):
+    """A model available to a specific bot."""
+
+    model: str = Field(description="Full model ID (provider/model-id)")
+    provider: str = Field(description="Provider name")
+    source: str = Field(description="Key source: 'custom' or 'platform' (inherited)")
+
+
+class BotAvailableModelsResponse(BaseModel):
+    """Response for per-bot model discovery."""
+
+    models: list[BotModelInfo] = Field(default_factory=list)
+
+
+@router.get("/{bot_id}/available-models")
+async def get_bot_available_models(
+    bot_id: str,
+    user: User = Depends(require_bot_access),
+) -> BotAvailableModelsResponse:
+    """Get models available to a specific bot based on its configured API keys.
+
+    Returns models the bot has access to, tagged with whether the key is
+    the bot's own (``custom``) or inherited from the platform/global config
+    (``platform``).
+    """
+    try:
+        from cachibot.services.bot_environment import BotEnvironmentService
+        from cachibot.services.encryption import get_encryption_service
+        from cachibot.storage.db import ensure_initialized
+
+        session_maker = ensure_initialized()
+        async with session_maker() as session:
+            encryption = get_encryption_service()
+            env_service = BotEnvironmentService(session, encryption)
+            resolved = await env_service.resolve(bot_id)
+    except Exception:
+        logger.warning("Failed to resolve bot environment for model discovery", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="Environment service unavailable. Using global model list.",
+        )
+
+    # Determine which providers have keys and whether they're custom or inherited
+    from cachibot.api.routes.providers import PROVIDERS
+
+    available: list[BotModelInfo] = []
+
+    # Try live model discovery from Prompture
+    try:
+        from prompture import get_available_models
+
+        all_models = get_available_models(include_capabilities=False)
+    except Exception:
+        all_models = []
+
+    # Build a set of providers the bot has keys for
+    bot_providers = set(resolved.provider_keys.keys())
+
+    # Check which providers have bot-level (custom) vs global (platform) keys
+    import os
+
+    for entry in all_models:
+        provider = entry.get("provider", "unknown")
+        if provider not in bot_providers:
+            continue
+
+        raw_id = entry["model_id"]
+        model_id = f"{provider}/{raw_id}" if not raw_id.startswith(f"{provider}/") else raw_id
+
+        # Determine source: check if there's a bot-level override by comparing
+        # against global os.environ
+        provider_info = PROVIDERS.get(provider)
+        global_key = os.environ.get(provider_info["env_key"]) if provider_info else None
+        bot_key = resolved.provider_keys.get(provider)
+
+        # If the bot key differs from the global key, it's a custom override
+        source = "custom" if bot_key and bot_key != global_key else "platform"
+
+        available.append(BotModelInfo(model=model_id, provider=provider, source=source))
+
+    # If no live models discovered, provide entries for each configured provider
+    if not available:
+        for provider in bot_providers:
+            provider_info = PROVIDERS.get(provider)
+            global_key = os.environ.get(provider_info["env_key"]) if provider_info else None
+            bot_key = resolved.provider_keys.get(provider)
+            source = "custom" if bot_key and bot_key != global_key else "platform"
+            available.append(
+                BotModelInfo(model=f"{provider}/default", provider=provider, source=source)
+            )
+
+    available.sort(key=lambda m: m.model)
+    return BotAvailableModelsResponse(models=available)
 
 
 # =============================================================================

@@ -21,6 +21,7 @@ from cachibot.models.auth import User
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.websocket import WSMessage, WSMessageType
 from cachibot.services.context_builder import get_context_builder
+from cachibot.services.driver_factory import build_driver_with_key
 from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,50 @@ manager = ConnectionManager()
 def get_ws_manager() -> ConnectionManager:
     """Get the WebSocket connection manager singleton."""
     return manager
+
+
+async def _resolve_bot_env(
+    bot_id: str,
+    platform: str = "web",
+    effective_model: str = "",
+    request_overrides: dict | None = None,
+) -> tuple:
+    """Resolve per-bot environment and build a driver.
+
+    Returns:
+        A tuple of (ResolvedEnvironment | None, driver | None).
+        On failure (DB unreachable, missing master key), returns (None, None)
+        and logs a warning so the agent falls back to global keys.
+    """
+    try:
+        from cachibot.services.bot_environment import BotEnvironmentService
+        from cachibot.services.encryption import get_encryption_service
+        from cachibot.storage.db import ensure_initialized
+
+        session_maker = ensure_initialized()
+        async with session_maker() as session:
+            encryption = get_encryption_service()
+            env_service = BotEnvironmentService(session, encryption)
+            resolved = await env_service.resolve(
+                bot_id, platform=platform, request_overrides=request_overrides
+            )
+
+        # Build a per-bot driver if we have a key for the effective provider
+        driver = None
+        if effective_model and "/" in effective_model:
+            provider = effective_model.split("/", 1)[0].lower()
+            api_key = resolved.provider_keys.get(provider)
+            if api_key:
+                driver = build_driver_with_key(effective_model, api_key=api_key)
+
+        return resolved, driver
+    except Exception:
+        logger.warning(
+            "Per-bot environment resolution failed for bot %s; falling back to global keys",
+            bot_id,
+            exc_info=True,
+        )
+        return None, None
 
 
 @router.websocket("/ws")
@@ -203,6 +248,21 @@ async def websocket_endpoint(
                     agent_config = copy.deepcopy(config)
                     agent_config.agent.model = effective_model
 
+                # Resolve per-bot environment (keys, temperature, etc.)
+                resolved_env = None
+                per_bot_driver = None
+                if bot_id:
+                    resolved_env, per_bot_driver = await _resolve_bot_env(
+                        bot_id,
+                        platform="web",
+                        effective_model=effective_model or agent_config.agent.model,
+                    )
+
+                # Merge skill configs from resolved environment into tool_configs
+                if resolved_env and resolved_env.skill_configs:
+                    for skill_name, skill_cfg in resolved_env.skill_configs.items():
+                        merged_tool_configs.setdefault(skill_name, {}).update(skill_cfg)
+
                 # Create fresh agent with current systemPrompt
                 # Capabilities are passed directly; the plugin system
                 # handles mapping capabilities to tools.
@@ -215,6 +275,8 @@ async def websocket_endpoint(
                     bot_models=bot_models,
                     tool_configs=merged_tool_configs,
                     on_approval_needed=on_approval,
+                    driver=per_bot_driver,
+                    provider_environment=resolved_env,
                 )
 
                 # Extract replyToId from client payload

@@ -44,9 +44,7 @@ async def pg_db(request):
         await engine.dispose()
         pytest.skip("PostgreSQL not available")
 
-    session_maker = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Import all ORM models so Base.metadata is fully populated
     import cachibot.storage.models  # noqa: F401

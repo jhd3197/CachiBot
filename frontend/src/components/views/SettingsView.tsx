@@ -37,6 +37,7 @@ import {
   DocumentChunksDialog,
 } from '../knowledge'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
+import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { useVoiceStore } from '../../stores/voice'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
@@ -105,6 +106,7 @@ export function SettingsView() {
     knowledge: 'Knowledge',
     skills: 'Skills',
     connections: 'Connections',
+    environment: 'Environment',
     voice: 'Voice',
     advanced: 'Advanced',
     danger: 'Danger Zone',
@@ -117,7 +119,7 @@ export function SettingsView() {
         <h1 className="text-lg font-semibold text-zinc-100">
           {sectionTitles[settingsSection]}
         </h1>
-        {settingsSection !== 'danger' && (
+        {settingsSection !== 'danger' && settingsSection !== 'environment' && (
           <button
             onClick={handleSave}
             className={cn(
@@ -162,6 +164,9 @@ export function SettingsView() {
           )}
           {settingsSection === 'connections' && (
             <ConnectionsSection botId={activeBot.id} />
+          )}
+          {settingsSection === 'environment' && (
+            <BotEnvironmentPanel botId={activeBot.id} />
           )}
           {settingsSection === 'voice' && (
             <VoiceSettingsSection botId={activeBot.id} />

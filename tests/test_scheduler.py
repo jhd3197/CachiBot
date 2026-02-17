@@ -353,9 +353,7 @@ class TestScheduleTools:
         plugin = self._build_plugin()
         fn = plugin.skills["schedule_create"].fn
 
-        result = await fn(
-            name="Cron Test", message="daily", cron_expression="0 9 * * *"
-        )
+        result = await fn(name="Cron Test", message="daily", cron_expression="0 9 * * *")
         data = json.loads(result)
         assert data["type"] == "cron"
         assert data["enabled"] is True

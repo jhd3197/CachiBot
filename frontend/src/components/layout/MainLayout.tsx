@@ -14,6 +14,9 @@ import {
   WorkView,
   SchedulesView,
   VoiceView,
+  AutomationsView,
+  ScriptEditorView,
+  GlobalLogView,
 } from '../views'
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
@@ -35,6 +38,7 @@ import type { AppView, BotView, Config } from '../../types'
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
   '/settings': 'settings',
+  '/admin/logs': 'admin-logs',
 }
 
 // Check if path matches an app view (including sub-paths like /settings/users)
@@ -81,6 +85,7 @@ export function MainLayout() {
     tasks: 'tasks',
     work: 'work',
     schedules: 'schedules',
+    automations: 'automations',
     voice: 'voice',
     tools: 'tools',
     settings: 'settings',
@@ -228,6 +233,8 @@ export function MainLayout() {
           return <DashboardView />
         case 'settings':
           return <AppSettingsView />
+        case 'admin-logs':
+          return <GlobalLogView />
       }
     }
 
@@ -244,6 +251,14 @@ export function MainLayout() {
         return <WorkView />
       case 'schedules':
         return <SchedulesView />
+      case 'automations': {
+        // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView
+        const automationSubPath = pathParts[2]
+        if (automationSubPath && pathParts[3] === 'edit') {
+          return <ScriptEditorView />
+        }
+        return <AutomationsView />
+      }
       case 'voice':
         return <VoiceView />
       case 'tools':

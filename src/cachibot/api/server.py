@@ -16,7 +16,9 @@ from fastapi.staticfiles import StaticFiles
 from cachibot import __version__
 from cachibot.api.room_websocket import router as room_ws_router
 from cachibot.api.routes import (
+    admin_executions,
     auth,
+    bot_env,
     bots,
     chat,
     chats,
@@ -25,6 +27,7 @@ from cachibot.api.routes import (
     contacts,
     creation,
     documents,
+    executions,
     health,
     instructions,
     knowledge,
@@ -34,6 +37,7 @@ from cachibot.api.routes import (
     plugins,
     providers,
     rooms,
+    scripts,
     skills,
     telemetry,
     update,
@@ -47,6 +51,7 @@ from cachibot.api.routes.webhooks import whatsapp as wh_whatsapp
 from cachibot.api.voice_websocket import router as voice_ws_router
 from cachibot.api.websocket import router as ws_router
 from cachibot.services.job_runner import get_job_runner
+from cachibot.services.log_retention import get_log_retention_service
 from cachibot.services.message_processor import get_message_processor
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.services.scheduler_service import get_scheduler_service
@@ -67,6 +72,11 @@ async def lifespan(app: FastAPI):
     import logging
 
     startup_logger = logging.getLogger("cachibot.startup")
+
+    # ---- Secret masking (must be first — before any secrets could be logged) ----
+    from cachibot.services.secret_masking import install_secret_masking
+
+    install_secret_masking()
 
     # ---- Installation health check (P1) ----
     try:
@@ -118,6 +128,10 @@ async def lifespan(app: FastAPI):
     job_runner = get_job_runner()
     await job_runner.start()
 
+    # Start the log retention service (cleans up old execution logs)
+    log_retention = get_log_retention_service()
+    await log_retention.start()
+
     # Start telemetry scheduler (opt-in, non-blocking, silent on failure)
     try:
         from cachibot.telemetry.scheduler import start_telemetry_scheduler
@@ -135,6 +149,7 @@ async def lifespan(app: FastAPI):
         await stop_telemetry_scheduler()
     except Exception:
         pass
+    await log_retention.stop()
     await job_runner.stop()
     await scheduler.stop()
     await platform_manager.stop_health_monitor()
@@ -196,6 +211,9 @@ def create_app(
     app.include_router(chats.router, tags=["chats"])
     app.include_router(contacts.router, tags=["contacts"])
     app.include_router(connections.router, tags=["connections"])
+    app.include_router(bot_env.router, tags=["bot-environment"])
+    app.include_router(bot_env.platform_router, tags=["platform-environment"])
+    app.include_router(bot_env.skill_config_router, tags=["skill-config"])
     app.include_router(documents.router, tags=["documents"])
     app.include_router(instructions.router, tags=["instructions"])
     app.include_router(knowledge.router, tags=["knowledge"])
@@ -204,6 +222,9 @@ def create_app(
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
     app.include_router(work.router, tags=["work"])
+    app.include_router(scripts.router, tags=["scripts"])
+    app.include_router(executions.router, tags=["executions"])
+    app.include_router(admin_executions.router, tags=["admin-executions"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
     app.include_router(rooms.router, tags=["rooms"])
     app.include_router(ws_router, tags=["websocket"])

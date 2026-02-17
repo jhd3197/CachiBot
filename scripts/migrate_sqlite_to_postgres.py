@@ -55,8 +55,15 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "users",
         [
-            "id", "email", "username", "password_hash", "role",
-            "is_active", "created_at", "created_by", "last_login",
+            "id",
+            "email",
+            "username",
+            "password_hash",
+            "role",
+            "is_active",
+            "created_at",
+            "created_by",
+            "last_login",
         ],
         ["id"],
     ),
@@ -68,27 +75,50 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "bots",
         [
-            "id", "name", "description", "icon", "color", "model",
-            "system_prompt", "capabilities", "models", "created_at", "updated_at",
+            "id",
+            "name",
+            "description",
+            "icon",
+            "color",
+            "model",
+            "system_prompt",
+            "capabilities",
+            "models",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
     (
         "skills",
         [
-            "id", "name", "description", "version", "author", "tags",
-            "requires_tools", "instructions", "source", "filepath",
-            "created_at", "updated_at",
+            "id",
+            "name",
+            "description",
+            "version",
+            "author",
+            "tags",
+            "requires_tools",
+            "instructions",
+            "source",
+            "filepath",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
-
     # === Tier 2: Reference only tier-1 tables ===
     (
         "rooms",
         [
-            "id", "title", "description", "creator_id", "max_bots",
-            "settings", "created_at", "updated_at",
+            "id",
+            "title",
+            "description",
+            "creator_id",
+            "max_bots",
+            "settings",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
@@ -100,8 +130,14 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "bot_messages",
         [
-            "id", "bot_id", "chat_id", "role", "content",
-            "timestamp", "metadata", "reply_to_id",
+            "id",
+            "bot_id",
+            "chat_id",
+            "role",
+            "content",
+            "timestamp",
+            "metadata",
+            "reply_to_id",
         ],
         ["id"],
     ),
@@ -113,8 +149,16 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "bot_documents",
         [
-            "id", "bot_id", "filename", "file_type", "file_hash",
-            "file_size", "chunk_count", "status", "uploaded_at", "processed_at",
+            "id",
+            "bot_id",
+            "filename",
+            "file_type",
+            "file_hash",
+            "file_size",
+            "chunk_count",
+            "status",
+            "uploaded_at",
+            "processed_at",
         ],
         ["id"],
     ),
@@ -126,16 +170,32 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "bot_connections",
         [
-            "id", "bot_id", "platform", "name", "status", "config_encrypted",
-            "message_count", "last_activity", "error", "created_at", "updated_at",
+            "id",
+            "bot_id",
+            "platform",
+            "name",
+            "status",
+            "config_encrypted",
+            "message_count",
+            "last_activity",
+            "error",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
     (
         "chats",
         [
-            "id", "bot_id", "title", "platform", "platform_chat_id",
-            "pinned", "archived", "created_at", "updated_at",
+            "id",
+            "bot_id",
+            "title",
+            "platform",
+            "platform_chat_id",
+            "pinned",
+            "archived",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
@@ -147,21 +207,36 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "functions",
         [
-            "id", "bot_id", "name", "description", "version", "steps",
-            "parameters", "tags", "created_at", "updated_at",
-            "run_count", "last_run_at", "success_rate",
+            "id",
+            "bot_id",
+            "name",
+            "description",
+            "version",
+            "steps",
+            "parameters",
+            "tags",
+            "created_at",
+            "updated_at",
+            "run_count",
+            "last_run_at",
+            "success_rate",
         ],
         ["id"],
     ),
     (
         "bot_notes",
         [
-            "id", "bot_id", "title", "content", "tags", "source",
-            "created_at", "updated_at",
+            "id",
+            "bot_id",
+            "title",
+            "content",
+            "tags",
+            "source",
+            "created_at",
+            "updated_at",
         ],
         ["id"],
     ),
-
     # === Tier 3: Reference tier-2 tables ===
     (
         "room_members",
@@ -176,79 +251,160 @@ MIGRATION_ORDER: list[tuple[str, list[str], list[str]]] = [
     (
         "doc_chunks",
         [
-            "id", "document_id", "bot_id", "chunk_index",
-            "content", "embedding",
+            "id",
+            "document_id",
+            "bot_id",
+            "chunk_index",
+            "content",
+            "embedding",
         ],
         ["id"],
     ),
     (
         "schedules",
         [
-            "id", "bot_id", "name", "description", "function_id",
-            "function_params", "schedule_type", "cron_expression",
-            "interval_seconds", "run_at", "event_trigger", "timezone",
-            "enabled", "max_concurrent", "catch_up", "created_at",
-            "updated_at", "next_run_at", "last_run_at", "run_count",
+            "id",
+            "bot_id",
+            "name",
+            "description",
+            "function_id",
+            "function_params",
+            "schedule_type",
+            "cron_expression",
+            "interval_seconds",
+            "run_at",
+            "event_trigger",
+            "timezone",
+            "enabled",
+            "max_concurrent",
+            "catch_up",
+            "created_at",
+            "updated_at",
+            "next_run_at",
+            "last_run_at",
+            "run_count",
         ],
         ["id"],
     ),
     (
         "room_messages",
         [
-            "id", "room_id", "sender_type", "sender_id", "sender_name",
-            "content", "metadata", "timestamp",
+            "id",
+            "room_id",
+            "sender_type",
+            "sender_id",
+            "sender_name",
+            "content",
+            "metadata",
+            "timestamp",
         ],
         ["id"],
     ),
     (
         "jobs",
         [
-            "id", "status", "message_id", "created_at", "started_at",
-            "completed_at", "result", "error", "progress",
+            "id",
+            "status",
+            "message_id",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
+            "progress",
         ],
         ["id"],
     ),
-
     # === Tier 4: Reference tier-3 tables ===
     (
         "work",
         [
-            "id", "bot_id", "chat_id", "title", "description", "goal",
-            "function_id", "schedule_id", "parent_work_id", "status",
-            "priority", "progress", "created_at", "started_at",
-            "completed_at", "due_at", "result", "error", "context", "tags",
+            "id",
+            "bot_id",
+            "chat_id",
+            "title",
+            "description",
+            "goal",
+            "function_id",
+            "schedule_id",
+            "parent_work_id",
+            "status",
+            "priority",
+            "progress",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "due_at",
+            "result",
+            "error",
+            "context",
+            "tags",
         ],
         ["id"],
     ),
-
     # === Tier 5: Reference tier-4 tables ===
     (
         "tasks",
         [
-            "id", "bot_id", "work_id", "chat_id", "title", "description",
-            "action", "task_order", "depends_on", "status", "priority",
-            "retry_count", "max_retries", "timeout_seconds", "created_at",
-            "started_at", "completed_at", "result", "error",
+            "id",
+            "bot_id",
+            "work_id",
+            "chat_id",
+            "title",
+            "description",
+            "action",
+            "task_order",
+            "depends_on",
+            "status",
+            "priority",
+            "retry_count",
+            "max_retries",
+            "timeout_seconds",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
         ],
         ["id"],
     ),
     (
         "todos",
         [
-            "id", "bot_id", "chat_id", "title", "notes", "status",
-            "priority", "created_at", "completed_at", "remind_at",
-            "converted_to_work_id", "converted_to_task_id", "tags",
+            "id",
+            "bot_id",
+            "chat_id",
+            "title",
+            "notes",
+            "status",
+            "priority",
+            "created_at",
+            "completed_at",
+            "remind_at",
+            "converted_to_work_id",
+            "converted_to_task_id",
+            "tags",
         ],
         ["id"],
     ),
-
     # === Tier 6: Reference tier-5 tables ===
     (
         "work_jobs",
         [
-            "id", "bot_id", "task_id", "work_id", "chat_id", "status",
-            "attempt", "progress", "created_at", "started_at",
-            "completed_at", "result", "error", "logs",
+            "id",
+            "bot_id",
+            "task_id",
+            "work_id",
+            "chat_id",
+            "status",
+            "attempt",
+            "progress",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "result",
+            "error",
+            "logs",
         ],
         ["id"],
     ),
@@ -384,16 +540,12 @@ async def migrate_table(
     # Ensure PK columns are all present
     for pk in pk_columns:
         if pk not in columns:
-            logger.error(
-                "  PK column '%s' missing from table '%s', skipping.", pk, table_name
-            )
+            logger.error("  PK column '%s' missing from table '%s', skipping.", pk, table_name)
             return 0, time.monotonic() - start
 
     # Read all rows from SQLite
     col_select = ", ".join(columns)
-    async with sqlite_db.execute(
-        f"SELECT {col_select} FROM {table_name}"
-    ) as cursor:
+    async with sqlite_db.execute(f"SELECT {col_select} FROM {table_name}") as cursor:
         rows = await cursor.fetchall()
 
     if not rows:
@@ -423,9 +575,7 @@ async def migrate_table(
     await pg_session.commit()
 
     elapsed = time.monotonic() - start
-    logger.info(
-        "  %s: %d rows migrated (%.2fs)", table_name, total, elapsed
-    )
+    logger.info("  %s: %d rows migrated (%.2fs)", table_name, total, elapsed)
     return total, elapsed
 
 
@@ -439,7 +589,8 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
     - TEXT timestamps stay as TEXT (keeping ISO format for compatibility)
     - TEXT JSON stays as TEXT (can be migrated to JSONB later)
     """
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             email TEXT NOT NULL UNIQUE,
@@ -451,9 +602,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_by TEXT,
             last_login TEXT
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS messages (
             id TEXT PRIMARY KEY,
             role TEXT NOT NULL,
@@ -461,9 +614,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             timestamp TEXT NOT NULL,
             metadata TEXT DEFAULT '{}'
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bots (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -477,9 +632,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS skills (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -494,9 +651,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS rooms (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -508,9 +667,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             updated_at TEXT NOT NULL,
             FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_ownership (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL UNIQUE,
@@ -518,9 +679,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_messages (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -531,18 +694,22 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             metadata TEXT DEFAULT '{}',
             reply_to_id TEXT
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_instructions (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL UNIQUE,
             content TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_documents (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -555,9 +722,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             uploaded_at TEXT NOT NULL,
             processed_at TEXT
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_contacts (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -566,9 +735,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_connections (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -582,9 +753,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS chats (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -596,9 +769,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_skills (
             bot_id TEXT NOT NULL,
             skill_id TEXT NOT NULL,
@@ -607,9 +782,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             PRIMARY KEY (bot_id, skill_id),
             FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS functions (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -625,9 +802,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             last_run_at TEXT,
             success_rate REAL DEFAULT 0.0
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS bot_notes (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -638,9 +817,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS room_members (
             room_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
@@ -650,9 +831,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS room_bots (
             room_id TEXT NOT NULL,
             bot_id TEXT NOT NULL,
@@ -660,13 +843,15 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             PRIMARY KEY (room_id, bot_id),
             FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
     # doc_chunks: embedding stored as TEXT for now (pgvector vector type
     # will be added via ALTER COLUMN in a future Alembic migration once
     # the embedding dimension is confirmed). During migration the embedding
     # is stored as a text literal like '[0.1,0.2,...]'.
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS doc_chunks (
             id TEXT PRIMARY KEY,
             document_id TEXT NOT NULL,
@@ -676,9 +861,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             embedding TEXT,
             FOREIGN KEY (document_id) REFERENCES bot_documents(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS schedules (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -702,9 +889,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             run_count INTEGER DEFAULT 0,
             FOREIGN KEY (function_id) REFERENCES functions(id) ON DELETE SET NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS room_messages (
             id TEXT PRIMARY KEY,
             room_id TEXT NOT NULL,
@@ -716,9 +905,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             timestamp TEXT NOT NULL,
             FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS jobs (
             id TEXT PRIMARY KEY,
             status TEXT NOT NULL DEFAULT 'pending',
@@ -731,9 +922,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             progress REAL DEFAULT 0.0,
             FOREIGN KEY (message_id) REFERENCES messages(id)
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS work (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -759,9 +952,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE SET NULL,
             FOREIGN KEY (parent_work_id) REFERENCES work(id) ON DELETE SET NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -784,9 +979,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             error TEXT,
             FOREIGN KEY (work_id) REFERENCES work(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS todos (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -804,9 +1001,11 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             FOREIGN KEY (converted_to_work_id) REFERENCES work(id) ON DELETE SET NULL,
             FOREIGN KEY (converted_to_task_id) REFERENCES tasks(id) ON DELETE SET NULL
         )
-    """))
+    """)
+    )
 
-    await pg_session.execute(text("""
+    await pg_session.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS work_jobs (
             id TEXT PRIMARY KEY,
             bot_id TEXT NOT NULL,
@@ -825,7 +1024,8 @@ async def create_postgres_tables(pg_session: AsyncSession) -> None:
             FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
             FOREIGN KEY (work_id) REFERENCES work(id) ON DELETE CASCADE
         )
-    """))
+    """)
+    )
 
     # Create indexes (matching SQLite schema)
     index_statements = [
@@ -959,9 +1159,7 @@ async def validate_migration(
             logger.warning("  %s: could not query PostgreSQL", table_name)
             continue
 
-        async with sqlite_db.execute(
-            f"SELECT id FROM {table_name} ORDER BY id LIMIT 5"
-        ) as cursor:
+        async with sqlite_db.execute(f"SELECT id FROM {table_name} ORDER BY id LIMIT 5") as cursor:
             sqlite_rows = await cursor.fetchall()
         sqlite_ids = [row[0] for row in sqlite_rows]
 
