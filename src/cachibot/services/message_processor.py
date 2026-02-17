@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from cachibot.agent import CachibotAgent
+from cachibot.agent import CachibotAgent, load_disabled_capabilities
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.platform import IncomingMedia, PlatformResponse
@@ -365,6 +365,7 @@ class MessageProcessor:
             )
 
         # Create agent with bot capabilities for tool access
+        disabled_caps = await load_disabled_capabilities()
         agent = CachibotAgent(
             config=agent_config,
             system_prompt_override=enhanced_prompt,
@@ -375,6 +376,7 @@ class MessageProcessor:
             tool_configs=merged_tool_configs,
             driver=per_bot_driver,
             provider_environment=resolved_env,
+            disabled_capabilities=disabled_caps,
         )
 
         # Run async agent directly (pass images for vision if any)

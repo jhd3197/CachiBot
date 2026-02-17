@@ -22,6 +22,7 @@ import {
   Mic,
 } from 'lucide-react'
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
+import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { useUIStore } from '../../stores/ui'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../common/BotIconRenderer'
 import { ModelSelect } from '../common/ModelSelect'
@@ -52,8 +53,14 @@ export function SettingsView() {
   const navigate = useNavigate()
   const { getActiveBot, updateBot, deleteBot } = useBotStore()
   const { settingsSection } = useUIStore()
+  const { fetchConfig: fetchPlatformConfig } = usePlatformToolsStore()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Preload platform tool config for capability/skill filtering
+  useEffect(() => {
+    fetchPlatformConfig()
+  }, [fetchPlatformConfig])
 
   const activeBot = getActiveBot()
 
@@ -232,6 +239,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const { imageGroups, audioGroups } = useModelsStore()
   const { getActiveBot, updateBot } = useBotStore()
+  const { isCapabilityDisabled } = usePlatformToolsStore()
   const activeBot = getActiveBot()
 
   const toggleCapability = (key: string, value: boolean) => {
@@ -336,69 +344,73 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             </p>
           </div>
 
-          {/* Image Generation toggle + model */}
-          <div>
-            <CapabilityToggle
-              icon={<Image className="h-4 w-4" />}
-              label="Image Generation"
-              description="Generate images via DALL-E, Imagen, Stability AI"
-              enabled={!!activeBot?.capabilities?.imageGeneration}
-              onToggle={(v) => toggleCapability('imageGeneration', v)}
-            />
-            {!!activeBot?.capabilities?.imageGeneration && (
-              <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
-                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
-                  <Image className="h-3 w-3 text-zinc-500" />
-                  Image Model
-                </label>
-                <ModelSelect
-                  value={form.models?.image || ''}
-                  onChange={(model) => {
-                    const models: BotModels = { ...(form.models || { default: '' }), image: model }
-                    setForm({ ...form, models })
-                  }}
-                  placeholder="Use plugin default"
-                  className="w-full"
-                  groups={imageGroups}
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Image Generation toggle + model (hidden if globally disabled) */}
+          {!isCapabilityDisabled('imageGeneration') && (
+            <div>
+              <CapabilityToggle
+                icon={<Image className="h-4 w-4" />}
+                label="Image Generation"
+                description="Generate images via DALL-E, Imagen, Stability AI"
+                enabled={!!activeBot?.capabilities?.imageGeneration}
+                onToggle={(v) => toggleCapability('imageGeneration', v)}
+              />
+              {!!activeBot?.capabilities?.imageGeneration && (
+                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
+                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                    <Image className="h-3 w-3 text-zinc-500" />
+                    Image Model
+                  </label>
+                  <ModelSelect
+                    value={form.models?.image || ''}
+                    onChange={(model) => {
+                      const models: BotModels = { ...(form.models || { default: '' }), image: model }
+                      setForm({ ...form, models })
+                    }}
+                    placeholder="Use plugin default"
+                    className="w-full"
+                    groups={imageGroups}
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Audio Generation toggle + model */}
-          <div>
-            <CapabilityToggle
-              icon={<AudioLines className="h-4 w-4" />}
-              label="Audio Generation"
-              description="Text-to-speech and speech-to-text via OpenAI, ElevenLabs"
-              enabled={!!activeBot?.capabilities?.audioGeneration}
-              onToggle={(v) => toggleCapability('audioGeneration', v)}
-            />
-            {!!activeBot?.capabilities?.audioGeneration && (
-              <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
-                <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
-                  <AudioLines className="h-3 w-3 text-zinc-500" />
-                  Audio Model
-                </label>
-                <ModelSelect
-                  value={form.models?.audio || ''}
-                  onChange={(model) => {
-                    const models: BotModels = { ...(form.models || { default: '' }), audio: model }
-                    setForm({ ...form, models })
-                  }}
-                  placeholder="Use plugin default"
-                  className="w-full"
-                  groups={audioGroups}
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Audio Generation toggle + model (hidden if globally disabled) */}
+          {!isCapabilityDisabled('audioGeneration') && (
+            <div>
+              <CapabilityToggle
+                icon={<AudioLines className="h-4 w-4" />}
+                label="Audio Generation"
+                description="Text-to-speech and speech-to-text via OpenAI, ElevenLabs"
+                enabled={!!activeBot?.capabilities?.audioGeneration}
+                onToggle={(v) => toggleCapability('audioGeneration', v)}
+              />
+              {!!activeBot?.capabilities?.audioGeneration && (
+                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
+                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                    <AudioLines className="h-3 w-3 text-zinc-500" />
+                    Audio Model
+                  </label>
+                  <ModelSelect
+                    value={form.models?.audio || ''}
+                    onChange={(model) => {
+                      const models: BotModels = { ...(form.models || { default: '' }), audio: model }
+                      setForm({ ...form, models })
+                    }}
+                    placeholder="Use plugin default"
+                    className="w-full"
+                    groups={audioGroups}
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -565,6 +577,7 @@ function SkillsSection({ botId }: { botId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showInstallDialog, setShowInstallDialog] = useState(false)
+  const { isSkillDisabled } = usePlatformToolsStore()
 
   // Load skills and bot's active skills
   const loadData = useCallback(async () => {
@@ -642,8 +655,10 @@ function SkillsSection({ botId }: { botId: string }) {
     setShowInstallDialog(false)
   }
 
-  // Filter skills by search query
+  // Filter skills by search query and global visibility
   const filteredSkills = allSkills.filter((skill) => {
+    // Skip globally disabled skills
+    if (isSkillDisabled(skill.id)) return false
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (

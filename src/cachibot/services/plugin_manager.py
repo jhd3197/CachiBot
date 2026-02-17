@@ -77,6 +77,7 @@ def plugins_to_registry(
 def build_registry(
     ctx: PluginContext,
     capabilities: dict | None = None,
+    disabled_capabilities: set[str] | None = None,
 ) -> ToolRegistry:
     """Build a ToolRegistry from capabilities and plugin context.
 
@@ -84,17 +85,21 @@ def build_registry(
         ctx: Plugin runtime context (config, sandbox, bot_id, tool_configs)
         capabilities: Dict of capability name -> bool.
             None means legacy/CLI mode (all plugins enabled).
+        disabled_capabilities: Set of capability keys globally disabled by
+            the platform admin.  These are excluded even if the bot has
+            them enabled.
 
     Returns:
         ToolRegistry with tools from enabled plugins
     """
-    plugins = _instantiate_plugins(ctx, capabilities)
+    plugins = _instantiate_plugins(ctx, capabilities, disabled_capabilities)
     return plugins_to_registry(plugins)
 
 
 def get_enabled_plugins(
     ctx: PluginContext,
     capabilities: dict | None = None,
+    disabled_capabilities: set[str] | None = None,
 ) -> list[CachibotPlugin | TransformerPlugin]:
     """Get the list of instantiated plugins for given capabilities.
 
@@ -103,26 +108,32 @@ def get_enabled_plugins(
     Args:
         ctx: Plugin runtime context
         capabilities: Dict of capability name -> bool, or None for all
+        disabled_capabilities: Set of globally disabled capability keys
 
     Returns:
         List of instantiated plugin objects
     """
-    return _instantiate_plugins(ctx, capabilities)
+    return _instantiate_plugins(ctx, capabilities, disabled_capabilities)
 
 
 def _instantiate_plugins(
     ctx: PluginContext,
     capabilities: dict | None,
+    disabled_capabilities: set[str] | None = None,
 ) -> list[CachibotPlugin | TransformerPlugin]:
     """Instantiate the correct set of plugins based on capabilities."""
+    globally_disabled = disabled_capabilities or set()
     plugin_classes: list[PluginClass] = list(ALWAYS_ENABLED)
 
     if capabilities is None:
-        # Legacy/CLI mode: all plugins enabled
-        for classes in CAPABILITY_PLUGINS.values():
-            plugin_classes.extend(classes)
+        # Legacy/CLI mode: all plugins enabled (except globally disabled)
+        for cap_name, classes in CAPABILITY_PLUGINS.items():
+            if cap_name not in globally_disabled:
+                plugin_classes.extend(classes)
     else:
         for cap_name, classes in CAPABILITY_PLUGINS.items():
+            if cap_name in globally_disabled:
+                continue
             if capabilities.get(cap_name, False):
                 plugin_classes.extend(classes)
 

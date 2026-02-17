@@ -20,12 +20,13 @@ from cachibot.services.skills import (
     SkillParseError,
     get_skills_service,
 )
-from cachibot.storage.repository import SkillsRepository
+from cachibot.storage.repository import PlatformToolConfigRepository, SkillsRepository
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
-# Repository instance
+# Repository instances
 repo = SkillsRepository()
+_platform_repo = PlatformToolConfigRepository()
 
 
 class SkillCreateRequest(BaseModel):
@@ -39,14 +40,15 @@ class SkillCreateRequest(BaseModel):
 async def list_skills(
     user: User = Depends(get_current_user),
 ) -> list[SkillResponse]:
-    """Get all available skills."""
+    """Get all available skills (globally disabled skills are excluded)."""
     # First sync from filesystem
     service = get_skills_service()
     await service.sync_skills_to_db()
 
-    # Then return all from database
+    # Filter out globally disabled skills
+    disabled_skill_ids = set(await _platform_repo.get_disabled_skills())
     skills = await repo.get_all_skills()
-    return [SkillResponse.from_skill(s) for s in skills]
+    return [SkillResponse.from_skill(s) for s in skills if s.id not in disabled_skill_ids]
 
 
 @router.get("/{skill_id}")

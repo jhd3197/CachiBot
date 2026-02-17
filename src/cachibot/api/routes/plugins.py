@@ -2,6 +2,8 @@
 Plugin introspection endpoints.
 
 Allows the frontend to discover available plugins and their skills.
+Respects the global PlatformToolConfig — plugins whose capability is
+globally disabled are omitted from the response.
 """
 
 from fastapi import APIRouter
@@ -9,13 +11,18 @@ from fastapi import APIRouter
 from cachibot.plugins import CACHIBOT_PLUGINS
 from cachibot.plugins.base import CachibotPlugin
 from cachibot.services.plugin_manager import ALWAYS_ENABLED, CAPABILITY_PLUGINS
+from cachibot.storage.repository import PlatformToolConfigRepository
 
 router = APIRouter()
+
+_platform_repo = PlatformToolConfigRepository()
 
 
 @router.get("/api/plugins")
 async def list_plugins():
     """List all available plugins with their skills and capability mapping."""
+    disabled_caps = set(await _platform_repo.get_disabled_capabilities())
+
     # Build reverse map: plugin class -> capability name
     plugin_to_cap: dict[str, str | None] = {}
     for cap_name, classes in CAPABILITY_PLUGINS.items():
@@ -27,6 +34,11 @@ async def list_plugins():
     result = []
     for name, cls in CACHIBOT_PLUGINS.items():
         cap = plugin_to_cap.get(cls.__name__)
+
+        # Skip plugins whose capability is globally disabled
+        if cap and cap in disabled_caps:
+            continue
+
         plugin_data: dict = {
             "name": name,
             "class": cls.__name__,
