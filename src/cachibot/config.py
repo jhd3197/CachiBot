@@ -492,9 +492,9 @@ class Config:
         t = self.telemetry
         section = (
             "\n[telemetry]\n"
-            f'enabled = {"true" if t.enabled else "false"}\n'
+            f"enabled = {'true' if t.enabled else 'false'}\n"
             f'install_id = "{t.install_id}"\n'
-            f'terms_accepted = {"true" if t.terms_accepted else "false"}\n'
+            f"terms_accepted = {'true' if t.terms_accepted else 'false'}\n"
             f'terms_version = "{t.terms_version}"\n'
             f'terms_accepted_at = "{t.terms_accepted_at}"\n'
             f'last_sent = "{t.last_sent}"\n'
