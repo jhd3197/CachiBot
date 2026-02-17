@@ -6,7 +6,6 @@ and to keep the binary focused on just the server functionality.
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 
@@ -17,8 +16,9 @@ def main():
     args = parser.parse_args()
 
     # Import here so PyInstaller can trace dependencies
-    from cachibot.api.server import create_app
     import uvicorn
+
+    from cachibot.api.server import create_app
 
     app = create_app(workspace=Path.home())
 

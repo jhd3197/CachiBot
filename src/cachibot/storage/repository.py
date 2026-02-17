@@ -125,7 +125,13 @@ class MessageRepository:
 
 
 class JobRepository:
-    """Repository for jobs/tasks."""
+    """Repository for jobs/tasks.
+
+    .. deprecated::
+        This repository is part of the legacy job system. New code should use
+        ``WorkRepository`` and ``ExecutionLogRepository`` from
+        ``cachibot.storage.automations_repository`` instead.
+    """
 
     async def save_job(self, job: Job) -> None:
         """Save a job to the database."""
@@ -916,6 +922,11 @@ class ConnectionRepository:
 
     async def save_connection(self, connection: BotConnection) -> None:
         """Save a new connection."""
+        from cachibot.services.encryption import get_encryption_service
+
+        enc = get_encryption_service()
+        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
+
         async with db.ensure_initialized()() as session:
             obj = BotConnectionModel(
                 id=connection.id,
@@ -923,7 +934,7 @@ class ConnectionRepository:
                 platform=connection.platform.value,
                 name=connection.name,
                 status=connection.status.value,
-                config_encrypted=connection.config,  # TODO: Add actual encryption
+                config_encrypted=encrypted_config,
                 message_count=connection.message_count,
                 last_activity=connection.last_activity,
                 error=connection.error,
@@ -967,6 +978,11 @@ class ConnectionRepository:
 
     async def update_connection(self, connection: BotConnection) -> None:
         """Update an existing connection."""
+        from cachibot.services.encryption import get_encryption_service
+
+        enc = get_encryption_service()
+        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
+
         async with db.ensure_initialized()() as session:
             await session.execute(
                 update(BotConnectionModel)
@@ -974,7 +990,7 @@ class ConnectionRepository:
                 .values(
                     name=connection.name,
                     status=connection.status.value,
-                    config_encrypted=connection.config,  # TODO: Add actual encryption
+                    config_encrypted=encrypted_config,
                     message_count=connection.message_count,
                     last_activity=connection.last_activity,
                     error=connection.error,
@@ -1069,13 +1085,18 @@ class ConnectionRepository:
 
     def _row_to_connection(self, row: BotConnectionModel) -> BotConnection:
         """Convert database row to BotConnection model."""
+        from cachibot.services.encryption import get_encryption_service
+
+        enc = get_encryption_service()
+        config = enc.decrypt_connection_config(row.config_encrypted, row.bot_id)
+
         return BotConnection(
             id=row.id,
             bot_id=row.bot_id,
             platform=ConnectionPlatform(row.platform),
             name=row.name,
             status=ConnectionStatus(row.status),
-            config=row.config_encrypted,  # TODO: Add actual decryption
+            config=config,
             message_count=row.message_count,
             last_activity=row.last_activity,
             error=row.error,

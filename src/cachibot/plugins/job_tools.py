@@ -3,6 +3,12 @@ Job management plugin — job_create, job_status, job_cancel, job_list.
 
 Provides LLM tools for creating and managing background jobs (Work + Tasks)
 that the JobRunnerService picks up and executes asynchronously.
+
+.. deprecated::
+    This plugin overlaps with ``WorkManagementPlugin``. Its skills
+    (job_create, job_status, job_cancel, job_list) will be merged into
+    ``work_management.py`` in a future release. For new integrations,
+    use the work management skills directly.
 """
 
 from tukuy.manifest import PluginManifest

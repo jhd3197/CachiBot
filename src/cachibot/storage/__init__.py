@@ -5,6 +5,14 @@ Multi-database storage using SQLAlchemy 2.0 async ORM.
 Supports SQLite (default, zero-config) and PostgreSQL (via DATABASE_URL).
 """
 
+from cachibot.storage.automations_repository import (
+    ExecutionDailySummaryRepository,
+    ExecutionLogLineRepository,
+    ExecutionLogRepository,
+    ScriptRepository,
+    ScriptVersionRepository,
+    TimelineEventRepository,
+)
 from cachibot.storage.db import close_db, get_session, init_db
 from cachibot.storage.repository import (
     BotRepository,
@@ -63,4 +71,11 @@ __all__ = [
     # User repositories
     "UserRepository",
     "OwnershipRepository",
+    # Automation repositories
+    "ScriptRepository",
+    "ScriptVersionRepository",
+    "ExecutionLogRepository",
+    "ExecutionLogLineRepository",
+    "TimelineEventRepository",
+    "ExecutionDailySummaryRepository",
 ]

@@ -54,6 +54,14 @@ class Function(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     success_rate: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
 
+    # Script reference (automation system)
+    script_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("scripts.id", ondelete="SET NULL"), nullable=True
+    )
+    execution_type: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="agent"
+    )  # "agent", "script", "hybrid"
+
     # Relationships
     schedules: Mapped[list[Schedule]] = relationship("Schedule", back_populates="function")
     work_items: Mapped[list[Work]] = relationship("Work", back_populates="function")
@@ -155,6 +163,12 @@ class Work(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+
+    # Script execution tracking (automation system)
+    script_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("scripts.id", ondelete="SET NULL"), nullable=True
+    )
+    script_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     function: Mapped[Function | None] = relationship("Function", back_populates="work_items")

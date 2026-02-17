@@ -2,6 +2,7 @@
 
 from cachibot.api.routes import (
     auth,
+    bot_env,
     chat,
     config,
     creation,
@@ -17,6 +18,7 @@ from cachibot.api.routes import (
 
 __all__ = [
     "auth",
+    "bot_env",
     "chat",
     "config",
     "creation",

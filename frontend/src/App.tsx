@@ -68,6 +68,14 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/logs"
+        element={
+          <ProtectedRoute requireAdmin>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Bot view routes: /:botId/view */}
       <Route
@@ -144,6 +152,22 @@ function App() {
       />
       <Route
         path="/:botId/rooms/:roomId"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/automations"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/automations/:automationId/edit"
         element={
           <ProtectedRoute>
             <MainLayout />

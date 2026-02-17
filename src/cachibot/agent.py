@@ -5,9 +5,11 @@ Uses Prompture for structured LLM interaction with tool support.
 Tools are provided by Tukuy-based plugins via the PluginManager.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prompture import (
     AgentCallbacks,
@@ -22,6 +24,9 @@ from tukuy import PythonSandbox
 from cachibot.config import Config
 from cachibot.plugins.base import PluginContext
 from cachibot.services.plugin_manager import build_registry
+
+if TYPE_CHECKING:
+    from cachibot.services.bot_environment import ResolvedEnvironment
 
 
 @dataclass
@@ -67,6 +72,12 @@ class CachibotAgent:
 
     # Multi-model slot configuration (e.g., {"default": "...", "image": "..."})
     bot_models: dict | None = None
+
+    # Per-bot Prompture driver (bypasses global registry when provided)
+    driver: Any | None = None
+
+    # Per-bot resolved environment (temperature/max_tokens/etc. overrides)
+    provider_environment: ResolvedEnvironment | None = None
 
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
@@ -122,27 +133,64 @@ class CachibotAgent:
         )
 
         # Build SecurityContext from sandbox so Tukuy's built-in plugins
-        # are automatically scoped to the workspace
+        # are automatically scoped to the workspace, then harden it
         security_context = None
         if self.sandbox is not None:
             security_context = self.sandbox.to_security_context()
+            self._harden_security_context(security_context)
 
-        # Create agent
-        self._agent = PromptureAgent(
-            model=self.config.agent.model,
-            tools=self.registry,
-            system_prompt=self._get_system_prompt(),
-            agent_callbacks=callbacks,
-            max_iterations=self.config.agent.max_iterations,
-            persistent_conversation=True,
-            security_context=security_context,
-            max_tool_result_length=self.config.agent.max_tool_result_length,
-            max_depth=self.config.agent.max_depth,
-            options={
-                "temperature": self.config.agent.temperature,
-                "max_tokens": self.config.agent.max_tokens,
+        # Resolve effective agent parameters — provider_environment overrides
+        # take precedence over global config values.
+        env = self.provider_environment
+        temperature = env.temperature if env else self.config.agent.temperature
+        max_tokens = env.max_tokens if env else self.config.agent.max_tokens
+        max_iterations = env.max_iterations if env else self.config.agent.max_iterations
+
+        # Build kwargs for PromptureAgent
+        agent_kwargs: dict[str, Any] = {
+            "tools": self.registry,
+            "system_prompt": self._get_system_prompt(),
+            "agent_callbacks": callbacks,
+            "max_iterations": max_iterations,
+            "persistent_conversation": True,
+            "security_context": security_context,
+            "max_tool_result_length": self.config.agent.max_tool_result_length,
+            "max_depth": self.config.agent.max_depth,
+            "options": {
+                "temperature": temperature,
+                "max_tokens": max_tokens,
             },
-        )
+        }
+
+        # When a per-bot driver is provided, pass it directly to bypass the
+        # global Prompture registry.  Otherwise, use the model string.
+        if self.driver is not None:
+            agent_kwargs["driver"] = self.driver
+        else:
+            agent_kwargs["model"] = self.config.agent.model
+
+        self._agent = PromptureAgent(**agent_kwargs)
+
+    @staticmethod
+    def _harden_security_context(ctx: object) -> None:
+        """Add security restrictions to prevent secret leakage from bot agents.
+
+        Blocks .env file access and dangerous shell commands that could
+        expose environment variables or secrets.
+        """
+        # Block .env files via ignore patterns (matched against filename)
+        ignore = getattr(ctx, "ignore_patterns", None)
+        if ignore is not None:
+            for pat in (".env", "*.env", ".env.*"):
+                if pat not in ignore:
+                    ignore.append(pat)
+
+        # Block shell commands that dump environment variables
+        blocked = getattr(ctx, "blocked_commands", None)
+        if blocked is not None:
+            for cmd in ("env", "printenv", "set", "export"):
+                if cmd not in blocked:
+                    blocked.append(cmd)
 
     def _get_system_prompt(self) -> str:
         """Generate the system prompt."""
