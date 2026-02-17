@@ -8,20 +8,14 @@ Covers:
 """
 
 import json
-import os
 import secrets
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from cachibot.api.routes.bot_env import (
-    EnvVarListResponse,
-    EnvVarSetRequest,
-    ResolvedEnvResponse,
-    SkillConfigSetRequest,
     _mask_value,
 )
 from cachibot.models.auth import User, UserRole
@@ -32,7 +26,6 @@ from cachibot.storage.models.env_var import (
     EnvAuditLog,
     PlatformEnvironment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -324,9 +317,7 @@ class TestAuditLog:
             await session.commit()
 
         async with pg_db() as session:
-            result = await session.execute(
-                select(EnvAuditLog).where(EnvAuditLog.bot_id == "bot-1")
-            )
+            result = await session.execute(select(EnvAuditLog).where(EnvAuditLog.bot_id == "bot-1"))
             logs = result.scalars().all()
 
         assert len(logs) == 1
@@ -357,9 +348,7 @@ class TestAuditLog:
             await session.commit()
 
         async with pg_db() as session:
-            result = await session.execute(
-                select(EnvAuditLog).where(EnvAuditLog.bot_id == "bot-1")
-            )
+            result = await session.execute(select(EnvAuditLog).where(EnvAuditLog.bot_id == "bot-1"))
             log = result.scalar_one()
 
         # The raw key must NEVER appear in the stored details
@@ -454,6 +443,7 @@ class TestPermissions:
 
         # Delete the bot
         from sqlalchemy import delete as sa_delete
+
         from cachibot.storage.models.bot import Bot
 
         async with pg_db() as session:

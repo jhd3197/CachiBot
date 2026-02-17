@@ -28,7 +28,9 @@ class SecretMaskingFilter(logging.Filter):
             record.msg = _mask(record.msg)
         if record.args:
             if isinstance(record.args, dict):
-                record.args = {k: _mask(v) if isinstance(v, str) else v for k, v in record.args.items()}
+                record.args = {
+                    k: _mask(v) if isinstance(v, str) else v for k, v in record.args.items()
+                }
             elif isinstance(record.args, tuple):
                 record.args = tuple(_mask(a) if isinstance(a, str) else a for a in record.args)
         return True

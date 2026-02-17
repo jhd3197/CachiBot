@@ -14,9 +14,11 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select as sa_select
 
-from cachibot.api.auth import get_admin_user, get_current_user, require_bot_access
-from cachibot.models.auth import User, UserRole
+from cachibot.api.auth import get_admin_user, require_bot_access
+from cachibot.models.auth import User
 from cachibot.services.encryption import get_encryption_service
 from cachibot.storage import db
 from cachibot.storage.models.env_var import (
@@ -29,7 +31,9 @@ from cachibot.storage.models.env_var import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/bots/{bot_id}/environment", tags=["bot-environment"])
-platform_router = APIRouter(prefix="/api/platforms/{platform}/environment", tags=["platform-environment"])
+platform_router = APIRouter(
+    prefix="/api/platforms/{platform}/environment", tags=["platform-environment"]
+)
 skill_config_router = APIRouter(
     prefix="/api/bots/{bot_id}/skills/{skill_name}/config",
     tags=["skill-config"],
@@ -39,6 +43,7 @@ skill_config_router = APIRouter(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _mask_value(value: str) -> str:
     """Mask a secret value, showing only last 4 chars."""
@@ -91,6 +96,7 @@ def _client_ip(request: Request) -> str | None:
 # Request / Response schemas
 # ---------------------------------------------------------------------------
 
+
 class EnvVarResponse(BaseModel):
     key: str
     masked_value: str
@@ -125,8 +131,6 @@ class SkillConfigSetRequest(BaseModel):
 # Bot Environment CRUD
 # ---------------------------------------------------------------------------
 
-from sqlalchemy import delete as sa_delete, select as sa_select
-
 
 @router.get("")
 async def list_bot_env_vars(
@@ -145,9 +149,7 @@ async def list_bot_env_vars(
     variables = []
     for row in rows:
         try:
-            plaintext = enc.decrypt_value(
-                row.value_encrypted, row.nonce, row.salt, bot_id
-            )
+            plaintext = enc.decrypt_value(row.value_encrypted, row.nonce, row.salt, bot_id)
             masked = _mask_value(plaintext)
         except Exception:
             masked = "****"
@@ -291,16 +293,12 @@ async def get_resolved_env(
 
     for row in bot_vars:
         try:
-            plaintext = enc.decrypt_value(
-                row.value_encrypted, row.nonce, row.salt, bot_id
-            )
+            plaintext = enc.decrypt_value(row.value_encrypted, row.nonce, row.salt, bot_id)
             resolved[row.key] = ResolvedVarResponse(
                 masked_value=_mask_value(plaintext), source="bot"
             )
         except Exception:
-            resolved[row.key] = ResolvedVarResponse(
-                masked_value="****", source="bot"
-            )
+            resolved[row.key] = ResolvedVarResponse(masked_value="****", source="bot")
 
     # Layer 4: Skill configs
     skill_configs: dict[str, dict[str, ResolvedVarResponse]] = {}
@@ -316,8 +314,7 @@ async def get_resolved_env(
         except Exception:
             config = {}
         skill_configs[row.skill_name] = {
-            k: ResolvedVarResponse(value=v, source="bot")
-            for k, v in config.items()
+            k: ResolvedVarResponse(value=v, source="bot") for k, v in config.items()
         }
 
     return ResolvedEnvResponse(resolved=resolved, skill_configs=skill_configs)
@@ -326,6 +323,7 @@ async def get_resolved_env(
 # ---------------------------------------------------------------------------
 # Bot Environment: Reset all
 # ---------------------------------------------------------------------------
+
 
 @router.delete("")
 async def reset_bot_env(
@@ -363,6 +361,7 @@ async def reset_bot_env(
 # Platform Environment CRUD (Admin only)
 # ---------------------------------------------------------------------------
 
+
 @platform_router.get("")
 async def list_platform_env_vars(
     platform: str,
@@ -372,18 +371,14 @@ async def list_platform_env_vars(
     enc = get_encryption_service()
     async with db.ensure_initialized()() as session:
         result = await session.execute(
-            sa_select(PlatformEnvironment).where(
-                PlatformEnvironment.platform == platform
-            )
+            sa_select(PlatformEnvironment).where(PlatformEnvironment.platform == platform)
         )
         rows = result.scalars().all()
 
     variables = []
     for row in rows:
         try:
-            plaintext = enc.decrypt_value(
-                row.value_encrypted, row.nonce, row.salt
-            )
+            plaintext = enc.decrypt_value(row.value_encrypted, row.nonce, row.salt)
             masked = _mask_value(plaintext)
         except Exception:
             masked = "****"
@@ -492,6 +487,7 @@ async def delete_platform_env_var(
 # ---------------------------------------------------------------------------
 # Skill Config CRUD
 # ---------------------------------------------------------------------------
+
 
 @skill_config_router.get("")
 async def get_skill_config(

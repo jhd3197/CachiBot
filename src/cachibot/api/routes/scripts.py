@@ -14,12 +14,9 @@ from cachibot.api.auth import require_bot_access
 from cachibot.models.auth import User
 from cachibot.models.automations import (
     AuthorType,
-    CreateScriptRequest,
-    CreateScriptVersionRequest,
     Script,
     ScriptStatus,
     ScriptVersion,
-    UpdateScriptRequest,
 )
 from cachibot.storage.automations_repository import (
     ScriptRepository,
@@ -110,7 +107,9 @@ class ScriptVersionResponse(BaseModel):
             versionNumber=v.version_number,
             sourceCode=v.source_code,
             diffFromPrevious=v.diff_from_previous,
-            authorType=v.author_type.value if isinstance(v.author_type, AuthorType) else v.author_type,
+            authorType=v.author_type.value
+            if isinstance(v.author_type, AuthorType)
+            else v.author_type,
             authorId=v.author_id,
             commitMessage=v.commit_message,
             approved=v.approved,
@@ -364,9 +363,7 @@ async def run_script(
     if not script or script.bot_id != bot_id:
         raise HTTPException(status_code=404, detail="Script not found")
     if script.status != ScriptStatus.ACTIVE:
-        raise HTTPException(
-            status_code=422, detail="Script must be active to run"
-        )
+        raise HTTPException(status_code=422, detail="Script must be active to run")
 
     from cachibot.storage.work_repository import TaskRepository, WorkRepository
 
@@ -591,7 +588,6 @@ async def get_timeline(
     user: User = Depends(require_bot_access),
 ) -> list[dict]:
     """Get combined timeline for a source entity."""
-    from cachibot.models.automations import TimelineEvent
 
     type_list = event_types.split(",") if event_types else None
     events = await timeline_repo.get_timeline(

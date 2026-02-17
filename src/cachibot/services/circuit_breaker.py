@@ -3,7 +3,7 @@ Circuit Breaker — auto-pause automations after consecutive failures.
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -20,18 +20,14 @@ class CircuitBreakerConfig:
 class AutomationCircuitBreaker:
     """Tracks consecutive failures and auto-pauses automations."""
 
-    def __init__(
-        self, config: CircuitBreakerConfig | None = None
-    ) -> None:
+    def __init__(self, config: CircuitBreakerConfig | None = None) -> None:
         self._config = config or CircuitBreakerConfig()
         # In-memory tracking: automation_id -> consecutive failure count
         self._failure_counts: dict[str, int] = {}
         # Cooldown tracking: automation_id -> paused_until
         self._cooldowns: dict[str, datetime] = {}
 
-    async def record_outcome(
-        self, automation_id: str, success: bool
-    ) -> None:
+    async def record_outcome(self, automation_id: str, success: bool) -> None:
         """Record the outcome of an automation execution.
 
         On failure: increment counter, auto-pause if threshold reached.
@@ -69,9 +65,7 @@ class AutomationCircuitBreaker:
         self._failure_counts.pop(automation_id, None)
         self._cooldowns.pop(automation_id, None)
 
-    async def _pause_automation(
-        self, automation_id: str, failure_count: int
-    ) -> None:
+    async def _pause_automation(self, automation_id: str, failure_count: int) -> None:
         """Auto-pause an automation after too many failures."""
         cooldown_until = datetime.now(timezone.utc) + timedelta(
             seconds=self._config.cooldown_seconds
@@ -79,8 +73,7 @@ class AutomationCircuitBreaker:
         self._cooldowns[automation_id] = cooldown_until
 
         logger.warning(
-            "Auto-paused automation %s after %d consecutive failures "
-            "(cooldown until %s)",
+            "Auto-paused automation %s after %d consecutive failures (cooldown until %s)",
             automation_id,
             failure_count,
             cooldown_until.isoformat(),

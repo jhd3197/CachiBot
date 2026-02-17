@@ -14,24 +14,46 @@ from sqlalchemy import delete, func, select, update
 
 from cachibot.models.automations import (
     AuthorType,
-    ExecutionDailySummary as ExecutionDailySummaryModel,
-    ExecutionLog as ExecutionLogModel,
-    ExecutionLogLine as ExecutionLogLineModel,
     ExecutionStatus,
     LogLevel,
-    Script as ScriptModel,
     ScriptStatus,
-    ScriptVersion as ScriptVersionModel,
-    TimelineEvent as TimelineEventModel,
     TriggerType,
+)
+from cachibot.models.automations import (
+    ExecutionDailySummary as ExecutionDailySummaryModel,
+)
+from cachibot.models.automations import (
+    ExecutionLog as ExecutionLogModel,
+)
+from cachibot.models.automations import (
+    ExecutionLogLine as ExecutionLogLineModel,
+)
+from cachibot.models.automations import (
+    Script as ScriptModel,
+)
+from cachibot.models.automations import (
+    ScriptVersion as ScriptVersionModel,
+)
+from cachibot.models.automations import (
+    TimelineEvent as TimelineEventModel,
 )
 from cachibot.storage import db
 from cachibot.storage.models.automations import (
     ExecutionDailySummary as ExecutionDailySummaryORM,
+)
+from cachibot.storage.models.automations import (
     ExecutionLog as ExecutionLogORM,
+)
+from cachibot.storage.models.automations import (
     ExecutionLogLine as ExecutionLogLineORM,
+)
+from cachibot.storage.models.automations import (
     Script as ScriptORM,
+)
+from cachibot.storage.models.automations import (
     ScriptVersion as ScriptVersionORM,
+)
+from cachibot.storage.models.automations import (
     TimelineEvent as TimelineEventORM,
 )
 
@@ -49,7 +71,9 @@ class ScriptRepository:
                 description=script.description,
                 source_code=script.source_code,
                 language=script.language,
-                status=script.status.value if isinstance(script.status, ScriptStatus) else script.status,
+                status=script.status.value
+                if isinstance(script.status, ScriptStatus)
+                else script.status,
                 current_version=script.current_version,
                 tags=script.tags,
                 created_at=script.created_at,
@@ -76,7 +100,9 @@ class ScriptRepository:
                     description=script.description,
                     source_code=script.source_code,
                     language=script.language,
-                    status=script.status.value if isinstance(script.status, ScriptStatus) else script.status,
+                    status=script.status.value
+                    if isinstance(script.status, ScriptStatus)
+                    else script.status,
                     current_version=script.current_version,
                     tags=script.tags,
                     updated_at=datetime.now(timezone.utc),
@@ -93,9 +119,7 @@ class ScriptRepository:
     async def get(self, script_id: str) -> ScriptModel | None:
         """Get a script by ID."""
         async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ScriptORM).where(ScriptORM.id == script_id)
-            )
+            result = await session.execute(select(ScriptORM).where(ScriptORM.id == script_id))
             row = result.scalar_one_or_none()
         return self._row_to_script(row) if row else None
 
@@ -116,9 +140,7 @@ class ScriptRepository:
     async def delete(self, script_id: str) -> bool:
         """Delete a script by ID (cascades to versions)."""
         async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(ScriptORM).where(ScriptORM.id == script_id)
-            )
+            result = await session.execute(delete(ScriptORM).where(ScriptORM.id == script_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -138,9 +160,7 @@ class ScriptRepository:
         now = datetime.now(timezone.utc)
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                select(ScriptORM.run_count, ScriptORM.success_rate).where(
-                    ScriptORM.id == script_id
-                )
+                select(ScriptORM.run_count, ScriptORM.success_rate).where(ScriptORM.id == script_id)
             )
             row = result.one_or_none()
             if row:
@@ -198,7 +218,9 @@ class ScriptVersionRepository:
                 version_number=version.version_number,
                 source_code=version.source_code,
                 diff_from_previous=version.diff_from_previous,
-                author_type=version.author_type.value if isinstance(version.author_type, AuthorType) else version.author_type,
+                author_type=version.author_type.value
+                if isinstance(version.author_type, AuthorType)
+                else version.author_type,
                 author_id=version.author_id,
                 commit_message=version.commit_message,
                 approved=version.approved,
@@ -229,9 +251,7 @@ class ScriptVersionRepository:
             rows = result.scalars().all()
         return [self._row_to_version(row) for row in rows]
 
-    async def get_version(
-        self, script_id: str, version_number: int
-    ) -> ScriptVersionModel | None:
+    async def get_version(self, script_id: str, version_number: int) -> ScriptVersionModel | None:
         """Get a specific version of a script."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
@@ -480,9 +500,7 @@ class ExecutionLogRepository:
             rows = result.scalars().all()
         return [self._row_to_log(row) for row in rows]
 
-    async def get_stats(
-        self, bot_id: str | None = None, period: str = "24h"
-    ) -> dict:
+    async def get_stats(self, bot_id: str | None = None, period: str = "24h") -> dict:
         """Get execution stats for a period."""
         now = datetime.now(timezone.utc)
         if period == "24h":
@@ -640,18 +658,41 @@ class ExecutionLogRepository:
 
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow([
-            "id", "execution_type", "source_type", "source_name", "bot_id",
-            "trigger", "started_at", "finished_at", "duration_ms", "status",
-            "credits_consumed", "tokens_used", "error",
-        ])
+        writer.writerow(
+            [
+                "id",
+                "execution_type",
+                "source_type",
+                "source_name",
+                "bot_id",
+                "trigger",
+                "started_at",
+                "finished_at",
+                "duration_ms",
+                "status",
+                "credits_consumed",
+                "tokens_used",
+                "error",
+            ]
+        )
         for row in rows:
-            writer.writerow([
-                row.id, row.execution_type, row.source_type, row.source_name,
-                row.bot_id, row.trigger, row.started_at, row.finished_at,
-                row.duration_ms, row.status, row.credits_consumed, row.tokens_used,
-                row.error,
-            ])
+            writer.writerow(
+                [
+                    row.id,
+                    row.execution_type,
+                    row.source_type,
+                    row.source_name,
+                    row.bot_id,
+                    row.trigger,
+                    row.started_at,
+                    row.finished_at,
+                    row.duration_ms,
+                    row.status,
+                    row.credits_consumed,
+                    row.tokens_used,
+                    row.error,
+                ]
+            )
         return output.getvalue()
 
     def _row_to_log(self, row: ExecutionLogORM) -> ExecutionLogModel:
@@ -665,11 +706,15 @@ class ExecutionLogRepository:
             bot_id=row.bot_id,
             user_id=row.user_id,
             chat_id=row.chat_id,
-            trigger=TriggerType(row.trigger) if row.trigger in TriggerType.__members__.values() else TriggerType.MANUAL,
+            trigger=TriggerType(row.trigger)
+            if row.trigger in TriggerType.__members__.values()
+            else TriggerType.MANUAL,
             started_at=row.started_at,
             finished_at=row.finished_at,
             duration_ms=row.duration_ms,
-            status=ExecutionStatus(row.status) if row.status in {e.value for e in ExecutionStatus} else ExecutionStatus.RUNNING,
+            status=ExecutionStatus(row.status)
+            if row.status in {e.value for e in ExecutionStatus}
+            else ExecutionStatus.RUNNING,
             output=row.output,
             error=row.error,
             exit_code=row.exit_code,
@@ -736,7 +781,9 @@ class ExecutionLogLineRepository:
                 execution_log_id=row.execution_log_id,
                 seq=row.seq,
                 timestamp=row.timestamp,
-                level=LogLevel(row.level) if row.level in {e.value for e in LogLevel} else LogLevel.INFO,
+                level=LogLevel(row.level)
+                if row.level in {e.value for e in LogLevel}
+                else LogLevel.INFO,
                 content=row.content,
                 data=row.data,
             )
@@ -747,9 +794,7 @@ class ExecutionLogLineRepository:
         """Delete all lines for an execution log. Returns count deleted."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                delete(ExecutionLogLineORM).where(
-                    ExecutionLogLineORM.execution_log_id == log_id
-                )
+                delete(ExecutionLogLineORM).where(ExecutionLogLineORM.execution_log_id == log_id)
             )
             await session.commit()
             return result.rowcount
@@ -879,9 +924,7 @@ class ExecutionDailySummaryRepository:
         limit: int = 90,
     ) -> list[ExecutionDailySummaryModel]:
         """Get summaries for a bot within a date range."""
-        stmt = select(ExecutionDailySummaryORM).where(
-            ExecutionDailySummaryORM.bot_id == bot_id
-        )
+        stmt = select(ExecutionDailySummaryORM).where(ExecutionDailySummaryORM.bot_id == bot_id)
         if from_date:
             stmt = stmt.where(ExecutionDailySummaryORM.summary_date >= from_date.date())
         if to_date:

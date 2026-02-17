@@ -25,9 +25,7 @@ from cachibot.storage.models.env_var import BotSkillConfig, PlatformEnvironment
 logger = logging.getLogger(__name__)
 
 # Mapping from provider name to the os.environ key used by global config
-_PROVIDER_ENV_KEYS: dict[str, str] = {
-    name: info["env_key"] for name, info in PROVIDERS.items()
-}
+_PROVIDER_ENV_KEYS: dict[str, str] = {name: info["env_key"] for name, info in PROVIDERS.items()}
 
 
 @dataclass

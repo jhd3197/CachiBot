@@ -13,7 +13,6 @@ import pytest
 
 from cachibot.services.driver_factory import DRIVER_MAP, build_driver_with_key
 
-
 # ---------------------------------------------------------------------------
 # Driver Type Tests
 # ---------------------------------------------------------------------------
@@ -153,8 +152,8 @@ class TestDriverKeyIsolation:
         with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
             mock_importlib.import_module.return_value = mock_module
 
-            driver_a = build_driver_with_key("openai/gpt-4o", api_key="sk-AAA")
-            driver_b = build_driver_with_key("openai/gpt-4o", api_key="sk-BBB")
+            build_driver_with_key("openai/gpt-4o", api_key="sk-AAA")
+            build_driver_with_key("openai/gpt-4o", api_key="sk-BBB")
 
         calls = mock_cls.call_args_list
         assert len(calls) == 2
@@ -168,8 +167,6 @@ class TestDriverKeyIsolation:
         mock_cls = MagicMock()
         mock_module = MagicMock()
         mock_module.AsyncOpenAIDriver = mock_cls
-
-        original = os.environ.get("OPENAI_API_KEY")
 
         with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
             mock_importlib.import_module.return_value = mock_module

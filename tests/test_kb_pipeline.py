@@ -1,7 +1,7 @@
 """Tests for the Knowledge Base pipeline: document processor, vector store, and context builder."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
@@ -206,9 +206,7 @@ class TestDocumentProcessorPipeline:
                 file_type="txt",
             )
 
-        processor._repo.update_document_status.assert_called_with(
-            "doc-fail", DocumentStatus.FAILED
-        )
+        processor._repo.update_document_status.assert_called_with("doc-fail", DocumentStatus.FAILED)
 
 
 # ===========================================================================
@@ -305,9 +303,7 @@ class TestVectorStoreSearch:
 
     async def test_search_no_results_returns_empty(self, mock_vector_store):
         """When database returns no matching chunks, result is empty."""
-        mock_vector_store.embed_text = AsyncMock(
-            return_value=np.ones(384, dtype=np.float32)
-        )
+        mock_vector_store.embed_text = AsyncMock(return_value=np.ones(384, dtype=np.float32))
         mock_vector_store._search_pgvector = AsyncMock(return_value=[])
         mock_vector_store._search_in_memory = AsyncMock(return_value=[])
 
@@ -318,9 +314,7 @@ class TestVectorStoreSearch:
 
     async def test_search_returns_mapped_results(self, mock_vector_store):
         """Results from search are correctly returned as SearchResult objects."""
-        mock_vector_store.embed_text = AsyncMock(
-            return_value=np.ones(384, dtype=np.float32)
-        )
+        mock_vector_store.embed_text = AsyncMock(return_value=np.ones(384, dtype=np.float32))
 
         expected = [
             SearchResult(
@@ -349,9 +343,7 @@ class TestVectorStoreSearch:
         mock_vector_store._search_pgvector = AsyncMock(return_value=expected)
         mock_vector_store._search_in_memory = AsyncMock(return_value=expected)
 
-        results = await mock_vector_store.search_similar(
-            "bot-1", "test", limit=10, min_score=0.0
-        )
+        results = await mock_vector_store.search_similar("bot-1", "test", limit=10, min_score=0.0)
 
         assert len(results) == 2
         assert results[0].chunk.id == "chunk-close"
@@ -362,9 +354,7 @@ class TestVectorStoreSearch:
 
     async def test_search_result_embeddings_are_none(self, mock_vector_store):
         """Returned SearchResult chunks should not include the embedding blob."""
-        mock_vector_store.embed_text = AsyncMock(
-            return_value=np.ones(384, dtype=np.float32)
-        )
+        mock_vector_store.embed_text = AsyncMock(return_value=np.ones(384, dtype=np.float32))
 
         expected = [
             SearchResult(
@@ -389,9 +379,7 @@ class TestVectorStoreSearch:
 
     async def test_search_with_filenames(self, mock_vector_store):
         """search_with_filenames attaches document filenames to results."""
-        mock_vector_store.embed_text = AsyncMock(
-            return_value=np.ones(384, dtype=np.float32)
-        )
+        mock_vector_store.embed_text = AsyncMock(return_value=np.ones(384, dtype=np.float32))
 
         search_results = [
             SearchResult(

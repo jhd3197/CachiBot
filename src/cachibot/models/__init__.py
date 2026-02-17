@@ -4,6 +4,24 @@ Cachibot Pydantic Models
 Request/response schemas for the API.
 """
 
+from cachibot.models.automations import (
+    AuthorType,
+    CreateScriptRequest,
+    CreateScriptVersionRequest,
+    ExecutionDailySummary,
+    ExecutionLog,
+    ExecutionLogLine,
+    ExecutionStatus,
+    ExecutionType,
+    LogLevel,
+    Script,
+    ScriptStatus,
+    ScriptValidationResult,
+    ScriptVersion,
+    TimelineEvent,
+    TriggerType,
+    UpdateScriptRequest,
+)
 from cachibot.models.chat import (
     ChatMessage,
     ChatRequest,
@@ -11,6 +29,7 @@ from cachibot.models.chat import (
     MessageRole,
 )
 from cachibot.models.config import ConfigResponse, ConfigUpdate
+
 # Deprecated — legacy job system. Use cachibot.models.work (Job, JobStatus) instead.
 from cachibot.models.job import Job as LegacyJob  # noqa: F401
 from cachibot.models.job import JobStatus as LegacyJobStatus  # noqa: F401
@@ -32,24 +51,6 @@ from cachibot.models.websocket import (
     UsagePayload,
     WSMessage,
     WSMessageType,
-)
-from cachibot.models.automations import (
-    AuthorType,
-    CreateScriptRequest,
-    CreateScriptVersionRequest,
-    ExecutionDailySummary,
-    ExecutionLog,
-    ExecutionLogLine,
-    ExecutionStatus,
-    ExecutionType,
-    LogLevel,
-    Script,
-    ScriptStatus,
-    ScriptValidationResult,
-    ScriptVersion,
-    TimelineEvent,
-    TriggerType,
-    UpdateScriptRequest,
 )
 from cachibot.models.work import (
     BotFunction,

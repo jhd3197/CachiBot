@@ -1,4 +1,5 @@
 """Test the new name generator."""
+
 import asyncio
 import logging
 

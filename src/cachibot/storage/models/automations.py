@@ -77,24 +77,14 @@ class Script(Base):
     )  # "user", "bot:{bot_id}", "system"
 
     # Execution config
-    timeout_seconds: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="300"
-    )
-    max_memory_mb: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="256"
-    )
-    allowed_imports: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="300")
+    max_memory_mb: Mapped[int] = mapped_column(Integer, nullable=False, server_default="256")
+    allowed_imports: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Stats
     run_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    last_run_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    success_rate: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0.0"
-    )
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    success_rate: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
 
     # Relationships
     versions: Mapped[list[ScriptVersion]] = relationship(
@@ -127,20 +117,14 @@ class ScriptVersion(Base):
     diff_from_previous: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Authorship
-    author_type: Mapped[str] = mapped_column(
-        String, nullable=False
-    )  # "user", "bot", "system"
+    author_type: Mapped[str] = mapped_column(String, nullable=False)  # "user", "bot", "system"
     author_id: Mapped[str | None] = mapped_column(String, nullable=True)
     commit_message: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Approval workflow
-    approved: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
-    )
+    approved: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
-    approved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(
@@ -176,9 +160,7 @@ class ExecutionLog(Base):
         String, nullable=False
     )  # "function", "schedule", "script", "manual", "api", "job"
     source_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    source_name: Mapped[str] = mapped_column(
-        String, nullable=False
-    )  # denormalized for display
+    source_name: Mapped[str] = mapped_column(String, nullable=False)  # denormalized for display
 
     # Who/where
     bot_id: Mapped[str] = mapped_column(
@@ -200,9 +182,7 @@ class ExecutionLog(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     # Status
@@ -216,21 +196,11 @@ class ExecutionLog(Base):
     exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Cost tracking
-    credits_consumed: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0.0"
-    )
-    tokens_used: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    prompt_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    completion_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    llm_calls: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    credits_consumed: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
+    tokens_used: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    llm_calls: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     # Linkage to existing work system
     work_id: Mapped[str | None] = mapped_column(
@@ -241,14 +211,10 @@ class ExecutionLog(Base):
     )
 
     # Flexible metadata
-    metadata_json: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False, server_default="{}"
-    )
+    metadata_json: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
 
     # Soft-delete for retention
-    retained: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="true"
-    )
+    retained: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
     # Relationships
     log_lines: Mapped[list[ExecutionLogLine]] = relationship(
@@ -283,9 +249,7 @@ class ExecutionLogLine(Base):
     data: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
 
     # Relationships
-    execution_log: Mapped[ExecutionLog] = relationship(
-        "ExecutionLog", back_populates="log_lines"
-    )
+    execution_log: Mapped[ExecutionLog] = relationship("ExecutionLog", back_populates="log_lines")
 
 
 class TimelineEvent(Base):
@@ -341,9 +305,7 @@ class TimelineEvent(Base):
     version_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     commit_message: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    metadata_json: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False, server_default="{}"
-    )
+    metadata_json: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
 
 
 class ExecutionDailySummary(Base):
@@ -352,9 +314,7 @@ class ExecutionDailySummary(Base):
     __tablename__ = "execution_daily_summaries"
     __table_args__ = (
         Index("idx_exec_summary_bot_date", "bot_id", "summary_date"),
-        Index(
-            "idx_exec_summary_source", "source_type", "source_id", "summary_date"
-        ),
+        Index("idx_exec_summary_source", "source_type", "source_id", "summary_date"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -372,38 +332,18 @@ class ExecutionDailySummary(Base):
     summary_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     # Aggregates
-    total_runs: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    success_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    error_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    timeout_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    cancelled_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    total_duration_ms: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    avg_duration_ms: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    total_credits: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default="0.0"
-    )
-    total_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    total_runs: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    success_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    error_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    timeout_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cancelled_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    total_duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    avg_duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    total_credits: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     # Top errors
-    error_types: Mapped[dict] = mapped_column(
-        sa.JSON, nullable=False, server_default="{}"
-    )
+    error_types: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

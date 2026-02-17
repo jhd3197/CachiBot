@@ -16,9 +16,7 @@ class InsufficientCreditsError(Exception):
 class CreditGuard:
     """Checks credit balance before execution and deducts after."""
 
-    async def check_before_execution(
-        self, user_id: str, estimated_cost: float = 0.0
-    ) -> bool:
+    async def check_before_execution(self, user_id: str, estimated_cost: float = 0.0) -> bool:
         """Check if user has sufficient credits.
 
         Returns True if the user has credits (or if credit system is not enabled).
@@ -51,9 +49,7 @@ class CreditGuard:
             logger.debug("Credit check skipped: credit system unavailable")
             return True
 
-    async def deduct_after_execution(
-        self, user_id: str, actual_cost: float
-    ) -> None:
+    async def deduct_after_execution(self, user_id: str, actual_cost: float) -> None:
         """Deduct actual cost after execution.
 
         If balance hits zero, pauses all user automations.
@@ -84,15 +80,11 @@ class CreditGuard:
                     user_id,
                     actual_cost,
                 )
-                await self._pause_user_automations(
-                    user_id, reason="insufficient credits"
-                )
+                await self._pause_user_automations(user_id, reason="insufficient credits")
         except Exception:
             logger.debug("Credit deduction skipped for user %s", user_id)
 
-    async def _pause_user_automations(
-        self, user_id: str, reason: str
-    ) -> None:
+    async def _pause_user_automations(self, user_id: str, reason: str) -> None:
         """Pause all automations for a user when credits are exhausted."""
         try:
             from cachibot.api.websocket import get_ws_manager
