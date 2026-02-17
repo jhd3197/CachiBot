@@ -197,8 +197,19 @@ jobs:
           cache: pip
 
       - name: Install CachiBot + PyInstaller
+        shell: bash
         run: |
-          echo "${{ needs.release.outputs.new_version }}" > VERSION
+          VERSION="${{ needs.release.outputs.new_version }}"
+          echo "$VERSION" > VERSION
+          python -c "
+          import re, sys
+          v = sys.argv[1]
+          with open('pyproject.toml', 'r') as f:
+              content = f.read()
+          content = re.sub(r'^version = \".*\"', 'version = \"' + v + '\"', content, count=1, flags=re.MULTILINE)
+          with open('pyproject.toml', 'w') as f:
+              f.write(content)
+          " "$VERSION"
           pip install -e .
           pip install pyinstaller
 
