@@ -517,10 +517,11 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'voice' | 'tools' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
-export type AppView = 'dashboard' | 'settings'
+export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'
+export type AppView = 'dashboard' | 'admin-logs' | 'settings'
 
 // =============================================================================
 // CREATION FLOW TYPES

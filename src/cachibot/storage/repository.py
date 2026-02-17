@@ -125,7 +125,13 @@ class MessageRepository:
 
 
 class JobRepository:
-    """Repository for jobs/tasks."""
+    """Repository for jobs/tasks.
+
+    .. deprecated::
+        This repository is part of the legacy job system. New code should use
+        ``WorkRepository`` and ``ExecutionLogRepository`` from
+        ``cachibot.storage.automations_repository`` instead.
+    """
 
     async def save_job(self, job: Job) -> None:
         """Save a job to the database."""

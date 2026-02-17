@@ -11,8 +11,9 @@ from cachibot.models.chat import (
     MessageRole,
 )
 from cachibot.models.config import ConfigResponse, ConfigUpdate
-from cachibot.models.job import Job as LegacyJob
-from cachibot.models.job import JobStatus as LegacyJobStatus
+# Deprecated — legacy job system. Use cachibot.models.work (Job, JobStatus) instead.
+from cachibot.models.job import Job as LegacyJob  # noqa: F401
+from cachibot.models.job import JobStatus as LegacyJobStatus  # noqa: F401
 from cachibot.models.skill import (
     BotSkillActivation,
     BotSkillRequest,
@@ -31,6 +32,24 @@ from cachibot.models.websocket import (
     UsagePayload,
     WSMessage,
     WSMessageType,
+)
+from cachibot.models.automations import (
+    AuthorType,
+    CreateScriptRequest,
+    CreateScriptVersionRequest,
+    ExecutionDailySummary,
+    ExecutionLog,
+    ExecutionLogLine,
+    ExecutionStatus,
+    ExecutionType,
+    LogLevel,
+    Script,
+    ScriptStatus,
+    ScriptValidationResult,
+    ScriptVersion,
+    TimelineEvent,
+    TriggerType,
+    UpdateScriptRequest,
 )
 from cachibot.models.work import (
     BotFunction,
@@ -114,4 +133,23 @@ __all__ = [
     "TodoList",
     "FunctionList",
     "ScheduleList",
+    # Automation System - Enums
+    "ScriptStatus",
+    "AuthorType",
+    "ExecutionType",
+    "ExecutionStatus",
+    "TriggerType",
+    "LogLevel",
+    # Automation System - Models
+    "Script",
+    "ScriptVersion",
+    "ExecutionLog",
+    "ExecutionLogLine",
+    "TimelineEvent",
+    "ExecutionDailySummary",
+    # Automation System - Requests
+    "CreateScriptRequest",
+    "UpdateScriptRequest",
+    "CreateScriptVersionRequest",
+    "ScriptValidationResult",
 ]

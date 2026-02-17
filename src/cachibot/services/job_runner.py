@@ -19,7 +19,12 @@ from cachibot.models.work import (
     Work,
     WorkStatus,
 )
+from cachibot.storage.automations_repository import (
+    ExecutionLogRepository,
+    TimelineEventRepository,
+)
 from cachibot.storage.work_repository import (
+    FunctionRepository,
     TaskRepository,
     WorkJobRepository,
     WorkRepository,
@@ -45,6 +50,9 @@ class JobRunnerService:
         self._work_repo = WorkRepository()
         self._task_repo = TaskRepository()
         self._job_repo = WorkJobRepository()
+        self._function_repo = FunctionRepository()
+        self._exec_log_repo = ExecutionLogRepository()
+        self._timeline_repo = TimelineEventRepository()
 
         # Track running asyncio.Tasks keyed by job_id for cancellation
         self._running_jobs: dict[str, asyncio.Task] = {}
@@ -153,7 +161,28 @@ class JobRunnerService:
     # ------------------------------------------------------------------
 
     async def _execute_job(self, job: Job, task, work: Work) -> None:
-        """Execute a single job through CachibotAgent."""
+        """Execute a single job through CachibotAgent or ScriptSandbox."""
+        from cachibot.models.automations import ExecutionLog, TimelineEvent
+
+        # Create execution log entry
+        exec_log_id = str(uuid.uuid4())
+        exec_log = ExecutionLog(
+            id=exec_log_id,
+            execution_type="work",
+            source_type="function" if work.function_id else "manual",
+            source_id=work.function_id or work.id,
+            source_name=work.title,
+            bot_id=task.bot_id,
+            chat_id=task.chat_id,
+            trigger="cron" if work.schedule_id else "manual",
+            work_id=work.id,
+            work_job_id=job.id,
+        )
+        try:
+            await self._exec_log_repo.save(exec_log)
+        except Exception:
+            logger.debug("Could not create execution log entry")
+
         try:
             # Mark job as RUNNING
             await self._job_repo.update_status(job.id, JobStatus.RUNNING)
@@ -174,14 +203,56 @@ class JobRunnerService:
                 status="running",
                 progress=work.progress,
             )
+            await self._broadcast_execution_start(exec_log)
 
-            # Create agent and run
-            result_text = await self._run_agent_for_task(job, task)
+            # Determine execution type
+            function = None
+            if work.function_id:
+                function = await self._function_repo.get(work.function_id)
+
+            if (
+                function
+                and getattr(function, "execution_type", "agent") == "script"
+                and getattr(function, "script_id", None)
+            ):
+                result_text, usage_data = await self._run_script_for_task(
+                    job, task, work, function
+                )
+            else:
+                result_text, usage_data = await self._run_agent_for_task(job, task)
 
             # Job completed successfully
             await self._job_repo.update_status(job.id, JobStatus.COMPLETED, result=result_text)
             await self._job_repo.append_log(job.id, "info", "Job completed")
             await self._task_repo.update_status(task.id, TaskStatus.COMPLETED, result=result_text)
+
+            # Complete execution log with usage data
+            try:
+                await self._exec_log_repo.complete(
+                    exec_log_id,
+                    status="success",
+                    output=result_text,
+                    credits=usage_data.get("cost", 0.0),
+                    tokens=usage_data.get("total_tokens", 0),
+                    prompt_tokens=usage_data.get("prompt_tokens", 0),
+                    completion_tokens=usage_data.get("completion_tokens", 0),
+                    llm_calls=usage_data.get("call_count", 0),
+                )
+                # Create timeline event
+                await self._timeline_repo.save(
+                    TimelineEvent(
+                        id=str(uuid.uuid4()),
+                        bot_id=task.bot_id,
+                        source_type="function" if work.function_id else "work",
+                        source_id=work.function_id or work.id,
+                        event_type="execution",
+                        title=f"Executed: {work.title}",
+                        description=f"Completed successfully",
+                        execution_log_id=exec_log_id,
+                    )
+                )
+            except Exception:
+                logger.debug("Could not complete execution log")
 
             # Update work progress
             await self._update_work_progress(work.id)
@@ -195,6 +266,7 @@ class JobRunnerService:
                 status="completed",
                 progress=updated_work.progress if updated_work else 1.0,
             )
+            await self._broadcast_execution_end(exec_log_id, "success", usage_data)
 
         except asyncio.CancelledError:
             # Job was cancelled externally
@@ -203,6 +275,10 @@ class JobRunnerService:
             await self._task_repo.update_status(
                 task.id, TaskStatus.PENDING, error="Cancelled, will retry"
             )
+            try:
+                await self._exec_log_repo.complete(exec_log_id, status="cancelled")
+            except Exception:
+                pass
             await self._broadcast_update(
                 work_id=work.id,
                 task_id=task.id,
@@ -210,25 +286,56 @@ class JobRunnerService:
                 status="cancelled",
                 progress=work.progress,
             )
+            await self._broadcast_execution_end(exec_log_id, "cancelled")
 
         except asyncio.TimeoutError:
             timeout = task.timeout_seconds or "unknown"
             error_msg = f"Timeout after {timeout} seconds"
             await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", error_msg)
+            try:
+                await self._exec_log_repo.complete(
+                    exec_log_id, status="timeout", error=error_msg
+                )
+            except Exception:
+                pass
             await self._handle_task_failure(task, work, job.id, error_msg)
+            await self._broadcast_execution_end(exec_log_id, "timeout", error=error_msg)
 
         except Exception as exc:
             error_msg = str(exc)
             await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", f"Job failed: {error_msg}")
+            try:
+                await self._exec_log_repo.complete(
+                    exec_log_id, status="error", error=error_msg
+                )
+                await self._timeline_repo.save(
+                    TimelineEvent(
+                        id=str(uuid.uuid4()),
+                        bot_id=task.bot_id,
+                        source_type="function" if work.function_id else "work",
+                        source_id=work.function_id or work.id,
+                        event_type="execution",
+                        title=f"Failed: {work.title}",
+                        description=error_msg,
+                        execution_log_id=exec_log_id,
+                    )
+                )
+            except Exception:
+                pass
             await self._handle_task_failure(task, work, job.id, error_msg)
+            await self._broadcast_execution_end(exec_log_id, "error", error=error_msg)
 
         finally:
             self._running_jobs.pop(job.id, None)
 
-    async def _run_agent_for_task(self, job: Job, task) -> str:
-        """Create a CachibotAgent and run the task action through it."""
+    async def _run_agent_for_task(self, job: Job, task) -> tuple[str, dict]:
+        """Create a CachibotAgent and run the task action through it.
+
+        Returns:
+            Tuple of (result_text, usage_data dict).
+        """
         from cachibot.agent import CachibotAgent
         from cachibot.storage.repository import BotRepository
 
@@ -248,6 +355,27 @@ class JobRunnerService:
             config = copy.deepcopy(config)
             config.agent.model = bot.model
 
+        # Resolve per-bot environment (API keys, temperature, etc.)
+        driver = None
+        provider_environment = None
+        try:
+            from cachibot.services.bot_environment import _resolve_bot_env
+
+            env = await _resolve_bot_env(bot.id)
+            if env:
+                provider_environment = env
+                # Build per-bot driver if we have an API key
+                if env.api_key:
+                    from cachibot.services.driver_factory import build_driver_with_key
+
+                    driver = build_driver_with_key(
+                        config.agent.model,
+                        env.api_key,
+                        provider=env.provider,
+                    )
+        except Exception:
+            logger.debug("Could not resolve per-bot environment for bot %s", task.bot_id)
+
         agent = CachibotAgent(
             config=config,
             system_prompt_override=bot.system_prompt,
@@ -255,6 +383,8 @@ class JobRunnerService:
             bot_id=bot.id,
             chat_id=task.chat_id,
             bot_models=bot.models,
+            driver=driver,
+            provider_environment=provider_environment,
         )
 
         # Build the user message from task action
@@ -268,7 +398,62 @@ class JobRunnerService:
         else:
             result = await agent.run(action)
 
-        return result.output_text or ""
+        # Extract usage data from the agent result
+        usage_data: dict = {}
+        if result.run_usage:
+            usage = result.run_usage
+            usage_data = {
+                "total_tokens": getattr(usage, "total_tokens", 0),
+                "prompt_tokens": getattr(usage, "prompt_tokens", 0),
+                "completion_tokens": getattr(usage, "completion_tokens", 0),
+                "cost": getattr(usage, "total_cost", 0.0),
+                "call_count": getattr(usage, "call_count", 0),
+            }
+
+        return result.output_text or "", usage_data
+
+    async def _run_script_for_task(
+        self, job: Job, task, work: Work, function
+    ) -> tuple[str, dict]:
+        """Execute a script in the sandbox.
+
+        Returns:
+            Tuple of (result_text, usage_data dict).
+        """
+        from cachibot.services.script_sandbox import ScriptSandbox
+        from cachibot.storage.automations_repository import ScriptRepository
+
+        script_repo = ScriptRepository()
+        script = await script_repo.get(function.script_id)
+
+        if not script or script.status.value != "active":
+            raise RuntimeError(
+                f"Script {function.script_id} not found or not active"
+            )
+
+        sandbox = ScriptSandbox(
+            bot_id=task.bot_id,
+            timeout_seconds=script.timeout_seconds,
+            max_memory_mb=script.max_memory_mb,
+            allowed_imports=script.allowed_imports,
+        )
+
+        context = {
+            "work_id": work.id,
+            "task_id": task.id,
+            "job_id": job.id,
+            "params": work.context,
+            "bot_id": task.bot_id,
+        }
+
+        result = await sandbox.execute(script.source_code, context)
+
+        # Update script run stats
+        await script_repo.increment_run_count(
+            script.id, success=result.success
+        )
+
+        return result.output or "", {}
 
     # ------------------------------------------------------------------
     # Failure Handling
@@ -382,6 +567,47 @@ class JobRunnerService:
     # ------------------------------------------------------------------
     # WebSocket Broadcasting
     # ------------------------------------------------------------------
+
+    async def _broadcast_execution_start(self, exec_log) -> None:
+        """Broadcast an EXECUTION_START message."""
+        try:
+            from cachibot.api.websocket import get_ws_manager
+            from cachibot.models.websocket import WSMessage
+
+            ws = get_ws_manager()
+            msg = WSMessage.execution_start(
+                execution_log_id=exec_log.id,
+                bot_id=exec_log.bot_id,
+                source_name=exec_log.source_name,
+                execution_type=exec_log.execution_type,
+                trigger=exec_log.trigger.value if hasattr(exec_log.trigger, "value") else str(exec_log.trigger),
+            )
+            await ws.broadcast(msg)
+        except Exception:
+            logger.debug("Could not broadcast execution start")
+
+    async def _broadcast_execution_end(
+        self,
+        exec_log_id: str,
+        status: str,
+        usage_data: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Broadcast an EXECUTION_END message."""
+        try:
+            from cachibot.api.websocket import get_ws_manager
+            from cachibot.models.websocket import WSMessage
+
+            ws = get_ws_manager()
+            msg = WSMessage.execution_end(
+                execution_log_id=exec_log_id,
+                status=status,
+                credits_consumed=usage_data.get("cost", 0.0) if usage_data else 0.0,
+                error=error,
+            )
+            await ws.broadcast(msg)
+        except Exception:
+            logger.debug("Could not broadcast execution end")
 
     async def _broadcast_update(
         self,

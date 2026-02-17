@@ -1,0 +1,343 @@
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  ArrowLeft,
+  Play,
+  Save,
+  Clock,
+  GitBranch,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useBotStore } from '../../stores/bots'
+import { useAutomationsStore } from '../../stores/automations'
+import { ConsoleOutput } from '../automations/ConsoleOutput'
+import { TimelineTab } from '../automations/TimelineTab'
+import { VersionDiffModal } from '../automations/VersionDiffModal'
+import {
+  getScript,
+  updateScript,
+  runScript,
+  getScriptVersions,
+  getScriptVersion,
+  approveScriptVersion,
+  rollbackScriptVersion,
+  type Script,
+  type ScriptVersion,
+} from '../../api/automations'
+import { getExecutionLines, type LogLine } from '../../api/execution-log'
+import { cn } from '../../lib/utils'
+
+type EditorTab = 'code' | 'versions' | 'timeline' | 'console'
+
+export function ScriptEditorView() {
+  const navigate = useNavigate()
+  const { activeBotId } = useBotStore()
+  const params = useParams<{ scriptId: string }>()
+  const scriptId = params.scriptId || (window.location.pathname.split('/automations/')[1]?.split('/')[0])
+
+  const [script, setScript] = useState<Script | null>(null)
+  const [code, setCode] = useState('')
+  const [versions, setVersions] = useState<ScriptVersion[]>([])
+  const [consoleLines, setConsoleLines] = useState<LogLine[]>([])
+  const [activeTab, setActiveTab] = useState<EditorTab>('code')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [diffModal, setDiffModal] = useState<{
+    open: boolean
+    oldVersion: number
+    newVersion: number
+    oldCode: string
+    newCode: string
+  }>({ open: false, oldVersion: 0, newVersion: 0, oldCode: '', newCode: '' })
+
+  useEffect(() => {
+    if (!activeBotId || !scriptId) return
+    let cancelled = false
+    setLoading(true)
+
+    getScript(activeBotId, scriptId)
+      .then((data) => {
+        if (cancelled) return
+        setScript(data)
+        setCode(data.sourceCode)
+        setLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.error('Failed to load script')
+          setLoading(false)
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [activeBotId, scriptId])
+
+  useEffect(() => {
+    if (!activeBotId || !scriptId || activeTab !== 'versions') return
+    getScriptVersions(activeBotId, scriptId).then(setVersions).catch(() => {})
+  }, [activeBotId, scriptId, activeTab])
+
+  const handleSave = useCallback(async () => {
+    if (!activeBotId || !scriptId || !dirty) return
+    setSaving(true)
+    try {
+      const updated = await updateScript(activeBotId, scriptId, {
+        sourceCode: code,
+        changelog: 'Manual edit',
+      })
+      setScript(updated)
+      setDirty(false)
+      toast.success('Script saved')
+    } catch (err) {
+      toast.error(`Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [activeBotId, scriptId, code, dirty])
+
+  const handleRun = async () => {
+    if (!activeBotId || !scriptId) return
+    setRunning(true)
+    setActiveTab('console')
+    setConsoleLines([])
+    try {
+      const { workId } = await runScript(activeBotId, scriptId)
+      toast.success('Script execution started')
+      // Poll for log lines (simplified)
+      setTimeout(() => setRunning(false), 3000)
+    } catch (err) {
+      toast.error(`Run failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setRunning(false)
+    }
+  }
+
+  const handleCodeChange = (newCode: string) => {
+    setCode(newCode)
+    setDirty(newCode !== script?.sourceCode)
+  }
+
+  // Keyboard shortcut for save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        handleSave()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [handleSave])
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+      </div>
+    )
+  }
+
+  if (!script || !activeBotId) {
+    return (
+      <div className="flex h-full items-center justify-center text-zinc-400">
+        Script not found
+      </div>
+    )
+  }
+
+  const tabs: { id: EditorTab; label: string }[] = [
+    { id: 'code', label: 'Code' },
+    { id: 'versions', label: `Versions (${script.currentVersion})` },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'console', label: 'Console' },
+  ]
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/${activeBotId}/automations`)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {script.name}
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <span>v{script.currentVersion}</span>
+              <span className={cn(
+                'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                script.status === 'active' ? 'bg-green-500/10 text-green-500' :
+                script.status === 'error' ? 'bg-red-500/10 text-red-500' :
+                'bg-zinc-500/10 text-zinc-400'
+              )}>
+                {script.status}
+              </span>
+              {dirty && <span className="text-yellow-500">* unsaved</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSave}
+            disabled={!dirty || saving}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+              dirty
+                ? 'bg-accent-600 text-white hover:bg-accent-700'
+                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'
+            )}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save
+          </button>
+          <button
+            onClick={handleRun}
+            disabled={running}
+            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+          >
+            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            Run
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-zinc-200 px-4 dark:border-zinc-800">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              'border-b-2 px-3 py-2 text-xs font-medium transition-colors',
+              activeTab === tab.id
+                ? 'border-accent-600 text-accent-600 dark:text-accent-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'code' && (
+          <div className="h-full">
+            <textarea
+              value={code}
+              onChange={(e) => handleCodeChange(e.target.value)}
+              spellCheck={false}
+              className="h-full w-full resize-none bg-zinc-950 p-4 font-mono text-sm text-zinc-300 focus:outline-none"
+              placeholder="# Write your Python script here..."
+            />
+          </div>
+        )}
+
+        {activeTab === 'versions' && (
+          <div className="overflow-auto p-4">
+            {versions.length === 0 ? (
+              <div className="flex flex-col items-center py-8 text-zinc-400">
+                <GitBranch className="mb-2 h-6 w-6" />
+                <p className="text-sm">No versions yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {versions.map((v) => (
+                  <div
+                    key={v.id}
+                    className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        v{v.version}
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                          {v.changelog || 'No changelog'}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          {v.authorType} - {new Date(v.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {v.approved ? (
+                        <span className="flex items-center gap-1 text-[10px] text-green-500">
+                          <CheckCircle2 className="h-3 w-3" /> Approved
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            approveScriptVersion(activeBotId, scriptId!, v.version)
+                              .then((updated) => {
+                                setVersions((prev) =>
+                                  prev.map((ver) => (ver.id === updated.id ? updated : ver))
+                                )
+                                toast.success('Version approved')
+                              })
+                              .catch(() => toast.error('Failed to approve'))
+                          }}
+                          className="text-[10px] text-accent-600 hover:underline"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {v.version !== script.currentVersion && (
+                        <button
+                          onClick={() => {
+                            rollbackScriptVersion(activeBotId, scriptId!, v.version)
+                              .then((updated) => {
+                                setScript(updated)
+                                setCode(updated.sourceCode)
+                                setDirty(false)
+                                toast.success(`Rolled back to v${v.version}`)
+                              })
+                              .catch(() => toast.error('Failed to rollback'))
+                          }}
+                          className="text-[10px] text-yellow-600 hover:underline"
+                        >
+                          Rollback
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="overflow-auto">
+            <TimelineTab botId={activeBotId} sourceType="script" sourceId={scriptId!} />
+          </div>
+        )}
+
+        {activeTab === 'console' && (
+          <ConsoleOutput lines={consoleLines} className="h-full rounded-none" />
+        )}
+      </div>
+
+      {/* Diff modal */}
+      <VersionDiffModal
+        open={diffModal.open}
+        onClose={() => setDiffModal((s) => ({ ...s, open: false }))}
+        oldVersion={diffModal.oldVersion}
+        newVersion={diffModal.newVersion}
+        oldCode={diffModal.oldCode}
+        newCode={diffModal.newCode}
+      />
+    </div>
+  )
+}

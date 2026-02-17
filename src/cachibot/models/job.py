@@ -1,4 +1,11 @@
-"""Job-related Pydantic models."""
+"""
+Job-related Pydantic models.
+
+.. deprecated::
+    This module is part of the legacy job system. Use ``cachibot.models.work``
+    (Work, Task, Job) and ``cachibot.models.automations`` (ExecutionLog, Script)
+    instead. This file will be removed in a future release.
+"""
 
 from datetime import datetime
 from enum import Enum

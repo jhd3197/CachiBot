@@ -24,6 +24,10 @@ class WSMessageType(str, Enum):
     CONNECTION_STATUS = "connection_status"  # Platform connection state changes
     DOCUMENT_STATUS = "document_status"  # Document processing progress
     JOB_UPDATE = "job_update"  # Job/work execution progress
+    EXECUTION_START = "execution_start"  # New execution began
+    EXECUTION_LOG = "execution_log"  # Live log line
+    EXECUTION_PROGRESS = "execution_progress"  # Progress update
+    EXECUTION_END = "execution_end"  # Execution completed/failed
     APPROVAL_NEEDED = "approval_needed"
     USAGE = "usage"
     ERROR = "error"
@@ -267,6 +271,86 @@ class WSMessage(BaseModel):
         if chat_id:
             payload["chatId"] = chat_id
         return cls(type=WSMessageType.SCHEDULED_NOTIFICATION, payload=payload)
+
+    @classmethod
+    def execution_start(
+        cls,
+        execution_log_id: str,
+        bot_id: str,
+        source_name: str,
+        execution_type: str,
+        trigger: str,
+    ) -> "WSMessage":
+        """Create an execution start message."""
+        return cls(
+            type=WSMessageType.EXECUTION_START,
+            payload={
+                "executionLogId": execution_log_id,
+                "botId": bot_id,
+                "sourceName": source_name,
+                "executionType": execution_type,
+                "trigger": trigger,
+            },
+        )
+
+    @classmethod
+    def execution_log(
+        cls,
+        execution_log_id: str,
+        seq: int,
+        level: str,
+        content: str,
+        timestamp: str | None = None,
+    ) -> "WSMessage":
+        """Create an execution log line message."""
+        return cls(
+            type=WSMessageType.EXECUTION_LOG,
+            payload={
+                "executionLogId": execution_log_id,
+                "seq": seq,
+                "level": level,
+                "content": content,
+                "timestamp": timestamp,
+            },
+        )
+
+    @classmethod
+    def execution_progress(
+        cls,
+        execution_log_id: str,
+        progress: float,
+        message: str | None = None,
+    ) -> "WSMessage":
+        """Create an execution progress update."""
+        payload: dict[str, Any] = {
+            "executionLogId": execution_log_id,
+            "progress": progress,
+        }
+        if message:
+            payload["message"] = message
+        return cls(type=WSMessageType.EXECUTION_PROGRESS, payload=payload)
+
+    @classmethod
+    def execution_end(
+        cls,
+        execution_log_id: str,
+        status: str,
+        duration_ms: int | None = None,
+        credits_consumed: float = 0.0,
+        error: str | None = None,
+    ) -> "WSMessage":
+        """Create an execution end message."""
+        payload: dict[str, Any] = {
+            "executionLogId": execution_log_id,
+            "status": status,
+        }
+        if duration_ms is not None:
+            payload["durationMs"] = duration_ms
+        if credits_consumed:
+            payload["creditsConsumed"] = credits_consumed
+        if error:
+            payload["error"] = error
+        return cls(type=WSMessageType.EXECUTION_END, payload=payload)
 
     @classmethod
     def job_update(

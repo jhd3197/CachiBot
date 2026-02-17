@@ -24,6 +24,14 @@ from cachibot.storage.room_repository import (
     RoomRepository,
 )
 from cachibot.storage.user_repository import OwnershipRepository, UserRepository
+from cachibot.storage.automations_repository import (
+    ExecutionDailySummaryRepository,
+    ExecutionLogLineRepository,
+    ExecutionLogRepository,
+    ScriptRepository,
+    ScriptVersionRepository,
+    TimelineEventRepository,
+)
 from cachibot.storage.work_repository import (
     FunctionRepository,
     ScheduleRepository,
@@ -63,4 +71,11 @@ __all__ = [
     # User repositories
     "UserRepository",
     "OwnershipRepository",
+    # Automation repositories
+    "ScriptRepository",
+    "ScriptVersionRepository",
+    "ExecutionLogRepository",
+    "ExecutionLogLineRepository",
+    "TimelineEventRepository",
+    "ExecutionDailySummaryRepository",
 ]

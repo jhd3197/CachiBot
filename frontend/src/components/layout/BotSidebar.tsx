@@ -19,6 +19,7 @@ import {
   FolderKanban,
   CalendarClock,
   Play,
+  Blocks,
   CheckCircle2,
   History,
   Pause,
@@ -26,6 +27,8 @@ import {
   Mic,
   DoorOpen,
   Key,
+  Blocks,
+  Code2,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -33,7 +36,7 @@ import { toast } from 'sonner'
 import { useBotStore, useChatStore, useTaskStore, useWorkStore, useScheduleStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { getRooms } from '../../api/rooms'
-import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSection } from '../../stores/ui'
+import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSection, type AutomationSection } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
@@ -46,6 +49,7 @@ const navItems: { id: BotView; label: string; icon: React.ComponentType<{ classN
   { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'work', label: 'Work', icon: FolderKanban },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+  { id: 'automations', label: 'Automations', icon: Blocks },
   { id: 'voice', label: 'Voice', icon: Mic },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -113,6 +117,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         {activeView === 'tasks' && <TaskList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'work' && <WorkSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
+        {activeView === 'automations' && <AutomationsSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'tools' && <ToolsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'settings' && <SettingsList collapsed={sidebarCollapsed} />}
       </div>
@@ -785,6 +790,65 @@ function SchedulesSectionsList({ botId, collapsed }: { botId: string; collapsed:
             </button>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// AUTOMATIONS SECTIONS LIST
+// =============================================================================
+
+const automationSections: { id: AutomationSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'all', label: 'All Automations', icon: Blocks },
+  { id: 'functions', label: 'Functions', icon: FolderKanban },
+  { id: 'scripts', label: 'Scripts', icon: Code2 },
+  { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+]
+
+function AutomationsSectionsList({ botId, collapsed }: { botId: string; collapsed: boolean }) {
+  const { automationSection, setAutomationSection } = useUIStore()
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1 p-2">
+        {automationSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setAutomationSection(section.id)}
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
+              automationSection === section.id
+                ? 'bg-accent-600/20 text-accent-400'
+                : 'text-zinc-400 hover:bg-zinc-800'
+            )}
+            title={section.label}
+          >
+            <section.icon className="h-5 w-5" />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col p-3">
+      <div className="space-y-1">
+        {automationSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setAutomationSection(section.id)}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors',
+              automationSection === section.id
+                ? 'bg-accent-600/20 text-accent-400'
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+            )}
+          >
+            <section.icon className="h-5 w-5" />
+            <span className="flex-1 text-sm">{section.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   )

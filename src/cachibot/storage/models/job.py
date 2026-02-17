@@ -1,5 +1,11 @@
 """
 Job model (global job queue for CLI/single-agent mode).
+
+.. deprecated::
+    This ORM model is part of the legacy job system. New code should use
+    ``cachibot.storage.models.work`` (Work, Task, WorkJob) and
+    ``cachibot.storage.models.automations`` (Script, ExecutionLog) instead.
+    This file will be removed in a future release.
 """
 
 from __future__ import annotations
