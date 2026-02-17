@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { MainLayout } from './components/layout/MainLayout'
+import { TitleBar } from './components/layout/TitleBar'
 import { AuthCallback } from './components/auth/AuthCallback'
 import { LoginPage } from './components/auth/LoginPage'
 import { SetupPage } from './components/auth/SetupPage'
@@ -22,6 +23,8 @@ function App() {
   }, [theme])
 
   return (
+    <div className="flex h-screen flex-col">
+    <TitleBar />
     <Routes>
       {/* Auth routes (public) */}
       <Route path="/login" element={<LoginPage />} />
@@ -173,6 +176,7 @@ function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </div>
   )
 }
 

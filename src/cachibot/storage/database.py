@@ -25,13 +25,13 @@ async def get_db():
     Returns an async session for callers that still use `get_db()`.
 
     .. deprecated::
-        Use ``async with db.async_session_maker() as session:`` directly,
+        Use ``async with db.ensure_initialized()() as session:`` directly,
         or inject via ``get_session()`` from ``cachibot.storage.db``.
     """
     warnings.warn(
-        "get_db() is deprecated. Use db.async_session_maker() context manager "
+        "get_db() is deprecated. Use db.ensure_initialized()() context manager "
         "or cachibot.storage.db.get_session() instead.",
         DeprecationWarning,
         stacklevel=2,
     )
-    return db.async_session_maker()
+    return db.ensure_initialized()()

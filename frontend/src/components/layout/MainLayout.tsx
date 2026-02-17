@@ -256,7 +256,8 @@ export function MainLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="flex flex-1 min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <div className="flex flex-1 overflow-hidden">
       {/* Mobile overlay backdrop */}
       {mobileMenuOpen && (
         <div
@@ -307,6 +308,8 @@ export function MainLayout() {
         <UpdateBanner />
         {renderActiveView()}
       </main>
+
+      </div>
 
       {/* Dialogs */}
       <CreateBotDialog />

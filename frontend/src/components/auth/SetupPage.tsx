@@ -80,14 +80,14 @@ export function SetupPage() {
 
   if (isLoading || setupNeeded === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">

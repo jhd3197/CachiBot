@@ -252,24 +252,28 @@ Estes nunca são permitidos independentemente da configuração: `subprocess`, `
 
 ## Contribuindo
 
-Contribuições são bem-vindas! Usamos **Ruff** para formatação Python e **ESLint** para TypeScript.
+Contribuições são bem-vindas! Veja [CONTRIBUTING.md](../CONTRIBUTING.md) para o guia completo. Início rápido:
 
 ```bash
 git clone https://github.com/jhd3197/CachiBot.git
 cd CachiBot
 
 # Backend
+python -m venv venv && source venv/bin/activate  # ou .\venv\Scripts\activate no Windows
 pip install -e ".[dev]"
-cachibot server --reload
 
-# Frontend (em outro terminal)
-cd frontend && npm install && npm run dev
+# Frontend
+cd frontend && npm install && cd ..
 
-# Testes e linting
-pytest
-ruff check src/ && ruff format src/
-cd frontend && npm run lint
+# Desktop (opcional — apenas se estiver trabalhando no shell Electron)
+cd desktop && npm install && cd ..
+
+# Executar tudo
+bash dev.sh              # ou .\dev.ps1 no Windows
+bash dev.sh desktop      # com Electron
 ```
+
+Veja [CONTRIBUTING.md](../CONTRIBUTING.md) para todos os modos do script de desenvolvimento, estrutura do projeto, testes e guias de estilo de código.
 
 ## Comunidade
 

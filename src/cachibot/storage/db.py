@@ -144,7 +144,7 @@ def _create_engine_from_url(
     return eng, session_maker
 
 
-def _ensure_initialized() -> async_sessionmaker[AsyncSession]:
+def ensure_initialized() -> async_sessionmaker[AsyncSession]:
     """Ensure engine and session maker are initialized. Returns session maker."""
     global engine, async_session_maker, db_type
     if async_session_maker is None:
@@ -183,7 +183,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         async for session in get_session():
             ...
     """
-    session_maker = _ensure_initialized()
+    session_maker = ensure_initialized()
     async with session_maker() as session:
         yield session
 

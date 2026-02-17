@@ -18,6 +18,7 @@ import type {
   UserListResponse,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
+import { hashPassword } from '../lib/utils'
 
 const API_BASE = '/api'
 
@@ -89,14 +90,20 @@ export async function checkSetupRequired(): Promise<SetupStatusResponse> {
 export async function setupAdmin(data: SetupRequest): Promise<LoginResponse> {
   return authRequest('/auth/setup', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      password: await hashPassword(data.password),
+    }),
   })
 }
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
   return authRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      password: await hashPassword(data.password),
+    }),
   })
 }
 
@@ -118,7 +125,10 @@ export async function changePassword(data: ChangePasswordRequest): Promise<{ sta
     '/auth/change-password',
     {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        current_password: await hashPassword(data.current_password),
+        new_password: await hashPassword(data.new_password),
+      }),
     },
     true
   )
@@ -138,7 +148,10 @@ export async function createUser(data: CreateUserRequest): Promise<User> {
     '/auth/users',
     {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        password: await hashPassword(data.password),
+      }),
     },
     true
   )

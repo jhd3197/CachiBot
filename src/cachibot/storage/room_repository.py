@@ -40,7 +40,7 @@ class RoomRepository:
 
     async def create_room(self, room: Room) -> None:
         """Create a new room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = RoomModel(
                 id=room.id,
                 title=room.title,
@@ -56,7 +56,7 @@ class RoomRepository:
 
     async def get_room(self, room_id: str) -> Room | None:
         """Get a room by ID."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(select(RoomModel).where(RoomModel.id == room_id))
             row = result.scalar_one_or_none()
         if row is None:
@@ -65,7 +65,7 @@ class RoomRepository:
 
     async def get_rooms_for_user(self, user_id: str) -> list[Room]:
         """Get all rooms a user is a member of."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(RoomModel)
                 .join(RoomMemberModel, RoomModel.id == RoomMemberModel.room_id)
@@ -93,7 +93,7 @@ class RoomRepository:
         if settings is not None:
             values["settings"] = settings.model_dump()
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 update(RoomModel).where(RoomModel.id == room_id).values(**values)
             )
@@ -105,7 +105,7 @@ class RoomRepository:
 
     async def delete_room(self, room_id: str) -> bool:
         """Delete a room (cascades to members, bots, messages)."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(delete(RoomModel).where(RoomModel.id == room_id))
             await session.commit()
             return result.rowcount > 0
@@ -130,7 +130,7 @@ class RoomMemberRepository:
 
     async def add_member(self, member: RoomMember) -> None:
         """Add a member to a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = RoomMemberModel(
                 room_id=member.room_id,
                 user_id=member.user_id,
@@ -142,7 +142,7 @@ class RoomMemberRepository:
 
     async def remove_member(self, room_id: str, user_id: str) -> bool:
         """Remove a member from a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 delete(RoomMemberModel).where(
                     RoomMemberModel.room_id == room_id,
@@ -154,7 +154,7 @@ class RoomMemberRepository:
 
     async def get_members(self, room_id: str) -> list[RoomMember]:
         """Get all members of a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(
                     RoomMemberModel.room_id,
@@ -181,7 +181,7 @@ class RoomMemberRepository:
 
     async def is_member(self, room_id: str, user_id: str) -> bool:
         """Check if a user is a member of a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(RoomMemberModel.room_id).where(
                     RoomMemberModel.room_id == room_id,
@@ -192,7 +192,7 @@ class RoomMemberRepository:
 
     async def get_member_role(self, room_id: str, user_id: str) -> RoomMemberRole | None:
         """Get a user's role in a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(RoomMemberModel.role).where(
                     RoomMemberModel.room_id == room_id,
@@ -210,7 +210,7 @@ class RoomBotRepository:
 
     async def add_bot(self, room_bot: RoomBot) -> None:
         """Add a bot to a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = RoomBotModel(
                 room_id=room_bot.room_id,
                 bot_id=room_bot.bot_id,
@@ -221,7 +221,7 @@ class RoomBotRepository:
 
     async def remove_bot(self, room_id: str, bot_id: str) -> bool:
         """Remove a bot from a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 delete(RoomBotModel).where(
                     RoomBotModel.room_id == room_id,
@@ -233,7 +233,7 @@ class RoomBotRepository:
 
     async def get_bots(self, room_id: str) -> list[RoomBot]:
         """Get all bots in a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(
                     RoomBotModel.room_id,
@@ -258,7 +258,7 @@ class RoomBotRepository:
 
     async def get_bot_count(self, room_id: str) -> int:
         """Get the number of bots in a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(func.count())
                 .select_from(RoomBotModel)
@@ -272,7 +272,7 @@ class RoomMessageRepository:
 
     async def save_message(self, message: RoomMessage) -> None:
         """Save a message to the room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             obj = RoomMessageModel(
                 id=message.id,
                 room_id=message.room_id,
@@ -302,7 +302,7 @@ class RoomMessageRepository:
 
         stmt = stmt.order_by(RoomMessageModel.timestamp.desc()).limit(limit)
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
 
@@ -310,7 +310,7 @@ class RoomMessageRepository:
 
     async def get_message_count(self, room_id: str) -> int:
         """Get the number of messages in a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(func.count())
                 .select_from(RoomMessageModel)
@@ -320,7 +320,7 @@ class RoomMessageRepository:
 
     async def delete_messages(self, room_id: str) -> int:
         """Delete all messages in a room."""
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 delete(RoomMessageModel).where(RoomMessageModel.room_id == room_id)
             )

@@ -47,7 +47,7 @@
       "target": [
         { "target": "nsis", "arch": ["x64"] }
       ],
-      "icon": "../assets/hero.png",
+      "icon": "../assets/icon.ico",
       "artifactName": "CachiBot-Setup-${version}-win.${ext}"
     },
     "nsis": {
@@ -59,7 +59,7 @@
         { "target": "dmg" },
         { "target": "zip" }
       ],
-      "icon": "../assets/hero.png",
+      "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-mac.${ext}"
     },
     "linux": {
@@ -67,7 +67,7 @@
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb", "arch": ["x64"] }
       ],
-      "icon": "../assets/hero.png",
+      "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-linux.${ext}",
       "category": "Utility"
     },
