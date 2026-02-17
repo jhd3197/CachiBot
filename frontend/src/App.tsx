@@ -8,6 +8,7 @@ import { SetupPage } from './components/auth/SetupPage'
 import { ConsentPage } from './components/auth/ConsentPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { UsersView } from './components/views/UsersView'
+import { GroupsView } from './components/views/GroupsView'
 import { useUIStore } from './stores/ui'
 
 function App() {
@@ -55,6 +56,16 @@ function App() {
         element={
           <ProtectedRoute>
             <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Manager+ routes */}
+      <Route
+        path="/groups"
+        element={
+          <ProtectedRoute requireManager>
+            <GroupsView />
           </ProtectedRoute>
         }
       />

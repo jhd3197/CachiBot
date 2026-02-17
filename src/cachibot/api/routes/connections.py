@@ -11,9 +11,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
+from cachibot.models.group import BotAccessLevel
 from cachibot.services.adapters.registry import AdapterRegistry
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.repository import ConnectionRepository
@@ -110,7 +111,7 @@ async def list_connections(
 async def create_connection(
     bot_id: str,
     body: ConnectionCreate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ConnectionResponse:
     """Create a new connection for a bot."""
     if not body.name.strip():
@@ -160,7 +161,7 @@ async def update_connection(
     bot_id: str,
     connection_id: str,
     body: ConnectionUpdate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ConnectionResponse:
     """Update an existing connection."""
     connection = await repo.get_connection(connection_id)
@@ -186,7 +187,7 @@ async def update_connection(
 async def delete_connection(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a connection."""
     connection = await repo.get_connection(connection_id)
@@ -205,7 +206,7 @@ async def delete_connection(
 async def connect_platform(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ConnectionResponse:
     """Start a platform connection."""
     connection = await repo.get_connection(connection_id)
@@ -227,7 +228,7 @@ async def connect_platform(
 async def disconnect_platform(
     bot_id: str,
     connection_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ConnectionResponse:
     """Stop a platform connection."""
     connection = await repo.get_connection(connection_id)

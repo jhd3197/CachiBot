@@ -10,9 +10,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
 from cachibot.models.capabilities import Contact
+from cachibot.models.group import BotAccessLevel
 from cachibot.storage.repository import ContactsRepository
 
 router = APIRouter(prefix="/api/bots/{bot_id}/contacts", tags=["contacts"])
@@ -72,7 +73,7 @@ async def list_contacts(
 async def create_contact(
     bot_id: str,
     body: ContactCreate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ContactResponse:
     """Create a new contact for a bot."""
     if not body.name.strip():
@@ -109,7 +110,7 @@ async def update_contact(
     bot_id: str,
     contact_id: str,
     body: ContactUpdate,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ContactResponse:
     """Update an existing contact."""
     contact = await repo.get_contact(contact_id)
@@ -131,7 +132,7 @@ async def update_contact(
 async def delete_contact(
     bot_id: str,
     contact_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a contact."""
     contact = await repo.get_contact(contact_id)

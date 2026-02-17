@@ -15,8 +15,9 @@ import aiofiles
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
+from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import Document, DocumentStatus
 from cachibot.services.document_processor import get_document_processor
 from cachibot.storage.repository import KnowledgeRepository
@@ -85,7 +86,7 @@ async def upload_document(
     bot_id: str,
     file: Annotated[UploadFile, File()],
     background_tasks: BackgroundTasks,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> UploadResponse:
     """
     Upload a document to the bot's knowledge base.
@@ -189,7 +190,7 @@ async def get_document(
 async def delete_document(
     bot_id: str,
     document_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete a document and its chunks."""
     repo = KnowledgeRepository()

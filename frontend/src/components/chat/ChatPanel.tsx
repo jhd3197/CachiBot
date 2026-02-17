@@ -3,8 +3,9 @@ import { InputArea } from './InputArea'
 import { ThinkingIndicator } from './ThinkingIndicator'
 import { ToolCallList } from './ToolCallList'
 // import { UsageDisplay } from './UsageDisplay'
-import { useChatStore } from '../../stores/bots'
+import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
+import { useBotAccess } from '../../hooks/useBotAccess'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 
 interface ChatPanelProps {
@@ -15,7 +16,9 @@ interface ChatPanelProps {
 
 export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelProps) {
   const { activeChatId, getMessages, thinking, toolCalls, isLoading, error } = useChatStore()
+  const { activeBotId } = useBotStore()
   const { showThinking, showCost } = useUIStore()
+  const { canOperate } = useBotAccess(activeBotId)
 
   const messages = activeChatId ? getMessages(activeChatId) : []
 
@@ -67,7 +70,7 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
             onSend={onSendMessage}
             onCancel={onCancel}
             isLoading={isLoading}
-            disabled={!isConnected}
+            disabled={!isConnected || !canOperate}
           />
         </div>
       </div>
