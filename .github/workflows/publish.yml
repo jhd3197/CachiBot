@@ -276,12 +276,12 @@ jobs:
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
 
-      # Build and upload to the GitHub Release
+      # Build and upload to the GitHub Release (unsigned)
       - name: Build Electron app
         working-directory: desktop
-        run: npx electron-builder --${{ matrix.platform }} --publish always
+        run: |
+          unset CSC_LINK CSC_KEY_PASSWORD
+          npx electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
