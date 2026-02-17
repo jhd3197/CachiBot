@@ -40,6 +40,16 @@ from cachibot.storage.models.skill import BotSkill, Skill
 from cachibot.storage.models.user import User
 from cachibot.storage.models.work import Function, Schedule, Task, Todo, Work, WorkJob
 
+# Automation system
+from cachibot.storage.models.automations import (
+    ExecutionDailySummary,
+    ExecutionLog,
+    ExecutionLogLine,
+    Script,
+    ScriptVersion,
+    TimelineEvent,
+)
+
 __all__ = [
     # Base
     "Base",
@@ -84,4 +94,11 @@ __all__ = [
     "RoomMember",
     "RoomBot",
     "RoomMessage",
+    # Automation system
+    "Script",
+    "ScriptVersion",
+    "ExecutionLog",
+    "ExecutionLogLine",
+    "TimelineEvent",
+    "ExecutionDailySummary",
 ]

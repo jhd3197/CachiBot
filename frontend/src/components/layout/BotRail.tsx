@@ -1,4 +1,4 @@
-import { Plus, Settings, LayoutDashboard, Github } from 'lucide-react'
+import { Plus, Settings, LayoutDashboard, Github, Activity } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils'
 import type { Bot } from '../../types'
 
 // App-level paths (not bot views)
-const appPaths = ['/dashboard', '/settings']
+const appPaths = ['/dashboard', '/settings', '/admin/logs']
 
 interface BotRailProps {
   onNavigate?: () => void
@@ -86,6 +86,20 @@ export function BotRail({ onNavigate }: BotRailProps) {
       {/* Bottom actions */}
       <div className="mt-auto flex flex-col items-center gap-2 pt-3">
         <Divider />
+
+        {/* Admin Logs */}
+        <button
+          onClick={() => handleAppViewClick('/admin/logs')}
+          className={cn(
+            'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
+            currentPath === '/admin/logs'
+              ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
+              : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+          )}
+        >
+          <Activity className="h-5 w-5" />
+          <Tooltip>Exec Logs</Tooltip>
+        </button>
 
         {/* GitHub */}
         <a
