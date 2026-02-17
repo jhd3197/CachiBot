@@ -53,7 +53,7 @@ async def send_telemetry(payload: dict) -> bool:
             "send_image": "0",
             "_id": visitor_id,
             "cip": "0.0.0.0",  # Anonymize IP completely
-            "url": f"app://cachibot/telemetry",
+            "url": "app://cachibot/telemetry",
             "action_name": "Telemetry Report",
             # Custom dimensions for app metadata
             "dimension1": payload.get("os_type", ""),
