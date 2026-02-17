@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, dialog } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const net = require('net');
@@ -18,6 +18,9 @@ const isDev = !app.isPackaged;
 const BACKEND_PORT = 6392;
 const BACKEND_HOST = '127.0.0.1';
 const BACKEND_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
+
+// In dev mode, load from Vite dev server for hot reload when available
+const DEV_FRONTEND_URL = process.env.ELECTRON_DEV_URL || null;
 
 // ---------------------------------------------------------------------------
 // Backend lifecycle
@@ -123,7 +126,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    titleBarOverlay: false,
+    frame: process.platform === 'darwin',
     backgroundColor: '#09090b', // zinc-950
     show: false,
   });
@@ -139,8 +144,13 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  // Load the backend-served frontend (backend serves the React SPA)
-  mainWindow.loadURL(BACKEND_URL);
+  // Forward maximize state changes to the renderer for title bar icon updates
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:maximized', false));
+
+  // In dev mode, load from Vite dev server for hot reload; otherwise load from backend
+  const loadURL = (isDev && DEV_FRONTEND_URL) ? DEV_FRONTEND_URL : BACKEND_URL;
+  mainWindow.loadURL(loadURL);
 
   if (isDev) {
     mainWindow.webContents.openDevTools();
@@ -234,25 +244,46 @@ function setupAutoUpdater() {
 }
 
 // ---------------------------------------------------------------------------
+// Window control IPC handlers (custom title bar)
+// ---------------------------------------------------------------------------
+
+ipcMain.on('window:minimize', () => mainWindow?.minimize());
+ipcMain.on('window:maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+});
+ipcMain.on('window:close', () => mainWindow?.close());
+ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
+
+// ---------------------------------------------------------------------------
 // App lifecycle
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
   const splash = createSplashWindow();
 
-  startBackend();
-
-  try {
-    await waitForPort(BACKEND_PORT);
-  } catch (err) {
-    splash.close();
-    console.error('[electron] Backend failed to start:', err.message);
-    dialog.showErrorBox(
-      'Backend Error',
-      'The CachiBot backend failed to start within 30 seconds. Please check the logs.'
-    );
-    app.quit();
-    return;
+  // When launched from dev script, backend is already running externally
+  const externalBackend = !!DEV_FRONTEND_URL;
+  if (externalBackend) {
+    // Dev mode: skip backend startup/wait, Vite proxy handles API calls
+    console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
+  } else {
+    startBackend();
+    try {
+      await waitForPort(BACKEND_PORT);
+    } catch (err) {
+      splash.close();
+      console.error('[electron] Backend failed to start:', err.message);
+      dialog.showErrorBox(
+        'Backend Error',
+        'The CachiBot backend failed to start within 30 seconds. Please check the logs.'
+      );
+      app.quit();
+      return;
+    }
   }
 
   createWindow();
@@ -261,7 +292,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  stopBackend();
+  if (!process.env.ELECTRON_DEV_URL) stopBackend();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -272,5 +303,5 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
-  stopBackend();
+  if (!process.env.ELECTRON_DEV_URL) stopBackend();
 });

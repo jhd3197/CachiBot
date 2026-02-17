@@ -252,24 +252,28 @@ These are never allowed regardless of configuration: `subprocess`, `os.system`, 
 
 ## Contributing
 
-Contributions are welcome! We use **Ruff** for Python formatting and **ESLint** for TypeScript.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide. Quick start:
 
 ```bash
 git clone https://github.com/jhd3197/CachiBot.git
 cd CachiBot
 
 # Backend
+python -m venv venv && source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 pip install -e ".[dev]"
-cachibot server --reload
 
-# Frontend (in another terminal)
-cd frontend && npm install && npm run dev
+# Frontend
+cd frontend && npm install && cd ..
 
-# Tests & linting
-pytest
-ruff check src/ && ruff format src/
-cd frontend && npm run lint
+# Desktop (optional — only if working on the Electron shell)
+cd desktop && npm install && cd ..
+
+# Run everything
+bash dev.sh              # or .\dev.ps1 on Windows
+bash dev.sh desktop      # with Electron
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for all dev script modes, project structure, testing, and code style guidelines.
 
 ## Community
 
