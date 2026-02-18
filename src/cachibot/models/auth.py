@@ -105,6 +105,9 @@ class SetupStatusResponse(BaseModel):
     """Response for setup status check."""
 
     setup_required: bool = Field(description="Whether first-time setup is needed")
+    legacy_db_detected: bool = Field(
+        default=False, description="Whether a V1 legacy database was detected"
+    )
 
 
 class UserListResponse(BaseModel):

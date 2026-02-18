@@ -28,9 +28,9 @@ foreach ($port in $ports) {
     $lines = netstat -ano | Select-String ":$port\s.*LISTENING"
     foreach ($line in $lines) {
         if ($line -match '\s(\d+)\s*$') {
-            $pid = $Matches[1]
-            Write-Host "[dev] Killing stale process on port $port (PID $pid)" -ForegroundColor Yellow
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            $stalePid = $Matches[1]
+            Write-Host "[dev] Killing stale process on port $port (PID $stalePid)" -ForegroundColor Yellow
+            Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
         }
     }
 }

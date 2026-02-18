@@ -11,6 +11,7 @@ export function LoginPage() {
   const {
     login: storeLogin,
     setSetupRequired,
+    setLegacyDbDetected,
     setAuthMode,
     authMode,
     isLoading,
@@ -38,8 +39,13 @@ export function LoginPage() {
         }
 
         // Selfhosted: check setup
-        const { setup_required } = await checkSetupRequired()
+        const { setup_required, legacy_db_detected } = await checkSetupRequired()
         setSetupRequired(setup_required)
+        if (legacy_db_detected) {
+          setLegacyDbDetected(true)
+          navigate('/upgrade', { replace: true })
+          return
+        }
         if (setup_required) {
           navigate('/setup', { replace: true })
         }

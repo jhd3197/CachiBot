@@ -25,7 +25,7 @@ export function SchedulesView() {
   if (!activeBot) return null
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-white dark:bg-zinc-950">
       {scheduleSection === 'all' && <ScheduleListSection botId={activeBot.id} filter="all" />}
       {scheduleSection === 'enabled' && <ScheduleListSection botId={activeBot.id} filter="enabled" />}
       {scheduleSection === 'disabled' && <ScheduleListSection botId={activeBot.id} filter="disabled" />}
@@ -82,10 +82,10 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-6 py-4">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-100">{titles[filter]}</h1>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{titles[filter]}</h1>
             <p className="text-sm text-zinc-500">{descriptions[filter]}</p>
           </div>
 
@@ -101,7 +101,7 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
       </div>
 
       {/* Search */}
-      <div className="border-b border-zinc-800 px-6 py-3">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
@@ -109,7 +109,7 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
             placeholder="Search schedules..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-purple-500"
+            className="h-9 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 outline-none focus:border-purple-500"
           />
         </div>
       </div>
@@ -117,7 +117,7 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Schedule list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-800 p-4">
+        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 p-4">
           {filteredSchedules.length === 0 ? (
             <div className="py-12 text-center">
               <AlertCircle className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
@@ -181,8 +181,8 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-xl font-bold text-zinc-100">Create Schedule</h1>
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Create Schedule</h1>
         <p className="text-sm text-zinc-500">Set up a new automated trigger</p>
       </div>
 
@@ -190,32 +190,32 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
         <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
           {/* Name */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">Name</label>
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Name</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Daily Report"
-              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-purple-500"
+              className="h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
               required
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">Description</label>
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What does this schedule do?"
               rows={2}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-zinc-100 outline-none focus:border-purple-500"
+              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 py-2 text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
             />
           </div>
 
           {/* Schedule Type */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-300">Schedule Type</label>
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Schedule Type</label>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {(['cron', 'interval', 'once', 'event'] as ScheduleType[]).map((type) => (
                 <button
@@ -226,14 +226,14 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
                     'flex flex-col items-center gap-2 rounded-lg border p-4 transition-all',
                     formData.scheduleType === type
                       ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+                      : 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 hover:border-zinc-400 dark:hover:border-zinc-600'
                   )}
                 >
                   {type === 'cron' && <Calendar className="h-5 w-5 text-purple-400" />}
                   {type === 'interval' && <Timer className="h-5 w-5 text-blue-400" />}
                   {type === 'once' && <Clock className="h-5 w-5 text-orange-400" />}
                   {type === 'event' && <Zap className="h-5 w-5 text-yellow-400" />}
-                  <span className="text-sm capitalize text-zinc-300">{type}</span>
+                  <span className="text-sm capitalize text-zinc-700 dark:text-zinc-300">{type}</span>
                 </button>
               ))}
             </div>
@@ -242,13 +242,13 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
           {/* Type-specific fields */}
           {formData.scheduleType === 'cron' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">Cron Expression</label>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Cron Expression</label>
               <input
                 type="text"
                 value={formData.cronExpression}
                 onChange={(e) => setFormData({ ...formData, cronExpression: e.target.value })}
                 placeholder="0 2 * * *"
-                className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 font-mono text-zinc-100 outline-none focus:border-purple-500"
+                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 font-mono text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
               />
               <p className="mt-1 text-xs text-zinc-500">
                 Format: minute hour day month weekday (e.g., "0 2 * * *" = 2am daily)
@@ -258,49 +258,49 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
 
           {formData.scheduleType === 'interval' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">Interval</label>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Interval</label>
               <div className="flex items-center gap-3">
                 <input
                   type="number"
                   value={formData.intervalSeconds / 60}
                   onChange={(e) => setFormData({ ...formData, intervalSeconds: parseInt(e.target.value) * 60 })}
                   min={1}
-                  className="h-10 w-24 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-purple-500"
+                  className="h-10 w-24 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
                 />
-                <span className="text-zinc-400">minutes</span>
+                <span className="text-zinc-500 dark:text-zinc-400">minutes</span>
               </div>
             </div>
           )}
 
           {formData.scheduleType === 'once' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">Run At</label>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Run At</label>
               <input
                 type="datetime-local"
                 value={formData.runAt}
                 onChange={(e) => setFormData({ ...formData, runAt: e.target.value })}
-                className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-purple-500"
+                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
               />
             </div>
           )}
 
           {formData.scheduleType === 'event' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-300">Event Trigger</label>
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Event Trigger</label>
               <input
                 type="text"
                 value={formData.eventTrigger}
                 onChange={(e) => setFormData({ ...formData, eventTrigger: e.target.value })}
                 placeholder="webhook_received"
-                className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 outline-none focus:border-purple-500"
+                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-200 dark:bg-zinc-800 px-4 text-zinc-900 dark:text-zinc-100 outline-none focus:border-purple-500"
               />
             </div>
           )}
 
           {/* Enabled toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-4">
             <div>
-              <div className="font-medium text-zinc-200">Enable immediately</div>
+              <div className="font-medium text-zinc-800 dark:text-zinc-200">Enable immediately</div>
               <div className="text-sm text-zinc-500">Start running this schedule right away</div>
             </div>
             <button
@@ -317,7 +317,7 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
             <button
               type="button"
               onClick={() => setScheduleSection('all')}
-              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Cancel
             </button>
@@ -350,7 +350,7 @@ function Stat({
 }) {
   const colors = {
     green: 'bg-green-500/20 text-green-400',
-    zinc: 'bg-zinc-700 text-zinc-400',
+    zinc: 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
   }
 
   return (
@@ -409,20 +409,20 @@ function ScheduleCard({
         selected && 'ring-1 ring-purple-500',
         schedule.enabled
           ? 'border-purple-500/30 bg-purple-500/5'
-          : 'border-zinc-700 bg-zinc-800/30 opacity-60'
+          : 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/30 opacity-60'
       )}
     >
       <div className="flex items-start gap-3">
         {getScheduleTypeIcon(schedule.scheduleType)}
         <div className="min-w-0 flex-1">
-          <span className="font-medium text-zinc-200">{schedule.name}</span>
+          <span className="font-medium text-zinc-800 dark:text-zinc-200">{schedule.name}</span>
           {schedule.description && (
             <p className="mt-0.5 truncate text-sm text-zinc-500">{schedule.description}</p>
           )}
 
           {/* Schedule info */}
           <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-            <span className="rounded bg-zinc-700/50 px-1.5 py-0.5 font-mono">
+            <span className="rounded bg-zinc-200 dark:bg-zinc-700/50 px-1.5 py-0.5 font-mono">
               {formatSchedule(schedule)}
             </span>
           </div>
@@ -475,17 +475,17 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-zinc-100">{schedule.name}</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{schedule.name}</h2>
             <span
               className={cn(
                 'rounded-full px-2 py-0.5 text-xs font-medium',
-                schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-zinc-700 text-zinc-400'
+                schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
               )}
             >
               {schedule.enabled ? 'Enabled' : 'Disabled'}
             </span>
           </div>
-          {schedule.description && <p className="mt-1 text-zinc-400">{schedule.description}</p>}
+          {schedule.description && <p className="mt-1 text-zinc-500 dark:text-zinc-400">{schedule.description}</p>}
         </div>
         <button className="flex items-center gap-2 rounded-lg bg-red-600/20 px-3 py-2 text-sm text-red-400 hover:bg-red-600/30">
           <Trash2 className="h-4 w-4" />
@@ -502,9 +502,9 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
       </div>
 
       {/* Schedule expression */}
-      <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="mb-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4">
         <div className="text-xs font-medium uppercase text-zinc-500">Schedule</div>
-        <div className="mt-2 font-mono text-lg text-zinc-200">
+        <div className="mt-2 font-mono text-lg text-zinc-800 dark:text-zinc-200">
           {schedule.scheduleType === 'cron' && schedule.cronExpression}
           {schedule.scheduleType === 'interval' && `Every ${schedule.intervalSeconds} seconds`}
           {schedule.scheduleType === 'once' && formatTime(schedule.runAt)}
@@ -514,15 +514,15 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
 
       {/* Timing info */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4">
           <div className="text-xs font-medium uppercase text-zinc-500">Next Run</div>
-          <div className="mt-2 text-zinc-200">
+          <div className="mt-2 text-zinc-800 dark:text-zinc-200">
             {schedule.nextRunAt ? formatTime(schedule.nextRunAt) : 'Not scheduled'}
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-4">
           <div className="text-xs font-medium uppercase text-zinc-500">Last Run</div>
-          <div className="mt-2 text-zinc-200">
+          <div className="mt-2 text-zinc-800 dark:text-zinc-200">
             {schedule.lastRunAt ? formatTime(schedule.lastRunAt) : 'Never'}
           </div>
         </div>
@@ -533,9 +533,9 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3">
       <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-medium text-zinc-200">{value}</div>
+      <div className="mt-1 font-medium text-zinc-800 dark:text-zinc-200">{value}</div>
     </div>
   )
 }

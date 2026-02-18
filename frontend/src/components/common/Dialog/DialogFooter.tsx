@@ -15,7 +15,7 @@ export function DialogFooter({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-t border-zinc-800 px-6 py-4',
+        'flex items-center justify-between border-t border-zinc-200 px-6 py-4 dark:border-zinc-800',
         className
       )}
     >
@@ -39,11 +39,11 @@ const variantClasses = {
   primary:
     'rounded-lg bg-cachi-600 px-6 py-2 text-sm font-medium text-white hover:bg-cachi-500 disabled:opacity-50 disabled:cursor-not-allowed',
   secondary:
-    'rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed',
+    'rounded-lg border border-zinc-300 bg-zinc-100 px-6 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed',
   danger:
     'rounded-lg bg-red-600 px-6 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed',
   ghost:
-    'rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed',
+    'rounded-lg px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed',
 }
 
 export function DialogButton({

@@ -114,6 +114,16 @@ export async function refreshToken(data: RefreshRequest): Promise<RefreshRespons
   })
 }
 
+// ===== Legacy database upgrade endpoints (no auth required) =====
+
+export async function resetLegacyDatabase(): Promise<{ status: string; backup_path: string }> {
+  return authRequest('/setup/upgrade/reset', { method: 'POST' })
+}
+
+export async function keepLegacyDatabase(): Promise<{ status: string }> {
+  return authRequest('/setup/upgrade/keep', { method: 'POST' })
+}
+
 // ===== Protected endpoints (auth required) =====
 
 export async function getCurrentUser(): Promise<User> {

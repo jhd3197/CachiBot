@@ -202,11 +202,11 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       )}
 
       {/* Info banner */}
-      <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+      <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-4">
         <div className="flex items-start gap-3">
           <Shield className="mt-0.5 h-5 w-5 flex-shrink-0 text-cachi-500" />
           <div>
-            <p className="text-sm font-medium text-zinc-200">Per-Bot Environment</p>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Per-Bot Environment</p>
             <p className="mt-1 text-xs text-zinc-500">
               Override API keys and settings for this bot. Custom keys take priority over
               global settings. Keys are encrypted at rest and never returned in plain text.
@@ -219,14 +219,14 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       <div>
         <button
           onClick={() => setProviderKeysOpen(!providerKeysOpen)}
-          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-200"
+          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200"
         >
           {providerKeysOpen ? (
             <ChevronDown className="h-4 w-4 text-zinc-500" />
           ) : (
             <ChevronRight className="h-4 w-4 text-zinc-500" />
           )}
-          <Key className="h-4 w-4 text-zinc-400" />
+          <Key className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
           Provider Keys
         </button>
 
@@ -240,12 +240,12 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
               return (
                 <div
                   key={provider.key}
-                  className="rounded-lg border border-zinc-800 p-3"
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3"
                 >
                   {isEditing ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-200">
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                           {provider.label}
                         </span>
                         <span className="text-xs text-zinc-600">{provider.key}</span>
@@ -256,12 +256,12 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           placeholder={`Enter ${provider.type === 'endpoint' ? 'endpoint URL' : 'API key'}...`}
-                          className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 pr-10 text-sm text-zinc-100 placeholder:text-zinc-600"
+                          className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 pr-10 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600"
                           autoFocus
                         />
                         <button
                           onClick={() => setShowValue(!showValue)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
                         >
                           {showValue ? (
                             <EyeOff className="h-4 w-4" />
@@ -285,7 +285,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+                          className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -296,7 +296,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                       <div className="flex items-center gap-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-zinc-200">
+                            <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                               {provider.label}
                             </span>
                             <SourceBadge source={status.source} />
@@ -313,14 +313,14 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                           <>
                             <button
                               onClick={() => startEdit(provider.key)}
-                              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
                               title="Edit override"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteKey(provider.key)}
-                              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                              className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-red-400"
                               title="Remove override (fall back to inherited)"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -329,7 +329,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                         ) : (
                           <button
                             onClick={() => startEdit(provider.key)}
-                            className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                            className="rounded px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
                           >
                             Override
                           </button>
@@ -348,7 +348,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       <div>
         <button
           onClick={() => setCustomKeysOpen(!customKeysOpen)}
-          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-200"
+          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200"
         >
           {customKeysOpen ? (
             <ChevronDown className="h-4 w-4 text-zinc-500" />
@@ -357,7 +357,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
           )}
           Custom Variables
           {customBotVars.length > 0 && (
-            <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs text-zinc-400">
+            <span className="rounded-full bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 text-xs text-zinc-500 dark:text-zinc-400">
               {customBotVars.length}
             </span>
           )}
@@ -371,23 +371,23 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
               return (
                 <div
                   key={v.key}
-                  className="rounded-lg border border-zinc-800 p-3"
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3"
                 >
                   {isEditing ? (
                     <div className="space-y-2">
-                      <span className="text-sm font-medium text-zinc-200">{v.key}</span>
+                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{v.key}</span>
                       <div className="relative">
                         <input
                           type={showValue ? 'text' : 'password'}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           placeholder="Enter new value..."
-                          className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 pr-10 text-sm text-zinc-100"
+                          className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 pr-10 text-sm text-zinc-900 dark:text-zinc-100"
                           autoFocus
                         />
                         <button
                           onClick={() => setShowValue(!showValue)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
                         >
                           {showValue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -401,7 +401,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                           Save
                         </button>
-                        <button onClick={cancelEdit} className="rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600">
+                        <button onClick={cancelEdit} className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
@@ -410,7 +410,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-zinc-200">{v.key}</span>
+                          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{v.key}</span>
                           <SourceBadge source="bot" />
                         </div>
                         <div className="mt-0.5 text-xs text-zinc-500">{v.masked_value}</div>
@@ -418,14 +418,14 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => startEdit(v.key)}
-                          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
                           title="Edit"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteKey(v.key)}
-                          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                          className="rounded p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-red-400"
                           title="Delete"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -439,13 +439,13 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 
             {/* Add custom key form */}
             {addingCustom ? (
-              <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+              <div className="space-y-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-3">
                 <input
                   type="text"
                   value={customKeyName}
                   onChange={(e) => setCustomKeyName(e.target.value.toUpperCase())}
                   placeholder="VARIABLE_NAME"
-                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 font-mono placeholder:text-zinc-600"
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 font-mono placeholder:text-zinc-600"
                   autoFocus
                 />
                 <input
@@ -453,7 +453,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                   value={customKeyValue}
                   onChange={(e) => setCustomKeyValue(e.target.value)}
                   placeholder="Value..."
-                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600"
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-600"
                 />
                 <div className="flex gap-2">
                   <button
@@ -466,7 +466,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                   </button>
                   <button
                     onClick={() => { setAddingCustom(false); setCustomKeyName(''); setCustomKeyValue('') }}
-                    className="rounded bg-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+                    className="rounded bg-zinc-200 dark:bg-zinc-700 px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                   >
                     Cancel
                   </button>
@@ -475,7 +475,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
             ) : (
               <button
                 onClick={() => setAddingCustom(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 p-2.5 text-sm text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-2.5 text-sm text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400"
               >
                 <Plus className="h-4 w-4" />
                 Add Custom Variable
@@ -487,7 +487,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 
       {/* Danger Zone */}
       {(botVars.length > 0) && (
-        <div className="border-t border-zinc-800 pt-6">
+        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
           <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
             <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
             <p className="mt-1 text-xs text-zinc-500">
@@ -507,7 +507,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                 </button>
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="rounded px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                  className="rounded px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
                 >
                   Cancel
                 </button>
@@ -548,19 +548,19 @@ function SourceBadge({ source }: { source: string }) {
       )
     case 'global':
       return (
-        <span className="rounded-full bg-zinc-600/30 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+        <span className="rounded-full bg-zinc-200 dark:bg-zinc-600/30 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
           Global
         </span>
       )
     case 'none':
       return (
-        <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+        <span className="rounded-full bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
           Not Set
         </span>
       )
     default:
       return (
-        <span className="rounded-full bg-zinc-700/50 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+        <span className="rounded-full bg-zinc-200 dark:bg-zinc-700/50 px-2 py-0.5 text-[10px] font-medium text-zinc-500">
           {source}
         </span>
       )

@@ -136,21 +136,21 @@ export function UsersView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800">
+      <header className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -168,9 +168,9 @@ export function UsersView() {
 
       {/* Content */}
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 bg-zinc-800/50 text-sm text-zinc-400 font-medium">
+          <div className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 bg-zinc-100 dark:bg-zinc-800/50 text-sm text-zinc-500 dark:text-zinc-400 font-medium">
             <div>User</div>
             <div>Email</div>
             <div>Role</div>
@@ -187,11 +187,11 @@ export function UsersView() {
             users.map((user) => (
               <div
                 key={user.id}
-                className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 border-t border-zinc-800 items-center hover:bg-zinc-800/30 transition-colors"
+                className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
-                    <AtSign className="h-4 w-4 text-zinc-400" />
+                  <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                    <AtSign className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                   </div>
                   <div>
                     <div className="font-medium">{user.username}</div>
@@ -200,7 +200,7 @@ export function UsersView() {
                     )}
                   </div>
                 </div>
-                <div className="text-zinc-400 truncate">{user.email}</div>
+                <div className="text-zinc-500 dark:text-zinc-400 truncate">{user.email}</div>
                 <div>
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
@@ -238,23 +238,23 @@ export function UsersView() {
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
-                    className="p-1.5 hover:bg-zinc-700 rounded transition-colors"
+                    className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
                     disabled={user.id === currentUser?.id}
                   >
-                    <MoreVertical className="h-4 w-4 text-zinc-400" />
+                    <MoreVertical className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                   </button>
                   {menuOpen === user.id && (
-                    <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg py-1 z-20">
+                    <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-20">
                       <button
                         onClick={() => startEditing(user)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                       >
                         Edit User
                       </button>
                       {user.is_active && (
                         <button
                           onClick={() => handleDeactivateUser(user.id)}
-                          className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-700 transition-colors"
+                          className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                         >
                           Deactivate
                         </button>
@@ -275,11 +275,11 @@ export function UsersView() {
       {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-semibold mb-4">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Email
                 </label>
                 <div className="relative">
@@ -290,13 +290,13 @@ export function UsersView() {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, email: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Username
                 </label>
                 <div className="relative">
@@ -307,7 +307,7 @@ export function UsersView() {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, username: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     minLength={3}
                     maxLength={32}
@@ -315,7 +315,7 @@ export function UsersView() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Password
                 </label>
                 <input
@@ -324,14 +324,14 @@ export function UsersView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   minLength={8}
                   placeholder="Min. 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Role
                 </label>
                 <select
@@ -342,7 +342,7 @@ export function UsersView() {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>
@@ -374,11 +374,11 @@ export function UsersView() {
       {/* Edit User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-semibold mb-4">Edit User</h2>
             <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Email
                 </label>
                 <input
@@ -387,12 +387,12 @@ export function UsersView() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Username
                 </label>
                 <input
@@ -401,14 +401,14 @@ export function UsersView() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   minLength={3}
                   maxLength={32}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Role
                 </label>
                 <select
@@ -419,7 +419,7 @@ export function UsersView() {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>

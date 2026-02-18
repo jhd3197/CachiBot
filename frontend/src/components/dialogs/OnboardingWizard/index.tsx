@@ -132,7 +132,7 @@ export function OnboardingWizard() {
           isFirstStep ? (
             <button
               onClick={skipOnboarding}
-              className="text-sm text-zinc-500 transition-colors hover:text-zinc-300"
+              className="text-sm text-zinc-500 transition-colors hover:text-zinc-700 dark:hover:text-zinc-300"
             >
               Skip for now
             </button>
