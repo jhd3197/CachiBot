@@ -24,7 +24,7 @@ def _get_version() -> str:
 
     candidates = [
         Path(__file__).parent / "VERSION",  # bundled in package
-        Path(__file__).parent.parent.parent.parent / "VERSION",  # repo root (editable)
+        Path(__file__).parent.parent.parent / "VERSION",  # repo root (editable install)
     ]
     # PyInstaller frozen binary: VERSION is bundled at _MEIPASS/cachibot/VERSION
     if getattr(sys, "_MEIPASS", None):
