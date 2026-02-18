@@ -1,7 +1,7 @@
-const { app, BrowserWindow, shell, dialog, ipcMain, session } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, session, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const net = require('net');
 
 // electron-updater is optional — gracefully degrade if missing
@@ -14,6 +14,7 @@ try {
 
 let mainWindow = null;
 let backendProcess = null;
+let tray = null;
 let backendStderr = ''; // Capture stderr for error reporting
 
 const isDev = !app.isPackaged;
@@ -79,11 +80,24 @@ function startBackend() {
 }
 
 function stopBackend() {
-  if (backendProcess) {
-    console.log('[electron] Stopping backend...');
+  if (!backendProcess) return;
+  console.log('[electron] Stopping backend...');
+  const pid = backendProcess.pid;
+  if (process.platform === 'win32' && pid) {
+    // On Windows, kill the entire process tree so child processes (uvicorn
+    // workers, etc.) don't linger after the app closes.
+    try {
+      execFile('taskkill', ['/pid', String(pid), '/T', '/F'], (err) => {
+        if (err) console.error('[electron] taskkill error:', err.message);
+      });
+    } catch (err) {
+      console.error('[electron] taskkill spawn error:', err.message);
+      backendProcess.kill();
+    }
+  } else {
     backendProcess.kill();
-    backendProcess = null;
   }
+  backendProcess = null;
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +246,84 @@ function createSplashWindow() {
   `)}`);
 
   return splash;
+}
+
+// ---------------------------------------------------------------------------
+// System tray
+// ---------------------------------------------------------------------------
+
+function createTray() {
+  const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  const iconPath = isDev
+    ? path.join(__dirname, '..', 'assets', iconFile)
+    : path.join(process.resourcesPath, 'assets', iconFile);
+
+  // Resize to 16x16 for the tray (Windows/Linux standard)
+  let trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  } catch {
+    // Fallback: try png if ico fails
+    const fallback = iconPath.replace('icon.ico', 'icon.png');
+    trayIcon = nativeImage.createFromPath(fallback).resize({ width: 16, height: 16 });
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('CachiBot');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show CachiBot',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Check for Updates',
+      enabled: !!autoUpdater,
+      click: () => {
+        if (autoUpdater) {
+          autoUpdater.checkForUpdates().catch(() => {});
+        }
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: 'Restart App',
+      click: () => {
+        stopBackend();
+        app.relaunch();
+        app.exit(0);
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit CachiBot',
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  // Click the tray icon to show/focus the window
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.focus();
+      } else {
+        mainWindow.show();
+      }
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +517,7 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+  createTray();
   splash.close();
   setupAutoUpdater();
 });
