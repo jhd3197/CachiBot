@@ -18,13 +18,18 @@ def _get_version() -> str:
         return _pkg_version("cachibot")
     except PackageNotFoundError:
         pass
-    # Fallback: read VERSION file from repo root
+    # Fallback: read VERSION file from known locations
+    import sys
     from pathlib import Path
 
-    for candidate in [
+    candidates = [
         Path(__file__).parent / "VERSION",  # bundled in package
         Path(__file__).parent.parent.parent.parent / "VERSION",  # repo root (editable)
-    ]:
+    ]
+    # PyInstaller frozen binary: VERSION is bundled at _MEIPASS/cachibot/VERSION
+    if getattr(sys, "_MEIPASS", None):
+        candidates.insert(0, Path(sys._MEIPASS) / "cachibot" / "VERSION")
+    for candidate in candidates:
         if candidate.exists():
             return candidate.read_text().strip()
     return "0.0.0-unknown"
