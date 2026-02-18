@@ -5,6 +5,7 @@
  */
 
 import Markdown, { defaultUrlTransform } from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import type { Components } from 'react-markdown'
 import { cn } from '../../lib/utils'
@@ -100,6 +101,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     <div className={cn('markdown', className)}>
       <Markdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={components}
         urlTransform={(url) => url.startsWith('data:') ? url : defaultUrlTransform(url)}
       >
