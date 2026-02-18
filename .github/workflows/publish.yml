@@ -14,6 +14,7 @@ jobs:
   # 1. Tag, create GitHub Release, publish to PyPI
   # =========================================================================
   release:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.bump_version.outputs.new_version }}
@@ -24,12 +25,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-
-      - name: Ignore bot commits
-        if: github.actor == 'github-actions[bot]'
-        run: |
-          echo "Commit made by GitHub Actions — skipping."
-          exit 0
 
       - name: Bump version and push tag
         id: bump_version
