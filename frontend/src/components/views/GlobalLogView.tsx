@@ -70,8 +70,11 @@ export function GlobalLogView() {
       setStats(execStats)
       setRunning(runningExecs)
       setLoading(false)
-    }).catch(() => {
-      if (!cancelled) setLoading(false)
+    }).catch((err) => {
+      if (!cancelled) {
+        setLoading(false)
+        toast.error(err?.message || 'Failed to load execution logs')
+      }
     })
 
     return () => { cancelled = true }

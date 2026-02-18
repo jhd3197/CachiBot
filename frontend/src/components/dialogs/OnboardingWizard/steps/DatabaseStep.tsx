@@ -114,8 +114,8 @@ export function DatabaseStep() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">Choose Your Database</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Choose Your Database</h3>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Select where CachiBot stores its data. You can change this later in settings.
         </p>
       </div>
@@ -129,7 +129,7 @@ export function DatabaseStep() {
             'relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all',
             databaseType === 'sqlite'
               ? 'border-emerald-500 bg-emerald-500/10'
-              : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+              : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-zinc-600'
           )}
         >
           <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
@@ -137,7 +137,7 @@ export function DatabaseStep() {
           </span>
           <div className={cn(
             'flex h-12 w-12 items-center justify-center rounded-xl',
-            databaseType === 'sqlite' ? 'bg-emerald-500/20' : 'bg-zinc-700/50'
+            databaseType === 'sqlite' ? 'bg-emerald-500/20' : 'bg-zinc-200 dark:bg-zinc-700/50'
           )}>
             <HardDrive className={cn(
               'h-6 w-6',
@@ -145,7 +145,7 @@ export function DatabaseStep() {
             )} />
           </div>
           <div>
-            <p className="font-medium text-zinc-100">SQLite</p>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">SQLite</p>
             <p className="mt-0.5 text-xs text-zinc-500">Zero config, file-based</p>
           </div>
         </button>
@@ -157,12 +157,12 @@ export function DatabaseStep() {
             'relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all',
             databaseType === 'postgresql'
               ? 'border-blue-500 bg-blue-500/10'
-              : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+              : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-zinc-600'
           )}
         >
           <div className={cn(
             'flex h-12 w-12 items-center justify-center rounded-xl',
-            databaseType === 'postgresql' ? 'bg-blue-500/20' : 'bg-zinc-700/50'
+            databaseType === 'postgresql' ? 'bg-blue-500/20' : 'bg-zinc-200 dark:bg-zinc-700/50'
           )}>
             <Database className={cn(
               'h-6 w-6',
@@ -170,7 +170,7 @@ export function DatabaseStep() {
             )} />
           </div>
           <div>
-            <p className="font-medium text-zinc-100">PostgreSQL</p>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">PostgreSQL</p>
             <p className="mt-0.5 text-xs text-zinc-500">Scalable, production-ready</p>
           </div>
         </button>
@@ -178,55 +178,55 @@ export function DatabaseStep() {
 
       {/* PostgreSQL connection form */}
       {databaseType === 'postgresql' && (
-        <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-800/30 p-4">
+        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800/30 p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Host</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Host</label>
               <input
                 type="text"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-accent-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Port</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Port</label>
               <input
                 type="text"
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-accent-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Database</label>
+            <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Database</label>
             <input
               type="text"
               value={database}
               onChange={(e) => setDatabase(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-accent-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Username</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-accent-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Password</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-sm text-zinc-900 dark:text-zinc-100 outline-none transition-colors focus:border-accent-500"
               />
             </div>
           </div>
@@ -252,7 +252,7 @@ export function DatabaseStep() {
             <button
               onClick={handleTest}
               disabled={testing || !host}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-800 dark:text-zinc-200 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {testing && <Loader2 className="h-4 w-4 animate-spin" />}
               Test Connection

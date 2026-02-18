@@ -14,7 +14,6 @@ import {
   XCircle,
   Loader2,
   User,
-  Settings,
   Info,
   Reply,
   X,
@@ -60,7 +59,7 @@ interface ChatViewProps {
 export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp }: ChatViewProps) {
   const navigate = useNavigate()
   const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat, replyToMessage, setReplyTo } = useChatStore()
-  const { getActiveBot, activeBotId, bots, addBot, setActiveBot, setActiveView } = useBotStore()
+  const { getActiveBot, activeBotId, bots, addBot, setActiveBot } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
@@ -880,13 +879,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             <p className="text-xs text-zinc-500">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
           </div>
         </div>
-        <button
-          onClick={() => setActiveView('settings')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          title="Bot settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
       </div>
 
       {/* Messages area */}

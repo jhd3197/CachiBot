@@ -18,14 +18,14 @@ export function ModelStep() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">Choose a Default Model</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Choose a Default Model</h3>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           This model will be used for new bots unless you specify a different one.
         </p>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-zinc-300">Default Model</label>
+        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Default Model</label>
         <ModelSelect
           value={defaultModel}
           onChange={handleChange}

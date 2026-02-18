@@ -6,6 +6,7 @@ import { AuthCallback } from './components/auth/AuthCallback'
 import { LoginPage } from './components/auth/LoginPage'
 import { SetupPage } from './components/auth/SetupPage'
 import { ConsentPage } from './components/auth/ConsentPage'
+import { UpgradePage } from './components/auth/UpgradePage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { UsersView } from './components/views/UsersView'
 import { GroupsView } from './components/views/GroupsView'
@@ -32,6 +33,7 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/consent" element={<ConsentPage />} />
+      <Route path="/upgrade" element={<UpgradePage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Protected routes */}

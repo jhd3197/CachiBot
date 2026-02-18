@@ -11,12 +11,14 @@ interface AuthState {
   isLoading: boolean
   setupRequired: boolean | null
   authMode: AuthModeResponse | null
+  legacyDbDetected: boolean | null
 
   // Actions
   setUser: (user: User | null) => void
   setTokens: (accessToken: string, refreshToken: string) => void
   setAccessToken: (accessToken: string) => void
   setSetupRequired: (required: boolean) => void
+  setLegacyDbDetected: (detected: boolean) => void
   setLoading: (loading: boolean) => void
   setAuthMode: (mode: AuthModeResponse) => void
   login: (user: User, accessToken: string, refreshToken: string) => void
@@ -35,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       setupRequired: null,
       authMode: null,
+      legacyDbDetected: null,
 
       // Actions
       setUser: (user) =>
@@ -58,6 +61,9 @@ export const useAuthStore = create<AuthState>()(
           setupRequired: required,
           isLoading: false,
         }),
+
+      setLegacyDbDetected: (detected) =>
+        set({ legacyDbDetected: detected }),
 
       setLoading: (loading) =>
         set({ isLoading: loading }),

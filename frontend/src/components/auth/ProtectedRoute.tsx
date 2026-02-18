@@ -18,8 +18,10 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
     isLoading,
     user,
     setupRequired,
+    legacyDbDetected,
     setUser,
     setSetupRequired,
+    setLegacyDbDetected,
     setLoading,
     logout,
   } = useAuthStore()
@@ -44,8 +46,14 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
       // Check if setup is required first
       if (setupRequired === null) {
         try {
-          const { setup_required } = await withTimeout(checkSetupRequired())
+          const { setup_required, legacy_db_detected } = await withTimeout(checkSetupRequired())
           if (cancelled) return
+          if (legacy_db_detected) {
+            setLegacyDbDetected(true)
+            setLoading(false)
+            setChecked(true)
+            return
+          }
           setSetupRequired(setup_required)
           if (setup_required) {
             setLoading(false)
@@ -80,7 +88,7 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
 
     verifyAuth()
     return () => { cancelled = true }
-  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLoading, logout])
+  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLegacyDbDetected, setLoading, logout])
 
   // Check consent status after auth is verified (with timeout to avoid hanging)
   useEffect(() => {
@@ -113,6 +121,11 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
         )}
       </div>
     )
+  }
+
+  // Redirect to upgrade page if legacy V1 database detected
+  if (legacyDbDetected) {
+    return <Navigate to="/upgrade" state={{ from: location }} replace />
   }
 
   // Redirect to setup if needed, otherwise to login if not authenticated

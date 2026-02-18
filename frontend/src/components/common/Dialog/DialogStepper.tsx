@@ -45,7 +45,7 @@ export function DialogStepper({
                   ? 'w-8 bg-cachi-500'
                   : isCompleted || isPast
                     ? 'w-2 bg-cachi-600'
-                    : 'w-2 bg-zinc-700',
+                    : 'w-2 bg-zinc-300 dark:bg-zinc-700',
                 onStepClick && (isCompleted || isPast || isCurrent)
                   ? 'cursor-pointer hover:opacity-80'
                   : 'cursor-default'
@@ -76,7 +76,7 @@ export function DialogStepper({
                 isCurrent
                   ? 'bg-cachi-600/20 text-cachi-400'
                   : isCompleted || isPast
-                    ? 'text-zinc-400 hover:bg-zinc-800/50'
+                    ? 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/50'
                     : 'text-zinc-600',
                 onStepClick && (isCompleted || isPast || isCurrent)
                   ? 'cursor-pointer'
@@ -90,7 +90,7 @@ export function DialogStepper({
                     ? 'bg-cachi-600 text-white'
                     : isCompleted
                       ? 'bg-cachi-600/30 text-cachi-400'
-                      : 'bg-zinc-800 text-zinc-500'
+                      : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-800'
                 )}
               >
                 {isCompleted ? (
@@ -130,8 +130,8 @@ export function DialogStepper({
                 isCurrent
                   ? 'bg-cachi-600/20 text-cachi-400'
                   : isCompleted || isPast
-                    ? 'text-zinc-400 hover:text-zinc-300'
-                    : 'text-zinc-600',
+                    ? 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                    : 'text-zinc-400 dark:text-zinc-600',
                 onStepClick && (isCompleted || isPast || isCurrent)
                   ? 'cursor-pointer'
                   : 'cursor-default'
@@ -144,7 +144,7 @@ export function DialogStepper({
                     ? 'bg-cachi-600 text-white'
                     : isCompleted
                       ? 'bg-cachi-600/30 text-cachi-400'
-                      : 'bg-zinc-800 text-zinc-500'
+                      : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-800'
                 )}
               >
                 {isCompleted ? (
@@ -159,7 +159,7 @@ export function DialogStepper({
               <div
                 className={cn(
                   'mx-1 h-px w-4',
-                  isPast ? 'bg-cachi-600/50' : 'bg-zinc-700'
+                  isPast ? 'bg-cachi-600/50' : 'bg-zinc-300 dark:bg-zinc-700'
                 )}
               />
             )}

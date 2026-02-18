@@ -42,12 +42,12 @@ export function JobsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="flex h-full flex-col bg-white dark:bg-zinc-950">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-6 py-4">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-100">Jobs</h1>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Jobs</h1>
             <p className="text-sm text-zinc-500">Background tasks and executions</p>
           </div>
 
@@ -69,11 +69,11 @@ export function JobsView() {
               placeholder="Search jobs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
+              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
             />
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-1">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-1">
             {(['all', 'running', 'pending', 'completed', 'failed'] as const).map((status) => (
               <button
                 key={status}
@@ -81,8 +81,8 @@ export function JobsView() {
                 className={cn(
                   'rounded-md px-3 py-1 text-xs font-medium transition-colors',
                   statusFilter === status
-                    ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
                 )}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -95,7 +95,7 @@ export function JobsView() {
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Job list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-800 p-4">
+        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 p-4">
           {jobs.length === 0 ? (
             <div className="py-12 text-center">
               <AlertCircle className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
@@ -156,7 +156,7 @@ function Stat({
     blue: 'bg-blue-500/20 text-blue-400',
     green: 'bg-green-500/20 text-green-400',
     red: 'bg-red-500/20 text-red-400',
-    zinc: 'bg-zinc-700 text-zinc-400',
+    zinc: 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
   }
 
   return (
@@ -202,7 +202,7 @@ function JobCard({
         'w-full rounded-xl border p-4 text-left transition-all',
         selected
           ? 'border-cachi-500 bg-cachi-500/10'
-          : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
+          : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-400 dark:hover:border-zinc-700'
       )}
     >
       <div className="flex items-start gap-3">
@@ -211,14 +211,14 @@ function JobCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-zinc-200">{job.title}</span>
+            <span className="truncate font-medium text-zinc-800 dark:text-zinc-200">{job.title}</span>
             <span
               className={cn(
                 'rounded-full px-2 py-0.5 text-xs font-medium',
                 job.priority === 'urgent' && 'bg-red-500/20 text-red-400',
                 job.priority === 'high' && 'bg-orange-500/20 text-orange-400',
-                job.priority === 'normal' && 'bg-zinc-700 text-zinc-400',
-                job.priority === 'low' && 'bg-zinc-800 text-zinc-500'
+                job.priority === 'normal' && 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
+                job.priority === 'low' && 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'
               )}
             >
               {job.priority}
@@ -235,7 +235,7 @@ function JobCard({
                 <span>Progress</span>
                 <span>{job.progress}%</span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                 <div
                   className="h-full rounded-full bg-blue-500 transition-all duration-300"
                   style={{ width: `${job.progress}%` }}
@@ -276,14 +276,14 @@ function JobDetails({
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-zinc-100">{job.title}</h2>
-          {job.description && <p className="mt-1 text-zinc-400">{job.description}</p>}
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{job.title}</h2>
+          {job.description && <p className="mt-1 text-zinc-500 dark:text-zinc-400">{job.description}</p>}
         </div>
         <div className="flex items-center gap-2">
           {job.status === 'running' && (
             <button
               onClick={onCancel}
-              className="flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+              className="flex items-center gap-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
             >
               <Pause className="h-4 w-4" />
               Cancel
@@ -327,10 +327,10 @@ function JobDetails({
       {job.status === 'running' && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-zinc-400">Progress</span>
-            <span className="font-mono text-zinc-300">{job.progress}%</span>
+            <span className="text-zinc-500 dark:text-zinc-400">Progress</span>
+            <span className="font-mono text-zinc-700 dark:text-zinc-300">{job.progress}%</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
+          <div className="h-3 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cachi-500 transition-all duration-300"
               style={{ width: `${job.progress}%` }}
@@ -365,12 +365,12 @@ function JobDetails({
 
       {/* Logs */}
       {job.logs && job.logs.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
           <button
             onClick={() => setShowLogs(!showLogs)}
             className="flex w-full items-center justify-between px-4 py-3"
           >
-            <span className="font-medium text-zinc-300">Logs ({job.logs.length})</span>
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">Logs ({job.logs.length})</span>
             <ChevronDown
               className={cn(
                 'h-5 w-5 text-zinc-500 transition-transform',
@@ -379,7 +379,7 @@ function JobDetails({
             />
           </button>
           {showLogs && (
-            <div className="border-t border-zinc-800 p-4">
+            <div className="border-t border-zinc-200 dark:border-zinc-800 p-4">
               <div className="max-h-80 space-y-1 overflow-y-auto font-mono text-xs">
                 {job.logs.map((log, i) => (
                   <div key={i} className="flex gap-3">
@@ -397,7 +397,7 @@ function JobDetails({
                     >
                       {log.level}
                     </span>
-                    <span className="text-zinc-300">{log.message}</span>
+                    <span className="text-zinc-700 dark:text-zinc-300">{log.message}</span>
                   </div>
                 ))}
               </div>
@@ -411,9 +411,9 @@ function JobDetails({
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3">
       <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-medium capitalize text-zinc-200">{value}</div>
+      <div className="mt-1 font-medium capitalize text-zinc-800 dark:text-zinc-200">{value}</div>
     </div>
   )
 }

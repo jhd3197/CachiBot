@@ -73,7 +73,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={cn(
-          'w-full rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl animate-in zoom-in-95 duration-150',
+          'w-full rounded-2xl border border-zinc-200 bg-white shadow-2xl animate-in zoom-in-95 duration-150 dark:border-zinc-800 dark:bg-zinc-900',
           sizeClasses[size],
           className
         )}
