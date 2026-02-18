@@ -41,6 +41,11 @@
         "from": "../build/backend/",
         "to": "backend",
         "filter": ["**/*"]
+      },
+      {
+        "from": "../assets/",
+        "to": "assets",
+        "filter": ["icon.ico", "icon.png"]
       }
     ],
     "win": {
