@@ -21,7 +21,7 @@ import {
   Volume2,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
-import { useUIStore, accentColors } from '../../stores/ui'
+import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
@@ -1106,8 +1106,10 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showToolCalls, setShowToolCalls] = useState(false)
-  const { accentColor } = useUIStore()
-  const userColor = accentColors[accentColor].palette[600]
+  const { accentColor, customHex } = useUIStore()
+  const userColor = accentColor === 'custom'
+    ? generatePalette(customHex)[600]
+    : accentColors[accentColor].palette[600]
   const getMessageById = useChatStore((s) => s.getMessageById)
 
   // Resolve reply-to message

@@ -7,7 +7,6 @@ import {
   Monitor,
   Eye as EyeIcon,
   Keyboard,
-  Bell,
   Shield,
   Database,
   Trash2,
@@ -49,7 +48,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
+import { useUIStore, Theme, AccentColor, PresetColor, accentColors, generatePalette } from '../../stores/ui'
 import { useOnboardingStore } from '../../stores/onboarding'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
@@ -74,6 +73,7 @@ import {
   removeMember,
 } from '../../api/groups'
 import { checkHealth, type HealthInfo } from '../../api/client'
+import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
 import { cn } from '../../lib/utils'
@@ -91,6 +91,8 @@ export function AppSettingsView() {
     setTheme,
     accentColor,
     setAccentColor,
+    customHex,
+    setCustomHex,
     showThinking,
     setShowThinking,
     showCost,
@@ -196,6 +198,8 @@ export function AppSettingsView() {
                 setTheme={setTheme}
                 accentColor={accentColor}
                 setAccentColor={setAccentColor}
+                customHex={customHex}
+                setCustomHex={setCustomHex}
                 sidebarCollapsed={sidebarCollapsed}
                 setSidebarCollapsed={setSidebarCollapsed}
               />
@@ -251,22 +255,6 @@ function GeneralSettings({
         </div>
       </Section>
 
-      <Section icon={Bell} title="Notifications">
-        <div className="space-y-4">
-          <ToggleField
-            label="Desktop Notifications"
-            description="Get notified when tasks complete"
-            checked={false}
-            onChange={() => {}}
-          />
-          <ToggleField
-            label="Sound Effects"
-            description="Play sounds for important events"
-            checked={false}
-            onChange={() => {}}
-          />
-        </div>
-      </Section>
 
       <Section icon={FolderOpen} title="Workspace">
         <div className="space-y-4">
@@ -365,6 +353,191 @@ function SetupWizardButton() {
 }
 
 function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const isElectron = window.electronAPI?.isDesktop || healthInfo?.desktop
+  if (isElectron) return <ElectronUpdatesSection healthInfo={healthInfo} />
+  return <PipUpdatesSection healthInfo={healthInfo} />
+}
+
+function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const [checking, setChecking] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
+  const [downloaded, setDownloaded] = useState(false)
+
+  const currentVersion = healthInfo?.version || '...'
+
+  // Listen for startup / periodic auto-check push from main process
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api) return
+    const cleanup = api.onUpdateAvailable((info) => {
+      setUpdateInfo(info)
+    })
+    return cleanup
+  }, [])
+
+  // Listen for download progress
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api) return
+    const cleanup = api.onUpdateProgress((progress) => {
+      setDownloadProgress(progress)
+      if (progress.percent >= 100) {
+        setDownloading(false)
+        setDownloaded(true)
+      }
+    })
+    return cleanup
+  }, [])
+
+  const handleCheck = async () => {
+    const api = window.electronAPI
+    if (!api) return
+    setChecking(true)
+    try {
+      const result = await api.checkForUpdate()
+      setUpdateInfo(result)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    const api = window.electronAPI
+    if (!api) return
+    setDownloading(true)
+    setDownloadProgress(null)
+    const result = await api.downloadUpdate()
+    if (!result.success) {
+      setDownloading(false)
+      toast.error('Failed to download update')
+    }
+  }
+
+  const handleInstall = () => {
+    window.electronAPI?.installUpdate()
+  }
+
+  // Normalize release notes — electron-updater may return a string or an array
+  const releaseNotes = (() => {
+    const notes = updateInfo?.releaseNotes
+    if (!notes) return null
+    if (typeof notes === 'string') return notes
+    if (Array.isArray(notes)) {
+      return notes.map((n: { version?: string; note?: string }) => n.note || '').join('\n\n')
+    }
+    return null
+  })()
+
+  const buildBadge = healthInfo?.build ? (
+    <span
+      className={cn(
+        'build-badge',
+        healthInfo.build === 'release'
+          ? 'build-badge--release'
+          : healthInfo.build === 'dev'
+            ? 'build-badge--dev'
+            : 'build-badge--other'
+      )}
+    >
+      {healthInfo.build}
+    </span>
+  ) : null
+
+  return (
+    <Section icon={Download} title="Updates">
+      <div className="space-y-4">
+        <div className="settings-info-row">
+          <span className="settings-info-row__label">Current Version</span>
+          <span className="settings-info-row__value">
+            {currentVersion}
+            {buildBadge}
+          </span>
+        </div>
+
+        {updateInfo?.available && (
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Available Version</span>
+            <span className="font-mono text-accent-500">{updateInfo.version}</span>
+          </div>
+        )}
+
+        {updateInfo && !updateInfo.available && (
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Status</span>
+            <span className="text-green-400">Up to date</span>
+          </div>
+        )}
+
+        {updateInfo?.available && releaseNotes && (
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
+              Release notes
+            </summary>
+            <div className="mt-2 rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-app)] p-4">
+              <MarkdownRenderer content={releaseNotes} />
+            </div>
+          </details>
+        )}
+
+        {downloading && downloadProgress && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm text-[var(--color-text-secondary)]">
+              <span>Downloading...</span>
+              <span>{Math.round(downloadProgress.percent)}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+              <div
+                className="h-full rounded-full bg-accent-500 transition-all"
+                style={{ width: `${downloadProgress.percent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          {!downloaded && !downloading && (
+            <>
+              <button
+                onClick={handleCheck}
+                disabled={checking}
+                className="settings-btn-secondary flex items-center gap-2"
+              >
+                {checking ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Check for Updates
+              </button>
+              {updateInfo?.available && (
+                <button
+                  onClick={handleDownload}
+                  className="settings-btn-accent flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Update
+                </button>
+              )}
+            </>
+          )}
+          {downloaded && (
+            <button
+              onClick={handleInstall}
+              className="settings-btn-accent flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Restart &amp; Install
+            </button>
+          )}
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+function PipUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const {
     checkResult,
     isChecking,
@@ -498,6 +671,8 @@ function AppearanceSettings({
   setTheme,
   accentColor,
   setAccentColor,
+  customHex,
+  setCustomHex,
   sidebarCollapsed,
   setSidebarCollapsed,
 }: {
@@ -505,6 +680,8 @@ function AppearanceSettings({
   setTheme: (theme: Theme) => void
   accentColor: AccentColor
   setAccentColor: (color: AccentColor) => void
+  customHex: string
+  setCustomHex: (hex: string) => void
   sidebarCollapsed: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
 }) {
@@ -514,7 +691,8 @@ function AppearanceSettings({
     { value: 'system', label: 'System', icon: Monitor },
   ]
 
-  const colorOptions = Object.entries(accentColors) as [AccentColor, typeof accentColors[AccentColor]][]
+  const colorOptions = Object.entries(accentColors) as [PresetColor, typeof accentColors[PresetColor]][]
+  const customPalette = generatePalette(customHex)
 
   return (
     <>
@@ -539,25 +717,41 @@ function AppearanceSettings({
           </Field>
 
           <Field label="Accent Color">
-            <div className="grid grid-cols-4 gap-2">
-              {colorOptions.map(([value, { name, palette }]) => (
+            <div className="settings-color-grid">
+              {colorOptions.map(([value, { palette }]) => (
                 <button
                   key={value}
                   onClick={() => setAccentColor(value)}
-                  className="settings-color-btn"
+                  className={cn(
+                    'settings-color-circle',
+                    accentColor === value && 'settings-color-circle--active'
+                  )}
                   style={{
-                    borderColor: accentColor === value ? palette[500] : undefined,
-                    borderWidth: accentColor === value ? 2 : undefined,
-                    boxShadow: accentColor === value ? `0 0 0 1px ${palette[500]}` : undefined,
+                    backgroundColor: palette[500],
+                    boxShadow: accentColor === value ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${palette[500]}` : undefined,
                   }}
-                >
-                  <div
-                    className="settings-color-btn__swatch"
-                    style={{ backgroundColor: palette[500] }}
-                  />
-                  <span className="settings-color-btn__name">{name}</span>
-                </button>
+                  title={value.charAt(0).toUpperCase() + value.slice(1)}
+                />
               ))}
+              <label
+                className={cn(
+                  'settings-color-circle settings-color-circle--custom',
+                  accentColor === 'custom' && 'settings-color-circle--active'
+                )}
+                style={{
+                  backgroundColor: customPalette[500],
+                  boxShadow: accentColor === 'custom' ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${customPalette[500]}` : undefined,
+                }}
+                title="Custom"
+              >
+                <Plus className="settings-color-circle__icon" />
+                <input
+                  type="color"
+                  value={customHex}
+                  onChange={(e) => setCustomHex(e.target.value)}
+                  className="settings-color-circle__input"
+                />
+              </label>
             </div>
           </Field>
         </div>
@@ -1448,7 +1642,31 @@ function DataSettings() {
                 Remove cached responses and temporary data
               </p>
             </div>
-            <button className="settings-btn-secondary flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  if (window.electronAPI?.clearCache) {
+                    const result = await window.electronAPI.clearCache()
+                    if (result.success) {
+                      toast.success('Cache cleared')
+                    } else {
+                      toast.error(result.error || 'Failed to clear cache')
+                    }
+                  } else {
+                    // Browser mode: clear marketplace cache from localStorage
+                    const keys = Object.keys(localStorage).filter(k =>
+                      k.startsWith('cachibot_marketplace_cache_')
+                    )
+                    keys.forEach(k => localStorage.removeItem(k))
+                    toast.success(`Cleared ${keys.length} cached entries`)
+                    window.location.reload()
+                  }
+                } catch {
+                  toast.error('Failed to clear cache')
+                }
+              }}
+              className="settings-btn-secondary flex items-center gap-2"
+            >
               <RefreshCw className="h-4 w-4" />
               Clear
             </button>

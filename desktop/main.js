@@ -1,5 +1,6 @@
-const { app, BrowserWindow, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const net = require('net');
 
@@ -234,6 +235,21 @@ function createSplashWindow() {
 }
 
 // ---------------------------------------------------------------------------
+// Version tracking — clear Chromium cache on version change
+// ---------------------------------------------------------------------------
+
+const VERSION_FILE = path.join(app.getPath('userData'), '.cachibot-version');
+
+function checkVersionChange() {
+  const current = app.getVersion();
+  let previous = null;
+  try { previous = fs.readFileSync(VERSION_FILE, 'utf8').trim(); } catch {}
+  const changed = previous !== null && previous !== current;
+  try { fs.writeFileSync(VERSION_FILE, current, 'utf8'); } catch {}
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
 // Auto-updater
 // ---------------------------------------------------------------------------
 
@@ -244,32 +260,43 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-available', (info) => {
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `CachiBot v${info.version} is available. Download now?`,
-        buttons: ['Download', 'Later'],
-      })
-      .then(({ response }) => {
-        if (response === 0) autoUpdater.downloadUpdate();
+    console.log('[updater] Update available:', info.version);
+    if (mainWindow) {
+      mainWindow.webContents.send('update:available', {
+        available: true,
+        version: info.version,
+        releaseNotes: info.releaseNotes || null,
       });
+    }
   });
 
-  autoUpdater.on('update-downloaded', () => {
-    dialog
-      .showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Ready',
-        message: 'Update downloaded. CachiBot will restart to install it.',
-        buttons: ['Restart Now', 'Later'],
-      })
-      .then(({ response }) => {
-        if (response === 0) autoUpdater.quitAndInstall();
-      });
+  autoUpdater.on('update-not-available', () => {
+    console.log('[updater] No update available');
   });
 
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[updater] Update downloaded:', info.version);
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log('[updater] Download progress:', Math.round(progress.percent) + '%');
+    if (mainWindow) {
+      mainWindow.webContents.send('update:download-progress', progress);
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater] Error:', err.message);
+  });
+
+  // Initial check on startup
   autoUpdater.checkForUpdates().catch(() => {});
+
+  // Periodic check every 6 hours
+  setInterval(() => {
+    console.log('[updater] Periodic update check');
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 6 * 60 * 60 * 1000);
 }
 
 // ---------------------------------------------------------------------------
@@ -288,10 +315,67 @@ ipcMain.on('window:close', () => mainWindow?.close());
 ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
 
 // ---------------------------------------------------------------------------
+// Update & cache IPC handlers
+// ---------------------------------------------------------------------------
+
+ipcMain.handle('update:check', async () => {
+  if (!autoUpdater) return { available: false };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (result && result.updateInfo) {
+      const info = result.updateInfo;
+      return { available: true, version: info.version, releaseNotes: info.releaseNotes || null };
+    }
+    return { available: false };
+  } catch {
+    return { available: false };
+  }
+});
+
+ipcMain.handle('update:download', async () => {
+  if (!autoUpdater) return { success: false };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+});
+
+ipcMain.on('update:install', () => {
+  if (!autoUpdater) return;
+  // Gracefully stop the backend before quitting to avoid SQLite corruption
+  stopBackend();
+  // Give the backend a moment to flush and close
+  setTimeout(() => autoUpdater.quitAndInstall(), 1000);
+});
+
+ipcMain.handle('cache:clear', async () => {
+  try {
+    await session.defaultSession.clearCache();
+    await session.defaultSession.clearStorageData({
+      storages: ['cachestorage', 'serviceworkers'],
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// ---------------------------------------------------------------------------
 // App lifecycle
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
+  // Clear Chromium cache when app version changes (e.g. after reinstall)
+  if (checkVersionChange()) {
+    console.log('[electron] Version changed, clearing Chromium cache');
+    await session.defaultSession.clearCache();
+    await session.defaultSession.clearStorageData({
+      storages: ['cachestorage', 'serviceworkers'],
+    });
+  }
+
   const splash = createSplashWindow();
 
   // When launched from dev script, backend is already running externally

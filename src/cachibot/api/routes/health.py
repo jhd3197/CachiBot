@@ -1,5 +1,6 @@
 """Health check endpoint."""
 
+import os
 import platform
 import sys
 
@@ -28,6 +29,7 @@ class HealthResponse(BaseModel):
     build: str = _detect_build()
     python: str = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     platform: str = platform.system().lower()
+    desktop: bool = os.environ.get("CACHIBOT_DESKTOP", "").lower() == "true"
 
 
 @router.get("/health", response_model=HealthResponse)
