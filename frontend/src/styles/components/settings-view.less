@@ -358,30 +358,8 @@
   }
 }
 
-// -----------------------------------------------------------------------------
-// Color Picker
-// -----------------------------------------------------------------------------
-
-.settings-color-btn {
-  height: @height-sm;
-  width: @height-sm;
-  border-radius: @radius-lg;
-  .transition-all();
-  cursor: pointer;
-
-  &--active {
-    border: 2px solid white;
-    transform: scale(1.1);
-  }
-
-  &--inactive {
-    border: 2px solid transparent;
-
-    &:hover {
-      transform: scale(1.05);
-    }
-  }
-}
+// Color Picker — uses shared .settings-color-grid / .settings-color-circle
+// defined in app-settings.less
 
 // -----------------------------------------------------------------------------
 // Skills Section

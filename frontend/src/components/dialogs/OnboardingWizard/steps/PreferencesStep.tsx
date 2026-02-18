@@ -1,5 +1,5 @@
-import { Sun, Moon, Monitor } from 'lucide-react'
-import { useUIStore, type Theme, type AccentColor, accentColors } from '../../../../stores/ui'
+import { Sun, Moon, Monitor, Plus } from 'lucide-react'
+import { useUIStore, type Theme, type PresetColor, accentColors, generatePalette } from '../../../../stores/ui'
 import { cn } from '../../../../lib/utils'
 
 const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
@@ -8,11 +8,12 @@ const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
 ]
 
-const colorOptions = Object.entries(accentColors) as [AccentColor, (typeof accentColors)[AccentColor]][]
+const colorOptions = Object.entries(accentColors) as [PresetColor, (typeof accentColors)[PresetColor]][]
 
 export function PreferencesStep() {
-  const { theme, setTheme, accentColor, setAccentColor, showThinking, setShowThinking, showCost, setShowCost } =
+  const { theme, setTheme, accentColor, setAccentColor, customHex, setCustomHex, showThinking, setShowThinking, showCost, setShowCost } =
     useUIStore()
+  const customPalette = generatePalette(customHex)
 
   return (
     <div className="space-y-6">
@@ -48,27 +49,41 @@ export function PreferencesStep() {
       {/* Accent Color */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Accent Color</label>
-        <div className="grid grid-cols-4 gap-2">
-          {colorOptions.map(([value, { name, palette }]) => (
+        <div className="settings-color-grid">
+          {colorOptions.map(([value, { palette }]) => (
             <button
               key={value}
               onClick={() => setAccentColor(value)}
               className={cn(
-                'flex items-center gap-2 rounded-lg border p-3 transition-all',
-                accentColor === value
-                  ? 'border-2 ring-1 ring-offset-1 ring-offset-white dark:ring-offset-zinc-900'
-                  : 'border-zinc-300 hover:border-zinc-400 dark:border-[var(--color-border-secondary)] dark:hover:border-[var(--color-border-secondary)]'
+                'settings-color-circle',
+                accentColor === value && 'settings-color-circle--active'
               )}
               style={{
-                borderColor: accentColor === value ? palette[500] : undefined,
-                // @ts-expect-error - Tailwind CSS variable
-                '--tw-ring-color': accentColor === value ? palette[500] : undefined,
+                backgroundColor: palette[500],
+                boxShadow: accentColor === value ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${palette[500]}` : undefined,
               }}
-            >
-              <div className="h-5 w-5 rounded-full" style={{ backgroundColor: palette[500] }} />
-              <span className="text-sm text-zinc-700 dark:text-[var(--color-text-primary)]">{name}</span>
-            </button>
+              title={value.charAt(0).toUpperCase() + value.slice(1)}
+            />
           ))}
+          <label
+            className={cn(
+              'settings-color-circle settings-color-circle--custom',
+              accentColor === 'custom' && 'settings-color-circle--active'
+            )}
+            style={{
+              backgroundColor: customPalette[500],
+              boxShadow: accentColor === 'custom' ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${customPalette[500]}` : undefined,
+            }}
+            title="Custom"
+          >
+            <Plus className="settings-color-circle__icon" />
+            <input
+              type="color"
+              value={customHex}
+              onChange={(e) => setCustomHex(e.target.value)}
+              className="settings-color-circle__input"
+            />
+          </label>
         </div>
       </div>
 

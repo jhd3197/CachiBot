@@ -185,9 +185,9 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
-        <span className="ml-2 text-sm text-[var(--color-text-secondary)]">Loading environment...</span>
+      <div className="bot-env-loading">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span>Loading environment...</span>
       </div>
     )
   }
@@ -195,19 +195,15 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
   return (
     <div className="space-y-6">
       {/* Error banner */}
-      {error && (
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <div className="bot-env-error">{error}</div>}
 
       {/* Info banner */}
-      <div className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-4">
-        <div className="flex items-start gap-3">
-          <Shield className="mt-0.5 h-5 w-5 flex-shrink-0 text-cachi-500" />
+      <div className="bot-env-info">
+        <div className="bot-env-info__body">
+          <Shield className="h-5 w-5 bot-env-info__icon" />
           <div>
-            <p className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Per-Bot Environment</p>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            <p className="bot-env-info__title">Per-Bot Environment</p>
+            <p className="bot-env-info__text">
               Override API keys and settings for this bot. Custom keys take priority over
               global settings. Keys are encrypted at rest and never returned in plain text.
             </p>
@@ -219,14 +215,14 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       <div>
         <button
           onClick={() => setProviderKeysOpen(!providerKeysOpen)}
-          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]"
+          className="bot-env-section-toggle"
         >
           {providerKeysOpen ? (
-            <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <ChevronDown className="bot-env-section-toggle__chevron" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <ChevronRight className="bot-env-section-toggle__chevron" />
           )}
-          <Key className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+          <Key className="bot-env-section-toggle__icon" />
           Provider Keys
         </button>
 
@@ -238,89 +234,67 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
               const hasBotOverride = botVars.some((v) => v.key === provider.key)
 
               return (
-                <div
-                  key={provider.key}
-                  className="rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] p-3"
-                >
+                <div key={provider.key} className="bot-env-card">
                   {isEditing ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
-                          {provider.label}
-                        </span>
-                        <span className="text-xs text-[var(--color-text-tertiary)]">{provider.key}</span>
+                        <span className="bot-env-card__label">{provider.label}</span>
+                        <span className="bot-env-card__env-key">{provider.key}</span>
                       </div>
-                      <div className="relative">
+                      <div className="bot-env-edit__input-wrap">
                         <input
                           type={showValue ? 'text' : 'password'}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           placeholder={`Enter ${provider.type === 'endpoint' ? 'endpoint URL' : 'API key'}...`}
-                          className="w-full rounded border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 pr-10 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
+                          className="bot-env-edit__input"
                           autoFocus
                         />
                         <button
                           onClick={() => setShowValue(!showValue)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
+                          className="bot-env-edit__toggle-vis"
                         >
-                          {showValue ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
+                          {showValue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="bot-env-edit__actions">
                         <button
                           onClick={() => handleSetKey(provider.key, editValue)}
                           disabled={!editValue.trim() || saving}
-                          className="flex items-center gap-1 rounded bg-cachi-600 px-2 py-1 text-xs text-white hover:bg-cachi-500 disabled:opacity-50"
+                          className="bot-env-edit__save-btn"
                         >
-                          {saving ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Check className="h-3 w-3" />
-                          )}
+                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                           Save
                         </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-2 py-1 text-xs text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-300 dark:hover:bg-[var(--color-active-bg)]"
-                        >
+                        <button onClick={cancelEdit} className="bot-env-edit__cancel-btn">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
-                              {provider.label}
-                            </span>
-                            <SourceBadge source={status.source} />
-                          </div>
-                          <div className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
-                            {status.configured
-                              ? status.maskedValue || 'Configured'
-                              : 'Not set'}
-                          </div>
+                    <div className="bot-env-card__row">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="bot-env-card__label">{provider.label}</span>
+                          <SourceBadge source={status.source} />
+                        </div>
+                        <div className="bot-env-card__masked">
+                          {status.configured ? status.maskedValue || 'Configured' : 'Not set'}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="bot-env-card__actions">
                         {hasBotOverride ? (
                           <>
                             <button
                               onClick={() => startEdit(provider.key)}
-                              className="rounded p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
+                              className="bot-env-icon-btn"
                               title="Edit override"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteKey(provider.key)}
-                              className="rounded p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
+                              className="bot-env-icon-btn bot-env-icon-btn--danger"
                               title="Remove override (fall back to inherited)"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -329,7 +303,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                         ) : (
                           <button
                             onClick={() => startEdit(provider.key)}
-                            className="rounded px-2 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+                            className="bot-env-override-btn"
                           >
                             Override
                           </button>
@@ -348,18 +322,16 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       <div>
         <button
           onClick={() => setCustomKeysOpen(!customKeysOpen)}
-          className="flex w-full items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]"
+          className="bot-env-section-toggle"
         >
           {customKeysOpen ? (
-            <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <ChevronDown className="bot-env-section-toggle__chevron" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <ChevronRight className="bot-env-section-toggle__chevron" />
           )}
           Custom Variables
           {customBotVars.length > 0 && (
-            <span className="rounded-full bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-              {customBotVars.length}
-            </span>
+            <span className="bot-env-section-toggle__count">{customBotVars.length}</span>
           )}
         </button>
 
@@ -369,63 +341,60 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
               const isEditing = editingKey === v.key
 
               return (
-                <div
-                  key={v.key}
-                  className="rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] p-3"
-                >
+                <div key={v.key} className="bot-env-card">
                   {isEditing ? (
                     <div className="space-y-2">
-                      <span className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{v.key}</span>
-                      <div className="relative">
+                      <span className="bot-env-card__label">{v.key}</span>
+                      <div className="bot-env-edit__input-wrap">
                         <input
                           type={showValue ? 'text' : 'password'}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           placeholder="Enter new value..."
-                          className="w-full rounded border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 pr-10 text-sm text-zinc-900 dark:text-[var(--color-text-primary)]"
+                          className="bot-env-edit__input"
                           autoFocus
                         />
                         <button
                           onClick={() => setShowValue(!showValue)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
+                          className="bot-env-edit__toggle-vis"
                         >
                           {showValue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="bot-env-edit__actions">
                         <button
                           onClick={() => handleSetKey(v.key, editValue)}
                           disabled={!editValue.trim() || saving}
-                          className="flex items-center gap-1 rounded bg-cachi-600 px-2 py-1 text-xs text-white hover:bg-cachi-500 disabled:opacity-50"
+                          className="bot-env-edit__save-btn"
                         >
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                           Save
                         </button>
-                        <button onClick={cancelEdit} className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-2 py-1 text-xs text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-300 dark:hover:bg-[var(--color-active-bg)]">
+                        <button onClick={cancelEdit} className="bot-env-edit__cancel-btn">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between">
+                    <div className="bot-env-card__row">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{v.key}</span>
+                          <span className="bot-env-card__label">{v.key}</span>
                           <SourceBadge source="bot" />
                         </div>
-                        <div className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{v.masked_value}</div>
+                        <div className="bot-env-card__masked">{v.masked_value}</div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="bot-env-card__actions">
                         <button
                           onClick={() => startEdit(v.key)}
-                          className="rounded p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
+                          className="bot-env-icon-btn"
                           title="Edit"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteKey(v.key)}
-                          className="rounded p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
+                          className="bot-env-icon-btn bot-env-icon-btn--danger"
                           title="Delete"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -439,13 +408,13 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 
             {/* Add custom key form */}
             {addingCustom ? (
-              <div className="space-y-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-3">
+              <div className="bot-env-add-form space-y-2">
                 <input
                   type="text"
                   value={customKeyName}
                   onChange={(e) => setCustomKeyName(e.target.value.toUpperCase())}
                   placeholder="VARIABLE_NAME"
-                  className="w-full rounded border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] font-mono placeholder:text-[var(--color-text-tertiary)]"
+                  className="bot-env-add-form__input--mono"
                   autoFocus
                 />
                 <input
@@ -453,30 +422,27 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                   value={customKeyValue}
                   onChange={(e) => setCustomKeyValue(e.target.value)}
                   placeholder="Value..."
-                  className="w-full rounded border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
+                  className="bot-env-add-form__input"
                 />
-                <div className="flex gap-2">
+                <div className="bot-env-edit__actions">
                   <button
                     onClick={handleAddCustomKey}
                     disabled={!customKeyName.trim() || !customKeyValue.trim() || saving}
-                    className="flex items-center gap-1 rounded bg-cachi-600 px-3 py-1 text-xs text-white hover:bg-cachi-500 disabled:opacity-50"
+                    className="bot-env-edit__save-btn"
                   >
                     {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                     Add
                   </button>
                   <button
                     onClick={() => { setAddingCustom(false); setCustomKeyName(''); setCustomKeyValue('') }}
-                    className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-3 py-1 text-xs text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-300 dark:hover:bg-[var(--color-active-bg)]"
+                    className="bot-env-edit__cancel-btn"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setAddingCustom(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-2.5 text-sm text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-secondary)]"
-              >
+              <button onClick={() => setAddingCustom(true)} className="bot-env-add-btn">
                 <Plus className="h-4 w-4" />
                 Add Custom Variable
               </button>
@@ -487,27 +453,27 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 
       {/* Danger Zone */}
       {(botVars.length > 0) && (
-        <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-          <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
-            <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+        <div className="bot-env-danger">
+          <div className="bot-env-danger__panel">
+            <h3 className="bot-env-danger__title">Danger Zone</h3>
+            <p className="bot-env-danger__text">
               Remove all custom environment overrides for this bot. The bot will revert
               to using inherited global and platform-level settings.
             </p>
             {showResetConfirm ? (
               <div className="mt-3 flex items-center gap-2">
-                <span className="text-xs text-red-400">Are you sure?</span>
+                <span className="bot-env-danger__confirm-text">Are you sure?</span>
                 <button
                   onClick={handleResetAll}
                   disabled={resetting}
-                  className="flex items-center gap-1 rounded bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-500 disabled:opacity-50"
+                  className="bot-env-danger__confirm-btn"
                 >
                   {resetting ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                   Confirm Reset
                 </button>
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="rounded px-3 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+                  className="bot-env-danger__cancel-btn"
                 >
                   Cancel
                 </button>
@@ -515,7 +481,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
             ) : (
               <button
                 onClick={() => setShowResetConfirm(true)}
-                className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/50 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
+                className="bot-env-danger__reset-btn mt-3"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset All to Defaults
@@ -533,36 +499,23 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
 // ---------------------------------------------------------------------------
 
 function SourceBadge({ source }: { source: string }) {
-  switch (source) {
-    case 'bot':
-      return (
-        <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] font-medium text-green-400">
-          Custom
-        </span>
-      )
-    case 'platform':
-      return (
-        <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-400">
-          Platform
-        </span>
-      )
-    case 'global':
-      return (
-        <span className="rounded-full bg-zinc-200 dark:bg-zinc-600/30 px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-          Global
-        </span>
-      )
-    case 'none':
-      return (
-        <span className="rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
-          Not Set
-        </span>
-      )
-    default:
-      return (
-        <span className="rounded-full bg-zinc-200 dark:bg-[var(--color-bg-inset)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-secondary)]">
-          {source}
-        </span>
-      )
+  const classMap: Record<string, string> = {
+    bot: 'bot-env-badge--bot',
+    platform: 'bot-env-badge--platform',
+    global: 'bot-env-badge--global',
+    none: 'bot-env-badge--none',
   }
+
+  const labelMap: Record<string, string> = {
+    bot: 'Custom',
+    platform: 'Platform',
+    global: 'Global',
+    none: 'Not Set',
+  }
+
+  return (
+    <span className={`bot-env-badge ${classMap[source] || 'bot-env-badge--default'}`}>
+      {labelMap[source] || source}
+    </span>
+  )
 }

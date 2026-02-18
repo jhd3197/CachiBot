@@ -39,31 +39,39 @@
 // -----------------------------------------------------------------------------
 
 .dashboard-time-range {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: @sp-1;
   border-radius: @radius-lg;
-  background: var(--color-active-bg);
-  padding: @sp-1;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+  padding: 3px;
+  gap: 2px;
 
   &__btn {
     border-radius: @radius-md;
     padding: @sp-1\.5 @sp-3;
-    font-size: @text-sm;
+    font-size: @text-xs;
     font-weight: @font-medium;
     background: none;
     border: none;
     cursor: pointer;
-    .transition-colors();
-    color: var(--color-text-secondary);
+    .transition-all();
+    color: var(--color-text-tertiary);
 
     &:hover {
       color: var(--color-text-primary);
+      background: var(--color-hover-bg);
     }
 
     &--active {
       background: var(--accent-600);
       color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+
+      &:hover {
+        background: var(--accent-500);
+        color: white;
+      }
     }
   }
 }

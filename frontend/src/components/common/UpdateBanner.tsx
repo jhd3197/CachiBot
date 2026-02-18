@@ -4,6 +4,9 @@ import { useUpdateStore } from '../../stores/update'
 export function UpdateBanner() {
   const { showBanner, checkResult, dismissBanner, openDialog } = useUpdateStore()
 
+  // In Electron, updates are handled via the native updater in Settings
+  if (window.electronAPI?.isDesktop) return null
+
   if (!showBanner || !checkResult) return null
 
   const latestVersion = checkResult.latest_stable || checkResult.latest_prerelease
