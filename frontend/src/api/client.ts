@@ -70,6 +70,7 @@ export interface HealthInfo {
   build: string
   python: string
   platform: string
+  desktop: boolean
 }
 
 export async function checkHealth(): Promise<HealthInfo> {

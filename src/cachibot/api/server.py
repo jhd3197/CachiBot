@@ -254,15 +254,24 @@ def create_app(
         @app.get("/")
         async def serve_spa():
             """Serve the frontend SPA."""
-            return FileResponse(FRONTEND_DIST / "index.html")
+            return FileResponse(
+                FRONTEND_DIST / "index.html",
+                headers={"Cache-Control": "no-cache, must-revalidate"},
+            )
 
         @app.get("/{path:path}")
         async def serve_spa_routes(path: str):
             """Serve static files or fallback to index.html for SPA routing."""
             file_path = FRONTEND_DIST / path
             if file_path.exists() and file_path.is_file():
-                return FileResponse(file_path)
-            return FileResponse(FRONTEND_DIST / "index.html")
+                headers = {}
+                if path.startswith("assets/"):
+                    headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                return FileResponse(file_path, headers=headers)
+            return FileResponse(
+                FRONTEND_DIST / "index.html",
+                headers={"Cache-Control": "no-cache, must-revalidate"},
+            )
     else:
 
         @app.get("/")
