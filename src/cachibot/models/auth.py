@@ -10,6 +10,7 @@ class UserRole(str, Enum):
     """User role in the system."""
 
     ADMIN = "admin"
+    MANAGER = "manager"
     USER = "user"
 
 

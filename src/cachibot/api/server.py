@@ -26,18 +26,22 @@ from cachibot.api.routes import (
     connections,
     contacts,
     creation,
+    custom_instructions,
     documents,
     executions,
+    groups,
     health,
     instructions,
     knowledge,
     marketplace,
     models,
+    platform_tools,
     platforms,
     plugins,
     providers,
     rooms,
     scripts,
+    setup,
     skills,
     telemetry,
     update,
@@ -208,6 +212,7 @@ def create_app(
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
     app.include_router(bots.router, tags=["bots"])
+    app.include_router(groups.router, tags=["groups"])
     app.include_router(chats.router, tags=["chats"])
     app.include_router(contacts.router, tags=["contacts"])
     app.include_router(connections.router, tags=["connections"])
@@ -216,15 +221,18 @@ def create_app(
     app.include_router(bot_env.skill_config_router, tags=["skill-config"])
     app.include_router(documents.router, tags=["documents"])
     app.include_router(instructions.router, tags=["instructions"])
+    app.include_router(custom_instructions.router, tags=["custom-instructions"])
     app.include_router(knowledge.router, tags=["knowledge"])
     app.include_router(marketplace.router, tags=["marketplace"])
     app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
+    app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])
     app.include_router(admin_executions.router, tags=["admin-executions"])
+    app.include_router(setup.router, prefix="/api", tags=["setup"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
     app.include_router(rooms.router, tags=["rooms"])
     app.include_router(ws_router, tags=["websocket"])

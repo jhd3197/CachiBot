@@ -33,6 +33,7 @@ import { generateBotNames } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
+import { useBotAccess } from '../../hooks/useBotAccess'
 import type { ChatMessage, ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
 
 // =============================================================================
@@ -64,6 +65,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const creationFlow = useCreationFlowStore()
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
   const { isCommand, handleCommand } = useCommands()
+  const { canOperate } = useBotAccess(activeBotId)
 
   // Use prop values if provided, otherwise fall back to WebSocket hook values
   const isConnected = isConnectedProp ?? wsIsConnected
@@ -815,7 +817,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
-                disabled={!isConnected || isLoading}
+                disabled={!isConnected || isLoading || !canOperate}
                 rows={1}
                 className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
               />
@@ -824,12 +826,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                   type="button"
                   className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                   title="Attach file"
+                  disabled={!canOperate}
                 >
                   <Paperclip className="h-4 w-4" />
                 </button>
                 <button
                   type="submit"
-                  disabled={!input.trim() || !isConnected}
+                  disabled={!input.trim() || !isConnected || !canOperate}
                   className="flex h-8 w-8 items-center justify-center rounded-lg bg-cachi-600 text-white transition-colors hover:bg-cachi-500 disabled:cursor-not-allowed disabled:opacity-50"
                   title="Send message"
                 >
@@ -1000,11 +1003,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                creationFlow.step === 'name'
-                  ? 'Type a number (1-4), your own name, or "more"...'
-                  : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
+                !canOperate
+                  ? 'View-only access'
+                  : creationFlow.step === 'name'
+                    ? 'Type a number (1-4), your own name, or "more"...'
+                    : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
               }
-              disabled={!isConnected || isLoading || creationFlow.isLoadingNames}
+              disabled={!isConnected || isLoading || creationFlow.isLoadingNames || !canOperate}
               rows={1}
               className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
             />
@@ -1015,6 +1020,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 type="button"
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                 title="Attach file"
+                disabled={!canOperate}
               >
                 <Paperclip className="h-4 w-4" />
               </button>
@@ -1031,7 +1037,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               ) : (
                 <button
                   type="submit"
-                  disabled={!input.trim() || !isConnected}
+                  disabled={!input.trim() || !isConnected || !canOperate}
                   className="flex h-8 w-8 items-center justify-center rounded-lg bg-cachi-600 text-white transition-colors hover:bg-cachi-500 disabled:cursor-not-allowed disabled:opacity-50"
                   title="Send message"
                 >

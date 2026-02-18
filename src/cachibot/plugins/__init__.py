@@ -2,13 +2,19 @@
 CachiBot Plugin System
 
 All available plugins and their capability mappings.
-Includes both CachiBot custom plugins and Tukuy's built-in plugins.
+Includes both CachiBot custom plugins, Tukuy's built-in plugins,
+and Tukuy instruction packs.
 """
 
 from tukuy.plugins.base import TransformerPlugin
 from tukuy.plugins.compression import CompressionPlugin
 from tukuy.plugins.git import GitPlugin
 from tukuy.plugins.http import HttpPlugin
+from tukuy.plugins.instructions import (
+    AnalysisInstructionPack,
+    DeveloperInstructionPack,
+    WritingInstructionPack,
+)
 from tukuy.plugins.shell import ShellPlugin
 from tukuy.plugins.sql import SqlPlugin
 from tukuy.plugins.web import WebPlugin
@@ -17,6 +23,7 @@ from cachibot.plugins.audio_generation import AudioGenerationPlugin
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 from cachibot.plugins.file_ops import FileOpsPlugin
 from cachibot.plugins.image_generation import ImageGenerationPlugin
+from cachibot.plugins.instruction_management import InstructionManagementPlugin
 from cachibot.plugins.job_tools import JobToolsPlugin
 from cachibot.plugins.knowledge import KnowledgePlugin
 from cachibot.plugins.notes import NotesPlugin
@@ -25,7 +32,7 @@ from cachibot.plugins.python_sandbox import PythonSandboxPlugin
 from cachibot.plugins.task import TaskPlugin
 from cachibot.plugins.work_management import WorkManagementPlugin
 
-# All plugins keyed by name (CachiBot custom + Tukuy built-in)
+# All plugins keyed by name (CachiBot custom + Tukuy built-in + Instruction packs)
 CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     # CachiBot custom plugins
     "task": TaskPlugin,
@@ -45,6 +52,12 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     "http": HttpPlugin,
     "sql": SqlPlugin,
     "compression": CompressionPlugin,
+    # Tukuy instruction packs (LLM-powered tools)
+    "instructions_analysis": AnalysisInstructionPack,
+    "instructions_writing": WritingInstructionPack,
+    "instructions_developer": DeveloperInstructionPack,
+    # Instruction management (CRUD for custom instructions)
+    "instruction_management": InstructionManagementPlugin,
 }
 
 __all__ = [
@@ -67,4 +80,8 @@ __all__ = [
     "HttpPlugin",
     "SqlPlugin",
     "CompressionPlugin",
+    "AnalysisInstructionPack",
+    "WritingInstructionPack",
+    "DeveloperInstructionPack",
+    "InstructionManagementPlugin",
 ]

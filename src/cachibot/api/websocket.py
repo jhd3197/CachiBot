@@ -14,7 +14,7 @@ from datetime import datetime
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 
-from cachibot.agent import CachibotAgent
+from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
@@ -266,6 +266,15 @@ async def websocket_endpoint(
                 # Create fresh agent with current systemPrompt
                 # Capabilities are passed directly; the plugin system
                 # handles mapping capabilities to tools.
+                # Build instruction delta sender for streaming instruction
+                # LLM output to the client in real time.
+                async def _instruction_delta_sender(tool_call_id: str, text: str) -> None:
+                    await manager.send(
+                        client_id,
+                        WSMessage.instruction_delta(tool_call_id, text),
+                    )
+
+                disabled_caps = await load_disabled_capabilities()
                 agent = CachibotAgent(
                     config=agent_config,
                     system_prompt_override=enhanced_prompt,
@@ -277,7 +286,12 @@ async def websocket_endpoint(
                     on_approval_needed=on_approval,
                     driver=per_bot_driver,
                     provider_environment=resolved_env,
+                    disabled_capabilities=disabled_caps,
+                    on_instruction_delta=_instruction_delta_sender,
                 )
+
+                # Load custom instructions from DB (async)
+                await load_dynamic_instructions(agent)
 
                 # Extract replyToId from client payload
                 reply_to_id = payload.get("replyToId")

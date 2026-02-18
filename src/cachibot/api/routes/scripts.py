@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
 from cachibot.models.automations import (
     AuthorType,
@@ -18,6 +18,7 @@ from cachibot.models.automations import (
     ScriptStatus,
     ScriptVersion,
 )
+from cachibot.models.group import BotAccessLevel
 from cachibot.storage.automations_repository import (
     ScriptRepository,
     ScriptVersionRepository,
@@ -173,7 +174,7 @@ async def list_scripts(
 async def create_script(
     bot_id: str,
     body: CreateScriptBody,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScriptResponse:
     """Create a new script with initial version."""
     from cachibot.models.automations import TimelineEvent
@@ -263,7 +264,7 @@ async def update_script(
     bot_id: str,
     script_id: str,
     body: UpdateScriptBody,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScriptResponse:
     """Update a script. If source code changed, creates a new version."""
     from cachibot.models.automations import TimelineEvent
@@ -341,7 +342,7 @@ async def update_script(
 async def delete_script(
     bot_id: str,
     script_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a script and all its versions."""
     script = await script_repo.get(script_id)
@@ -354,7 +355,7 @@ async def delete_script(
 async def run_script(
     bot_id: str,
     script_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> dict:
     """Run a script manually by creating a Work item."""
     from cachibot.models.work import Priority, Work, WorkStatus
@@ -412,7 +413,7 @@ async def run_script(
 async def activate_script(
     bot_id: str,
     script_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptResponse:
     """Set a script's status to active."""
     script = await script_repo.get(script_id)
@@ -428,7 +429,7 @@ async def activate_script(
 async def disable_script(
     bot_id: str,
     script_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptResponse:
     """Set a script's status to disabled."""
     script = await script_repo.get(script_id)
@@ -483,7 +484,7 @@ async def approve_version(
     bot_id: str,
     script_id: str,
     version_number: int,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptVersionResponse:
     """Approve a bot-created script version."""
     script = await script_repo.get(script_id)
@@ -516,7 +517,7 @@ async def rollback_to_version(
     bot_id: str,
     script_id: str,
     version_number: int,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptResponse:
     """Rollback a script to a previous version."""
     from cachibot.models.automations import TimelineEvent

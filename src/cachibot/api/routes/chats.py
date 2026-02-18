@@ -7,9 +7,10 @@ Endpoints for managing bot chats, including platform conversations.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
 from cachibot.models.chat_model import ChatResponse
+from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import BotMessage
 from cachibot.storage.repository import ChatRepository, KnowledgeRepository
 
@@ -73,7 +74,7 @@ class ArchiveResponse(BaseModel):
 @router.post("/_clear", status_code=200)
 async def clear_all_chats(
     bot_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ClearDataResponse:
     """Delete all chats and messages for a bot (platform data cleanup)."""
     # Delete all messages first (they reference chats)
@@ -121,7 +122,7 @@ async def get_chat_messages(
 async def delete_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a chat permanently (including messages)."""
     chat = await chat_repo.get_chat(chat_id)
@@ -138,7 +139,7 @@ async def delete_chat(
 async def clear_chat_messages(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ClearDataResponse:
     """Clear all messages for a chat but keep the chat itself."""
     chat = await chat_repo.get_chat(chat_id)
@@ -153,7 +154,7 @@ async def clear_chat_messages(
 async def archive_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ArchiveResponse:
     """Archive a chat. Archived chats are hidden and won't receive new messages."""
     chat = await chat_repo.get_chat(chat_id)
@@ -168,7 +169,7 @@ async def archive_chat(
 async def unarchive_chat(
     bot_id: str,
     chat_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ArchiveResponse:
     """Unarchive a chat. It will appear in listings and receive messages again."""
     chat = await chat_repo.get_chat(chat_id)
