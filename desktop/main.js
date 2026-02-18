@@ -244,9 +244,11 @@ function checkVersionChange() {
   const current = app.getVersion();
   let previous = null;
   try { previous = fs.readFileSync(VERSION_FILE, 'utf8').trim(); } catch {}
-  const changed = previous !== null && previous !== current;
+  // Clear cache when version changes OR when no version file exists (reinstall
+  // after a dirty uninstall that left stale Chromium cache behind).
+  const needsClear = previous !== current;
   try { fs.writeFileSync(VERSION_FILE, current, 'utf8'); } catch {}
-  return changed;
+  return needsClear;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,8 +356,18 @@ ipcMain.handle('cache:clear', async () => {
   try {
     await session.defaultSession.clearCache();
     await session.defaultSession.clearStorageData({
-      storages: ['cachestorage', 'serviceworkers'],
+      storages: [
+        'cachestorage',
+        'serviceworkers',
+        'localstorage',
+        'shadercache',
+        'websql',
+        'indexdb',
+      ],
     });
+    // Delete V8 Code Cache directory
+    const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
+    try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -369,11 +381,21 @@ ipcMain.handle('cache:clear', async () => {
 app.whenReady().then(async () => {
   // Clear Chromium cache when app version changes (e.g. after reinstall)
   if (checkVersionChange()) {
-    console.log('[electron] Version changed, clearing Chromium cache');
+    console.log('[electron] Version changed, clearing all Chromium caches');
     await session.defaultSession.clearCache();
     await session.defaultSession.clearStorageData({
-      storages: ['cachestorage', 'serviceworkers'],
+      storages: [
+        'cachestorage',
+        'serviceworkers',
+        'localstorage',
+        'shadercache',
+        'websql',
+        'indexdb',
+      ],
     });
+    // Delete V8 Code Cache directory — compiled JS from the old UI
+    const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
+    try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
   }
 
   const splash = createSplashWindow();
