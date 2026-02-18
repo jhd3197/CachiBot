@@ -178,12 +178,12 @@ export function AutomationsView() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="automations-view">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
+      <div className="automations-view__header">
         <div>
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Automations</h1>
-          <p className="text-xs text-[var(--color-text-secondary)]">
+          <h1 className="automations-view__title">Automations</h1>
+          <p className="automations-view__subtitle">
             Functions, scripts, and schedules for {activeBot.name}
           </p>
         </div>
@@ -197,17 +197,15 @@ export function AutomationsView() {
       </div>
 
       {/* Section tabs + search */}
-      <div className="flex items-center gap-4 border-b border-zinc-200 px-6 py-2 dark:border-[var(--color-border-primary)]">
+      <div className="automations-view__toolbar">
         <div className="flex items-center gap-1">
           {sectionTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setAutomationSection(tab.id)}
               className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                automationSection === tab.id
-                  ? 'bg-accent-600/10 text-accent-600 dark:text-accent-400'
-                  : 'text-[var(--color-text-secondary)] hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-[var(--color-hover-bg)] dark:hover:text-[var(--color-text-primary)]'
+                'automation-tab',
+                automationSection === tab.id && 'automation-tab--active'
               )}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -224,20 +222,20 @@ export function AutomationsView() {
               placeholder="Search..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-48 rounded-lg border border-zinc-200 bg-white pl-8 pr-3 text-xs text-zinc-900 placeholder-[var(--input-placeholder)] focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500 dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-primary)]"
+              className="automation-search__input"
             />
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="automations-view__content">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-[var(--color-text-secondary)]">
+          <div className="automations-view__empty">
             <Code className="mb-3 h-10 w-10" />
             <p className="text-sm font-medium">No automations found</p>
             <p className="mt-1 text-xs">Create a script or function to get started</p>

@@ -1,0 +1,551 @@
+// =============================================================================
+// Jobs View — components/jobs.less
+// Job list, job cards, job details, stat badges
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Jobs View — outermost container
+// -----------------------------------------------------------------------------
+
+.jobs-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Jobs Header
+// -----------------------------------------------------------------------------
+
+.jobs-header {
+  .page-header();
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Jobs Search
+// -----------------------------------------------------------------------------
+
+.jobs-search {
+  .input-base();
+  height: @height-sm;
+  padding-left: @sp-10;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Jobs Filter Bar
+// -----------------------------------------------------------------------------
+
+.jobs-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: @sp-1;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &__btn {
+    border-radius: @radius-md;
+    padding: @sp-1 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    .transition-colors();
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &--active {
+      background: var(--color-active-bg);
+      color: var(--color-text-primary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+
+    &--inactive {
+      color: var(--color-text-secondary);
+
+      &:hover {
+        color: var(--color-text-primary);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Stat Badge
+// -----------------------------------------------------------------------------
+
+.job-stat {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+
+  &__value {
+    .flex-center();
+    height: 2rem;
+    min-width: 2rem;
+    border-radius: @radius-lg;
+    padding: 0 @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-bold;
+
+    &--blue {
+      background: rgba(@blue-500, 0.2);
+      color: @blue-400;
+    }
+
+    &--green {
+      background: rgba(@green-500, 0.2);
+      color: @green-400;
+    }
+
+    &--red {
+      background: rgba(@red-500, 0.2);
+      color: @red-400;
+    }
+
+    &--zinc {
+      background: var(--color-active-bg);
+      color: var(--color-text-secondary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job List Panel
+// -----------------------------------------------------------------------------
+
+.jobs-list {
+  width: 24rem;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border-primary);
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__empty {
+    padding: @sp-12 0;
+    text-align: center;
+
+    &-icon {
+      margin: 0 auto @sp-3;
+      color: var(--color-text-tertiary);
+    }
+
+    &-text {
+      font-size: @text-sm;
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Card
+// -----------------------------------------------------------------------------
+
+.job-card {
+  width: 100%;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+  padding: @sp-4;
+  text-align: left;
+  .transition-all();
+  cursor: pointer;
+
+  .dark & {
+    background: rgba(var(--color-bg-primary), 0.5);
+  }
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+  }
+
+  &--selected {
+    border-color: var(--accent-500);
+    background: rgba(var(--accent-500), 0.1);
+  }
+
+  &__title {
+    .truncate();
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    .truncate();
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__timestamp {
+    margin-top: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__priority {
+    border-radius: @radius-full;
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    &--urgent {
+      background: rgba(@red-500, 0.2);
+      color: @red-400;
+    }
+
+    &--high {
+      background: rgba(@orange-500, 0.2);
+      color: @orange-400;
+    }
+
+    &--normal {
+      background: var(--color-active-bg);
+      color: var(--color-text-secondary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+
+    &--low {
+      background: var(--color-active-bg);
+      color: var(--color-text-secondary);
+
+      .dark & {
+        background: var(--color-bg-secondary);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Progress Bar
+// -----------------------------------------------------------------------------
+
+.job-progress {
+  margin-top: @sp-3;
+
+  &__header {
+    .flex-between();
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__track {
+    margin-top: @sp-1;
+    height: @sp-1\.5;
+    overflow: hidden;
+    border-radius: @radius-full;
+    background: var(--color-active-bg);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__bar {
+    height: 100%;
+    border-radius: @radius-full;
+    background: @blue-500;
+    transition: width @transition-slow;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Details
+// -----------------------------------------------------------------------------
+
+.job-details {
+  padding: @sp-6;
+
+  &__empty {
+    .flex-center();
+    height: 100%;
+    color: var(--color-text-secondary);
+  }
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Detail Buttons
+// -----------------------------------------------------------------------------
+
+.job-btn {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  padding: @sp-2 @sp-3;
+  font-size: @text-sm;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &--cancel {
+    background: var(--color-bg-secondary);
+    color: var(--btn-secondary-text);
+
+    .dark & {
+      color: var(--color-text-primary);
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &--retry {
+    background: @blue-600;
+    color: white;
+
+    &:hover {
+      background: @blue-500;
+    }
+  }
+
+  &--delete {
+    background: rgba(@red-600, 0.2);
+    color: @red-400;
+
+    &:hover {
+      background: rgba(@red-600, 0.3);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Info Cards Grid
+// -----------------------------------------------------------------------------
+
+.job-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: @sp-4;
+  margin-bottom: @sp-6;
+}
+
+.job-info-card {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+  padding: @sp-3;
+
+  .dark & {
+    background: rgba(var(--color-bg-primary), 0.5);
+  }
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    margin-top: @sp-1;
+    font-weight: @font-medium;
+    text-transform: capitalize;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Detail Progress
+// -----------------------------------------------------------------------------
+
+.job-detail-progress {
+  margin-bottom: @sp-6;
+
+  &__header {
+    margin-bottom: @sp-2;
+    .flex-between();
+    font-size: @text-sm;
+  }
+
+  &__label {
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    font-family: @font-mono;
+    color: var(--btn-secondary-text);
+
+    .dark & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__track {
+    height: @sp-3;
+    overflow: hidden;
+    border-radius: @radius-full;
+    background: var(--color-active-bg);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__bar {
+    height: 100%;
+    border-radius: @radius-full;
+    background: linear-gradient(to right, @blue-600, var(--accent-500, @blue-400));
+    transition: width @transition-slow;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Error / Result Panels
+// -----------------------------------------------------------------------------
+
+.job-error-panel {
+  margin-bottom: @sp-6;
+  border-radius: @radius-xl;
+  border: 1px solid rgba(@red-500, 0.3);
+  background: rgba(@red-500, 0.1);
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    color: @red-400;
+    font-weight: @font-medium;
+  }
+
+  &__content {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    font-size: @text-sm;
+    color: @red-300;
+  }
+}
+
+.job-result-panel {
+  margin-bottom: @sp-6;
+  border-radius: @radius-xl;
+  border: 1px solid rgba(@green-500, 0.3);
+  background: rgba(@green-500, 0.1);
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    color: @green-400;
+    font-weight: @font-medium;
+  }
+
+  &__content {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    font-size: @text-sm;
+    color: @green-300;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Job Logs
+// -----------------------------------------------------------------------------
+
+.job-logs {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+
+  .dark & {
+    background: rgba(var(--color-bg-primary), 0.5);
+  }
+
+  &__toggle {
+    .flex-between();
+    width: 100%;
+    padding: @sp-3 @sp-4;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  &__title {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__body {
+    border-top: 1px solid var(--color-border-primary);
+    padding: @sp-4;
+  }
+
+  &__list {
+    max-height: 20rem;
+    overflow-y: auto;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    .scrollbar-thin();
+  }
+
+  &__timestamp {
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+  }
+
+  &__level {
+    flex-shrink: 0;
+    width: 3rem;
+    text-transform: uppercase;
+
+    &--error { color: @red-400; }
+    &--warn  { color: @yellow-400; }
+    &--info  { color: @blue-400; }
+    &--debug { color: var(--color-text-secondary); }
+  }
+
+  &__message {
+    color: var(--color-text-primary);
+  }
+}

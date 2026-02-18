@@ -1,0 +1,329 @@
+// =============================================================================
+// Users View — components/users.less
+// User management, user table, create/edit modals
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Users View — outermost container
+// -----------------------------------------------------------------------------
+
+.users-view {
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Users Loading
+// -----------------------------------------------------------------------------
+
+.users-loading {
+  min-height: 100vh;
+  .flex-center();
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Users Header
+// -----------------------------------------------------------------------------
+
+.users-header {
+  position: sticky;
+  top: 0;
+  z-index: @z-sticky;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--color-border-primary);
+
+  .dark & {
+    background: rgba(@zinc-950, 0.8);
+  }
+
+  &__inner {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: @sp-4;
+    .flex-between();
+  }
+
+  &__back-btn {
+    padding: @sp-2;
+    border-radius: @radius-lg;
+    .transition-colors();
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-primary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Users Content
+// -----------------------------------------------------------------------------
+
+.users-content {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: @sp-4 @sp-4 @sp-6;
+}
+
+// -----------------------------------------------------------------------------
+// Users Table
+// -----------------------------------------------------------------------------
+
+.users-table {
+  .card-base();
+  overflow: hidden;
+
+  &__header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 100px 100px 48px;
+    gap: @sp-4;
+    padding: @sp-3 @sp-4;
+    background: var(--color-bg-secondary);
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__empty {
+    padding: @sp-4 @sp-8;
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// User Row
+// -----------------------------------------------------------------------------
+
+.user-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 100px 100px 48px;
+  gap: @sp-4;
+  padding: @sp-3 @sp-4;
+  border-top: 1px solid var(--color-border-primary);
+  align-items: center;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+
+  &__avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-full;
+    background: var(--color-hover-bg);
+    .flex-center();
+    color: var(--color-text-secondary);
+  }
+
+  &__self-tag {
+    font-size: @text-xs;
+    color: @blue-400;
+  }
+
+  &__email {
+    color: var(--color-text-secondary);
+    .truncate();
+  }
+
+  &__menu-btn {
+    padding: @sp-1\.5;
+    border-radius: @radius-sm;
+    .transition-colors();
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// User Role Badge
+// -----------------------------------------------------------------------------
+
+.user-role {
+  .badge-base();
+
+  &--admin {
+    background: rgba(@purple-500, 0.2);
+    color: @purple-300;
+  }
+
+  &--manager {
+    background: rgba(@cyan-500, 0.2);
+    color: @cyan-300;
+  }
+
+  &--user {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// User Status Badge
+// -----------------------------------------------------------------------------
+
+.user-status {
+  .badge-base();
+
+  &--active {
+    background: rgba(@green-500, 0.2);
+    color: @green-300;
+  }
+
+  &--inactive {
+    background: rgba(@red-500, 0.2);
+    color: @red-300;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// User Context Menu
+// -----------------------------------------------------------------------------
+
+.user-context-menu {
+  .context-menu();
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: @sp-1;
+  width: 10rem;
+  z-index: @z-dropdown;
+
+  &__item {
+    .context-menu-item();
+    width: 100%;
+    text-align: left;
+  }
+
+  &__item--danger {
+    .context-menu-item();
+    width: 100%;
+    text-align: left;
+    color: @red-400;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Users Total
+// -----------------------------------------------------------------------------
+
+.users-total {
+  margin-top: @sp-4;
+  text-align: center;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+}
+
+// -----------------------------------------------------------------------------
+// User Modal — shared for create/edit
+// -----------------------------------------------------------------------------
+
+.user-modal {
+  .dialog-backdrop();
+
+  &__panel {
+    .dialog-panel(md);
+    padding: @sp-6;
+    margin: 0 @sp-4;
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    margin-bottom: @sp-4;
+    color: var(--color-text-primary);
+  }
+
+  &__label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--btn-secondary-text);
+    margin-bottom: @sp-1\.5;
+
+    .dark & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__input {
+    .input-base();
+
+    .dark & {
+      background: var(--color-bg-secondary);
+      border-color: var(--color-border-secondary);
+      color: white;
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px @blue-500;
+    }
+  }
+
+  &__input--with-icon {
+    .input-base();
+    padding-left: @sp-10;
+
+    .dark & {
+      background: var(--color-bg-secondary);
+      border-color: var(--color-border-secondary);
+      color: white;
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px @blue-500;
+    }
+  }
+
+  &__select {
+    .input-base();
+
+    .dark & {
+      background: var(--color-bg-secondary);
+      border-color: var(--color-border-secondary);
+      color: white;
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px @blue-500;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Menu backdrop
+// -----------------------------------------------------------------------------
+
+.users-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: @z-sticky;
+}

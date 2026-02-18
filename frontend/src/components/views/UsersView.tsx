@@ -136,21 +136,21 @@ export function UsersView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[var(--color-bg-app)]">
+      <div className="users-loading">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 dark:bg-[var(--color-bg-app)] dark:text-white">
+    <div className="users-view">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-[var(--color-bg-app)]/80 backdrop-blur-sm border-b border-zinc-200 dark:border-[var(--color-border-primary)]">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="users-header">
+        <div className="users-header__inner">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] rounded-lg transition-colors"
+              className="users-header__back-btn"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -167,10 +167,10 @@ export function UsersView() {
       </header>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] overflow-hidden">
+      <main className="users-content">
+        <div className="users-table">
           {/* Table Header */}
-          <div className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 bg-zinc-100 dark:bg-[var(--card-bg)] text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] font-medium">
+          <div className="users-table__header">
             <div>User</div>
             <div>Email</div>
             <div>Role</div>
@@ -180,35 +180,32 @@ export function UsersView() {
 
           {/* User Rows */}
           {users.length === 0 ? (
-            <div className="px-4 py-8 text-center text-[var(--color-text-secondary)]">
+            <div className="users-table__empty">
               No users found
             </div>
           ) : (
             users.map((user) => (
-              <div
-                key={user.id}
-                className="grid grid-cols-[1fr_1fr_100px_100px_48px] gap-4 px-4 py-3 border-t border-zinc-200 dark:border-[var(--color-border-primary)] items-center hover:bg-zinc-50 dark:hover:bg-[var(--color-hover-bg)]/30 transition-colors"
-              >
+              <div key={user.id} className="user-row">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-[var(--color-hover-bg)] flex items-center justify-center">
-                    <AtSign className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+                  <div className="user-row__avatar">
+                    <AtSign className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="font-medium">{user.username}</div>
                     {user.id === currentUser?.id && (
-                      <div className="text-xs text-blue-400">You</div>
+                      <div className="user-row__self-tag">You</div>
                     )}
                   </div>
                 </div>
-                <div className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] truncate">{user.email}</div>
+                <div className="user-row__email">{user.email}</div>
                 <div>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                    className={`user-role ${
                       user.role === 'admin'
-                        ? 'bg-purple-500/20 text-purple-300'
+                        ? 'user-role--admin'
                         : user.role === 'manager'
-                          ? 'bg-teal-500/20 text-teal-300'
-                          : 'bg-[var(--color-hover-bg)] text-[var(--color-text-primary)]'
+                          ? 'user-role--manager'
+                          : 'user-role--user'
                     }`}
                   >
                     {user.role === 'admin' ? (
@@ -221,10 +218,10 @@ export function UsersView() {
                 </div>
                 <div>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                    className={`user-status ${
                       user.is_active
-                        ? 'bg-green-500/20 text-green-300'
-                        : 'bg-red-500/20 text-red-300'
+                        ? 'user-status--active'
+                        : 'user-status--inactive'
                     }`}
                   >
                     {user.is_active ? (
@@ -238,23 +235,23 @@ export function UsersView() {
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
-                    className="p-1.5 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] rounded transition-colors"
+                    className="user-row__menu-btn"
                     disabled={user.id === currentUser?.id}
                   >
-                    <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+                    <MoreVertical className="h-4 w-4" />
                   </button>
                   {menuOpen === user.id && (
-                    <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-zinc-200 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] rounded-lg shadow-lg py-1 z-20">
+                    <div className="user-context-menu">
                       <button
                         onClick={() => startEditing(user)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] transition-colors"
+                        className="user-context-menu__item"
                       >
                         Edit User
                       </button>
                       {user.is_active && (
                         <button
                           onClick={() => handleDeactivateUser(user.id)}
-                          className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] transition-colors"
+                          className="user-context-menu__item--danger"
                         >
                           Deactivate
                         </button>
@@ -267,19 +264,19 @@ export function UsersView() {
           )}
         </div>
 
-        <p className="text-sm text-[var(--color-text-secondary)] mt-4 text-center">
+        <p className="users-total">
           {total} user{total !== 1 ? 's' : ''} total
         </p>
       </main>
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-[var(--color-bg-primary)] dark:border-[var(--color-border-primary)] p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Create New User</h2>
+        <div className="user-modal">
+          <div className="user-modal__panel">
+            <h2 className="user-modal__title">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Email
                 </label>
                 <div className="relative">
@@ -290,13 +287,13 @@ export function UsersView() {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, email: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="user-modal__input--with-icon"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Username
                 </label>
                 <div className="relative">
@@ -307,7 +304,7 @@ export function UsersView() {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, username: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="user-modal__input--with-icon"
                     required
                     minLength={3}
                     maxLength={32}
@@ -315,7 +312,7 @@ export function UsersView() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Password
                 </label>
                 <input
@@ -324,14 +321,14 @@ export function UsersView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="user-modal__input"
                   required
                   minLength={8}
                   placeholder="Min. 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Role
                 </label>
                 <select
@@ -342,7 +339,7 @@ export function UsersView() {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="user-modal__select"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>
@@ -373,12 +370,12 @@ export function UsersView() {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-[var(--color-bg-primary)] dark:border-[var(--color-border-primary)] p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Edit User</h2>
+        <div className="user-modal">
+          <div className="user-modal__panel">
+            <h2 className="user-modal__title">Edit User</h2>
             <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Email
                 </label>
                 <input
@@ -387,12 +384,12 @@ export function UsersView() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="user-modal__input"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Username
                 </label>
                 <input
@@ -401,14 +398,14 @@ export function UsersView() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="user-modal__input"
                   required
                   minLength={3}
                   maxLength={32}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
+                <label className="user-modal__label">
                   Role
                 </label>
                 <select
@@ -419,7 +416,7 @@ export function UsersView() {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="user-modal__select"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>
@@ -451,7 +448,7 @@ export function UsersView() {
       {/* Click outside to close menu */}
       {menuOpen && (
         <div
-          className="fixed inset-0 z-10"
+          className="users-menu-backdrop"
           onClick={() => setMenuOpen(null)}
         />
       )}

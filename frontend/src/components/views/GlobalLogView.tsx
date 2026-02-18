@@ -133,20 +133,20 @@ export function GlobalLogView() {
     : logs
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="global-log">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
+      <div className="global-log-header">
         <div>
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">
+          <h1 className="global-log-header__title">
             Execution Dashboard
           </h1>
-          <p className="text-xs text-[var(--color-text-secondary)]">Global execution logs and analytics</p>
+          <p className="global-log-header__subtitle">Global execution logs and analytics</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="global-log-header__actions">
           {running.length > 0 && (
             <button
               onClick={handleCancelAll}
-              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+              className="global-log-btn global-log-btn--danger"
             >
               <StopCircle className="h-3.5 w-3.5" />
               Cancel All ({running.length})
@@ -154,7 +154,7 @@ export function GlobalLogView() {
           )}
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-[var(--color-border-secondary)] dark:text-[var(--color-text-primary)] dark:hover:bg-[var(--color-hover-bg)]"
+            className="global-log-btn global-log-btn--secondary"
           >
             <Download className="h-3.5 w-3.5" />
             Export CSV
@@ -164,21 +164,21 @@ export function GlobalLogView() {
 
       {/* Stats bar */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4 border-b border-zinc-200 px-6 py-3 dark:border-[var(--color-border-primary)]">
-          <StatCard label="Total Runs" value={stats.totalRuns.toString()} icon={Activity} />
-          <StatCard
+        <div className="global-log-stats">
+          <LogStatCard label="Total Runs" value={stats.totalRuns.toString()} icon={Activity} />
+          <LogStatCard
             label="Success Rate"
             value={stats.totalRuns > 0 ? `${Math.round((stats.successCount / stats.totalRuns) * 100)}%` : '0%'}
             icon={CheckCircle2}
             color="text-green-500"
           />
-          <StatCard
+          <LogStatCard
             label="Errors"
             value={stats.errorCount.toString()}
             icon={AlertCircle}
             color="text-red-500"
           />
-          <StatCard
+          <LogStatCard
             label="Avg Duration"
             value={`${Math.round(stats.avgDurationMs)}ms`}
             icon={Clock}
@@ -187,40 +187,38 @@ export function GlobalLogView() {
       )}
 
       {/* Tabs + period selector */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 dark:border-[var(--color-border-primary)]">
-        <div className="flex items-center gap-1">
+      <div className="global-log-tabs">
+        <div className="global-log-tabs__list">
           {(['logs', 'errors', 'costs'] as AdminTab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                'border-b-2 px-3 py-2 text-xs font-medium capitalize transition-colors',
-                tab === t
-                  ? 'border-accent-600 text-accent-600 dark:text-accent-400'
-                  : 'border-transparent text-[var(--color-text-secondary)] hover:text-zinc-700 dark:hover:text-[var(--color-text-primary)]'
+                'global-log-tabs__tab',
+                tab === t && 'global-log-tabs__tab--active'
               )}
             >
               {t}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="global-log-tabs__controls">
           {tab === 'logs' && (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+            <div className="global-log-search">
+              <Search className="h-3.5 w-3.5 global-log-search__icon" />
               <input
                 type="text"
                 placeholder="Search logs..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-7 w-40 rounded-md border border-zinc-200 bg-white pl-8 pr-3 text-xs text-zinc-900 placeholder-[var(--input-placeholder)] focus:border-accent-500 focus:outline-none dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-primary)]"
+                className="global-log-search__input"
               />
             </div>
           )}
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-700 dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-primary)]"
+            className="global-log-select"
           >
             <option value="24h">Last 24h</option>
             <option value="7d">Last 7 days</option>
@@ -230,43 +228,43 @@ export function GlobalLogView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="global-log-content">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+          <div className="global-log-loading">
+            <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : (
           <>
             {tab === 'logs' && (
-              <div className="divide-y divide-zinc-100 dark:divide-[var(--color-border-primary)]/50">
+              <div className="global-log-list">
                 {filteredLogs.map((log) => {
                   const StatusIcon = statusIcons[log.status] || Clock
                   return (
                     <div
                       key={log.id}
-                      className="flex items-center gap-4 px-6 py-3 hover:bg-zinc-50 dark:hover:bg-[var(--color-bg-primary)]/50"
+                      className="log-entry"
                     >
                       <StatusIcon
                         className={cn(
-                          'h-4 w-4 flex-shrink-0',
+                          'h-4 w-4 log-entry__status-icon',
                           statusColors[log.status] || 'text-[var(--color-text-secondary)]',
                           log.status === 'running' && 'animate-spin'
                         )}
                       />
-                      <div className="min-w-0 flex-1">
+                      <div className="log-entry__body">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-zinc-900 dark:text-[var(--color-text-primary)] truncate">
+                          <span className="log-entry__name">
                             {log.sourceName}
                           </span>
-                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-[var(--color-text-secondary)] dark:bg-[var(--color-bg-secondary)]">
+                          <span className="log-entry__type-badge">
                             {log.executionType}
                           </span>
                         </div>
-                        <p className="mt-0.5 text-[10px] text-[var(--color-text-secondary)] truncate">
+                        <p className="log-entry__meta">
                           {log.trigger} - {new Date(log.startedAt).toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3 text-[10px] text-[var(--color-text-secondary)]">
+                      <div className="log-entry__metrics">
                         {log.durationMs != null && <span>{log.durationMs}ms</span>}
                         {log.tokensUsed > 0 && <span>{log.tokensUsed} tok</span>}
                         {log.creditsConsumed > 0 && <span>${log.creditsConsumed.toFixed(4)}</span>}
@@ -274,7 +272,7 @@ export function GlobalLogView() {
                       {log.status === 'running' && (
                         <button
                           onClick={() => handleCancel(log.id)}
-                          className="text-[10px] text-red-500 hover:underline"
+                          className="log-entry__cancel"
                         >
                           Cancel
                         </button>
@@ -283,28 +281,28 @@ export function GlobalLogView() {
                   )
                 })}
                 {filteredLogs.length === 0 && (
-                  <div className="py-12 text-center text-sm text-[var(--color-text-secondary)]">No execution logs found</div>
+                  <div className="global-log-empty">No execution logs found</div>
                 )}
               </div>
             )}
 
             {tab === 'errors' && (
-              <div className="p-6 space-y-3">
+              <div className="global-log-errors">
                 {errors.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-[var(--color-text-secondary)]">No errors in the last 7 days</div>
+                  <div className="global-log-empty">No errors in the last 7 days</div>
                 ) : (
                   errors.map((err, i) => (
                     <div
                       key={i}
-                      className="rounded-lg border border-zinc-200 p-4 dark:border-[var(--color-border-primary)]"
+                      className="error-entry"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-red-500">{err.errorType}</span>
-                        <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">
+                      <div className="error-entry__header">
+                        <span className="error-entry__type">{err.errorType}</span>
+                        <span className="error-entry__count">
                           {err.count}x
                         </span>
                       </div>
-                      <p className="mt-1 text-[10px] text-[var(--color-text-secondary)]">
+                      <p className="error-entry__meta">
                         Last seen: {new Date(err.lastSeen).toLocaleString()}
                       </p>
                     </div>
@@ -314,28 +312,28 @@ export function GlobalLogView() {
             )}
 
             {tab === 'costs' && (
-              <div className="p-6">
+              <div className="global-log-costs">
                 {costs.length === 0 ? (
-                  <div className="text-center py-12 text-sm text-[var(--color-text-secondary)]">No cost data available</div>
+                  <div className="global-log-empty">No cost data available</div>
                 ) : (
-                  <table className="w-full text-xs">
+                  <table className="cost-table">
                     <thead>
-                      <tr className="border-b border-zinc-200 text-left text-[var(--color-text-secondary)] dark:border-[var(--color-border-primary)]">
-                        <th className="pb-2 font-medium">Bot</th>
-                        <th className="pb-2 font-medium text-right">Executions</th>
-                        <th className="pb-2 font-medium text-right">Tokens</th>
-                        <th className="pb-2 font-medium text-right">Credits</th>
+                      <tr className="cost-table__head-row">
+                        <th className="cost-table__th">Bot</th>
+                        <th className="cost-table__th cost-table__th--right">Executions</th>
+                        <th className="cost-table__th cost-table__th--right">Tokens</th>
+                        <th className="cost-table__th cost-table__th--right">Credits</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-[var(--color-border-primary)]/50">
+                    <tbody className="cost-table__body">
                       {costs.map((c, i) => (
                         <tr key={i}>
-                          <td className="py-2 font-medium text-zinc-900 dark:text-[var(--color-text-primary)]">
+                          <td className="cost-table__td cost-table__td--name">
                             {c.botName || c.botId}
                           </td>
-                          <td className="py-2 text-right text-[var(--color-text-secondary)]">{c.executionCount}</td>
-                          <td className="py-2 text-right text-[var(--color-text-secondary)]">{c.totalTokens.toLocaleString()}</td>
-                          <td className="py-2 text-right text-[var(--color-text-secondary)]">${c.totalCredits.toFixed(4)}</td>
+                          <td className="cost-table__td cost-table__td--right">{c.executionCount}</td>
+                          <td className="cost-table__td cost-table__td--right">{c.totalTokens.toLocaleString()}</td>
+                          <td className="cost-table__td cost-table__td--right">${c.totalCredits.toFixed(4)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -350,7 +348,7 @@ export function GlobalLogView() {
   )
 }
 
-function StatCard({
+function LogStatCard({
   label,
   value,
   icon: Icon,
@@ -362,13 +360,13 @@ function StatCard({
   color?: string
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 dark:bg-[var(--color-bg-secondary)]">
+    <div className="global-log-stat">
+      <div className="global-log-stat__icon-wrap">
         <Icon className={cn('h-4 w-4', color || 'text-[var(--color-text-secondary)]')} />
       </div>
       <div>
-        <p className="text-xs text-[var(--color-text-secondary)]">{label}</p>
-        <p className="text-sm font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">{value}</p>
+        <p className="global-log-stat__label">{label}</p>
+        <p className="global-log-stat__value">{value}</p>
       </div>
     </div>
   )

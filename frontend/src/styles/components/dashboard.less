@@ -1,0 +1,378 @@
+// =============================================================================
+// Dashboard — components/dashboard.less
+// Dashboard view, stat cards, bot performance cards, usage charts
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Dashboard — outermost container
+// -----------------------------------------------------------------------------
+
+.dashboard {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-app);
+}
+
+// -----------------------------------------------------------------------------
+// Dashboard Header
+// -----------------------------------------------------------------------------
+
+.dashboard-header {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Time Range Selector
+// -----------------------------------------------------------------------------
+
+.dashboard-time-range {
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+  border-radius: @radius-lg;
+  background: var(--color-active-bg);
+  padding: @sp-1;
+
+  &__btn {
+    border-radius: @radius-md;
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      background: var(--accent-600);
+      color: white;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Dashboard Content — scrollable area
+// -----------------------------------------------------------------------------
+
+.dashboard-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-6;
+  .scrollbar-thin();
+
+  &__inner {
+    max-width: 72rem;
+    margin: 0 auto;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Stat Card
+// -----------------------------------------------------------------------------
+
+.dashboard-stat {
+  .card-base();
+  padding: @sp-5;
+
+  &--small {
+    padding: @sp-4;
+  }
+
+  &__top {
+    .flex-between();
+    align-items: flex-start;
+  }
+
+  &__icon {
+    .flex-center();
+    border-radius: @radius-lg;
+    height: 2.5rem;
+    width: 2.5rem;
+
+    &--small {
+      height: 2.25rem;
+      width: 2.25rem;
+    }
+
+    &--green  { background: rgba(@green-500, 0.1);  color: @green-400;  }
+    &--blue   { background: rgba(@blue-500, 0.1);   color: @blue-400;   }
+    &--purple { background: rgba(@purple-500, 0.1);  color: @purple-400; }
+    &--amber  { background: rgba(@yellow-500, 0.1);  color: @yellow-400; }
+    &--cyan   { background: rgba(@cyan-500, 0.1);   color: @cyan-400;   }
+    &--red    { background: rgba(@red-500, 0.1);    color: @red-400;    }
+  }
+
+  &__trend {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    &--up   { color: @green-400; }
+    &--down { color: @red-400; }
+  }
+
+  &__body {
+    margin-top: @sp-4;
+
+    &--small {
+      margin-top: @sp-3;
+    }
+  }
+
+  &__label {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    margin-top: @sp-1;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+    font-size: @text-2xl;
+
+    &--small {
+      margin-top: 2px;
+      font-size: @text-xl;
+    }
+  }
+
+  &__sub {
+    margin-top: 2px;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Section Heading
+// -----------------------------------------------------------------------------
+
+.dashboard-section-title {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  margin-bottom: @sp-4;
+  font-size: @text-lg;
+  font-weight: @font-semibold;
+  color: var(--color-text-primary);
+
+  &__icon {
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Bot Performance Card
+// -----------------------------------------------------------------------------
+
+.dashboard-bot-card {
+  .card-base();
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+  }
+
+  &__avatar {
+    .flex-center();
+    height: 2.75rem;
+    width: 2.75rem;
+    border-radius: @radius-xl;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    .truncate();
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__model {
+    .truncate();
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: @sp-3;
+    margin-top: @sp-4;
+  }
+
+  &__footer {
+    .flex-between();
+    margin-top: @sp-3;
+    padding-top: @sp-3;
+    border-top: 1px solid var(--color-border-primary);
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Mini Stat — inside bot card
+// -----------------------------------------------------------------------------
+
+.dashboard-mini-stat {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+
+  &__icon {
+    color: var(--color-text-tertiary);
+  }
+
+  &__value {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__label {
+    margin-left: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Usage Chart
+// -----------------------------------------------------------------------------
+
+.dashboard-chart {
+  .card-base();
+  padding: @sp-6;
+
+  &__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: @sp-1;
+  }
+
+  &__bar-wrapper {
+    position: relative;
+    flex: 1;
+    height: 100%;
+  }
+
+  &__bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: @radius-sm @radius-sm 0 0;
+    background: @green-600;
+    .transition-all();
+
+    &:hover {
+      background: @green-500;
+    }
+  }
+
+  &__bar-tooltip {
+    position: absolute;
+    top: -2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    border-radius: @radius-md;
+    background: var(--color-bg-secondary);
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-primary);
+    opacity: 0;
+    pointer-events: none;
+    z-index: @z-tooltip;
+    .transition-all();
+
+    .dashboard-chart__bar-wrapper:hover & {
+      opacity: 1;
+    }
+  }
+
+  &__date-range {
+    .flex-between();
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__empty {
+    .flex-center();
+    height: 8rem;
+    color: var(--color-text-secondary);
+    text-align: center;
+  }
+
+  &__empty-icon {
+    color: var(--color-text-tertiary);
+  }
+
+  &__empty-sub {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Model Usage List
+// -----------------------------------------------------------------------------
+
+.dashboard-model-list {
+  .card-base();
+  overflow: hidden;
+
+  &__item {
+    .flex-between();
+    padding: @sp-3 @sp-5;
+
+    & + & {
+      border-top: 1px solid var(--color-border-primary);
+    }
+  }
+
+  &__model-name {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__model-msgs {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__model-tokens {
+    font-family: @font-mono;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+  }
+
+  &__model-cost {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
