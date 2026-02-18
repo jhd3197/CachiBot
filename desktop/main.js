@@ -269,7 +269,7 @@ function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip('CachiBot');
+  tray.setToolTip(`CachiBot v${app.getVersion()}`);
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -293,6 +293,29 @@ function createTray() {
           mainWindow.show();
           mainWindow.focus();
         }
+      },
+    },
+    {
+      label: 'Clear Cache & Restart',
+      click: async () => {
+        await session.defaultSession.clearCache();
+        await session.defaultSession.clearStorageData({
+          storages: [
+            'cachestorage',
+            'serviceworkers',
+            'localstorage',
+            'shadercache',
+            'websql',
+            'indexdb',
+          ],
+        });
+        const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
+        try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
+        // Remove version marker so next launch also clears
+        try { fs.unlinkSync(VERSION_FILE); } catch {}
+        stopBackend();
+        app.relaunch();
+        app.exit(0);
       },
     },
     {
@@ -396,6 +419,10 @@ function setupAutoUpdater() {
 // ---------------------------------------------------------------------------
 // Window control IPC handlers (custom title bar)
 // ---------------------------------------------------------------------------
+
+ipcMain.on('app:getVersion', (event) => {
+  event.returnValue = app.getVersion();
+});
 
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:maximize', () => {

@@ -21,6 +21,7 @@ interface UpdateDownloadProgress {
 interface ElectronAPI {
   platform: string
   isDesktop: boolean
+  appVersion: string
   versions: {
     electron: string
     node: string

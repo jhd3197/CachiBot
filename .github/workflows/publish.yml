@@ -227,6 +227,7 @@ jobs:
           --hidden-import=cachibot.services
           --hidden-import=cachibot.storage
           --add-data "src/cachibot${{ matrix.data_sep }}cachibot"
+          --add-data "VERSION${{ matrix.data_sep }}cachibot"
           --add-data "frontend/dist${{ matrix.data_sep }}cachibot/frontend_dist"
           desktop/pyinstaller-server.py
 
