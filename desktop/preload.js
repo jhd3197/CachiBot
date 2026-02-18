@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   isDesktop: true,
+  appVersion: ipcRenderer.sendSync('app:getVersion'),
   versions: {
     electron: process.versions.electron,
     node: process.versions.node,

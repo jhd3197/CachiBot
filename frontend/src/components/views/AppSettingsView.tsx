@@ -282,7 +282,7 @@ function GeneralSettings({
           <div className="settings-info-row">
             <span className="settings-info-row__label">Version</span>
             <span className="settings-info-row__value">
-              {healthInfo?.version ?? '...'}
+              {window.electronAPI?.appVersion ?? healthInfo?.version ?? '...'}
             </span>
           </div>
           <div className="settings-info-row">
@@ -552,7 +552,7 @@ function PipUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
     checkForUpdate()
   }, [checkForUpdate])
 
-  const currentVersion = checkResult?.current_version || healthInfo?.version || '...'
+  const currentVersion = window.electronAPI?.appVersion || checkResult?.current_version || healthInfo?.version || '...'
   const latestStable = checkResult?.latest_stable
   const latestPrerelease = checkResult?.latest_prerelease
   const hasUpdate = checkResult?.update_available || checkResult?.prerelease_available
