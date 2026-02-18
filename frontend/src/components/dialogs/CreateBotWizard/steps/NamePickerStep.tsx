@@ -112,8 +112,8 @@ export function NamePickerStep() {
           </div>
         </div>
         <div className="text-center">
-          <p className="text-lg font-medium text-zinc-200">Finding the perfect name...</p>
-          <p className="mt-1 text-sm text-zinc-500">Each name has a special meaning</p>
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">Finding the perfect name...</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Each name has a special meaning</p>
         </div>
         <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
       </div>
@@ -126,7 +126,7 @@ export function NamePickerStep() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-cachi-400" />
-          <span className="text-sm font-medium text-zinc-300">Pick a name that resonates with you</span>
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">Pick a name that resonates with you</span>
         </div>
         <button
           onClick={handleRefresh}
@@ -150,7 +150,7 @@ export function NamePickerStep() {
               'animate-in fade-in slide-in-from-bottom-2 duration-300',
               form.name === suggestion.name
                 ? 'border-cachi-500 bg-cachi-500/10 ring-1 ring-cachi-500/50'
-                : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-800'
+                : 'border-[var(--color-border-secondary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)] hover:bg-[var(--color-hover-bg)]'
             )}
             style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
           >
@@ -163,11 +163,11 @@ export function NamePickerStep() {
             )}
             <h4 className={cn(
               'mb-2 text-xl font-bold',
-              form.name === suggestion.name ? 'text-cachi-300' : 'text-zinc-100'
+              form.name === suggestion.name ? 'text-cachi-300' : 'text-[var(--color-text-primary)]'
             )}>
               {suggestion.name}
             </h4>
-            <p className="text-xs leading-relaxed text-zinc-400">
+            <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">
               {suggestion.meaning}
             </p>
           </button>
@@ -178,10 +178,10 @@ export function NamePickerStep() {
           Array.from({ length: 4 - form.nameSuggestions.length }).map((_, i) => (
             <div
               key={`placeholder-${i}`}
-              className="flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-800/30 p-4"
+              className="flex items-center justify-center rounded-xl border border-[var(--color-border-primary)] bg-[var(--card-bg)] p-4"
               style={{ minHeight: '100px' }}
             >
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]" />
             </div>
           ))
         }
@@ -190,10 +190,10 @@ export function NamePickerStep() {
       {/* Custom name input */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-zinc-800" />
+          <div className="w-full border-t border-[var(--color-border-primary)]" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-zinc-900 px-3 text-xs text-zinc-600">or use your own</span>
+          <span className="bg-[var(--color-bg-primary)] px-3 text-xs text-[var(--color-text-tertiary)]">or use your own</span>
         </div>
       </div>
 
@@ -202,16 +202,16 @@ export function NamePickerStep() {
         value={form.name}
         onChange={(e) => updateForm({ name: e.target.value, selectedNameMeaning: 'A custom name you chose' })}
         placeholder="Type a custom name..."
-        className="h-11 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-center text-lg font-medium text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+        className="h-11 w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 text-center text-lg font-medium text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
       />
 
       {/* Selected name preview */}
       {form.name && (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 text-center">
-          <p className="text-sm text-zinc-500">Your bot will be called</p>
+        <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4 text-center">
+          <p className="text-sm text-[var(--color-text-secondary)]">Your bot will be called</p>
           <p className="mt-1 text-2xl font-bold text-cachi-400">{form.name}</p>
           {form.selectedNameMeaning && (
-            <p className="mt-2 text-xs text-zinc-500 italic">"{form.selectedNameMeaning}"</p>
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)] italic">"{form.selectedNameMeaning}"</p>
           )}
         </div>
       )}

@@ -1,0 +1,116 @@
+// =============================================================================
+// Cards — components/cards.less
+// .card and all variants + sub-elements
+// =============================================================================
+
+.card {
+  .card-base();
+  padding: @sp-4;
+
+  // ---------------------------------------------------------------------------
+  // Variants
+  // ---------------------------------------------------------------------------
+  &--auth {
+    max-width: @dialog-md;
+    margin: 0 auto;
+    padding: @sp-8;
+    box-shadow: @shadow-lg;
+  }
+
+  &--table {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  &--info {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-primary);
+  }
+
+  &--onboarding {
+    padding: @sp-8;
+    border-radius: @radius-2xl;
+    box-shadow: @shadow-lg;
+  }
+
+  &--tool {
+    padding: @sp-3;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &--danger {
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-bg);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sub-elements
+  // ---------------------------------------------------------------------------
+  &__header {
+    .flex-between();
+    margin-bottom: @sp-3;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    margin-top: @sp-0\.5;
+  }
+
+  &__footer {
+    margin-top: @sp-4;
+    padding-top: @sp-4;
+    border-top: 1px solid var(--color-border-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Special card types
+// -----------------------------------------------------------------------------
+.task-card {
+  .card-base();
+  padding: @sp-3;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    border-color: var(--color-border-secondary);
+  }
+}
+
+.result-card {
+  .card-base();
+  padding: @sp-4;
+  border-left: 3px solid var(--accent-500);
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: @sp-3;
+  padding: @sp-3 @sp-4;
+  border-bottom: 1px solid var(--color-border-primary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}

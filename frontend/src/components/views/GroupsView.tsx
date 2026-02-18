@@ -203,21 +203,21 @@ export function GroupsView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[var(--color-bg-app)]">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-white">
+    <div className="min-h-screen bg-white text-zinc-900 dark:bg-[var(--color-bg-app)] dark:text-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-800">
+      <header className="sticky top-0 z-10 bg-white/80 dark:bg-[var(--color-bg-app)]/80 backdrop-blur-sm border-b border-zinc-200 dark:border-[var(--color-border-primary)]">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -238,9 +238,9 @@ export function GroupsView() {
         <div className="flex gap-6">
           {/* Groups Table */}
           <div className={`${activeGroupId ? 'flex-1' : 'w-full'} transition-all`}>
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] overflow-hidden">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 bg-zinc-100 dark:bg-zinc-800/50 text-sm text-zinc-500 dark:text-zinc-400 font-medium">
+              <div className="grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 bg-zinc-100 dark:bg-[var(--card-bg)] text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] font-medium">
                 <div>Group Name</div>
                 <div>Description</div>
                 <div>Members</div>
@@ -250,29 +250,29 @@ export function GroupsView() {
 
               {/* Group Rows */}
               {groups.length === 0 ? (
-                <div className="px-4 py-8 text-center text-zinc-500">No groups found</div>
+                <div className="px-4 py-8 text-center text-[var(--color-text-secondary)]">No groups found</div>
               ) : (
                 groups.map((group) => (
                   <div
                     key={group.id}
-                    className={`grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 items-center hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer ${
-                      activeGroupId === group.id ? 'bg-zinc-100 dark:bg-zinc-800/40' : ''
+                    className={`grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 border-t border-zinc-200 dark:border-[var(--color-border-primary)] items-center hover:bg-zinc-50 dark:hover:bg-[var(--color-hover-bg)]/30 transition-colors cursor-pointer ${
+                      activeGroupId === group.id ? 'bg-zinc-100 dark:bg-[var(--card-bg)]' : ''
                     }`}
                     onClick={() =>
                       setActiveGroupId(activeGroupId === group.id ? null : group.id)
                     }
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
-                        <Users className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                      <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-[var(--color-hover-bg)] flex items-center justify-center">
+                        <Users className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
                       </div>
                       <div className="font-medium truncate">{group.name}</div>
                     </div>
-                    <div className="text-zinc-500 dark:text-zinc-400 truncate">
+                    <div className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] truncate">
                       {group.description || '\u2014'}
                     </div>
-                    <div className="text-zinc-700 dark:text-zinc-300">{group.member_count}</div>
-                    <div className="text-zinc-500 dark:text-zinc-400 truncate text-sm">
+                    <div className="text-zinc-700 dark:text-[var(--color-text-primary)]">{group.member_count}</div>
+                    <div className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] truncate text-sm">
                       {group.created_by === currentUser?.id ? 'You' : group.created_by}
                     </div>
                     <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -280,18 +280,18 @@ export function GroupsView() {
                         onClick={() =>
                           setMenuOpen(menuOpen === group.id ? null : group.id)
                         }
-                        className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
+                        className="p-1.5 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] rounded transition-colors"
                       >
-                        <MoreVertical className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                        <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
                       </button>
                       {menuOpen === group.id && (
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-20">
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-zinc-200 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] rounded-lg shadow-lg py-1 z-20">
                           <button
                             onClick={() => {
                               setActiveGroupId(group.id)
                               setMenuOpen(null)
                             }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] transition-colors"
                           >
                             View Members
                           </button>
@@ -302,13 +302,13 @@ export function GroupsView() {
                                   setActiveGroupId(group.id)
                                   setMenuOpen(null)
                                 }}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] transition-colors"
                               >
                                 Edit Group
                               </button>
                               <button
                                 onClick={() => handleDeleteGroup(group.id)}
-                                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] transition-colors"
                               >
                                 Delete Group
                               </button>
@@ -322,7 +322,7 @@ export function GroupsView() {
               )}
             </div>
 
-            <p className="text-sm text-zinc-500 mt-4 text-center">
+            <p className="text-sm text-[var(--color-text-secondary)] mt-4 text-center">
               {groups.length} group{groups.length !== 1 ? 's' : ''} total
             </p>
           </div>
@@ -330,7 +330,7 @@ export function GroupsView() {
           {/* Group Detail Panel */}
           {activeGroupId && (
             <div className="w-96 shrink-0">
-              <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] overflow-hidden">
                 {loadingDetail ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
@@ -338,24 +338,24 @@ export function GroupsView() {
                 ) : activeGroup ? (
                   <>
                     {/* Detail Header */}
-                    <div className="px-4 py-4 border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="px-4 py-4 border-b border-zinc-200 dark:border-[var(--color-border-primary)]">
                       <div className="flex items-center justify-between mb-2">
                         <h2 className="text-lg font-semibold">{activeGroup.name}</h2>
                         <button
                           onClick={() => setActiveGroupId(null)}
-                          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] rounded-lg transition-colors"
                         >
-                          <X className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                          <X className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
                         </button>
                       </div>
                       {activeGroup.description && (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">{activeGroup.description}</p>
+                        <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{activeGroup.description}</p>
                       )}
                     </div>
 
                     {/* Members Header */}
-                    <div className="px-4 py-3 flex items-center justify-between bg-zinc-100 dark:bg-zinc-800/50">
-                      <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    <div className="px-4 py-3 flex items-center justify-between bg-zinc-100 dark:bg-[var(--card-bg)]">
+                      <span className="text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                         Members ({activeGroup.members.length})
                       </span>
                       <button
@@ -370,21 +370,21 @@ export function GroupsView() {
                     {/* Members List */}
                     <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
                       {activeGroup.members.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+                        <div className="px-4 py-6 text-center text-[var(--color-text-secondary)] text-sm">
                           No members yet
                         </div>
                       ) : (
                         activeGroup.members.map((member: GroupMember) => (
                           <div
                             key={member.user_id}
-                            className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
+                            className="px-4 py-3 border-t border-zinc-200 dark:border-[var(--color-border-primary)] flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-[var(--color-hover-bg)]/30 transition-colors"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-[var(--color-hover-bg)] flex items-center justify-center shrink-0">
                                 {member.role === 'owner' ? (
                                   <Shield className="h-4 w-4 text-purple-400" />
                                 ) : (
-                                  <UserIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                  <UserIcon className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
                                 )}
                               </div>
                               <div className="min-w-0">
@@ -396,7 +396,7 @@ export function GroupsView() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-xs text-zinc-500 truncate">
+                                <div className="text-xs text-[var(--color-text-secondary)] truncate">
                                   {member.email}
                                 </div>
                               </div>
@@ -406,7 +406,7 @@ export function GroupsView() {
                                 className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                                   member.role === 'owner'
                                     ? 'bg-purple-500/20 text-purple-300'
-                                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
+                                    : 'bg-zinc-200 text-zinc-700 dark:bg-[var(--color-hover-bg)] dark:text-[var(--color-text-primary)]'
                                 }`}
                               >
                                 {member.role}
@@ -414,7 +414,7 @@ export function GroupsView() {
                               {member.user_id !== currentUser?.id && (
                                 <button
                                   onClick={() => handleRemoveMember(member.user_id)}
-                                  className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors text-zinc-500 hover:text-red-400"
+                                  className="p-1 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] rounded transition-colors text-[var(--color-text-secondary)] hover:text-red-400"
                                   title="Remove member"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -436,11 +436,11 @@ export function GroupsView() {
       {/* Create Group Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-[var(--color-bg-primary)] dark:border-[var(--color-border-primary)] p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-semibold mb-4">Create New Group</h2>
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
                   Name
                 </label>
                 <input
@@ -449,13 +449,13 @@ export function GroupsView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="Group name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
                   Description
                 </label>
                 <input
@@ -464,7 +464,7 @@ export function GroupsView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Optional description"
                 />
               </div>
@@ -493,11 +493,11 @@ export function GroupsView() {
       {/* Add Member Modal */}
       {showAddMemberModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl border border-zinc-200 dark:bg-[var(--color-bg-primary)] dark:border-[var(--color-border-primary)] p-6 w-full max-w-md mx-4">
             <h2 className="text-lg font-semibold mb-4">Add Member</h2>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
                   User ID
                 </label>
                 <input
@@ -506,13 +506,13 @@ export function GroupsView() {
                   onChange={(e) =>
                     setAddMemberForm({ ...addMemberForm, userId: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="Enter user ID"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)] mb-1.5">
                   Role
                 </label>
                 <select
@@ -523,7 +523,7 @@ export function GroupsView() {
                       role: e.target.value as GroupRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:border-[var(--color-border-secondary)] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="member">Member</option>
                   <option value="owner">Owner</option>

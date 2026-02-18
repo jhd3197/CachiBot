@@ -73,7 +73,7 @@ export function MethodSelectStep() {
                 'relative flex flex-col items-start gap-3 rounded-xl border p-5 text-left transition-all',
                 isSelected
                   ? 'border-cachi-500 bg-cachi-500/10 ring-1 ring-cachi-500'
-                  : 'border-zinc-800 bg-zinc-800/30 hover:border-zinc-700 hover:bg-zinc-800/50'
+                  : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)] hover:bg-[var(--color-hover-bg)]'
               )}
             >
               {method.badge && (
@@ -88,8 +88,8 @@ export function MethodSelectStep() {
                 <Icon className="h-6 w-6" style={{ color: method.color }} />
               </div>
               <div>
-                <h3 className="font-semibold text-zinc-200">{method.name}</h3>
-                <p className="mt-1 text-sm text-zinc-500">{method.description}</p>
+                <h3 className="font-semibold text-[var(--color-text-primary)]">{method.name}</h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{method.description}</p>
               </div>
             </button>
           )
@@ -99,7 +99,7 @@ export function MethodSelectStep() {
       {/* Marketplace link */}
       <button
         onClick={() => setMarketplaceOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 py-4 text-sm text-zinc-400 transition-colors hover:border-cachi-500 hover:text-cachi-400"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border-secondary)] py-4 text-sm text-[var(--color-text-secondary)] transition-colors hover:border-cachi-500 hover:text-cachi-400"
       >
         <Store className="h-4 w-4" />
         Browse Bot Marketplace

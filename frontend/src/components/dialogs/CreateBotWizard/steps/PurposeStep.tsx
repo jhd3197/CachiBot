@@ -26,7 +26,7 @@ export function PurposeStep() {
     <div className="space-y-6">
       {/* Category Selection */}
       <div>
-        <label className="mb-3 block text-sm font-medium text-zinc-300">
+        <label className="mb-3 block text-sm font-medium text-[var(--color-text-primary)]">
           What's your bot for?
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -38,11 +38,11 @@ export function PurposeStep() {
                 'flex flex-col items-start rounded-lg border p-3 text-left transition-all',
                 form.purposeCategory === category.id
                   ? 'border-cachi-500 bg-cachi-500/10'
-                  : 'border-zinc-800 bg-zinc-800/30 hover:border-zinc-700'
+                  : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)]'
               )}
             >
-              <span className="text-sm font-medium text-zinc-200">{category.label}</span>
-              <span className="text-xs text-zinc-500 line-clamp-1">{category.description}</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">{category.label}</span>
+              <span className="text-xs text-[var(--color-text-secondary)] line-clamp-1">{category.description}</span>
             </button>
           ))}
         </div>
@@ -50,7 +50,7 @@ export function PurposeStep() {
 
       {/* Purpose Description */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
+        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
           What do you want your bot to do?
         </label>
         <textarea
@@ -58,9 +58,9 @@ export function PurposeStep() {
           onChange={(e) => updateForm({ purposeDescription: e.target.value })}
           placeholder={placeholder}
           rows={3}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+          className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
         />
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
           The more specific you are, the better we can personalize your bot.
         </p>
       </div>

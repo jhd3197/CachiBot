@@ -1,0 +1,248 @@
+// =============================================================================
+// Markdown — components/markdown.less
+// Scoped prose styles for rendered markdown in chat bubbles.
+// Uses theme-aware CSS custom properties so text is readable in both modes.
+// =============================================================================
+
+.markdown {
+  max-width: none;
+
+  // ---------------------------------------------------------------------------
+  // Headings
+  // ---------------------------------------------------------------------------
+  h1 {
+    margin: @sp-6 0 @sp-4;
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+    line-height: @leading-tight;
+
+    &:first-child { margin-top: 0; }
+  }
+
+  h2 {
+    margin: @sp-5 0 @sp-3;
+    font-size: @text-lg;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+    line-height: @leading-tight;
+
+    &:first-child { margin-top: 0; }
+  }
+
+  h3 {
+    margin: @sp-4 0 @sp-2;
+    font-size: @text-base;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+    line-height: @leading-tight;
+
+    &:first-child { margin-top: 0; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Paragraphs
+  // ---------------------------------------------------------------------------
+  p {
+    margin-bottom: @sp-3;
+    line-height: @leading-relaxed;
+    color: var(--color-text-primary);
+
+    &:last-child { margin-bottom: 0; }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Links
+  // ---------------------------------------------------------------------------
+  a {
+    color: var(--accent-600);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent-600) 50%, transparent);
+    text-underline-offset: 2px;
+    .transition-colors();
+
+    &:hover {
+      color: var(--accent-700);
+      text-decoration-color: var(--accent-700);
+    }
+
+    .dark & {
+      color: var(--accent-400);
+      text-decoration-color: color-mix(in srgb, var(--accent-400) 50%, transparent);
+
+      &:hover {
+        color: var(--accent-300);
+        text-decoration-color: var(--accent-300);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lists
+  // ---------------------------------------------------------------------------
+  ul {
+    margin-bottom: @sp-3;
+    margin-left: @sp-4;
+    list-style: disc;
+    color: var(--color-text-primary);
+
+    &:last-child { margin-bottom: 0; }
+  }
+
+  ol {
+    margin-bottom: @sp-3;
+    margin-left: @sp-4;
+    list-style: decimal;
+    color: var(--color-text-primary);
+
+    &:last-child { margin-bottom: 0; }
+  }
+
+  li {
+    color: var(--color-text-primary);
+
+    & + li {
+      margin-top: @sp-1;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inline code
+  // ---------------------------------------------------------------------------
+  :not(pre) > code {
+    background: var(--code-bg);
+    padding: @sp-0\.5 @sp-1\.5;
+    border-radius: @radius-sm;
+    font-family: @font-mono;
+    font-size: @text-sm;
+    color: var(--accent-500);
+
+    .dark & {
+      color: var(--accent-300);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Code blocks (always dark background in both themes)
+  // ---------------------------------------------------------------------------
+  pre {
+    overflow-x: auto;
+    border-radius: @radius-lg;
+    background: @zinc-900;
+    padding: @sp-4;
+    margin: 0;
+
+    code {
+      font-family: @font-mono;
+      font-size: @text-sm;
+      color: @zinc-300;
+      background: none;
+      padding: 0;
+    }
+  }
+
+  // Code block wrapper (for language label)
+  &__code-block {
+    position: relative;
+    margin: @sp-3 0;
+  }
+
+  &__code-lang {
+    position: absolute;
+    right: @sp-2;
+    top: @sp-2;
+    background: @zinc-700;
+    padding: @sp-0\.5 @sp-2;
+    border-radius: @radius-sm;
+    font-size: @text-xs;
+    color: @zinc-400;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blockquote
+  // ---------------------------------------------------------------------------
+  blockquote {
+    margin: @sp-3 0;
+    border-left: 4px solid color-mix(in srgb, var(--accent-500) 50%, transparent);
+    padding-left: @sp-4;
+    font-style: italic;
+    color: var(--color-text-secondary);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Horizontal rule
+  // ---------------------------------------------------------------------------
+  hr {
+    margin: @sp-4 0;
+    border: none;
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inline formatting
+  // ---------------------------------------------------------------------------
+  strong {
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  em {
+    font-style: italic;
+    color: var(--color-text-secondary);
+  }
+
+  del {
+    color: var(--color-text-tertiary);
+    text-decoration: line-through;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Images & audio
+  // ---------------------------------------------------------------------------
+  img {
+    margin: @sp-3 0;
+    max-width: 100%;
+    border-radius: @radius-lg;
+  }
+
+  audio {
+    margin: @sp-2 0;
+    width: 100%;
+    max-width: 28rem;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tables
+  // ---------------------------------------------------------------------------
+  &__table-wrap {
+    overflow-x: auto;
+    margin: @sp-3 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: @text-sm;
+  }
+
+  thead {
+    border-bottom: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-tertiary);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  th {
+    padding: @sp-2 @sp-3;
+    text-align: left;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  td {
+    padding: @sp-2 @sp-3;
+    color: var(--color-text-primary);
+  }
+}

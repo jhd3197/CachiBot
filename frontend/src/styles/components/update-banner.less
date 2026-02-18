@@ -1,0 +1,38 @@
+// =============================================================================
+// Update Banner — components/update-banner.less
+// Top-of-page version update notification
+// =============================================================================
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: @sp-3;
+  background: color-mix(in srgb, var(--accent-600) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-600) 20%, transparent);
+  padding: @sp-2 @sp-4;
+  font-size: @text-sm;
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    color: var(--accent-400);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__dismiss {
+    .button-base();
+    .button-variant(ghost);
+    width: auto;
+    height: auto;
+    padding: @sp-1;
+    border-radius: @radius-md;
+    color: var(--color-text-tertiary);
+  }
+}

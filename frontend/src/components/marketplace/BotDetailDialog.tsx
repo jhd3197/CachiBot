@@ -81,33 +81,30 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
       />
 
       <DialogContent scrollable>
-        <div className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Stats row */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-1.5 text-amber-400">
-              <Star className="h-4 w-4 fill-current" />
-              <span className="text-sm font-medium">{template.rating.toFixed(1)}</span>
-              <span className="text-xs text-zinc-500">rating</span>
+          <div className="bot-detail__stats">
+            <div className="bot-detail__stat bot-detail__stat--rating">
+              <Star size={16} />
+              <span>{template.rating.toFixed(1)}</span>
+              <span className="bot-detail__stat-label">rating</span>
             </div>
-            <div className="flex items-center gap-1.5 text-zinc-400">
-              <Download className="h-4 w-4" />
-              <span className="text-sm font-medium">{formatDownloads(template.downloads)}</span>
-              <span className="text-xs text-zinc-500">installs</span>
+            <div className="bot-detail__stat bot-detail__stat--downloads">
+              <Download size={16} />
+              <span>{formatDownloads(template.downloads)}</span>
+              <span className="bot-detail__stat-label">installs</span>
             </div>
-            <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400 capitalize">
+            <span className="bot-detail__category-badge">
               {template.category}
             </span>
           </div>
 
           {/* Tags */}
-          <div>
-            <h3 className="mb-2 text-sm font-medium text-zinc-300">Tags</h3>
-            <div className="flex flex-wrap gap-2">
+          <div className="bot-detail__section">
+            <h3 className="bot-detail__section-title">Tags</h3>
+            <div className="bot-detail__tags">
               {template.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400"
-                >
+                <span key={tag} className="bot-detail__tag">
                   {tag}
                 </span>
               ))}
@@ -115,17 +112,14 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
           </div>
 
           {/* Tools */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-              <Wrench className="h-4 w-4 text-zinc-500" />
+          <div className="bot-detail__section">
+            <h3 className="bot-detail__section-title">
+              <Wrench size={16} style={{ color: 'var(--color-text-secondary)' }} />
               Enabled Tools
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="bot-detail__tools">
               {template.tools.map((tool) => (
-                <span
-                  key={tool}
-                  className="rounded-lg border border-zinc-700 bg-zinc-800/50 px-2.5 py-1 text-xs text-zinc-300"
-                >
+                <span key={tool} className="bot-detail__tool-badge">
                   {tool.replace(/_/g, ' ')}
                 </span>
               ))}
@@ -133,29 +127,29 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
           </div>
 
           {/* System Prompt */}
-          <div>
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-              <MessageSquare className="h-4 w-4 text-zinc-500" />
+          <div className="bot-detail__section">
+            <h3 className="bot-detail__section-title">
+              <MessageSquare size={16} style={{ color: 'var(--color-text-secondary)' }} />
               System Prompt
             </h3>
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-              <p className="whitespace-pre-wrap text-sm text-zinc-400">
+            <div className="bot-detail__prompt-box">
+              <p className="bot-detail__prompt-text">
                 {template.system_prompt}
               </p>
             </div>
           </div>
 
           {/* Model */}
-          <div>
-            <h3 className="mb-2 text-sm font-medium text-zinc-300">Recommended Model</h3>
-            <span className="rounded-lg bg-zinc-800 px-3 py-1.5 font-mono text-xs text-zinc-300">
+          <div className="bot-detail__section">
+            <h3 className="bot-detail__section-title">Recommended Model</h3>
+            <span className="bot-detail__model-badge">
               {template.model}
             </span>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-              <p className="text-sm text-red-400">{error}</p>
+            <div className="bot-detail__error">
+              <p>{error}</p>
             </div>
           )}
         </div>
@@ -172,12 +166,12 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
         >
           {isInstalling ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem' }} />
               Installing...
             </>
           ) : (
             <>
-              <Download className="h-4 w-4 mr-2" />
+              <Download size={16} style={{ marginRight: '0.5rem' }} />
               Install Template
             </>
           )}

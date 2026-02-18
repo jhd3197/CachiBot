@@ -112,10 +112,10 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
   // Show loading spinner while checking auth
   if (isLoading || !checked || (isAuthenticated && !consentChecked)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-950">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-100 dark:bg-[var(--color-bg-app)]">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
         {slow && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Taking longer than expected&hellip; the server may still be starting.
           </p>
         )}

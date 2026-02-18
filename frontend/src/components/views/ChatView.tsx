@@ -733,30 +733,62 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }
 
+  // Shared command menu renderer
+  const renderCommandMenu = () => {
+    if (!showCommandMenu || filteredCommands.length === 0) return null
+    return (
+      <div className="chat-command-menu">
+        <div className="chat-command-menu__header">Commands</div>
+        <div className="chat-command-menu__list">
+          {filteredCommands.map((cmd, index) => (
+            <button
+              key={cmd.name}
+              type="button"
+              onClick={() => selectCommand(cmd.name)}
+              className={cn(
+                'chat-command-menu__item',
+                index === selectedCommandIndex && 'chat-command-menu__item--selected'
+              )}
+            >
+              <span className="text-lg">{cmd.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">/{cmd.name}</div>
+                <div className="text-xs text-[var(--color-text-secondary)] truncate">{cmd.description}</div>
+              </div>
+              {index === selectedCommandIndex && (
+                <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   // Empty state when no chat is selected - but still allow sending messages
   if (!activeChatId) {
     return (
-      <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
+      <div className="chat-view">
         {/* Welcome content */}
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="max-w-md text-center">
             <div
-              className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl"
+              className="chat-empty__icon mx-auto"
               style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
             >
               <BotIconRenderer
                 icon={activeBot?.icon || 'shield'}
                 size={48}
-                className="text-zinc-100"
+                className="text-[var(--color-text-primary)]"
               />
             </div>
-            <h2 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h2 className="chat-empty__title">
               Welcome to {activeBot?.name || 'CachiBot'}
             </h2>
-            <p className="mb-8 text-zinc-500 dark:text-zinc-400">
+            <p className="chat-empty__description">
               {activeBot?.description || 'Start a new chat to begin working with your AI assistant.'}
             </p>
-            <div className="grid gap-3">
+            <div className="chat-prompt-suggestions">
               {['Write a Python script', 'Analyze this codebase', 'Help me debug an error'].map((prompt) => (
                 <button
                   key={prompt}
@@ -764,7 +796,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                     setInput(prompt)
                     textareaRef.current?.focus()
                   }}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 px-4 py-3 text-left text-sm text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-800/50"
+                  className="chat-prompt-suggestions__item"
                 >
                   <Sparkles className="h-4 w-4 text-cachi-500" />
                   {prompt}
@@ -775,41 +807,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </div>
 
         {/* Input area - allows starting a new chat */}
-        <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-4">
-          <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
-            <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
-              {/* Command autocomplete menu */}
-              {showCommandMenu && filteredCommands.length > 0 && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
-                  <div className="px-3 py-2 text-xs font-medium text-zinc-500 border-b border-zinc-300 dark:text-zinc-400 dark:border-zinc-700">
-                    Commands
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredCommands.map((cmd, index) => (
-                      <button
-                        key={cmd.name}
-                        type="button"
-                        onClick={() => selectCommand(cmd.name)}
-                        className={cn(
-                          'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                          index === selectedCommandIndex
-                            ? 'bg-cachi-600/20 text-zinc-100'
-                            : 'text-zinc-300 hover:bg-zinc-700/50'
-                        )}
-                      >
-                        <span className="text-lg">{cmd.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium">/{cmd.name}</div>
-                          <div className="text-xs text-zinc-500 truncate">{cmd.description}</div>
-                        </div>
-                        {index === selectedCommandIndex && (
-                          <span className="text-xs text-zinc-500">↵</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+        <div className="chat-panel__input-area">
+          <form onSubmit={handleSubmit} className="chat-panel__input-inner">
+            <div className="chat-input-container">
+              {renderCommandMenu()}
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -818,12 +819,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
                 disabled={!isConnected || isLoading || !canOperate}
                 rows={1}
-                className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
+                className="chat-textarea"
               />
-              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+              <div className="chat-input-btns">
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                  className="chat-input-btn chat-input-btn--attach"
                   title="Attach file"
                   disabled={!canOperate}
                 >
@@ -832,24 +833,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 <button
                   type="submit"
                   disabled={!input.trim() || !isConnected || !canOperate}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-cachi-600 text-white transition-colors hover:bg-cachi-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="chat-input-btn chat-input-btn--send"
                   title="Send message"
                 >
                   <Send className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
-              <span className="flex items-center gap-1.5">
+            <div className="chat-status-bar">
+              <div className="chat-status-bar__indicator">
                 <span
                   className={cn(
-                    'h-2 w-2 rounded-full',
-                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                    'chat-status-bar__dot',
+                    isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
                   )}
                 />
                 {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span>Press Enter to send, Shift+Enter for new line</span>
+              </div>
+              <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
             </div>
           </form>
         </div>
@@ -858,39 +859,39 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="chat-view">
       {/* Chat header with bot info and settings */}
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="chat-header">
+        <div className="chat-header__bot-info">
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-full"
+            className="chat-header__avatar"
             style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
           >
             <BotIconRenderer
               icon={activeBot?.icon || 'shield'}
               size={18}
-              className="text-zinc-100"
+              className="text-[var(--color-text-primary)]"
             />
           </div>
           <div>
-            <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            <h2 className="chat-header__name">
               {activeBot?.name || 'CachiBot'}
             </h2>
-            <p className="text-xs text-zinc-500">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
+            <p className="chat-header__model">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
           </div>
         </div>
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
+      <div className="chat-messages">
+        <div className="chat-messages__inner">
           {messages.length === 0 ? (
             <div className="py-12 text-center">
               <Sparkles className="mx-auto mb-4 h-8 w-8 text-cachi-500" />
-              <p className="text-zinc-400">Start the conversation...</p>
+              <p className="text-[var(--color-text-secondary)]">Start the conversation...</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="chat-messages__list">
               {messages.map((message) => (
                 <MessageBubble
                   key={message.id}
@@ -932,62 +933,31 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       </div>
 
       {/* Input area */}
-      <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-3 sm:p-4">
-        <form onSubmit={handleSubmit} className="mx-auto max-w-3xl">
+      <div className="chat-panel__input-area">
+        <form onSubmit={handleSubmit} className="chat-panel__input-inner">
           {/* Reply composer bar */}
           {replyToMessage && (
-            <div className="mb-2 flex items-center gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800/70">
-              <Reply className="h-4 w-4 flex-shrink-0 text-cachi-500" />
-              <div className="min-w-0 flex-1">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <div className="chat-reply-bar">
+              <Reply className="chat-reply-bar__icon" />
+              <div className="chat-reply-bar__content">
+                <span className="chat-reply-bar__label">
                   Replying to {replyToMessage.role === 'user' ? 'You' : (activeBot?.name || 'Assistant')}
                 </span>
-                <p className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+                <p className="chat-reply-bar__text">
                   {replyToMessage.content.slice(0, 100)}{replyToMessage.content.length > 100 ? '...' : ''}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
-                className="flex-shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                className="chat-reply-bar__close"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           )}
-          <div className="relative rounded-2xl border border-zinc-300 bg-white shadow-lg transition-colors focus-within:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50">
-            {/* Command autocomplete menu */}
-            {showCommandMenu && filteredCommands.length > 0 && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
-                <div className="px-3 py-2 text-xs font-medium text-zinc-500 border-b border-zinc-300 dark:text-zinc-400 dark:border-zinc-700">
-                  Commands
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                  {filteredCommands.map((cmd, index) => (
-                    <button
-                      key={cmd.name}
-                      type="button"
-                      onClick={() => selectCommand(cmd.name)}
-                      className={cn(
-                        'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                        index === selectedCommandIndex
-                          ? 'bg-cachi-600/20 text-zinc-900 dark:text-zinc-100'
-                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700/50'
-                      )}
-                    >
-                      <span className="text-lg">{cmd.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium">/{cmd.name}</div>
-                        <div className="text-xs text-zinc-500 truncate">{cmd.description}</div>
-                      </div>
-                      {index === selectedCommandIndex && (
-                        <span className="text-xs text-zinc-500">↵</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="chat-input-container">
+            {renderCommandMenu()}
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -1003,14 +973,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               }
               disabled={!isConnected || isLoading || creationFlow.isLoadingNames || !canOperate}
               rows={1}
-              className="block w-full resize-none bg-transparent px-4 py-3 pr-24 text-zinc-900 placeholder-zinc-500 outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-100"
+              className="chat-textarea"
             />
 
             {/* Actions */}
-            <div className="absolute bottom-2 right-2 flex items-center gap-1">
+            <div className="chat-input-btns">
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                className="chat-input-btn chat-input-btn--attach"
                 title="Attach file"
                 disabled={!canOperate}
               >
@@ -1021,7 +991,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white transition-colors hover:bg-red-500"
+                  className="chat-input-btn chat-input-btn--stop"
                   title="Stop"
                 >
                   <Square className="h-4 w-4" />
@@ -1030,7 +1000,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 <button
                   type="submit"
                   disabled={!input.trim() || !isConnected || !canOperate}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-cachi-600 text-white transition-colors hover:bg-cachi-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="chat-input-btn chat-input-btn--send"
                   title="Send message"
                 >
                   <Send className="h-4 w-4" />
@@ -1040,25 +1010,25 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           </div>
 
           {/* Status bar */}
-          <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <span className="flex items-center gap-1.5">
+          <div className="chat-status-bar">
+            <div className="chat-status-bar__left">
+              <span className="chat-status-bar__indicator">
                 <span
                   className={cn(
-                    'h-2 w-2 rounded-full',
-                    isConnected ? 'bg-green-500' : 'bg-red-500'
+                    'chat-status-bar__dot',
+                    isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
                   )}
                 />
                 <span className="hidden xs:inline">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </span>
               <span className="truncate max-w-[120px] sm:max-w-none">{activeBot?.model}</span>
             </div>
-            <span className="hidden sm:inline">Press Enter to send, Shift+Enter for new line</span>
+            <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
           </div>
 
           {/* Creation flow indicator */}
           {isInCreationFlow && (
-            <div className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-cachi-900/30 px-3 py-1.5 text-xs text-cachi-400">
+            <div className="chat-creation-flow">
               {creationFlow.isLoadingNames ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1108,14 +1078,14 @@ function ReplyPreview({ message, onClick }: { message: ChatMessage; onClick?: ()
     <button
       type="button"
       onClick={onClick}
-      className="mb-1 flex items-start gap-2 rounded-lg border-l-2 border-cachi-500 bg-zinc-900/40 px-3 py-1.5 text-left transition-colors hover:bg-zinc-900/60"
+      className="chat-reply-preview"
     >
-      <Reply className="mt-0.5 h-3 w-3 flex-shrink-0 text-cachi-500" />
+      <Reply className="chat-reply-preview__icon" />
       <div className="min-w-0">
-        <span className="text-[10px] font-semibold text-cachi-400">
+        <span className="chat-reply-preview__author">
           {message.role === 'user' ? 'You' : 'Assistant'}
         </span>
-        <p className="truncate text-xs text-zinc-400">
+        <p className="chat-reply-preview__text">
           {stripCiteMarkers(message.content).slice(0, 80)}{message.content.length > 80 ? '...' : ''}
         </p>
       </div>
@@ -1160,12 +1130,18 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
   )
 
   return (
-    <div id={`msg-${message.id}`} className={cn('group flex gap-4 transition-colors duration-500', isUser && 'flex-row-reverse')}>
+    <div
+      id={`msg-${message.id}`}
+      className={cn(
+        'chat-message',
+        isUser ? 'chat-message--user' : 'chat-message--bot'
+      )}
+    >
       {/* Avatar */}
       <div
         className={cn(
-          'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full',
-          isUser ? 'text-white' : 'bg-zinc-800'
+          'chat-message__avatar',
+          isUser ? 'chat-message__avatar--user' : 'chat-message__avatar--bot'
         )}
         style={isUser ? { backgroundColor: userColor } : (botColor ? { backgroundColor: botColor + '30' } : undefined)}
       >
@@ -1177,7 +1153,10 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
       </div>
 
       {/* Content */}
-      <div className={cn('flex max-w-[80%] flex-col gap-1', isUser && 'items-end')}>
+      <div className={cn(
+        'chat-message__content',
+        isUser ? 'chat-message__content--user' : 'chat-message__content--bot'
+      )}>
         {/* Reply preview */}
         {replyToMessage && (
           <ReplyPreview
@@ -1201,10 +1180,8 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
 
         <div
           className={cn(
-            'rounded-2xl px-4 py-3',
-            isUser
-              ? 'text-white'
-              : 'bg-zinc-800/80 text-zinc-100'
+            'chat-message__bubble',
+            isUser ? 'chat-message__bubble--user' : 'chat-message__bubble--bot'
           )}
           style={isUser ? { backgroundColor: userColor } : undefined}
         >
@@ -1224,7 +1201,7 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             <div className="mt-3">
               <button
                 onClick={() => setShowToolCalls(!showToolCalls)}
-                className="flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="chat-tool-toggle"
               >
                 <Zap className="h-3 w-3" />
                 <span>{message.toolCalls.length} tool action{message.toolCalls.length > 1 ? 's' : ''}</span>
@@ -1247,21 +1224,21 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
 
           {/* Usage info popover */}
           {showInfo && hasMetadata && (
-            <div className="mt-3 rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-xs">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-zinc-400">
+            <div className="chat-message__info-panel">
+              <div className="chat-message__info-grid">
                 {message.metadata?.model && (
                   <>
                     <span>Model:</span>
-                    <span className="text-zinc-200">{String(message.metadata.model)}</span>
+                    <span className="chat-message__info-value">{String(message.metadata.model)}</span>
                   </>
                 )}
                 {message.metadata?.tokens !== undefined && (
                   <>
                     <span>Tokens:</span>
-                    <span className="text-zinc-200">
+                    <span className="chat-message__info-value">
                       {Number(message.metadata.tokens).toLocaleString()}
                       {(message.metadata.promptTokens !== undefined || message.metadata.completionTokens !== undefined) && (
-                        <span className="text-zinc-500 ml-1">
+                        <span className="text-[var(--color-text-secondary)] ml-1">
                           ({Number(message.metadata.promptTokens || 0).toLocaleString()} in / {Number(message.metadata.completionTokens || 0).toLocaleString()} out)
                         </span>
                       )}
@@ -1271,19 +1248,19 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
                 {message.metadata?.cost !== undefined && (
                   <>
                     <span>Cost:</span>
-                    <span className="text-zinc-200">${Number(message.metadata.cost).toFixed(6)}</span>
+                    <span className="chat-message__info-value">${Number(message.metadata.cost).toFixed(6)}</span>
                   </>
                 )}
                 {message.metadata?.iterations !== undefined && Number(message.metadata.iterations) > 1 && (
                   <>
                     <span>Iterations:</span>
-                    <span className="text-zinc-200">{Number(message.metadata.iterations)}</span>
+                    <span className="chat-message__info-value">{Number(message.metadata.iterations)}</span>
                   </>
                 )}
                 {message.metadata?.elapsedMs !== undefined && Number(message.metadata.elapsedMs) > 0 && (
                   <>
                     <span>Time:</span>
-                    <span className="text-zinc-200">
+                    <span className="chat-message__info-value">
                       {Number(message.metadata.elapsedMs) < 1000
                         ? `${Math.round(Number(message.metadata.elapsedMs))}ms`
                         : `${(Number(message.metadata.elapsedMs) / 1000).toFixed(1)}s`}
@@ -1293,7 +1270,7 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
                 {message.metadata?.tokensPerSecond !== undefined && Number(message.metadata.tokensPerSecond) > 0 && (
                   <>
                     <span>Speed:</span>
-                    <span className="text-zinc-200">{Number(message.metadata.tokensPerSecond).toFixed(1)} tok/s</span>
+                    <span className="chat-message__info-value">{Number(message.metadata.tokensPerSecond).toFixed(1)} tok/s</span>
                   </>
                 )}
               </div>
@@ -1302,17 +1279,17 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="chat-message__actions">
           <button
             onClick={handleCopy}
-            className="flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            className="chat-message__action-btn"
           >
             {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Copy'}
           </button>
           <button
             onClick={onReply}
-            className="flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            className="chat-message__action-btn"
           >
             <Reply className="h-3 w-3" />
             Reply
@@ -1321,8 +1298,8 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             <button
               onClick={() => setShowToolCalls(!showToolCalls)}
               className={cn(
-                "flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300",
-                showToolCalls && "bg-zinc-800 text-zinc-300"
+                'chat-message__action-btn',
+                showToolCalls && 'chat-message__action-btn--active'
               )}
             >
               <Code className="h-3 w-3" />
@@ -1333,8 +1310,8 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             <button
               onClick={() => setShowInfo(!showInfo)}
               className={cn(
-                "flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300",
-                showInfo && "bg-zinc-800 text-zinc-300"
+                'chat-message__action-btn',
+                showInfo && 'chat-message__action-btn--active'
               )}
             >
               <Info className="h-3 w-3" />
@@ -1342,7 +1319,7 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             </button>
           )}
           {!isUser && (
-            <button className="flex h-6 items-center gap-1 rounded px-2 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300">
+            <button className="chat-message__action-btn">
               <RotateCcw className="h-3 w-3" />
               Retry
             </button>
@@ -1414,19 +1391,19 @@ function extractMediaArtifacts(toolCalls: ToolCall[]): MediaArtifact[] {
 function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="chat-lightbox"
       onClick={onClose}
     >
       <button
         onClick={onClose}
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+        className="chat-lightbox__close"
       >
         <X className="h-5 w-5" />
       </button>
       <img
         src={src}
         alt="Full size"
-        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        className="chat-lightbox__image"
         onClick={(e) => e.stopPropagation()}
       />
     </div>
@@ -1442,42 +1419,42 @@ function MediaPreviews({ artifacts }: { artifacts: MediaArtifact[] }) {
   return (
     <>
       {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="chat-media-previews">
         {artifacts.map((artifact, i) => (
           artifact.type === 'image' ? (
             <button
               key={i}
               onClick={() => setLightboxSrc(artifact.dataUri)}
-              className="group/thumb relative overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/50 transition-colors hover:border-zinc-500"
+              className="chat-media-thumb"
             >
               <img
                 src={artifact.dataUri}
                 alt="Generated"
-                className="h-24 w-24 object-cover sm:h-32 sm:w-32"
+                className="chat-media-thumb__img"
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/thumb:bg-black/30">
+              <div className="chat-media-thumb__overlay">
                 <Image className="h-5 w-5 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100" />
               </div>
               {artifact.caption && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
-                  <span className="text-[10px] text-zinc-300 line-clamp-1">{artifact.caption}</span>
+                <div className="chat-media-thumb__caption">
+                  <span>{artifact.caption}</span>
                 </div>
               )}
             </button>
           ) : (
             <div
               key={i}
-              className="flex w-full max-w-xs items-center gap-3 rounded-lg border border-zinc-700/50 bg-zinc-900/50 px-3 py-2"
+              className="chat-media-audio"
             >
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-cachi-600/20">
+              <div className="chat-media-audio__icon">
                 <Volume2 className="h-4 w-4 text-cachi-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <audio controls className="h-8 w-full [&::-webkit-media-controls-panel]:bg-zinc-800">
+                <audio controls className="chat-media-audio__player">
                   <source src={artifact.dataUri} type={artifact.dataUri.split(';')[0].replace('data:', '')} />
                 </audio>
                 {artifact.caption && (
-                  <p className="mt-0.5 truncate text-[10px] text-zinc-500">{artifact.caption}</p>
+                  <p className="chat-media-audio__caption">{artifact.caption}</p>
                 )}
               </div>
             </div>
@@ -1500,49 +1477,49 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
   const toolModel = getToolModel(call.tool)
 
   return (
-    <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50">
+    <div className="chat-msg-tool-call">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs"
+        className="chat-msg-tool-call__header"
       >
         {isSuccess ? (
           <CheckCircle className="h-3 w-3 flex-shrink-0 text-green-400" />
         ) : (
           <XCircle className="h-3 w-3 flex-shrink-0 text-red-400" />
         )}
-        <Code className="h-3 w-3 flex-shrink-0 text-zinc-500" />
-        <span className="flex-1 font-mono text-zinc-300 truncate">{call.tool}</span>
+        <Code className="h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)]" />
+        <span className="chat-msg-tool-call__name">{call.tool}</span>
         {toolModel && (
-          <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-zinc-500 truncate max-w-[140px]">
+          <span className="chat-msg-tool-call__model">
             {toolModel}
           </span>
         )}
         <ChevronDown
           className={cn(
-            'h-3 w-3 flex-shrink-0 text-zinc-500 transition-transform',
+            'h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)] transition-transform',
             expanded && 'rotate-180'
           )}
         />
       </button>
 
       {expanded && (
-        <div className="border-t border-zinc-700/50 px-3 py-2">
+        <div className="chat-msg-tool-call__body">
           <div className="space-y-2 text-xs">
             <div className="font-mono">
-              <span className="text-zinc-500">Arguments:</span>
-              <pre className="mt-1 overflow-x-auto rounded bg-zinc-950 p-1.5 text-zinc-300">
+              <span className="text-[var(--color-text-secondary)]">Arguments:</span>
+              <pre className="chat-msg-tool-call__code">
                 {JSON.stringify(call.args, null, 2)}
               </pre>
             </div>
             {call.result !== undefined && (
               <div>
-                <span className="font-mono text-zinc-500">Result:</span>
+                <span className="font-mono text-[var(--color-text-secondary)]">Result:</span>
                 {hasMedia ? (
                   <div className="mt-1">
                     <MarkdownRenderer content={resultStr} />
                   </div>
                 ) : (
-                  <pre className="mt-1 max-h-32 overflow-auto rounded bg-zinc-950 p-1.5 font-mono text-zinc-300">
+                  <pre className="chat-msg-tool-call__code" style={{ maxHeight: '8rem', overflow: 'auto' }}>
                     {resultStr}
                   </pre>
                 )}
@@ -1587,10 +1564,10 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
   }, [hasMedia])
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
+    <div className="chat-tool-call">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="chat-tool-call__header"
       >
         {!isComplete ? (
           <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
@@ -1600,40 +1577,40 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
           <XCircle className="h-4 w-4 text-red-400" />
         )}
 
-        <Code className="h-4 w-4 text-zinc-500" />
-        <span className="flex-1 font-mono text-sm text-zinc-300">{call.tool}</span>
+        <Code className="h-4 w-4 text-[var(--color-text-secondary)]" />
+        <span className="chat-tool-call__name">{call.tool}</span>
         {toolModel && (
-          <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-400">
+          <span className="chat-tool-call__model">
             {toolModel}
           </span>
         )}
 
         <ChevronDown
           className={cn(
-            'h-4 w-4 text-zinc-500 transition-transform',
+            'h-4 w-4 text-[var(--color-text-secondary)] transition-transform',
             expanded && 'rotate-180'
           )}
         />
       </button>
 
       {expanded && (
-        <div className="border-t border-zinc-800 bg-zinc-950/50 p-4">
+        <div className="chat-tool-call__body">
           <div className="space-y-3 text-xs">
             <div className="font-mono">
-              <span className="text-zinc-500">Arguments:</span>
-              <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-2 text-zinc-300">
+              <span className="text-[var(--color-text-secondary)]">Arguments:</span>
+              <pre className="chat-tool-call__code">
                 {JSON.stringify(call.args, null, 2)}
               </pre>
             </div>
             {call.result !== undefined && (
               <div>
-                <span className="font-mono text-zinc-500">Result:</span>
+                <span className="font-mono text-[var(--color-text-secondary)]">Result:</span>
                 {hasMedia ? (
                   <div className="mt-1">
                     <MarkdownRenderer content={resultStr} />
                   </div>
                 ) : (
-                  <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-2 font-mono text-zinc-300">
+                  <pre className="chat-tool-call__code">
                     {resultStr}
                   </pre>
                 )}
@@ -1652,13 +1629,13 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
 
 function ThinkingIndicator({ content }: { content: string }) {
   return (
-    <div className="flex items-start gap-4">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600/20">
+    <div className="chat-thinking">
+      <div className="chat-thinking__icon">
         <Zap className="h-5 w-5 animate-pulse text-purple-400" />
       </div>
-      <div className="flex-1 rounded-2xl bg-purple-900/20 px-4 py-3">
-        <div className="mb-1 text-xs font-medium text-purple-400">Thinking...</div>
-        <div className="text-sm text-zinc-400">{content}</div>
+      <div className="chat-thinking__body">
+        <div className="chat-thinking__label">Thinking...</div>
+        <div className="chat-thinking__content">{content}</div>
       </div>
     </div>
   )
@@ -1670,17 +1647,17 @@ function ThinkingIndicator({ content }: { content: string }) {
 
 function TypingIndicator({ botColor }: { botColor?: string }) {
   return (
-    <div className="flex items-start gap-4">
+    <div className="chat-typing">
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-full animate-pulse"
+        className="chat-typing__icon"
         style={{ backgroundColor: (botColor || '#22c55e') + '30' }}
       >
         <Loader2 className="h-5 w-5 animate-spin" style={{ color: botColor || '#22c55e' }} />
       </div>
-      <div className="flex-1 rounded-2xl bg-zinc-800/50 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
+      <div className="chat-typing__body">
+        <div className="chat-typing__text">
           <span>Generating response</span>
-          <span className="flex gap-1">
+          <span className="chat-typing__dots">
             <span className="animate-pulse" style={{ animationDelay: '0ms' }}>.</span>
             <span className="animate-pulse" style={{ animationDelay: '200ms' }}>.</span>
             <span className="animate-pulse" style={{ animationDelay: '400ms' }}>.</span>
@@ -1690,4 +1667,3 @@ function TypingIndicator({ botColor }: { botColor?: string }) {
     </div>
   )
 }
-

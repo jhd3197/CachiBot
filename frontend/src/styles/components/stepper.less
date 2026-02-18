@@ -1,0 +1,210 @@
+// =============================================================================
+// Stepper — components/stepper.less
+// Horizontal, vertical, and compact steppers for DialogStepper
+// =============================================================================
+
+.stepper {
+  display: flex;
+  gap: @sp-2;
+
+  // ---------------------------------------------------------------------------
+  // Variant layouts
+  // ---------------------------------------------------------------------------
+  &--horizontal {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &--vertical {
+    flex-direction: column;
+    gap: @sp-0\.5;
+  }
+
+  &--compact {
+    align-items: center;
+    gap: @sp-1\.5;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step (base)
+  // ---------------------------------------------------------------------------
+  &__step {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    font-size: @text-sm;
+    color: var(--color-text-tertiary);
+    background: none;
+    border: none;
+    cursor: default;
+    .transition-colors();
+
+    &--active {
+      color: var(--accent-400);
+    }
+
+    &--completed {
+      color: var(--color-text-secondary);
+    }
+
+    &--upcoming {
+      color: var(--color-text-tertiary);
+    }
+
+    &--clickable {
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step group (horizontal wrapper for step + connector)
+  // ---------------------------------------------------------------------------
+  &__step-group {
+    display: flex;
+    align-items: center;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Vertical step layout
+  // ---------------------------------------------------------------------------
+  &--vertical &__step {
+    width: 100%;
+    gap: @sp-3;
+    border-radius: @radius-lg;
+    padding: @sp-2 @sp-3;
+    text-align: left;
+  }
+
+  &--vertical &__step--active {
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+  }
+
+  &--vertical &__step--completed&__step--clickable:hover,
+  &--vertical &__step--upcoming&__step--clickable:hover {
+    background: var(--color-hover-bg);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Horizontal step layout
+  // ---------------------------------------------------------------------------
+  &--horizontal &__step {
+    border-radius: @radius-lg;
+    padding: @sp-1\.5 @sp-3;
+  }
+
+  &--horizontal &__step--active {
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+  }
+
+  &--horizontal &__step--completed&__step--clickable:hover {
+    color: var(--color-text-primary);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Indicator (numbered circle / check icon)
+  // ---------------------------------------------------------------------------
+  &__indicator {
+    .flex-center();
+    border-radius: @radius-full;
+    font-weight: @font-medium;
+    flex-shrink: 0;
+  }
+
+  &--vertical &__indicator {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: @text-xs;
+  }
+
+  &--horizontal &__indicator {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 10px;
+  }
+
+  // Indicator states
+  &__step--active &__indicator {
+    background: var(--accent-600);
+    color: white;
+  }
+
+  &__step--completed &__indicator {
+    background: color-mix(in srgb, var(--accent-600) 30%, transparent);
+    color: var(--accent-400);
+  }
+
+  &__step--upcoming &__indicator {
+    background: @zinc-200;
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: @zinc-800;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step label and description
+  // ---------------------------------------------------------------------------
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+  }
+
+  &__description {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  // Hide label on small screens in horizontal mode
+  &--horizontal &__label {
+    display: none;
+
+    @media (min-width: @screen-sm) {
+      display: inline;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Connector (line between horizontal steps)
+  // ---------------------------------------------------------------------------
+  &__connector {
+    margin: 0 @sp-1;
+    height: 1px;
+    width: 1rem;
+    background: var(--color-border-secondary);
+
+    &--completed {
+      background: color-mix(in srgb, var(--accent-600) 50%, transparent);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Compact variant (pill-shaped indicators)
+  // ---------------------------------------------------------------------------
+  &--compact &__step {
+    padding: 0;
+    height: 0.5rem;
+    border-radius: @radius-full;
+    width: 0.5rem;
+    gap: 0;
+    transition: all @transition-fast;
+  }
+
+  &--compact &__step--active {
+    width: 2rem;
+    background: var(--accent-500);
+  }
+
+  &--compact &__step--completed {
+    background: var(--accent-600);
+  }
+
+  &--compact &__step--upcoming {
+    background: var(--color-border-secondary);
+  }
+}

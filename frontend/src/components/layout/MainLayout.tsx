@@ -32,6 +32,7 @@ import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
 import { getConfig } from '../../api/client'
+import { cn } from '../../lib/utils'
 import type { AppView, BotView, Config } from '../../types'
 
 // Map URL paths to app views
@@ -163,6 +164,12 @@ export function MainLayout() {
       const root = document.documentElement
       Object.entries(palette).forEach(([shade, color]) => {
         root.style.setProperty(`--accent-${shade}`, color)
+        // Set RGB triplet variants for rgba() usage
+        const hex = color.replace('#', '')
+        const r = parseInt(hex.substring(0, 2), 16)
+        const g = parseInt(hex.substring(2, 4), 16)
+        const b = parseInt(hex.substring(4, 6), 16)
+        root.style.setProperty(`--accent-${shade}-rgb`, `${r}, ${g}, ${b}`)
       })
     }
   }, [accentColor])
@@ -271,22 +278,22 @@ export function MainLayout() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <div className="flex flex-1 overflow-hidden">
+    <div className="app-shell">
+      <div className="app-shell__body">
       {/* Mobile overlay backdrop */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="app-shell__overlay"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Bot Rail - leftmost sidebar (hidden on mobile unless menu open) */}
       <div
-        className={`
-          fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:static lg:translate-x-0
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
+        className={cn(
+          'app-shell__rail',
+          mobileMenuOpen && 'app-shell__rail--open'
+        )}
       >
         <BotRail onNavigate={() => setMobileMenuOpen(false)} />
       </div>
@@ -294,22 +301,22 @@ export function MainLayout() {
       {/* Bot Sidebar - secondary navigation (hide on app-level views, hidden on mobile unless menu open) */}
       {!appView && (
         <div
-          className={`
-            fixed inset-y-0 left-[72px] z-50 transition-transform duration-300 lg:static lg:translate-x-0
-            ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-[calc(100%+72px)]'}
-          `}
+          className={cn(
+            'app-shell__sidebar',
+            mobileMenuOpen && 'app-shell__sidebar--open'
+          )}
         >
           <BotSidebar onNavigate={() => setMobileMenuOpen(false)} />
         </div>
       )}
 
       {/* Main content area */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="app-shell__main">
         {/* Mobile header with menu button */}
-        <div className="flex h-12 items-center gap-3 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900 lg:hidden">
+        <div className="app-shell__mobile-header">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="btn btn--ghost btn--icon btn--sm"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -317,7 +324,7 @@ export function MainLayout() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600">
               <span className="text-sm font-bold text-white">C</span>
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100">CachiBot</span>
+            <span className="font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">CachiBot</span>
           </div>
         </div>
         <UpdateBanner />

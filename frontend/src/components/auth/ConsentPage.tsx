@@ -62,81 +62,81 @@ export function ConsentPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
+      <div className="layout-auth">
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-500)' }} />
       </div>
     )
   }
 
   return (
-    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
-      <div className="w-full max-w-lg">
+    <div className="layout-auth">
+      <div className="consent">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
-            <Shield className="h-8 w-8 text-white" />
+        <div className="consent__logo">
+          <div className="consent__logo-icon">
+            <Shield size={32} style={{ color: 'white' }} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Welcome to CachiBot</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Just a few things before we get started</p>
+          <h1 className="consent__title">Welcome to CachiBot</h1>
+          <p className="consent__subtitle">Just a few things before we get started</p>
         </div>
 
         {/* Consent Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-6">
+        <div className="consent__card">
           {/* Terms Section */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Terms of Service</h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+            <h3 className="consent__section-title">Terms of Service</h3>
+            <p className="consent__text">
               By using CachiBot, you agree to our{' '}
               <a
                 href="https://cachibot.ai/terms"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-500 hover:text-accent-400 underline inline-flex items-center gap-0.5"
+                className="consent__link"
               >
                 Terms of Service
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink size={12} />
               </a>{' '}
               and{' '}
               <a
                 href="https://cachibot.ai/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-accent-500 hover:text-accent-400 underline inline-flex items-center gap-0.5"
+                className="consent__link"
               >
                 Privacy Policy
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink size={12} />
               </a>
               .
             </p>
 
-            <label className="flex items-start gap-3 cursor-pointer group">
+            <label className="consent__option">
               <input
                 type="checkbox"
                 checked={termsAccepted}
                 onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-accent-600 focus:ring-accent-500 dark:border-zinc-600 dark:bg-zinc-800"
+                className="consent__checkbox"
               />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              <span className="consent__option-text">
                 I accept the Terms of Service and Privacy Policy
               </span>
             </label>
           </div>
 
           {/* Analytics Section */}
-          <div className="border-t border-zinc-200 dark:border-zinc-800 pt-5">
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="h-4 w-4 text-zinc-500" />
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Anonymous Analytics</h3>
+          <div className="consent__divider">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <BarChart3 size={16} style={{ color: 'var(--color-text-secondary)' }} />
+              <h3 className="consent__section-title" style={{ marginBottom: 0 }}>Anonymous Analytics</h3>
             </div>
 
-            <label className="flex items-start gap-3 cursor-pointer group mb-3">
+            <label className="consent__option" style={{ marginBottom: '0.75rem' }}>
               <input
                 type="checkbox"
                 checked={telemetryEnabled}
                 onChange={(e) => setTelemetryEnabled(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-accent-600 focus:ring-accent-500 dark:border-zinc-600 dark:bg-zinc-800"
+                className="consent__checkbox"
               />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100">
+              <span className="consent__option-text">
                 Help improve CachiBot by sending anonymous usage statistics
               </span>
             </label>
@@ -144,17 +144,17 @@ export function ConsentPage() {
             {/* Expandable details */}
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+              className="consent__details-toggle"
             >
-              {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showDetails ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               {showDetails ? 'Hide details' : 'What we collect & what we never collect'}
             </button>
 
             {showDetails && (
-              <div className="mt-3 space-y-3 text-xs">
-                <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
-                  <p className="font-medium text-green-600 dark:text-green-400 mb-1.5">What we collect:</p>
-                  <ul className="space-y-1 text-zinc-600 dark:text-zinc-400">
+              <div className="consent__details">
+                <div className="consent__details-box consent__details-box--positive">
+                  <p className="consent__details-title consent__details-title--positive">What we collect:</p>
+                  <ul className="consent__details-list">
                     <li>- App version, OS type, Python version</li>
                     <li>- Database type (sqlite/postgresql)</li>
                     <li>- Aggregate counts: bots, messages, users</li>
@@ -162,9 +162,9 @@ export function ConsentPage() {
                     <li>- A random install ID (resettable)</li>
                   </ul>
                 </div>
-                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                  <p className="font-medium text-red-500 dark:text-red-400 mb-1.5">What we NEVER collect:</p>
-                  <ul className="space-y-1 text-zinc-600 dark:text-zinc-400">
+                <div className="consent__details-box consent__details-box--negative">
+                  <p className="consent__details-title consent__details-title--negative">What we NEVER collect:</p>
+                  <ul className="consent__details-list">
                     <li>- Messages or conversation content</li>
                     <li>- API keys or passwords</li>
                     <li>- Email addresses or usernames</li>
@@ -176,10 +176,10 @@ export function ConsentPage() {
                   href="https://cachibot.ai/telemetry"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-accent-500 hover:text-accent-400"
+                  className="consent__link"
                 >
                   Full telemetry disclosure
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink size={12} />
                 </a>
               </div>
             )}
@@ -188,25 +188,25 @@ export function ConsentPage() {
           {/* Continue button */}
           <Button
             onClick={handleContinue}
-            className="w-full justify-center"
+            className="consent__submit"
             disabled={!termsAccepted || submitting}
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem' }} />
                 Saving...
               </>
             ) : (
               <>
                 Continue
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight size={16} style={{ marginLeft: '0.5rem' }} />
               </>
             )}
           </Button>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-zinc-500 text-xs mt-6">
+        <p className="consent__footer">
           You can change analytics settings anytime in Settings &gt; Data &amp; Privacy
         </p>
       </div>

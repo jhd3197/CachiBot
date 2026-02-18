@@ -23,27 +23,25 @@ export function TitleBar() {
   if (!isDesktop || isMac) return null
 
   return (
-    <div className="title-bar flex h-8 shrink-0 select-none items-center bg-zinc-950">
+    <div className="title-bar">
       {/* Draggable region — fills available space */}
-      <div className="title-bar-drag flex flex-1 items-center gap-2 px-3">
-        <div className="flex h-4 w-4 items-center justify-center rounded bg-accent-600">
-          <span className="text-[9px] font-bold leading-none text-white">C</span>
-        </div>
-        <span className="text-[11px] font-medium text-zinc-500">CachiBot</span>
+      <div className="title-bar__brand title-bar-drag">
+        <img src="/icon.png" alt="" className="title-bar__brand-icon" />
+        <span className="title-bar__brand-text">CachiBot</span>
       </div>
 
       {/* Window controls — not draggable */}
-      <div className="flex h-full">
+      <div className="title-bar__controls">
         <button
           onClick={() => api!.windowMinimize()}
-          className="title-bar-btn flex h-full w-[46px] items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="title-bar__btn title-bar-btn"
           aria-label="Minimize"
         >
           <Minus className="h-4 w-4" strokeWidth={1.5} />
         </button>
         <button
           onClick={() => api!.windowMaximize()}
-          className="title-bar-btn flex h-full w-[46px] items-center justify-center text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="title-bar__btn title-bar-btn"
           aria-label={isMaximized ? 'Restore' : 'Maximize'}
         >
           {isMaximized ? (
@@ -54,7 +52,7 @@ export function TitleBar() {
         </button>
         <button
           onClick={() => api!.windowClose()}
-          className="title-bar-btn flex h-full w-[46px] items-center justify-center text-zinc-400 transition-colors hover:bg-red-600 hover:text-white"
+          className="title-bar__btn title-bar__btn--close title-bar-btn"
           aria-label="Close"
         >
           <X className="h-4 w-4" strokeWidth={1.5} />

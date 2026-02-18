@@ -1,0 +1,143 @@
+// =============================================================================
+// Header — layout/header.less
+// Top header bar with status, model, user menu
+// =============================================================================
+
+.header {
+  display: flex;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: 0 @sp-4;
+
+  &__left,
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__left {
+    gap: @sp-3;
+  }
+
+  // Connection status pill
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: @sp-1\.5;
+    border-radius: @radius-full;
+    padding: @sp-1 @sp-2\.5;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    &--connected {
+      background: var(--accent-50, rgba(34, 197, 94, 0.1));
+      color: var(--accent-700, var(--accent-600));
+
+      .dark & {
+        background: rgba(var(--accent-500-rgb, 34, 197, 94), 0.15);
+        color: var(--accent-400);
+      }
+    }
+
+    &--disconnected {
+      background: @red-100;
+      color: @red-700;
+
+      .dark & {
+        background: rgba(239, 68, 68, 0.15);
+        color: @red-400;
+      }
+    }
+  }
+
+  // Model badge
+  &__model {
+    display: none;
+    align-items: center;
+    gap: @sp-1\.5;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    padding: @sp-1 @sp-2\.5;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    font-family: @font-mono;
+    color: var(--color-text-secondary);
+
+    .screen-sm({
+      display: flex;
+    });
+  }
+
+  // User menu
+  &__user-menu {
+    position: relative;
+  }
+
+  &__user-avatar {
+    .flex-center();
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: @radius-full;
+    background: @zinc-700;
+  }
+
+  &__user-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: @sp-1;
+    width: 12rem;
+    background: @zinc-800;
+    border: 1px solid @zinc-700;
+    border-radius: @radius-lg;
+    box-shadow: @shadow-lg;
+    padding: @sp-1 0;
+    z-index: @z-dropdown;
+  }
+
+  &__user-dropdown-header {
+    padding: @sp-2 @sp-3;
+    border-bottom: 1px solid @zinc-700;
+
+    .name {
+      font-size: @text-sm;
+      font-weight: @font-medium;
+      color: white;
+    }
+
+    .email {
+      font-size: @text-xs;
+      color: @zinc-400;
+    }
+
+    .role {
+      font-size: @text-xs;
+      color: @zinc-500;
+      margin-top: 2px;
+      text-transform: capitalize;
+    }
+  }
+
+  &__user-dropdown-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-2 @sp-3;
+    font-size: @text-sm;
+    text-align: left;
+    .transition-colors();
+
+    &:hover {
+      background: @zinc-700;
+    }
+
+    &--danger {
+      color: @red-400;
+    }
+  }
+}

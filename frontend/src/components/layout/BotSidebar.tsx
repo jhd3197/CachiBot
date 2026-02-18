@@ -82,30 +82,30 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-r border-zinc-300 bg-zinc-50 transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-900/50',
-        sidebarCollapsed ? 'w-16' : 'w-72'
+        'bot-sidebar',
+        sidebarCollapsed ? 'bot-sidebar--collapsed' : 'bot-sidebar--expanded'
       )}
     >
       {/* Bot header */}
-      <div className="flex h-14 items-center gap-3 border-b border-zinc-300 px-4 dark:border-zinc-800">
+      <div className="bot-sidebar__header">
         <div
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+          className="bot-sidebar__bot-avatar"
           style={{ backgroundColor: activeBot.color + '20' }}
         >
           <BotIconRenderer icon={activeBot.icon} size={18} />
         </div>
         {!sidebarCollapsed && (
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="bot-sidebar__bot-info">
+            <h2 className="name">
               {activeBot.name}
             </h2>
-            <p className="truncate text-xs text-zinc-500">{activeBot.model}</p>
+            <p className="model">{activeBot.model}</p>
           </div>
         )}
       </div>
 
       {/* Navigation tabs - compact icon-only style */}
-      <nav className="flex items-center justify-center gap-1 border-b border-zinc-300 px-3 py-2 dark:border-zinc-800">
+      <nav className="bot-sidebar__nav">
         {visibleNavItems.map((item) => (
           <NavButton
             key={item.id}
@@ -118,7 +118,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
       </nav>
 
       {/* Content based on active view */}
-      <div className="flex-1 overflow-hidden">
+      <div className="bot-sidebar__content">
         {activeView === 'chats' && <ChatList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'rooms' && <RoomList collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'tasks' && <TaskList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
@@ -145,15 +145,13 @@ function NavButton({ icon: Icon, label, active, onClick }: NavButtonProps) {
       onClick={onClick}
       title={label}
       className={cn(
-        'group relative flex h-8 w-8 items-center justify-center rounded-lg transition-all',
-        active
-          ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-          : 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+        'nav-btn group',
+        active && 'nav-btn--active'
       )}
     >
       <Icon className="h-4 w-4" />
       {/* Tooltip */}
-      <span className="pointer-events-none absolute -bottom-8 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-700 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-zinc-800">
+      <span className="bot-sidebar__nav-tooltip">
         {label}
       </span>
     </button>
@@ -186,12 +184,12 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
   // Get the appropriate icon for the chat
   const getChatIcon = (chat: Chat) => {
     if (chat.platform === 'telegram') {
-      return <MessageCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-400" />
+      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--telegram mt-0.5 h-4 w-4 flex-shrink-0" />
     }
     if (chat.platform === 'discord') {
-      return <MessageCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-indigo-400" />
+      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--discord mt-0.5 h-4 w-4 flex-shrink-0" />
     }
-    return <MessageSquare className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-500" />
+    return <MessageSquare className="sidebar-chat-item__icon sidebar-chat-item__icon--default mt-0.5 h-4 w-4 flex-shrink-0" />
   }
 
   const handleNewChat = () => {
@@ -226,7 +224,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
       <div className="flex flex-col items-center gap-2 p-2">
         <button
           onClick={handleNewChat}
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+          className="sidebar-add-btn sidebar-add-btn--lg"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -237,29 +235,29 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
   return (
     <div className="flex h-full flex-col">
       {/* Search and new chat */}
-      <div className="flex gap-2 p-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+      <div className="sidebar-search">
+        <div className="sidebar-search__wrap">
+          <Search className="sidebar-search__icon h-4 w-4" />
           <input
             type="text"
             placeholder="Search chats..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-cachi-500 focus:ring-1 focus:ring-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+            className="sidebar-search__input"
           />
         </div>
         <button
           onClick={handleNewChat}
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+          className="sidebar-add-btn"
         >
           <Plus className="h-4 w-4" />
         </button>
       </div>
 
       {/* Chat list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="sidebar-list">
         {chats.length === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-500">
+          <div className="sidebar-list__empty">
             {search ? 'No chats found' : 'No chats yet'}
           </div>
         ) : (
@@ -269,10 +267,8 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                 <button
                   onClick={() => handleChatClick(chat)}
                   className={cn(
-                    'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-                    activeChatId === chat.id
-                      ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                      : 'text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50'
+                    'sidebar-chat-item',
+                    activeChatId === chat.id && 'sidebar-chat-item--active'
                   )}
                 >
                   {getChatIcon(chat)}
@@ -283,13 +279,13 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                         <Pin className="h-3 w-3 flex-shrink-0 text-cachi-500" />
                       )}
                       {chat.platform && (
-                        <span className="rounded bg-zinc-300 px-1 py-0.5 text-[10px] uppercase text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                        <span className="sidebar-chat-item__platform-badge">
                           {chat.platform}
                         </span>
                       )}
                     </div>
                     {chat.lastMessage && (
-                      <p className="truncate text-xs text-zinc-500">{chat.lastMessage}</p>
+                      <p className="truncate text-xs text-[var(--color-text-secondary)]">{chat.lastMessage}</p>
                     )}
                   </div>
                 </button>
@@ -301,7 +297,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                     setMenuOpen(menuOpen === chat.id ? null : chat.id)
                   }}
                   className={cn(
-                    'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-200 group-hover:opacity-100 dark:text-zinc-400 dark:hover:bg-zinc-700',
+                    'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-[var(--color-text-secondary)] opacity-0 transition-opacity hover:bg-zinc-200 group-hover:opacity-100 dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)]',
                     menuOpen === chat.id && 'opacity-100'
                   )}
                 >
@@ -310,13 +306,13 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
 
                 {/* Context menu */}
                 {menuOpen === chat.id && (
-                  <div className="absolute right-0 top-8 z-10 w-48 rounded-lg border border-zinc-300 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="context-menu absolute right-0 top-8 z-10 w-48">
                     <button
                       onClick={() => {
                         updateChat(chat.id, { pinned: !chat.pinned })
                         setMenuOpen(null)
                       }}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      className="context-menu__item"
                     >
                       <Pin className="h-4 w-4" />
                       {chat.pinned ? 'Unpin' : 'Pin'}
@@ -336,7 +332,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                               toast.error('Failed to clear messages')
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="context-menu__item"
                         >
                           <Eraser className="h-4 w-4" />
                           Clear Messages
@@ -351,7 +347,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                               toast.error('Failed to archive chat')
                             }
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="context-menu__item"
                         >
                           <Archive className="h-4 w-4" />
                           Archive Chat
@@ -364,18 +360,18 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                             updateChat(chat.id, { archived: true })
                             setMenuOpen(null)
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="context-menu__item"
                         >
                           <Archive className="h-4 w-4" />
                           Archive
                         </button>
-                        <div className="my-1 h-px bg-zinc-300 dark:bg-zinc-700" />
+                        <div className="context-menu__divider" />
                         <button
                           onClick={() => {
                             deleteChat(chat.id)
                             setMenuOpen(null)
                           }}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:bg-zinc-100 dark:text-red-400 dark:hover:bg-zinc-700"
+                          className="context-menu__item context-menu__item--danger"
                         >
                           <Trash2 className="h-4 w-4" />
                           Delete
@@ -430,12 +426,12 @@ function RoomList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
       <div className="flex flex-col items-center gap-2 p-2">
         <button
           onClick={handleNewRoom}
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+          className="sidebar-add-btn sidebar-add-btn--lg"
         >
           <Plus className="h-4 w-4" />
         </button>
         {rooms.length > 0 && (
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-300">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-bg-secondary)] text-xs font-bold text-[var(--color-text-primary)]">
             {rooms.length}
           </div>
         )}
@@ -449,29 +445,29 @@ function RoomList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
   return (
     <div className="flex h-full flex-col">
       {/* Search and new room */}
-      <div className="flex gap-2 p-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+      <div className="sidebar-search">
+        <div className="sidebar-search__wrap">
+          <Search className="sidebar-search__icon h-4 w-4" />
           <input
             type="text"
             placeholder="Search rooms..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-cachi-500 focus:ring-1 focus:ring-cachi-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+            className="sidebar-search__input"
           />
         </div>
         <button
           onClick={handleNewRoom}
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+          className="sidebar-add-btn"
         >
           <Plus className="h-4 w-4" />
         </button>
       </div>
 
       {/* Room list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="sidebar-list">
         {filtered.length === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-500">
+          <div className="sidebar-list__empty">
             {search ? 'No rooms found' : 'No rooms yet'}
           </div>
         ) : (
@@ -481,16 +477,14 @@ function RoomList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
                 key={room.id}
                 onClick={() => handleRoomClick(room.id)}
                 className={cn(
-                  'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',
-                  activeRoomId === room.id
-                    ? 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                    : 'text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/50'
+                  'sidebar-chat-item',
+                  activeRoomId === room.id && 'sidebar-chat-item--active'
                 )}
               >
-                <DoorOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-zinc-500" />
+                <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default mt-0.5 h-4 w-4 flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <span className="truncate text-sm font-medium">{room.title}</span>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                     <span>{room.bots.length} bots</span>
                     <span>{room.messageCount ?? 0} msgs</span>
                   </div>
@@ -530,12 +524,12 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
   const { getTasksByBot, activeTaskId, setActiveTask, addTask, updateTask } = useTaskStore()
   const tasks = getTasksByBot(botId)
 
-  const getStatusStyle = (status: Task['status']) => {
+  const getStatusClass = (status: Task['status']) => {
     switch (status) {
-      case 'todo': return 'border-zinc-600 bg-zinc-800'
-      case 'in_progress': return 'border-blue-500 bg-blue-500/10'
-      case 'done': return 'border-green-500 bg-green-500/10'
-      case 'blocked': return 'border-red-500 bg-red-500/10'
+      case 'todo': return 'sidebar-task-item--todo'
+      case 'in_progress': return 'sidebar-task-item--in_progress'
+      case 'done': return 'sidebar-task-item--done'
+      case 'blocked': return 'sidebar-task-item--blocked'
     }
   }
 
@@ -560,12 +554,12 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
       <div className="flex flex-col items-center gap-2 p-2">
         <button
           onClick={handleNewTask}
-          className="flex h-10 w-10 items-center justify-center rounded-lg bg-cachi-600 text-white hover:bg-cachi-500"
+          className="sidebar-add-btn sidebar-add-btn--lg"
         >
           <Plus className="h-4 w-4" />
         </button>
         {todoCount > 0 && (
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-300">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-bg-secondary)] text-xs font-bold text-[var(--color-text-primary)]">
             {todoCount}
           </div>
         )}
@@ -579,7 +573,7 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
       <div className="p-3">
         <button
           onClick={handleNewTask}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 py-2 text-sm text-zinc-400 transition-colors hover:border-cachi-500 hover:text-cachi-400"
+          className="btn btn--dashed w-full"
         >
           <Plus className="h-4 w-4" />
           Add Task
@@ -587,9 +581,9 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
       </div>
 
       {/* Task list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
+      <div className="sidebar-list">
         {tasks.length === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-500">No tasks yet</div>
+          <div className="sidebar-list__empty">No tasks yet</div>
         ) : (
           <div className="space-y-2">
             {tasks.map((task) => (
@@ -597,9 +591,9 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                 key={task.id}
                 onClick={() => { setActiveTask(task.id); onNavigate?.() }}
                 className={cn(
-                  'flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                  'sidebar-task-item',
                   activeTaskId === task.id && 'ring-1 ring-cachi-500',
-                  getStatusStyle(task.status)
+                  getStatusClass(task.status)
                 )}
               >
                 {/* Checkbox */}
@@ -612,10 +606,8 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                     })
                   }}
                   className={cn(
-                    'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors',
-                    task.status === 'done'
-                      ? 'border-green-500 bg-green-500 text-white'
-                      : 'border-zinc-500 hover:border-cachi-500'
+                    'sidebar-task-item__checkbox',
+                    task.status === 'done' && 'sidebar-task-item__checkbox--done'
                   )}
                 >
                   {task.status === 'done' && '✓'}
@@ -625,7 +617,7 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                   <span
                     className={cn(
                       'text-sm',
-                      task.status === 'done' ? 'text-zinc-500 line-through' : 'text-zinc-200'
+                      task.status === 'done' ? 'text-[var(--color-text-secondary)] line-through' : 'text-[var(--color-text-primary)]'
                     )}
                   >
                     {task.title}
@@ -635,7 +627,7 @@ function TaskList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                       {task.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400"
+                          className="rounded bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]"
                         >
                           {tag}
                         </span>
@@ -677,10 +669,8 @@ function WorkSectionsList({ botId, collapsed }: { botId: string; collapsed: bool
             key={section.id}
             onClick={() => setWorkSection(section.id)}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
-              workSection === section.id
-                ? 'bg-blue-600/20 text-blue-400'
-                : 'text-zinc-400 hover:bg-zinc-800'
+              'sidebar-section-btn-icon',
+              workSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--blue'
             )}
             title={section.label}
           >
@@ -706,16 +696,14 @@ function WorkSectionsList({ botId, collapsed }: { botId: string; collapsed: bool
               key={section.id}
               onClick={() => setWorkSection(section.id)}
               className={cn(
-                'flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors',
-                workSection === section.id
-                  ? 'bg-blue-600/20 text-blue-400'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                'sidebar-section-btn',
+                workSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--blue'
               )}
             >
               <section.icon className="h-5 w-5" />
-              <span className="flex-1 text-sm">{section.label}</span>
+              <span className="label">{section.label}</span>
               {count !== undefined && count > 0 && (
-                <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs text-zinc-400">
+                <span className="sidebar-section-btn__count">
                   {count}
                 </span>
               )}
@@ -752,10 +740,8 @@ function SchedulesSectionsList({ botId, collapsed }: { botId: string; collapsed:
             key={section.id}
             onClick={() => setScheduleSection(section.id)}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
-              scheduleSection === section.id
-                ? 'bg-purple-600/20 text-purple-400'
-                : 'text-zinc-400 hover:bg-zinc-800'
+              'sidebar-section-btn-icon',
+              scheduleSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--purple'
             )}
             title={section.label}
           >
@@ -781,16 +767,14 @@ function SchedulesSectionsList({ botId, collapsed }: { botId: string; collapsed:
               key={section.id}
               onClick={() => setScheduleSection(section.id)}
               className={cn(
-                'flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors',
-                scheduleSection === section.id
-                  ? 'bg-purple-600/20 text-purple-400'
-                  : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                'sidebar-section-btn',
+                scheduleSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--purple'
               )}
             >
               <section.icon className="h-5 w-5" />
-              <span className="flex-1 text-sm">{section.label}</span>
+              <span className="label">{section.label}</span>
               {count !== undefined && count > 0 && (
-                <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs text-zinc-400">
+                <span className="sidebar-section-btn__count">
                   {count}
                 </span>
               )}
@@ -824,10 +808,8 @@ function AutomationsSectionsList({ collapsed }: { botId: string; collapsed: bool
             key={section.id}
             onClick={() => setAutomationSection(section.id)}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
-              automationSection === section.id
-                ? 'bg-accent-600/20 text-accent-400'
-                : 'text-zinc-400 hover:bg-zinc-800'
+              'sidebar-section-btn-icon',
+              automationSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--accent'
             )}
             title={section.label}
           >
@@ -846,14 +828,12 @@ function AutomationsSectionsList({ collapsed }: { botId: string; collapsed: bool
             key={section.id}
             onClick={() => setAutomationSection(section.id)}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors',
-              automationSection === section.id
-                ? 'bg-accent-600/20 text-accent-400'
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+              'sidebar-section-btn',
+              automationSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--accent'
             )}
           >
             <section.icon className="h-5 w-5" />
-            <span className="flex-1 text-sm">{section.label}</span>
+            <span className="label">{section.label}</span>
           </button>
         ))}
       </div>
@@ -874,7 +854,7 @@ function ToolsList({ collapsed }: { botId: string; collapsed: boolean }) {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center p-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800 text-sm font-bold text-zinc-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-bg-secondary)] text-sm font-bold text-[var(--color-text-secondary)]">
           {tools.length}
         </div>
       </div>
@@ -887,10 +867,10 @@ function ToolsList({ collapsed }: { botId: string; collapsed: boolean }) {
         {tools.map((toolId) => (
           <div
             key={toolId}
-            className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/30 p-3"
+            className="sidebar-tool-item"
           >
-            <ToolIconRenderer toolId={toolId} className="h-5 w-5 text-zinc-400" />
-            <span className="text-sm capitalize text-zinc-300">{toolId.replace(/_/g, ' ')}</span>
+            <ToolIconRenderer toolId={toolId} className="h-5 w-5 text-[var(--color-text-secondary)]" />
+            <span className="text-sm capitalize text-[var(--color-text-primary)]">{toolId.replace(/_/g, ' ')}</span>
           </div>
         ))}
       </div>
@@ -922,12 +902,14 @@ function SettingsList({ collapsed }: { collapsed: boolean }) {
             key={section.id}
             onClick={() => setSettingsSection(section.id)}
             className={cn(
-              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors',
+              'sidebar-section-btn-icon',
               settingsSection === section.id
-                ? 'bg-cachi-600/20 text-cachi-400'
+                ? section.danger
+                  ? 'sidebar-section-btn-icon--active sidebar-section-btn--danger'
+                  : 'sidebar-section-btn-icon--active sidebar-section-btn--accent'
                 : section.danger
-                ? 'text-red-400/70 hover:bg-red-500/10'
-                : 'text-zinc-400 hover:bg-zinc-800'
+                ? 'sidebar-section-btn--danger'
+                : ''
             )}
             title={section.label}
           >
@@ -946,20 +928,21 @@ function SettingsList({ collapsed }: { collapsed: boolean }) {
             key={section.id}
             onClick={() => setSettingsSection(section.id)}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors',
+              'sidebar-section-btn',
               settingsSection === section.id
-                ? 'bg-cachi-600/20 text-cachi-400'
+                ? section.danger
+                  ? 'sidebar-section-btn--active sidebar-section-btn--danger'
+                  : 'sidebar-section-btn--active sidebar-section-btn--accent'
                 : section.danger
-                ? 'text-red-400/70 hover:bg-red-500/10 hover:text-red-400'
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                ? 'sidebar-section-btn--danger'
+                : ''
             )}
           >
             <section.icon className="h-5 w-5" />
-            <span className="text-sm">{section.label}</span>
+            <span className="label">{section.label}</span>
           </button>
         ))}
       </div>
     </div>
   )
 }
-

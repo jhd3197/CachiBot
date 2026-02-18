@@ -132,14 +132,14 @@ export function ScriptEditorView() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
 
   if (!script || !activeBotId) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-400">
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
         Script not found
       </div>
     )
@@ -155,25 +155,25 @@ export function ScriptEditorView() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-[var(--color-border-primary)]">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(`/${activeBotId}/automations`)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-zinc-100 hover:text-[var(--color-text-tertiary)] dark:hover:bg-[var(--color-hover-bg)] dark:hover:text-[var(--color-text-primary)]"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-sm font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">
               {script.name}
             </h1>
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
               <span>v{script.currentVersion}</span>
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
                 script.status === 'active' ? 'bg-green-500/10 text-green-500' :
                 script.status === 'error' ? 'bg-red-500/10 text-red-500' :
-                'bg-zinc-500/10 text-zinc-400'
+                'bg-zinc-500/10 text-[var(--color-text-secondary)]'
               )}>
                 {script.status}
               </span>
@@ -190,7 +190,7 @@ export function ScriptEditorView() {
               'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
               dirty
                 ? 'bg-accent-600 text-white hover:bg-accent-700'
-                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'
+                : 'bg-zinc-100 text-[var(--color-text-secondary)] dark:bg-[var(--color-bg-secondary)]'
             )}
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -208,7 +208,7 @@ export function ScriptEditorView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 px-4 dark:border-zinc-800">
+      <div className="flex items-center gap-1 border-b border-zinc-200 px-4 dark:border-[var(--color-border-primary)]">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -217,7 +217,7 @@ export function ScriptEditorView() {
               'border-b-2 px-3 py-2 text-xs font-medium transition-colors',
               activeTab === tab.id
                 ? 'border-accent-600 text-accent-600 dark:text-accent-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-zinc-700 dark:hover:text-[var(--color-text-primary)]'
             )}
           >
             {tab.label}
@@ -233,7 +233,7 @@ export function ScriptEditorView() {
               value={code}
               onChange={(e) => handleCodeChange(e.target.value)}
               spellCheck={false}
-              className="h-full w-full resize-none bg-zinc-950 p-4 font-mono text-sm text-zinc-300 focus:outline-none"
+              className="h-full w-full resize-none bg-[var(--color-bg-app)] p-4 font-mono text-sm text-[var(--color-text-primary)] focus:outline-none"
               placeholder="# Write your Python script here..."
             />
           </div>
@@ -242,7 +242,7 @@ export function ScriptEditorView() {
         {activeTab === 'versions' && (
           <div className="overflow-auto p-4">
             {versions.length === 0 ? (
-              <div className="flex flex-col items-center py-8 text-zinc-400">
+              <div className="flex flex-col items-center py-8 text-[var(--color-text-secondary)]">
                 <GitBranch className="mb-2 h-6 w-6" />
                 <p className="text-sm">No versions yet</p>
               </div>
@@ -251,17 +251,17 @@ export function ScriptEditorView() {
                 {versions.map((v) => (
                   <div
                     key={v.id}
-                    className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                    className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-[var(--color-border-primary)]"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-[var(--color-text-tertiary)] dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-secondary)]">
                         v{v.version}
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                        <p className="text-xs font-medium text-zinc-900 dark:text-[var(--color-text-primary)]">
                           {v.changelog || 'No changelog'}
                         </p>
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="text-[10px] text-[var(--color-text-secondary)]">
                           {v.authorType} - {new Date(v.createdAt).toLocaleString()}
                         </p>
                       </div>

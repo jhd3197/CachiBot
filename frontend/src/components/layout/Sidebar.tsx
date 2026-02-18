@@ -13,12 +13,12 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform dark:border-zinc-800 dark:bg-zinc-900/50 lg:static lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-zinc-50 transition-transform dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)]/50 lg:static lg:translate-x-0',
         sidebarCollapsed ? '-translate-x-full' : 'translate-x-0'
       )}
     >
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
+      <div className="flex h-14 items-center justify-between border-b border-zinc-200 px-4 dark:border-[var(--color-border-primary)]">
         <span className="font-medium">Chat</span>
         <Button
           variant="ghost"
@@ -47,8 +47,8 @@ export function Sidebar() {
 
       {/* Workspace info */}
       {config && (
-        <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
-          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+        <div className="border-t border-zinc-200 p-4 dark:border-[var(--color-border-primary)]">
+          <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
             <FolderOpen className="h-4 w-4 flex-shrink-0" />
             <span className="truncate" title={config.workspacePath}>
               {config.workspacePath.split(/[/\\]/).pop()}
@@ -75,7 +75,7 @@ function SidebarItem({ icon, label, active, onClick }: SidebarItemProps) {
         'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
         active
           ? 'bg-cachi-100 text-cachi-700 dark:bg-cachi-900/30 dark:text-cachi-400'
-          : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+          : 'text-[var(--color-text-tertiary)] hover:bg-zinc-100 dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)]'
       )}
     >
       {icon}

@@ -52,8 +52,8 @@ export function CapabilitiesStep() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-        <p className="text-sm text-zinc-400">
+      <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4">
+        <p className="text-sm text-[var(--color-text-secondary)]">
           Select the tools your bot can use. More tools = more capabilities, but also more potential for unintended actions.
         </p>
       </div>
@@ -67,8 +67,8 @@ export function CapabilitiesStep() {
           <div key={group.name} className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium text-zinc-200">{group.name}</h3>
-                <p className="text-xs text-zinc-500">{group.description}</p>
+                <h3 className="font-medium text-[var(--color-text-primary)]">{group.name}</h3>
+                <p className="text-xs text-[var(--color-text-secondary)]">{group.description}</p>
               </div>
               <button
                 onClick={() => toggleGroup(groupToolIds)}
@@ -76,7 +76,7 @@ export function CapabilitiesStep() {
                   'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
                   allSelected
                     ? 'bg-cachi-600/20 text-cachi-400 hover:bg-cachi-600/30'
-                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)]'
                 )}
               >
                 {allSelected ? 'Deselect All' : 'Select All'}
@@ -96,26 +96,26 @@ export function CapabilitiesStep() {
                       'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
                       isSelected
                         ? 'border-cachi-500 bg-cachi-500/10'
-                        : 'border-zinc-800 bg-zinc-800/30 hover:border-zinc-700'
+                        : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)]'
                     )}
                   >
                     <div
                       className={cn(
                         'flex h-8 w-8 items-center justify-center rounded-lg',
-                        isSelected ? 'bg-cachi-600/20' : 'bg-zinc-800'
+                        isSelected ? 'bg-cachi-600/20' : 'bg-[var(--color-bg-secondary)]'
                       )}
                     >
                       <Icon
                         className={cn(
                           'h-4 w-4',
-                          isSelected ? 'text-cachi-400' : 'text-zinc-500'
+                          isSelected ? 'text-cachi-400' : 'text-[var(--color-text-secondary)]'
                         )}
                       />
                     </div>
                     <span
                       className={cn(
                         'text-sm font-medium',
-                        isSelected ? 'text-zinc-100' : 'text-zinc-400'
+                        isSelected ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)]'
                       )}
                     >
                       {tool.name}
@@ -128,9 +128,9 @@ export function CapabilitiesStep() {
         )
       })}
 
-      <div className="flex items-center justify-between rounded-lg bg-zinc-800/50 px-4 py-3">
-        <span className="text-sm text-zinc-400">Selected tools:</span>
-        <span className="font-medium text-zinc-200">{form.tools.length}</span>
+      <div className="flex items-center justify-between rounded-lg bg-[var(--card-bg)] px-4 py-3">
+        <span className="text-sm text-[var(--color-text-secondary)]">Selected tools:</span>
+        <span className="font-medium text-[var(--color-text-primary)]">{form.tools.length}</span>
       </div>
     </div>
   )

@@ -63,23 +63,23 @@ export function KnowledgeSearch({ botId }: KnowledgeSearchProps) {
     <div className="space-y-3">
       {/* Search input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search knowledge base..."
-          className="w-full pl-9 pr-9 py-2 bg-zinc-800 border border-zinc-700 rounded-lg
-            text-sm text-zinc-200 placeholder:text-zinc-500
-            focus:outline-none focus:ring-1 focus:ring-cachi-500 focus:border-cachi-500
+          className="w-full pl-9 pr-9 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg
+            text-sm text-[var(--input-text)] placeholder:text-[var(--input-placeholder)]
+            focus:outline-none focus:ring-1 focus:ring-[var(--color-border-focus)] focus:border-[var(--color-border-focus)]
             transition-colors"
         />
         {hasQuery && (
           <button
             onClick={handleClear}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded
-              text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
+              text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover-bg)] transition-colors"
             title="Clear search"
           >
             <X className="h-4 w-4" />
@@ -89,30 +89,30 @@ export function KnowledgeSearch({ botId }: KnowledgeSearchProps) {
 
       {/* Results panel - only shown after user has typed something */}
       {hasQuery && (
-        <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+        <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">
           {/* Loading state */}
           {loadingSearch && (
             <div className="flex items-center justify-center gap-2 py-6">
               <RefreshCw className="h-4 w-4 animate-spin text-cachi-500" />
-              <span className="text-sm text-zinc-400">Searching...</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">Searching...</span>
             </div>
           )}
 
           {/* Empty state */}
           {!loadingSearch && searchResults.length === 0 && (
             <div className="text-center py-6">
-              <Search className="h-6 w-6 mx-auto mb-2 text-zinc-600" />
-              <p className="text-sm text-zinc-500">No results found</p>
+              <Search className="h-6 w-6 mx-auto mb-2 text-[var(--color-text-tertiary)]" />
+              <p className="text-sm text-[var(--color-text-secondary)]">No results found</p>
             </div>
           )}
 
           {/* Results list */}
           {!loadingSearch && searchResults.length > 0 && (
-            <ul className="divide-y divide-zinc-700/50">
+            <ul className="divide-y divide-[var(--color-border-primary)]">
               {searchResults.map((result) => (
                 <li
                   key={`${result.type}-${result.id}`}
-                  className="px-4 py-3 hover:bg-zinc-700/30 transition-colors"
+                  className="px-4 py-3 hover:bg-[var(--color-hover-bg)] transition-colors"
                 >
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
@@ -122,7 +122,7 @@ export function KnowledgeSearch({ botId }: KnowledgeSearchProps) {
                     <div className="flex-1 min-w-0">
                       {/* Title row */}
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-zinc-200 truncate">
+                        <span className="text-sm font-medium text-[var(--color-text-primary)] truncate">
                           {result.title}
                         </span>
                         {result.score !== null && (
@@ -136,13 +136,13 @@ export function KnowledgeSearch({ botId }: KnowledgeSearchProps) {
                       </div>
 
                       {/* Content preview */}
-                      <p className="text-xs text-zinc-400 leading-relaxed">
+                      <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
                         {truncate(result.content, 200)}
                       </p>
 
                       {/* Source label */}
                       {result.source && (
-                        <span className="inline-block mt-1.5 text-xs text-zinc-500">
+                        <span className="inline-block mt-1.5 text-xs text-[var(--color-text-secondary)]">
                           {result.source}
                         </span>
                       )}

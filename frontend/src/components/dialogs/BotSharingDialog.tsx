@@ -114,16 +114,16 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-zinc-900 rounded-xl border border-zinc-800 w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+      <div className="bg-[var(--color-bg-primary)] rounded-xl border border-[var(--color-border-primary)] w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-primary)]">
           <div className="flex items-center gap-2">
             <Share2 className="h-5 w-5 text-blue-400" />
             <h2 className="text-lg font-semibold text-white">Share "{botName}"</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400"
+            className="p-1.5 hover:bg-[var(--color-hover-bg)] rounded-lg transition-colors text-[var(--color-text-secondary)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -132,19 +132,19 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-secondary)]" />
             </div>
           ) : (
             <>
               {/* Share with group form */}
               {availableGroups.length > 0 && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-zinc-300">Share with group</h3>
+                  <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Share with group</h3>
                   <div className="flex gap-2">
                     <select
                       value={selectedGroupId}
                       onChange={(e) => setSelectedGroupId(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select a group...</option>
                       {availableGroups.map((g) => (
@@ -156,7 +156,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                     <select
                       value={selectedLevel}
                       onChange={(e) => setSelectedLevel(e.target.value as BotAccessLevel)}
-                      className="w-28 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-28 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="operator">Operator</option>
@@ -171,11 +171,11 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
 
               {/* Current access records */}
               <div className="space-y-3">
-                <h3 className="text-sm font-medium text-zinc-300">
+                <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
                   Current access ({records.length})
                 </h3>
                 {records.length === 0 ? (
-                  <p className="text-sm text-zinc-500 py-4 text-center">
+                  <p className="text-sm text-[var(--color-text-secondary)] py-4 text-center">
                     Not shared with any groups yet
                   </p>
                 ) : (
@@ -183,7 +183,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                     {records.map((record) => (
                       <div
                         key={record.id}
-                        className="flex items-center justify-between px-3 py-2.5 bg-zinc-800/50 rounded-lg border border-zinc-800"
+                        className="flex items-center justify-between px-3 py-2.5 bg-[var(--card-bg)] rounded-lg border border-[var(--color-border-primary)]"
                       >
                         <div>
                           <div className="text-sm font-medium text-white">
@@ -207,7 +207,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                           </select>
                           <button
                             onClick={() => handleRevoke(record.group_id, record.group_name)}
-                            className="p-1 text-zinc-500 hover:text-red-400 transition-colors"
+                            className="p-1 text-[var(--color-text-secondary)] hover:text-red-400 transition-colors"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -219,22 +219,22 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
               </div>
 
               {/* Access level legend */}
-              <div className="space-y-2 pt-2 border-t border-zinc-800">
-                <h4 className="text-xs font-medium text-zinc-500 uppercase">Access Levels</h4>
+              <div className="space-y-2 pt-2 border-t border-[var(--color-border-primary)]">
+                <h4 className="text-xs font-medium text-[var(--color-text-secondary)] uppercase">Access Levels</h4>
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="text-zinc-400">
+                  <div className="text-[var(--color-text-secondary)]">
                     <span className={`inline-block px-1.5 py-0.5 rounded ${levelColors.viewer} mr-1`}>
                       Viewer
                     </span>
                     Read-only
                   </div>
-                  <div className="text-zinc-400">
+                  <div className="text-[var(--color-text-secondary)]">
                     <span className={`inline-block px-1.5 py-0.5 rounded ${levelColors.operator} mr-1`}>
                       Operator
                     </span>
                     Chat & run
                   </div>
-                  <div className="text-zinc-400">
+                  <div className="text-[var(--color-text-secondary)]">
                     <span className={`inline-block px-1.5 py-0.5 rounded ${levelColors.editor} mr-1`}>
                       Editor
                     </span>
@@ -247,7 +247,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800">
+        <div className="px-6 py-4 border-t border-[var(--color-border-primary)]">
           <Button variant="ghost" onClick={onClose} className="w-full">
             Done
           </Button>

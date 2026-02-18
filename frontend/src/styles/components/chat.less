@@ -1,0 +1,1269 @@
+// =============================================================================
+// Chat — components/chat.less
+// Chat panel, messages, input, thinking indicator, tool calls, usage
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Chat View — outermost container
+// -----------------------------------------------------------------------------
+
+.chat-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-app);
+}
+
+// -----------------------------------------------------------------------------
+// Chat Header — bot info bar
+// -----------------------------------------------------------------------------
+
+.chat-header {
+  .flex-between();
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-3 @sp-4;
+
+  &__bot-info {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+  }
+
+  &__avatar {
+    .flex-center();
+    height: 2rem;
+    width: 2rem;
+    border-radius: @radius-full;
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__model {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Chat Messages — scrollable area
+// -----------------------------------------------------------------------------
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  .scrollbar-thin();
+
+  &__inner {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: @sp-4 @sp-3;
+
+    .screen-sm({
+      padding: @sp-6 @sp-4;
+    });
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-6;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Chat Panel
+// -----------------------------------------------------------------------------
+
+.chat-panel {
+  .flex-col();
+  height: 100%;
+
+  &__messages {
+    flex: 1;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__messages-inner {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: @sp-6 @sp-4;
+  }
+
+  &__input-area {
+    border-top: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    padding: @sp-3 @sp-4;
+
+    .screen-sm({
+      padding: @sp-4;
+    });
+  }
+
+  &__input-inner {
+    max-width: 48rem;
+    margin: 0 auto;
+  }
+
+  &__error {
+    margin-top: @sp-4;
+    border-radius: @radius-lg;
+    border: 1px solid @red-200;
+    background: @red-50;
+    padding: @sp-4;
+    font-size: @text-sm;
+    color: @red-700;
+
+    .dark & {
+      border-color: @red-900;
+      background: rgba(@red-900, 0.2);
+      color: @red-400;
+    }
+  }
+
+  &__usage {
+    border-top: 1px solid var(--color-border-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Empty State
+// -----------------------------------------------------------------------------
+
+.chat-empty {
+  .flex-col();
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: @sp-12 0;
+  text-align: center;
+
+  &__icon {
+    .flex-center();
+    margin-bottom: @sp-6;
+    height: 5rem;
+    width: 5rem;
+    border-radius: @radius-2xl;
+  }
+
+  &__title {
+    margin-bottom: @sp-2;
+    font-size: @text-2xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    max-width: 28rem;
+    margin-bottom: @sp-8;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Prompt Suggestions — welcome prompt grid
+// -----------------------------------------------------------------------------
+
+.chat-prompt-suggestions {
+  display: grid;
+  gap: @sp-3;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    padding: @sp-3 @sp-4;
+    text-align: left;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Messages
+// -----------------------------------------------------------------------------
+
+.chat-message {
+  display: flex;
+  gap: @sp-4;
+
+  &--user {
+    flex-direction: row-reverse;
+  }
+
+  &--bot {
+    flex-direction: row;
+  }
+
+  &__avatar {
+    .flex-center();
+    height: 2.25rem;
+    width: 2.25rem;
+    flex-shrink: 0;
+    border-radius: @radius-full;
+
+    &--user {
+      color: white;
+    }
+
+    &--bot {
+      background: var(--color-bg-primary);
+
+      .dark & {
+        background: var(--color-bg-secondary);
+      }
+    }
+  }
+
+  &__content {
+    display: flex;
+    max-width: 80%;
+    flex-direction: column;
+    gap: @sp-1;
+
+    &--user {
+      align-items: flex-end;
+    }
+
+    &--bot {
+      align-items: flex-start;
+    }
+  }
+
+  &__bubble {
+    border-radius: @radius-2xl;
+    padding: @sp-3 @sp-4;
+
+    &--user {
+      color: white;
+    }
+
+    &--bot {
+      background: var(--chat-bubble-bot-bg);
+      color: var(--chat-bubble-bot-text);
+    }
+  }
+
+  &__time {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: @zinc-400;
+  }
+
+  &__code-block {
+    overflow-x: auto;
+    border-radius: @radius-lg;
+    background: @zinc-900;
+    padding: @sp-3;
+    font-size: @text-xs;
+    color: @zinc-100;
+  }
+
+  &__inline-code {
+    border-radius: @radius-sm;
+    background: @zinc-200;
+    padding: 2px @sp-1\.5;
+    font-size: @text-xs;
+
+    .dark & {
+      background: @zinc-700;
+    }
+  }
+
+  // Action bar — hover actions under each message
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    opacity: 0;
+    .transition-colors();
+
+    .chat-message:hover & {
+      opacity: 1;
+    }
+  }
+
+  &__action-btn {
+    display: flex;
+    height: 1.5rem;
+    align-items: center;
+    gap: @sp-1;
+    border-radius: @radius-sm;
+    padding: 0 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+    }
+  }
+
+  // Info panel — metadata popover
+  &__info-panel {
+    margin-top: @sp-3;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-primary);
+    padding: @sp-3;
+    font-size: @text-xs;
+  }
+
+  &__info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: @sp-2 @sp-4;
+    color: var(--color-text-secondary);
+  }
+
+  &__info-value {
+    color: var(--color-text-primary);
+  }
+}
+
+// Highlight animation for scrolling to replied messages
+.reply-highlight {
+  background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+  border-radius: @radius-lg;
+}
+
+// -----------------------------------------------------------------------------
+// Reply Preview — citation in message bubble
+// -----------------------------------------------------------------------------
+
+.chat-reply-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: @sp-2;
+  margin-bottom: @sp-1;
+  border-radius: @radius-lg;
+  border-left: 2px solid var(--accent-500);
+  background: color-mix(in srgb, var(--color-bg-primary) 40%, transparent);
+  padding: @sp-1\.5 @sp-3;
+  text-align: left;
+  cursor: pointer;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  .transition-colors();
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-bg-primary) 60%, transparent);
+  }
+
+  &__icon {
+    margin-top: @sp-0\.5;
+    height: 0.75rem;
+    width: 0.75rem;
+    flex-shrink: 0;
+    color: var(--accent-500);
+  }
+
+  &__author {
+    font-size: 0.625rem;
+    font-weight: @font-semibold;
+    color: var(--accent-400);
+  }
+
+  &__text {
+    .truncate();
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Reply Bar — reply composer above input
+// -----------------------------------------------------------------------------
+
+.chat-reply-bar {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  margin-bottom: @sp-2;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+  padding: @sp-2 @sp-3;
+
+  &__icon {
+    height: 1rem;
+    width: 1rem;
+    flex-shrink: 0;
+    color: var(--accent-500);
+  }
+
+  &__content {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__label {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  &__text {
+    .truncate();
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+
+    .dark & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__close {
+    .flex-center();
+    flex-shrink: 0;
+    border-radius: @radius-sm;
+    padding: @sp-1;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Command Menu — slash command autocomplete
+// -----------------------------------------------------------------------------
+
+.chat-command-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: @sp-2;
+  overflow: hidden;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  box-shadow: @shadow-xl;
+
+  .dark & {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+  }
+
+  &__header {
+    padding: @sp-2 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
+
+    .dark & {
+      border-bottom-color: var(--color-border-secondary);
+    }
+  }
+
+  &__list {
+    max-height: 12rem;
+    overflow-y: auto;
+  }
+
+  &__item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2\.5 @sp-3;
+    text-align: left;
+    color: var(--color-text-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--selected {
+      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Input Container — rounded bordered textarea wrapper
+// -----------------------------------------------------------------------------
+
+.chat-input-container {
+  position: relative;
+  border-radius: @radius-2xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  box-shadow: @shadow-lg;
+  .transition-colors();
+
+  .dark & {
+    border-color: var(--color-border-secondary);
+    background: var(--card-bg);
+  }
+
+  &:focus-within {
+    border-color: var(--color-border-focus);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Textarea
+// -----------------------------------------------------------------------------
+
+.chat-textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  background: transparent;
+  padding: @sp-3 @sp-4;
+  padding-right: @sp-24;
+  color: var(--color-text-primary);
+  outline: none;
+  font-family: @font-sans;
+  font-size: @text-sm;
+  border: none;
+
+  &::placeholder {
+    color: var(--input-placeholder);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Input Buttons — action buttons container
+// -----------------------------------------------------------------------------
+
+.chat-input-btns {
+  position: absolute;
+  bottom: @sp-2;
+  right: @sp-2;
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+}
+
+.chat-input-btn {
+  .flex-center();
+  height: 2rem;
+  width: 2rem;
+  border-radius: @radius-lg;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &--attach {
+    background: transparent;
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &--send {
+    background: var(--accent-600);
+    color: white;
+
+    &:hover {
+      background: var(--accent-500);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &--stop {
+    background: @red-600;
+    color: white;
+
+    &:hover {
+      background: @red-500;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Status Bar — connection/model info
+// -----------------------------------------------------------------------------
+
+.chat-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: @sp-2;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+
+    .screen-sm({
+      gap: @sp-4;
+    });
+  }
+
+  &__indicator {
+    display: flex;
+    align-items: center;
+    gap: @sp-1\.5;
+  }
+
+  &__dot {
+    height: @sp-2;
+    width: @sp-2;
+    border-radius: @radius-full;
+
+    &--connected {
+      background: @green-500;
+    }
+
+    &--disconnected {
+      background: @red-500;
+    }
+  }
+
+  &__hint {
+    display: none;
+
+    .screen-sm({
+      display: inline;
+    });
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Creation Flow — bot creation progress indicator
+// -----------------------------------------------------------------------------
+
+.chat-creation-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: @sp-2;
+  margin-top: @sp-2;
+  border-radius: @radius-lg;
+  background: color-mix(in srgb, var(--accent-900, @green-900) 30%, transparent);
+  padding: @sp-1\.5 @sp-3;
+  font-size: @text-xs;
+  color: var(--accent-400);
+}
+
+// -----------------------------------------------------------------------------
+// Tool Call (Active/streaming)
+// -----------------------------------------------------------------------------
+
+.chat-tool-call {
+  overflow: hidden;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+
+  &__header {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-3 @sp-4;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  &__name {
+    flex: 1;
+    font-family: @font-mono;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+  }
+
+  &__model {
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-2;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__body {
+    border-top: 1px solid var(--color-border-primary);
+    background: color-mix(in srgb, var(--color-bg-app) 50%, transparent);
+    padding: @sp-4;
+  }
+
+  &__code {
+    margin-top: @sp-1;
+    overflow-x: auto;
+    border-radius: @radius-sm;
+    background: var(--color-bg-primary);
+    padding: @sp-2;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Message Tool Call (Compact inline for completed messages)
+// -----------------------------------------------------------------------------
+
+.chat-msg-tool-call {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+
+  &__header {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1\.5 @sp-3;
+    text-align: left;
+    font-size: @text-xs;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  &__name {
+    flex: 1;
+    font-family: @font-mono;
+    color: var(--color-text-primary);
+    .truncate();
+  }
+
+  &__model {
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-family: @font-mono;
+    color: var(--color-text-secondary);
+    .truncate();
+    max-width: 8.75rem;
+  }
+
+  &__body {
+    border-top: 1px solid var(--color-border-secondary);
+    padding: @sp-2 @sp-3;
+  }
+
+  &__code {
+    margin-top: @sp-1;
+    overflow-x: auto;
+    border-radius: @radius-sm;
+    background: var(--color-bg-app);
+    padding: @sp-1\.5;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Toggle — "N tool actions" button
+// -----------------------------------------------------------------------------
+
+.chat-tool-toggle {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Media Previews — container for inline media
+// -----------------------------------------------------------------------------
+
+.chat-media-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @sp-2;
+  margin-top: @sp-3;
+}
+
+// -----------------------------------------------------------------------------
+// Media Thumbnail — image preview
+// -----------------------------------------------------------------------------
+
+.chat-media-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+  }
+
+  &__img {
+    height: 6rem;
+    width: 6rem;
+    object-fit: cover;
+
+    .screen-sm({
+      height: 8rem;
+      width: 8rem;
+    });
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    .flex-center();
+    background: transparent;
+    .transition-colors();
+
+    .chat-media-thumb:hover & {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  &__caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+    padding: @sp-1 @sp-2;
+    font-size: 0.625rem;
+    color: var(--color-text-primary);
+    .line-clamp(1);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Media Audio — audio player
+// -----------------------------------------------------------------------------
+
+.chat-media-audio {
+  display: flex;
+  width: 100%;
+  max-width: 20rem;
+  align-items: center;
+  gap: @sp-3;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  padding: @sp-2 @sp-3;
+
+  &__icon {
+    .flex-center();
+    height: 2rem;
+    width: 2rem;
+    flex-shrink: 0;
+    border-radius: @radius-full;
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+  }
+
+  &__player {
+    height: 2rem;
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__caption {
+    margin-top: @sp-0\.5;
+    .truncate();
+    font-size: 0.625rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Lightbox — fullscreen image viewer
+// -----------------------------------------------------------------------------
+
+.chat-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: @z-modal;
+  .flex-center();
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+
+  &__close {
+    position: absolute;
+    right: @sp-4;
+    top: @sp-4;
+    .flex-center();
+    height: 2.5rem;
+    width: 2.5rem;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: white;
+    }
+  }
+
+  &__image {
+    max-height: 90vh;
+    max-width: 90vw;
+    border-radius: @radius-lg;
+    object-fit: contain;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Typing Indicator — dots animation
+// -----------------------------------------------------------------------------
+
+.chat-typing {
+  display: flex;
+  align-items: flex-start;
+  gap: @sp-4;
+
+  &__icon {
+    .flex-center();
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: @radius-full;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  &__body {
+    flex: 1;
+    border-radius: @radius-2xl;
+    background: var(--card-bg);
+    padding: @sp-3 @sp-4;
+  }
+
+  &__text {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__dots {
+    display: flex;
+    gap: @sp-1;
+  }
+}
+
+// Existing input enrichment classes -------
+
+.chat-input-wrap {
+  position: relative;
+}
+
+.chat-input-actions {
+  position: absolute;
+  bottom: @sp-2;
+  right: @sp-2;
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+}
+
+.chat-input-help {
+  margin-top: @sp-2;
+  text-align: center;
+  font-size: @text-xs;
+  color: @zinc-400;
+}
+
+.chat-input-kbd {
+  border-radius: @radius-sm;
+  background: @zinc-100;
+  padding: 2px @sp-1\.5;
+
+  .dark & {
+    background: @zinc-800;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Thinking Indicator
+// -----------------------------------------------------------------------------
+
+.chat-thinking {
+  display: flex;
+  align-items: flex-start;
+  gap: @sp-4;
+
+  &__icon {
+    .flex-center();
+    height: 2.25rem;
+    width: 2.25rem;
+    flex-shrink: 0;
+    border-radius: @radius-full;
+    background: @purple-100;
+    color: @purple-600;
+    animation: thinking 1.5s ease-in-out infinite;
+
+    .dark & {
+      background: rgba(@purple-900, 0.3);
+      color: @purple-400;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    border-radius: @radius-2xl;
+    background: @purple-50;
+    padding: @sp-3 @sp-4;
+
+    .dark & {
+      background: rgba(@purple-900, 0.2);
+    }
+  }
+
+  &__label {
+    margin-bottom: @sp-1;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @purple-700;
+
+    .dark & {
+      color: @purple-400;
+    }
+  }
+
+  &__content {
+    font-size: @text-sm;
+    font-style: italic;
+    color: @purple-600;
+
+    .dark & {
+      color: @purple-300;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Calls (old shared classes — kept for backwards compat)
+// -----------------------------------------------------------------------------
+
+.tool-call {
+  border-radius: @radius-lg;
+  border: 1px solid;
+  padding: @sp-3;
+
+  &--success {
+    border-color: var(--accent-200, @green-200);
+    background: var(--accent-50, rgba(34, 197, 94, 0.05));
+
+    .dark & {
+      border-color: var(--accent-900, @green-900);
+      background: rgba(var(--accent-500-rgb, 34, 197, 94), 0.1);
+    }
+  }
+
+  &--error {
+    border-color: @red-200;
+    background: @red-50;
+
+    .dark & {
+      border-color: @red-900;
+      background: rgba(@red-900, 0.2);
+    }
+  }
+
+  &--loading {
+    border-color: @zinc-200;
+    background: @zinc-50;
+
+    .dark & {
+      border-color: @zinc-700;
+      background: rgba(@zinc-800, 0.5);
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__status-icon {
+    .flex-center();
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: @radius-full;
+
+    &--success {
+      background: var(--accent-200, @green-200);
+      color: var(--accent-700, @green-700);
+
+      .dark & {
+        background: var(--accent-800, @green-800);
+        color: var(--accent-300, @green-300);
+      }
+    }
+
+    &--error {
+      background: @red-200;
+      color: @red-700;
+
+      .dark & {
+        background: @red-800;
+        color: @red-300;
+      }
+    }
+
+    &--loading {
+      background: @zinc-200;
+      color: @zinc-700;
+
+      .dark & {
+        background: @zinc-700;
+        color: @zinc-300;
+      }
+    }
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: @sp-1\.5;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+  }
+
+  &__duration {
+    margin-left: auto;
+    font-size: @text-xs;
+    color: @zinc-500;
+  }
+
+  &__args {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    font-size: @text-xs;
+    color: @zinc-600;
+
+    .dark & {
+      color: @zinc-400;
+    }
+  }
+
+  &__result {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    border-top: 1px solid @zinc-200;
+    padding-top: @sp-2;
+    font-size: @text-xs;
+    color: @zinc-600;
+
+    .dark & {
+      border-top-color: @zinc-700;
+      color: @zinc-400;
+    }
+  }
+
+  &__media {
+    margin-top: @sp-2;
+    border-top: 1px solid @zinc-200;
+    padding-top: @sp-2;
+
+    .dark & {
+      border-top-color: @zinc-700;
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: @radius-md;
+    }
+
+    audio {
+      width: 100%;
+    }
+
+    .meta {
+      margin-top: @sp-1;
+      font-size: @text-xs;
+      font-style: italic;
+      color: @zinc-500;
+
+      .dark & {
+        color: @zinc-400;
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Usage Display
+// -----------------------------------------------------------------------------
+
+.chat-usage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: @sp-4;
+  font-size: @text-xs;
+  color: @zinc-500;
+
+  .dark & {
+    color: @zinc-400;
+  }
+
+  &__stat {
+    display: flex;
+    align-items: center;
+    gap: @sp-1\.5;
+  }
+}
