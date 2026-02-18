@@ -8,7 +8,6 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react'
-import { cn } from '../../lib/utils'
 import { getTimeline, type TimelineEvent } from '../../api/automations'
 
 interface TimelineTabProps {
@@ -17,7 +16,7 @@ interface TimelineTabProps {
   sourceId: string
 }
 
-const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+const eventIcons: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
   execution_start: Play,
   execution_success: CheckCircle2,
   execution_error: XCircle,
@@ -27,14 +26,14 @@ const eventIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   version_created: Clock,
 }
 
-const eventColors: Record<string, string> = {
-  execution_start: 'text-blue-500 bg-blue-500/10',
-  execution_success: 'text-green-500 bg-green-500/10',
-  execution_error: 'text-red-500 bg-red-500/10',
-  execution_timeout: 'text-yellow-500 bg-yellow-500/10',
-  execution_cancelled: 'text-zinc-500 bg-zinc-500/10',
-  status_change: 'text-purple-500 bg-purple-500/10',
-  version_created: 'text-cyan-500 bg-cyan-500/10',
+const eventDotClass: Record<string, string> = {
+  execution_start: 'timeline__dot--blue',
+  execution_success: 'timeline__dot--green',
+  execution_error: 'timeline__dot--red',
+  execution_timeout: 'timeline__dot--yellow',
+  execution_cancelled: 'timeline__dot--zinc',
+  status_change: 'timeline__dot--purple',
+  version_created: 'timeline__dot--cyan',
 }
 
 export function TimelineTab({ botId, sourceType, sourceId }: TimelineTabProps) {
@@ -61,49 +60,48 @@ export function TimelineTab({ botId, sourceType, sourceId }: TimelineTabProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+      <div className="timeline__loading">
+        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-tertiary)' }} />
       </div>
     )
   }
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-zinc-400">
-        <Clock className="mb-2 h-8 w-8" />
-        <p className="text-sm">No timeline events yet</p>
+      <div className="timeline__empty">
+        <Clock size={32} style={{ marginBottom: '0.5rem' }} />
+        <p style={{ fontSize: '0.875rem' }}>No timeline events yet</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-1 py-2">
+    <div className="timeline">
       {events.map((event, i) => {
         const Icon = eventIcons[event.eventType] || Clock
-        const colorClass = eventColors[event.eventType] || 'text-zinc-500 bg-zinc-500/10'
-        const [textColor, bgColor] = colorClass.split(' ')
+        const dotClass = eventDotClass[event.eventType] || 'timeline__dot--zinc'
 
         return (
-          <div key={event.id} className="flex gap-3 px-4 py-2">
+          <div key={event.id} className="timeline__item">
             {/* Timeline line + dot */}
-            <div className="flex flex-col items-center">
-              <div className={cn('flex h-7 w-7 items-center justify-center rounded-full', bgColor)}>
-                <Icon className={cn('h-3.5 w-3.5', textColor)} />
+            <div className="timeline__dot-wrap">
+              <div className={`timeline__dot ${dotClass}`}>
+                <Icon size={14} />
               </div>
               {i < events.length - 1 && (
-                <div className="w-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+                <div className="timeline__line" />
               )}
             </div>
 
             {/* Content */}
-            <div className="flex-1 pb-4">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            <div className="timeline__content">
+              <p className="timeline__title">
                 {event.title}
               </p>
               {event.description && (
-                <p className="mt-0.5 text-xs text-zinc-500">{event.description}</p>
+                <p className="timeline__description">{event.description}</p>
               )}
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="timeline__time">
                 {new Date(event.createdAt).toLocaleString()}
               </p>
             </div>

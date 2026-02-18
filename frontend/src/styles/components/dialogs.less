@@ -1,0 +1,45 @@
+// =============================================================================
+// Dialogs — components/dialogs.less
+// .dialog__backdrop/panel/header/body/footer
+// =============================================================================
+
+.dialog {
+  &__backdrop {
+    .dialog-backdrop();
+  }
+
+  &__panel {
+    .dialog-panel(md);
+
+    &--sm { max-width: @dialog-sm; }
+    &--md { max-width: @dialog-md; }
+    &--lg { max-width: @dialog-lg; }
+    &--xl { max-width: @dialog-xl; }
+    &--full { max-width: @dialog-full; }
+  }
+
+  &__header {
+    .dialog-header();
+  }
+
+  &__header-icon {
+    .flex-center();
+    width: @height-md;
+    height: @height-md;
+    border-radius: @radius-xl;
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+    flex-shrink: 0;
+  }
+
+  &__body {
+    .dialog-body();
+  }
+
+  &__body-base {
+    padding: @sp-4 @sp-6;
+  }
+
+  &__footer {
+    .dialog-footer();
+  }
+}

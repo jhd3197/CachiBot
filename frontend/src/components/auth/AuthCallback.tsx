@@ -38,19 +38,19 @@ export function AuthCallback() {
   const websiteUrl = authMode?.login_url
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 dark:bg-[var(--color-bg-app)] px-4">
       <div className="w-full max-w-md text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
           <Shield className="h-8 w-8 text-white" />
         </div>
 
         {error ? (
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+          <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] p-6 shadow-sm">
             <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
               Authentication Failed
             </h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">{error}</p>
+            <p className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] text-sm mb-4">{error}</p>
             {websiteUrl && (
               <a href={websiteUrl}>
                 <Button className="w-full justify-center">Back to Website</Button>
@@ -60,7 +60,7 @@ export function AuthCallback() {
         ) : (
           <>
             <Loader2 className="h-8 w-8 animate-spin text-accent-500 mx-auto mb-4" />
-            <p className="text-zinc-500 dark:text-zinc-400">Signing you in...</p>
+            <p className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Signing you in...</p>
           </>
         )}
       </div>

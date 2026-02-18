@@ -4,7 +4,7 @@ import asyncio
 import logging
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
@@ -236,3 +236,44 @@ async def save_smtp(
         from_address=req.from_address,
         use_tls=req.use_tls,
     )
+
+
+# =============================================================================
+# LEGACY DATABASE UPGRADE
+# =============================================================================
+
+
+@router.post("/setup/upgrade/reset")
+async def reset_legacy_database() -> dict:
+    """Reset a legacy V1 database by backing it up and creating a fresh one.
+
+    Unauthenticated — only available when legacy_db_detected is True.
+    """
+    import cachibot.storage.db as db_mod
+
+    if not db_mod.legacy_db_detected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No legacy database detected",
+        )
+
+    backup_path = await db_mod.reset_database()
+    return {"status": "reset", "backup_path": backup_path}
+
+
+@router.post("/setup/upgrade/keep")
+async def keep_legacy_database() -> dict:
+    """Keep the legacy V1 database and clear the detection flag for this session.
+
+    Unauthenticated — only available when legacy_db_detected is True.
+    """
+    import cachibot.storage.db as db_mod
+
+    if not db_mod.legacy_db_detected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No legacy database detected",
+        )
+
+    db_mod.legacy_db_detected = False
+    return {"status": "kept"}

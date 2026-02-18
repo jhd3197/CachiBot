@@ -91,22 +91,22 @@ export function DocumentUploader({ botId }: DocumentUploaderProps) {
         onDragLeave={handleDragLeave}
         className={`
           border-2 border-dashed rounded-lg p-6 text-center transition-colors
-          ${isDragging ? 'border-green-500 bg-green-500/10' : 'border-zinc-700'}
-          ${isUploading ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:border-zinc-500'}
+          ${isDragging ? 'border-green-500 bg-green-500/10' : 'border-[var(--color-border-secondary)]'}
+          ${isUploading ? 'opacity-50 cursor-wait' : 'cursor-pointer hover:border-[var(--color-border-focus)]'}
         `}
       >
         {isUploading ? (
           <div className="flex flex-col items-center gap-2">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent" />
-            <p className="text-sm text-zinc-400">Uploading...</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Uploading...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <Upload className="h-8 w-8 text-zinc-500" />
-            <p className="text-sm text-zinc-300">
+            <Upload className="h-8 w-8 text-[var(--color-text-secondary)]" />
+            <p className="text-sm text-[var(--color-text-primary)]">
               {isDragging ? 'Drop file here' : 'Drag & drop or click to upload'}
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-[var(--color-text-secondary)]">
               PDF, TXT, MD, or DOCX files up to {MAX_SIZE_MB}MB
             </p>
           </div>

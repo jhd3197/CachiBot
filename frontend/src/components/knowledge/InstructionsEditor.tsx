@@ -67,7 +67,7 @@ export function InstructionsEditor({ botId }: InstructionsEditorProps) {
   if (isLoading && !savedContent) {
     return (
       <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-5 w-5 animate-spin text-zinc-500" />
+        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
@@ -75,15 +75,15 @@ export function InstructionsEditor({ botId }: InstructionsEditorProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-zinc-300">
+        <label className="text-sm font-medium text-[var(--color-text-primary)]">
           Custom Instructions
         </label>
         <div className="flex items-center gap-2">
           {isSaving && (
-            <span className="text-xs text-zinc-500">Saving...</span>
+            <span className="text-xs text-[var(--color-text-secondary)]">Saving...</span>
           )}
           {!isSaving && lastSaved && (
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-[var(--color-text-secondary)]">
               Saved {lastSaved.toLocaleTimeString()}
             </span>
           )}
@@ -103,11 +103,11 @@ export function InstructionsEditor({ botId }: InstructionsEditorProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Add custom instructions that will be included in every conversation with this bot..."
-        className="w-full h-40 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-green-500 resize-none"
+        className="w-full h-40 px-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg text-sm text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] resize-none"
         maxLength={10000}
       />
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[var(--color-text-secondary)]">
         {content.length.toLocaleString()} / 10,000 characters
       </p>
     </div>

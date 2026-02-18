@@ -117,13 +117,15 @@ async def exchange_token(request: ExchangeTokenRequest) -> LoginResponse:
 @router.get("/setup-required", response_model=SetupStatusResponse)
 async def check_setup_required() -> SetupStatusResponse:
     """Check if first-time setup is needed (no users exist)."""
+    from cachibot.storage.db import legacy_db_detected
+
     auth = get_auth_service()
     if auth.is_cloud_mode:
         # In cloud mode, setup is never required (users come from website)
         return SetupStatusResponse(setup_required=False)
     repo = UserRepository()
     count = await repo.get_user_count()
-    return SetupStatusResponse(setup_required=count == 0)
+    return SetupStatusResponse(setup_required=count == 0, legacy_db_detected=legacy_db_detected)
 
 
 @router.post("/setup", response_model=LoginResponse, dependencies=[Depends(rate_limit_auth)])

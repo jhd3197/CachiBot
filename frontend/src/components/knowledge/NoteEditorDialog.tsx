@@ -126,39 +126,39 @@ export function NoteEditorDialog({ botId, noteId, open, onClose }: NoteEditorDia
         <div className="space-y-5">
           {/* Title field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Title</label>
+            <label className="text-sm font-medium text-[var(--label-text)]">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Note title..."
               autoFocus
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500 transition-colors"
+              className="w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--input-text)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] transition-colors"
             />
           </div>
 
           {/* Content field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Content</label>
+            <label className="text-sm font-medium text-[var(--label-text)]">Content</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write your note content..."
               rows={8}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500 transition-colors resize-y leading-relaxed"
+              className="w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--input-text)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] transition-colors resize-y leading-relaxed"
             />
           </div>
 
           {/* Tags field */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300 flex items-center gap-1.5">
+            <label className="text-sm font-medium text-[var(--label-text)] flex items-center gap-1.5">
               <Tag className="h-3.5 w-3.5" />
               Tags
             </label>
 
             {/* Selected tags + input */}
             <div
-              className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-2 focus-within:border-cachi-500 transition-colors cursor-text"
+              className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-2 py-2 focus-within:border-[var(--color-border-focus)] transition-colors cursor-text"
               onClick={() => tagInputRef.current?.focus()}
             >
               {tags.map((tag) => (
@@ -186,20 +186,20 @@ export function NoteEditorDialog({ botId, noteId, open, onClose }: NoteEditorDia
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
                 placeholder={tags.length === 0 ? 'Type a tag and press Enter...' : 'Add tag...'}
-                className="flex-1 min-w-[120px] bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none"
+                className="flex-1 min-w-[120px] bg-transparent text-sm text-[var(--input-text)] placeholder-[var(--input-placeholder)] outline-none"
               />
             </div>
 
             {/* Tag suggestions */}
             {suggestedTags.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs text-zinc-500">Suggestions:</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">Suggestions:</span>
                 {suggestedTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => addTag(tag)}
-                    className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-xs text-zinc-400 hover:border-cachi-500/50 hover:text-cachi-400 transition-colors"
+                    className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-inset)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] hover:border-cachi-500/50 hover:text-cachi-400 transition-colors"
                   >
                     <Plus className="h-3 w-3" />
                     {tag}

@@ -1,0 +1,108 @@
+// =============================================================================
+// Utilities — utilities.less
+// Utility classes and typography presets.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Utility Classes
+// -----------------------------------------------------------------------------
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.truncate {
+  .truncate();
+}
+
+.line-clamp-2 {
+  .line-clamp(2);
+}
+
+.line-clamp-3 {
+  .line-clamp(3);
+}
+
+.scrollbar-none {
+  .scrollbar-none();
+}
+
+// -----------------------------------------------------------------------------
+// Typography Classes
+// -----------------------------------------------------------------------------
+.text-page-title {
+  font-size: @text-xl;
+  font-weight: @font-bold;
+  color: var(--color-text-primary);
+  line-height: @leading-tight;
+}
+
+.text-section-heading {
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: var(--color-text-primary);
+  line-height: @leading-normal;
+}
+
+.text-dialog-title {
+  font-size: @text-lg;
+  font-weight: @font-bold;
+  color: var(--color-text-primary);
+  line-height: @leading-tight;
+}
+
+.text-card-title {
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: var(--color-text-primary);
+  line-height: @leading-normal;
+}
+
+.text-body {
+  font-size: @text-sm;
+  font-weight: @font-normal;
+  color: var(--color-text-primary);
+  line-height: @leading-normal;
+}
+
+.text-label {
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: var(--color-text-secondary);
+  line-height: @leading-normal;
+}
+
+.text-caption {
+  font-size: @text-xs;
+  font-weight: @font-normal;
+  color: var(--color-text-tertiary);
+  line-height: @leading-normal;
+}
+
+.text-error {
+  font-size: @text-sm;
+  font-weight: @font-normal;
+  color: var(--color-danger-text);
+  line-height: @leading-normal;
+}
+
+.text-tagline {
+  font-size: @text-sm;
+  font-weight: @font-normal;
+  color: var(--color-text-secondary);
+  line-height: @leading-normal;
+}
+
+.text-mono {
+  font-size: @text-sm;
+  font-weight: @font-normal;
+  font-family: @font-mono;
+  line-height: @leading-normal;
+}

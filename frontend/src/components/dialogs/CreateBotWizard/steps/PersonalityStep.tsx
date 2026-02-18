@@ -35,7 +35,7 @@ export function PersonalityStep() {
     <div className="space-y-6">
       {/* Communication Style */}
       <div>
-        <label className="mb-3 block text-sm font-medium text-zinc-300">
+        <label className="mb-3 block text-sm font-medium text-[var(--color-text-primary)]">
           How should your bot communicate?
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -47,11 +47,11 @@ export function PersonalityStep() {
                 'flex flex-col items-start rounded-lg border p-3 text-left transition-all',
                 form.communicationStyle === style.id
                   ? 'border-cachi-500 bg-cachi-500/10'
-                  : 'border-zinc-800 bg-zinc-800/30 hover:border-zinc-700'
+                  : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)]'
               )}
             >
-              <span className="font-medium text-zinc-200">{style.label}</span>
-              <span className="text-xs text-zinc-500">{style.description}</span>
+              <span className="font-medium text-[var(--color-text-primary)]">{style.label}</span>
+              <span className="text-xs text-[var(--color-text-secondary)]">{style.description}</span>
             </button>
           ))}
         </div>
@@ -59,7 +59,7 @@ export function PersonalityStep() {
 
       {/* Emoji Preference */}
       <div>
-        <label className="mb-3 block text-sm font-medium text-zinc-300">
+        <label className="mb-3 block text-sm font-medium text-[var(--color-text-primary)]">
           Should your bot use emojis?
         </label>
         <div className="flex gap-3">
@@ -73,18 +73,18 @@ export function PersonalityStep() {
                   'flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 transition-all',
                   form.useEmojis === option.id
                     ? 'border-cachi-500 bg-cachi-500/10'
-                    : 'border-zinc-800 bg-zinc-800/30 hover:border-zinc-700'
+                    : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)]'
                 )}
               >
                 <Icon
                   className={cn(
                     'h-6 w-6',
-                    form.useEmojis === option.id ? 'text-cachi-400' : 'text-zinc-500'
+                    form.useEmojis === option.id ? 'text-cachi-400' : 'text-[var(--color-text-secondary)]'
                   )}
                 />
                 <div className="text-center">
-                  <span className="block font-medium text-zinc-200">{option.label}</span>
-                  <span className="text-xs text-zinc-500">{option.description}</span>
+                  <span className="block font-medium text-[var(--color-text-primary)]">{option.label}</span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">{option.description}</span>
                 </div>
               </button>
             )

@@ -42,13 +42,13 @@ export function JobsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
+    <div className="jobs-view">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-6 py-4">
+      <div className="jobs-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-100">Jobs</h1>
-            <p className="text-sm text-zinc-500">Background tasks and executions</p>
+            <h1 className="jobs-header__title">Jobs</h1>
+            <p className="jobs-header__subtitle">Background tasks and executions</p>
           </div>
 
           {/* Stats */}
@@ -63,26 +63,26 @@ export function JobsView() {
         {/* Filters */}
         <div className="mt-4 flex items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
             <input
               type="text"
               placeholder="Search jobs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
+              className="jobs-search"
             />
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-1">
+          <div className="jobs-filter-bar">
             {(['all', 'running', 'pending', 'completed', 'failed'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={cn(
-                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                  'jobs-filter-bar__btn',
                   statusFilter === status
-                    ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'jobs-filter-bar__btn--active'
+                    : 'jobs-filter-bar__btn--inactive'
                 )}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -95,11 +95,11 @@ export function JobsView() {
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Job list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-800 p-4">
+        <div className="jobs-list">
           {jobs.length === 0 ? (
-            <div className="py-12 text-center">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-              <p className="text-sm text-zinc-500">
+            <div className="jobs-list__empty">
+              <AlertCircle className="jobs-list__empty-icon h-8 w-8" />
+              <p className="jobs-list__empty-text">
                 {search || statusFilter !== 'all' ? 'No jobs match your filters' : 'No jobs yet'}
               </p>
             </div>
@@ -127,8 +127,8 @@ export function JobsView() {
               onDelete={() => deleteJob(selectedJob.id)}
             />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-zinc-500">Select a job to view details</p>
+            <div className="job-details__empty">
+              <p>Select a job to view details</p>
             </div>
           )}
         </div>
@@ -152,25 +152,18 @@ function Stat({
   color: 'blue' | 'green' | 'red' | 'zinc'
   pulse?: boolean
 }) {
-  const colors = {
-    blue: 'bg-blue-500/20 text-blue-400',
-    green: 'bg-green-500/20 text-green-400',
-    red: 'bg-red-500/20 text-red-400',
-    zinc: 'bg-zinc-700 text-zinc-400',
-  }
-
   return (
-    <div className="flex items-center gap-2">
+    <div className="job-stat">
       <div
         className={cn(
-          'flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-sm font-bold',
-          colors[color],
+          'job-stat__value',
+          `job-stat__value--${color}`,
           pulse && value > 0 && 'animate-pulse'
         )}
       >
         {value}
       </div>
-      <span className="text-xs text-zinc-500">{label}</span>
+      <span className="job-stat__label">{label}</span>
     </div>
   )
 }
@@ -184,12 +177,12 @@ function JobCard({
   selected: boolean
   onClick: () => void
 }) {
-  const statusConfig: Record<Job['status'], { icon: typeof Clock; color: string; bg: string; spin?: boolean }> = {
-    pending: { icon: Clock, color: 'text-zinc-400', bg: 'bg-zinc-500' },
-    running: { icon: Loader2, color: 'text-blue-400', bg: 'bg-blue-500', spin: true },
-    completed: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500' },
-    failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500' },
-    cancelled: { icon: AlertCircle, color: 'text-zinc-500', bg: 'bg-zinc-600' },
+  const statusConfig: Record<Job['status'], { icon: typeof Clock; color: string; spin?: boolean }> = {
+    pending: { icon: Clock, color: 'text-[var(--color-text-secondary)]' },
+    running: { icon: Loader2, color: 'text-blue-400', spin: true },
+    completed: { icon: CheckCircle, color: 'text-green-400' },
+    failed: { icon: XCircle, color: 'text-red-400' },
+    cancelled: { icon: AlertCircle, color: 'text-[var(--color-text-secondary)]' },
   }
 
   const config = statusConfig[job.status]
@@ -199,10 +192,8 @@ function JobCard({
     <button
       onClick={onClick}
       className={cn(
-        'w-full rounded-xl border p-4 text-left transition-all',
-        selected
-          ? 'border-cachi-500 bg-cachi-500/10'
-          : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
+        'job-card',
+        selected && 'job-card--selected'
       )}
     >
       <div className="flex items-start gap-3">
@@ -211,33 +202,33 @@ function JobCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-zinc-200">{job.title}</span>
+            <span className="job-card__title">{job.title}</span>
             <span
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium',
-                job.priority === 'urgent' && 'bg-red-500/20 text-red-400',
-                job.priority === 'high' && 'bg-orange-500/20 text-orange-400',
-                job.priority === 'normal' && 'bg-zinc-700 text-zinc-400',
-                job.priority === 'low' && 'bg-zinc-800 text-zinc-500'
+                'job-card__priority',
+                job.priority === 'urgent' && 'job-card__priority--urgent',
+                job.priority === 'high' && 'job-card__priority--high',
+                job.priority === 'normal' && 'job-card__priority--normal',
+                job.priority === 'low' && 'job-card__priority--low'
               )}
             >
               {job.priority}
             </span>
           </div>
           {job.description && (
-            <p className="mt-1 truncate text-sm text-zinc-500">{job.description}</p>
+            <p className="job-card__description">{job.description}</p>
           )}
 
           {/* Progress bar */}
           {job.status === 'running' && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-zinc-500">
+            <div className="job-progress">
+              <div className="job-progress__header">
                 <span>Progress</span>
                 <span>{job.progress}%</span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+              <div className="job-progress__track">
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                  className="job-progress__bar"
                   style={{ width: `${job.progress}%` }}
                 />
               </div>
@@ -245,7 +236,7 @@ function JobCard({
           )}
 
           {/* Timestamp */}
-          <div className="mt-2 text-xs text-zinc-600">
+          <div className="job-card__timestamp">
             {job.completedAt
               ? `Completed ${formatTime(job.completedAt)}`
               : job.startedAt
@@ -272,36 +263,27 @@ function JobDetails({
   const [showLogs, setShowLogs] = useState(true)
 
   return (
-    <div className="p-6">
+    <div className="job-details">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-zinc-100">{job.title}</h2>
-          {job.description && <p className="mt-1 text-zinc-400">{job.description}</p>}
+          <h2 className="job-details__title">{job.title}</h2>
+          {job.description && <p className="job-details__description">{job.description}</p>}
         </div>
         <div className="flex items-center gap-2">
           {job.status === 'running' && (
-            <button
-              onClick={onCancel}
-              className="flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
-            >
+            <button onClick={onCancel} className="job-btn job-btn--cancel">
               <Pause className="h-4 w-4" />
               Cancel
             </button>
           )}
           {(job.status === 'failed' || job.status === 'cancelled') && (
-            <button
-              onClick={onRetry}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-500"
-            >
+            <button onClick={onRetry} className="job-btn job-btn--retry">
               <RotateCcw className="h-4 w-4" />
               Retry
             </button>
           )}
-          <button
-            onClick={onDelete}
-            className="flex items-center gap-2 rounded-lg bg-red-600/20 px-3 py-2 text-sm text-red-400 hover:bg-red-600/30"
-          >
+          <button onClick={onDelete} className="job-btn job-btn--delete">
             <Trash2 className="h-4 w-4" />
             Delete
           </button>
@@ -309,7 +291,7 @@ function JobDetails({
       </div>
 
       {/* Status and timing */}
-      <div className="mb-6 grid grid-cols-4 gap-4">
+      <div className="job-info-grid">
         <InfoCard label="Status" value={job.status} />
         <InfoCard label="Priority" value={job.priority} />
         <InfoCard label="Created" value={formatTime(job.createdAt)} />
@@ -325,14 +307,14 @@ function JobDetails({
 
       {/* Progress */}
       {job.status === 'running' && (
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-zinc-400">Progress</span>
-            <span className="font-mono text-zinc-300">{job.progress}%</span>
+        <div className="job-detail-progress">
+          <div className="job-detail-progress__header">
+            <span className="job-detail-progress__label">Progress</span>
+            <span className="job-detail-progress__value">{job.progress}%</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
+          <div className="job-detail-progress__track">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cachi-500 transition-all duration-300"
+              className="job-detail-progress__bar"
               style={{ width: `${job.progress}%` }}
             />
           </div>
@@ -341,23 +323,23 @@ function JobDetails({
 
       {/* Error message */}
       {job.error && (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-          <div className="flex items-center gap-2 text-red-400">
+        <div className="job-error-panel">
+          <div className="job-error-panel__header">
             <XCircle className="h-5 w-5" />
-            <span className="font-medium">Error</span>
+            <span>Error</span>
           </div>
-          <pre className="mt-2 overflow-x-auto text-sm text-red-300">{job.error}</pre>
+          <pre className="job-error-panel__content">{job.error}</pre>
         </div>
       )}
 
       {/* Result */}
       {job.result && (
-        <div className="mb-6 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
-          <div className="flex items-center gap-2 text-green-400">
+        <div className="job-result-panel">
+          <div className="job-result-panel__header">
             <CheckCircle className="h-5 w-5" />
-            <span className="font-medium">Result</span>
+            <span>Result</span>
           </div>
-          <pre className="mt-2 overflow-x-auto text-sm text-green-300">
+          <pre className="job-result-panel__content">
             {typeof job.result === 'string' ? job.result : String(JSON.stringify(job.result, null, 2))}
           </pre>
         </div>
@@ -365,39 +347,39 @@ function JobDetails({
 
       {/* Logs */}
       {job.logs && job.logs.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+        <div className="job-logs">
           <button
             onClick={() => setShowLogs(!showLogs)}
-            className="flex w-full items-center justify-between px-4 py-3"
+            className="job-logs__toggle"
           >
-            <span className="font-medium text-zinc-300">Logs ({job.logs.length})</span>
+            <span className="job-logs__title">Logs ({job.logs.length})</span>
             <ChevronDown
               className={cn(
-                'h-5 w-5 text-zinc-500 transition-transform',
+                'h-5 w-5 text-[var(--color-text-secondary)] transition-transform',
                 showLogs && 'rotate-180'
               )}
             />
           </button>
           {showLogs && (
-            <div className="border-t border-zinc-800 p-4">
-              <div className="max-h-80 space-y-1 overflow-y-auto font-mono text-xs">
+            <div className="job-logs__body">
+              <div className="job-logs__list space-y-1">
                 {job.logs.map((log, i) => (
                   <div key={i} className="flex gap-3">
-                    <span className="flex-shrink-0 text-zinc-600">
+                    <span className="job-logs__timestamp">
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                     <span
                       className={cn(
-                        'flex-shrink-0 w-12 uppercase',
-                        log.level === 'error' && 'text-red-400',
-                        log.level === 'warn' && 'text-yellow-400',
-                        log.level === 'info' && 'text-blue-400',
-                        log.level === 'debug' && 'text-zinc-500'
+                        'job-logs__level',
+                        log.level === 'error' && 'job-logs__level--error',
+                        log.level === 'warn' && 'job-logs__level--warn',
+                        log.level === 'info' && 'job-logs__level--info',
+                        log.level === 'debug' && 'job-logs__level--debug'
                       )}
                     >
                       {log.level}
                     </span>
-                    <span className="text-zinc-300">{log.message}</span>
+                    <span className="job-logs__message">{log.message}</span>
                   </div>
                 ))}
               </div>
@@ -411,9 +393,9 @@ function JobDetails({
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-medium capitalize text-zinc-200">{value}</div>
+    <div className="job-info-card">
+      <div className="job-info-card__label">{label}</div>
+      <div className="job-info-card__value">{value}</div>
     </div>
   )
 }

@@ -203,21 +203,21 @@ export function GroupsView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="groups-view flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="groups-view">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="groups-header">
+        <div className="groups-header__inner">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="groups-header__back-btn"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -238,9 +238,9 @@ export function GroupsView() {
         <div className="flex gap-6">
           {/* Groups Table */}
           <div className={`${activeGroupId ? 'flex-1' : 'w-full'} transition-all`}>
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+            <div className="groups-table">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 bg-zinc-800/50 text-sm text-zinc-400 font-medium">
+              <div className="groups-table__header">
                 <div>Group Name</div>
                 <div>Description</div>
                 <div>Members</div>
@@ -250,29 +250,27 @@ export function GroupsView() {
 
               {/* Group Rows */}
               {groups.length === 0 ? (
-                <div className="px-4 py-8 text-center text-zinc-500">No groups found</div>
+                <div className="groups-table__empty">No groups found</div>
               ) : (
                 groups.map((group) => (
                   <div
                     key={group.id}
-                    className={`grid grid-cols-[1fr_1fr_80px_120px_48px] gap-4 px-4 py-3 border-t border-zinc-800 items-center hover:bg-zinc-800/30 transition-colors cursor-pointer ${
-                      activeGroupId === group.id ? 'bg-zinc-800/40' : ''
-                    }`}
+                    className={`group-row ${activeGroupId === group.id ? 'group-row--active' : ''}`}
                     onClick={() =>
                       setActiveGroupId(activeGroupId === group.id ? null : group.id)
                     }
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center">
-                        <Users className="h-4 w-4 text-zinc-400" />
+                      <div className="group-row__avatar">
+                        <Users className="group-row__avatar-icon" />
                       </div>
-                      <div className="font-medium truncate">{group.name}</div>
+                      <div className="group-row__name">{group.name}</div>
                     </div>
-                    <div className="text-zinc-400 truncate">
+                    <div className="group-row__description">
                       {group.description || '\u2014'}
                     </div>
-                    <div className="text-zinc-300">{group.member_count}</div>
-                    <div className="text-zinc-400 truncate text-sm">
+                    <div className="group-row__member-count">{group.member_count}</div>
+                    <div className="group-row__created-by">
                       {group.created_by === currentUser?.id ? 'You' : group.created_by}
                     </div>
                     <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -280,18 +278,18 @@ export function GroupsView() {
                         onClick={() =>
                           setMenuOpen(menuOpen === group.id ? null : group.id)
                         }
-                        className="p-1.5 hover:bg-zinc-700 rounded transition-colors"
+                        className="group-menu-btn"
                       >
-                        <MoreVertical className="h-4 w-4 text-zinc-400" />
+                        <MoreVertical className="h-4 w-4" />
                       </button>
                       {menuOpen === group.id && (
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg py-1 z-20">
+                        <div className="group-context-menu">
                           <button
                             onClick={() => {
                               setActiveGroupId(group.id)
                               setMenuOpen(null)
                             }}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                            className="group-context-menu__item"
                           >
                             View Members
                           </button>
@@ -302,13 +300,13 @@ export function GroupsView() {
                                   setActiveGroupId(group.id)
                                   setMenuOpen(null)
                                 }}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                                className="group-context-menu__item"
                               >
                                 Edit Group
                               </button>
                               <button
                                 onClick={() => handleDeleteGroup(group.id)}
-                                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-zinc-700 transition-colors"
+                                className="group-context-menu__item group-context-menu__item--danger"
                               >
                                 Delete Group
                               </button>
@@ -322,15 +320,15 @@ export function GroupsView() {
               )}
             </div>
 
-            <p className="text-sm text-zinc-500 mt-4 text-center">
+            <p className="groups-table__count">
               {groups.length} group{groups.length !== 1 ? 's' : ''} total
             </p>
           </div>
 
           {/* Group Detail Panel */}
           {activeGroupId && (
-            <div className="w-96 shrink-0">
-              <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+            <div className="group-detail">
+              <div className="group-detail__card">
                 {loadingDetail ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
@@ -338,29 +336,29 @@ export function GroupsView() {
                 ) : activeGroup ? (
                   <>
                     {/* Detail Header */}
-                    <div className="px-4 py-4 border-b border-zinc-800">
+                    <div className="group-detail__header">
                       <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-semibold">{activeGroup.name}</h2>
+                        <h2 className="group-detail__title">{activeGroup.name}</h2>
                         <button
                           onClick={() => setActiveGroupId(null)}
-                          className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors"
+                          className="group-detail__close-btn"
                         >
-                          <X className="h-4 w-4 text-zinc-400" />
+                          <X className="group-detail__close-icon" />
                         </button>
                       </div>
                       {activeGroup.description && (
-                        <p className="text-sm text-zinc-400">{activeGroup.description}</p>
+                        <p className="group-detail__description">{activeGroup.description}</p>
                       )}
                     </div>
 
                     {/* Members Header */}
-                    <div className="px-4 py-3 flex items-center justify-between bg-zinc-800/50">
-                      <span className="text-sm font-medium text-zinc-400">
+                    <div className="group-members-header">
+                      <span className="group-members-header__label">
                         Members ({activeGroup.members.length})
                       </span>
                       <button
                         onClick={() => setShowAddMemberModal(true)}
-                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        className="group-members-header__add-btn"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Add Member
@@ -370,43 +368,40 @@ export function GroupsView() {
                     {/* Members List */}
                     <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
                       {activeGroup.members.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+                        <div className="group-members-empty">
                           No members yet
                         </div>
                       ) : (
                         activeGroup.members.map((member: GroupMember) => (
-                          <div
-                            key={member.user_id}
-                            className="px-4 py-3 border-t border-zinc-800 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
-                          >
+                          <div key={member.user_id} className="group-member">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center shrink-0">
+                              <div className="group-member__avatar">
                                 {member.role === 'owner' ? (
-                                  <Shield className="h-4 w-4 text-purple-400" />
+                                  <Shield className="group-member__avatar-icon--owner" />
                                 ) : (
-                                  <UserIcon className="h-4 w-4 text-zinc-400" />
+                                  <UserIcon className="group-member__avatar-icon" />
                                 )}
                               </div>
                               <div className="min-w-0">
-                                <div className="font-medium text-sm truncate">
+                                <div className="group-member__name">
                                   {member.username}
                                   {member.user_id === currentUser?.id && (
-                                    <span className="text-xs text-blue-400 ml-1.5">
+                                    <span className="group-member__you-badge">
                                       You
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-xs text-zinc-500 truncate">
+                                <div className="group-member__email">
                                   {member.email}
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                className={`group-member__role ${
                                   member.role === 'owner'
-                                    ? 'bg-purple-500/20 text-purple-300'
-                                    : 'bg-zinc-700 text-zinc-300'
+                                    ? 'group-member__role--owner'
+                                    : 'group-member__role--member'
                                 }`}
                               >
                                 {member.role}
@@ -414,7 +409,7 @@ export function GroupsView() {
                               {member.user_id !== currentUser?.id && (
                                 <button
                                   onClick={() => handleRemoveMember(member.user_id)}
-                                  className="p-1 hover:bg-zinc-700 rounded transition-colors text-zinc-500 hover:text-red-400"
+                                  className="group-member__remove-btn"
                                   title="Remove member"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -435,12 +430,12 @@ export function GroupsView() {
 
       {/* Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Create New Group</h2>
+        <div className="groups-modal">
+          <div className="groups-modal__panel">
+            <h2 className="groups-modal__title">Create New Group</h2>
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="groups-modal__label">
                   Name
                 </label>
                 <input
@@ -449,13 +444,13 @@ export function GroupsView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="groups-modal__input"
                   required
                   placeholder="Group name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="groups-modal__label">
                   Description
                 </label>
                 <input
@@ -464,7 +459,7 @@ export function GroupsView() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="groups-modal__input"
                   placeholder="Optional description"
                 />
               </div>
@@ -492,12 +487,12 @@ export function GroupsView() {
 
       {/* Add Member Modal */}
       {showAddMemberModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4">Add Member</h2>
+        <div className="groups-modal">
+          <div className="groups-modal__panel">
+            <h2 className="groups-modal__title">Add Member</h2>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="groups-modal__label">
                   User ID
                 </label>
                 <input
@@ -506,13 +501,13 @@ export function GroupsView() {
                   onChange={(e) =>
                     setAddMemberForm({ ...addMemberForm, userId: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="groups-modal__input"
                   required
                   placeholder="Enter user ID"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="groups-modal__label">
                   Role
                 </label>
                 <select
@@ -523,7 +518,7 @@ export function GroupsView() {
                       role: e.target.value as GroupRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="groups-modal__select"
                 >
                   <option value="member">Member</option>
                   <option value="owner">Owner</option>

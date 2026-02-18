@@ -1,0 +1,410 @@
+// =============================================================================
+// Global Log — components/global-log.less
+// Execution dashboard, log entries, error spotlight, cost analysis
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Global Log — outermost container
+// -----------------------------------------------------------------------------
+
+.global-log {
+  .flex-col();
+  height: 100%;
+}
+
+// -----------------------------------------------------------------------------
+// Global Log Header
+// -----------------------------------------------------------------------------
+
+.global-log-header {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Header Buttons
+// -----------------------------------------------------------------------------
+
+.global-log-btn {
+  display: flex;
+  align-items: center;
+  gap: @sp-1\.5;
+  border-radius: @radius-lg;
+  padding: @sp-1\.5 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &--danger {
+    background: @red-600;
+    color: white;
+    border: none;
+
+    &:hover {
+      background: @red-700;
+    }
+  }
+
+  &--secondary {
+    background: none;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-secondary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Stats Bar
+// -----------------------------------------------------------------------------
+
+.global-log-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: @sp-4;
+  padding: @sp-3 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.global-log-stat {
+  display: flex;
+  align-items: center;
+  gap: @sp-3;
+
+  &__icon-wrap {
+    .flex-center();
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: @radius-lg;
+    background: var(--color-bg-secondary);
+  }
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tabs + Controls Bar
+// -----------------------------------------------------------------------------
+
+.global-log-tabs {
+  .flex-between();
+  padding: 0 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__list {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  &__tab {
+    border-bottom: 2px solid transparent;
+    padding: @sp-2 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    text-transform: capitalize;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    .transition-colors();
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      border-bottom-color: var(--accent-600);
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Search Input
+// -----------------------------------------------------------------------------
+
+.global-log-search {
+  position: relative;
+
+  &__icon {
+    position: absolute;
+    left: @sp-2\.5;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+  }
+
+  &__input {
+    height: 1.75rem;
+    width: 10rem;
+    border-radius: @radius-md;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--input-bg);
+    padding-left: @sp-8;
+    padding-right: @sp-3;
+    font-size: @text-xs;
+    color: var(--input-text);
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--input-placeholder);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Period Select
+// -----------------------------------------------------------------------------
+
+.global-log-select {
+  height: 1.75rem;
+  border-radius: @radius-md;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--input-bg);
+  padding: 0 @sp-2;
+  font-size: @text-xs;
+  color: var(--input-text);
+}
+
+// -----------------------------------------------------------------------------
+// Content Area
+// -----------------------------------------------------------------------------
+
+.global-log-content {
+  flex: 1;
+  overflow: auto;
+  .scrollbar-thin();
+}
+
+// -----------------------------------------------------------------------------
+// Log Entry
+// -----------------------------------------------------------------------------
+
+.global-log-list {
+  & > * + * {
+    border-top: 1px solid var(--color-border-primary);
+  }
+}
+
+.log-entry {
+  display: flex;
+  align-items: center;
+  gap: @sp-4;
+  padding: @sp-3 @sp-6;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+
+  &__status-icon {
+    flex-shrink: 0;
+  }
+
+  &__body {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__name {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    .truncate();
+  }
+
+  &__type-badge {
+    display: inline-block;
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: 2px @sp-1\.5;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+
+  &__meta {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    .truncate();
+  }
+
+  &__metrics {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+
+  &__cancel {
+    font-size: 10px;
+    color: @red-500;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Empty State
+// -----------------------------------------------------------------------------
+
+.global-log-empty {
+  padding: @sp-12 0;
+  text-align: center;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+}
+
+// -----------------------------------------------------------------------------
+// Error Spotlight
+// -----------------------------------------------------------------------------
+
+.global-log-errors {
+  padding: @sp-6;
+  display: flex;
+  flex-direction: column;
+  gap: @sp-3;
+}
+
+.error-entry {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  padding: @sp-4;
+
+  &__header {
+    .flex-between();
+  }
+
+  &__type {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @red-500;
+  }
+
+  &__count {
+    border-radius: @radius-full;
+    background: rgba(@red-500, 0.1);
+    padding: 2px @sp-2;
+    font-size: 10px;
+    font-weight: @font-medium;
+    color: @red-500;
+  }
+
+  &__meta {
+    margin-top: @sp-1;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Cost Analysis Table
+// -----------------------------------------------------------------------------
+
+.global-log-costs {
+  padding: @sp-6;
+}
+
+.cost-table {
+  .table-base();
+  font-size: @text-xs;
+
+  &__head-row {
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__th {
+    padding-bottom: @sp-2;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    text-align: left;
+
+    &--right {
+      text-align: right;
+    }
+  }
+
+  &__body {
+    & > tr + tr {
+      border-top: 1px solid var(--color-border-primary);
+    }
+  }
+
+  &__td {
+    padding: @sp-2 0;
+    color: var(--color-text-secondary);
+
+    &--name {
+      font-weight: @font-medium;
+      color: var(--color-text-primary);
+    }
+
+    &--right {
+      text-align: right;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Loading State
+// -----------------------------------------------------------------------------
+
+.global-log-loading {
+  .flex-center();
+  padding: @sp-12 0;
+  color: var(--color-text-secondary);
+}

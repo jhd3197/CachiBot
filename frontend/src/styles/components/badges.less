@@ -1,0 +1,63 @@
+// =============================================================================
+// Badges — components/badges.less
+// .badge + color/shape variants, .badge-status
+// =============================================================================
+
+.badge {
+  .badge-base();
+
+  // ---------------------------------------------------------------------------
+  // Color variants
+  // ---------------------------------------------------------------------------
+  &--neutral {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+  }
+
+  &--accent {
+    background: var(--accent-50, rgba(34, 197, 94, 0.1));
+    color: var(--accent-700, var(--accent-600));
+  }
+
+  &--success {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+  }
+
+  &--warning {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+  }
+
+  &--danger {
+    background: var(--color-danger-bg);
+    color: var(--color-danger-text);
+  }
+
+  &--info {
+    background: var(--color-info-bg);
+    color: var(--color-info-text);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shape variants
+  // ---------------------------------------------------------------------------
+  &--pill {
+    border-radius: @radius-full;
+  }
+}
+
+// Status badge with dot indicator
+.badge-status {
+  .badge-base();
+  gap: @sp-1\.5;
+
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: @radius-full;
+    background: currentColor;
+  }
+}

@@ -1,0 +1,215 @@
+// =============================================================================
+// Bot Rail — components/bot-rail.less
+// Left 72px navigation rail
+// =============================================================================
+
+.bot-rail {
+  display: flex;
+  height: 100%;
+  width: 72px;
+  flex-direction: column;
+  align-items: center;
+  background: @zinc-200;
+  padding: @sp-3 0;
+
+  .dark & {
+    background: @zinc-950;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-2;
+    padding-bottom: @sp-3;
+  }
+
+  &__scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-2;
+    overflow-y: auto;
+    .scrollbar-none();
+  }
+
+  &__bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-2;
+    padding-top: @sp-3;
+  }
+
+  &__divider {
+    height: 1px;
+    width: 2rem;
+    background: @zinc-300;
+
+    .dark & {
+      background: @zinc-800;
+    }
+  }
+
+  // Avatar-style bot button (rounds from circle to squircle)
+  &__avatar-btn {
+    position: relative;
+    .flex-center();
+    height: 3rem;
+    width: 3rem;
+    border-radius: 24px;
+    background: @zinc-300;
+    color: @zinc-600;
+    transition: all @transition-normal;
+    cursor: pointer;
+    border: none;
+
+    .dark & {
+      background: @zinc-800;
+      color: @zinc-400;
+    }
+
+    &:hover {
+      border-radius: 16px;
+      background: var(--accent-600);
+      color: white;
+      opacity: 0.8;
+    }
+
+    &--active {
+      border-radius: 16px;
+      background: var(--accent-600);
+      color: white;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  // Active indicator bar (left edge)
+  &__active-indicator {
+    position: absolute;
+    left: -@sp-3;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 0;
+    border-radius: 0 @radius-full @radius-full 0;
+    background: @zinc-900;
+    transition: height @transition-normal;
+
+    .dark & {
+      background: white;
+    }
+
+    .group:hover & {
+      height: 1.25rem;
+    }
+
+    &--active {
+      height: 2.5rem;
+    }
+  }
+
+  // Action buttons (bottom section: settings, logs, github)
+  &__action-btn {
+    position: relative;
+    .flex-center();
+    height: 3rem;
+    width: 3rem;
+    border-radius: @radius-full;
+    color: @zinc-600;
+    .transition-colors();
+    cursor: pointer;
+    border: none;
+    background: transparent;
+
+    .dark & {
+      color: @zinc-400;
+    }
+
+    &:hover {
+      background: @zinc-300;
+      color: @zinc-800;
+
+      .dark & {
+        background: @zinc-800;
+        color: @zinc-200;
+      }
+    }
+
+    &--active {
+      background: rgba(var(--accent-600-rgb, 22, 163, 74), 0.2);
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+
+  // Shared bot indicator dot
+  &__shared-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    height: 0.875rem;
+    width: 0.875rem;
+    border-radius: @radius-full;
+    border: 2px solid @zinc-200;
+
+    .dark & {
+      border-color: @zinc-950;
+    }
+
+    &--viewer {
+      background: @blue-400;
+    }
+
+    &--operator {
+      background: @yellow-400;
+    }
+
+    &--editor {
+      background: @green-400;
+    }
+  }
+
+  // Tooltip
+  &__tooltip {
+    .tooltip();
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: @sp-4;
+    opacity: 0;
+    transition: opacity @transition-fast;
+    font-weight: @font-medium;
+    box-shadow: @shadow-lg;
+
+    .group:hover & {
+      opacity: 1;
+    }
+
+    .dark & {
+      background: @zinc-900;
+    }
+  }
+
+  &__tooltip-arrow {
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    height: 0.5rem;
+    width: 0.5rem;
+    background: @zinc-800;
+
+    .dark & {
+      background: @zinc-900;
+    }
+  }
+}

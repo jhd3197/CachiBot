@@ -1,0 +1,538 @@
+// =============================================================================
+// Tools View — components/tools-view.less
+// Tools page, cards, filters, details panel
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Tools View — outermost container
+// -----------------------------------------------------------------------------
+
+.tools-view {
+  display: flex;
+  height: 100%;
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Header
+// -----------------------------------------------------------------------------
+
+.tools-header {
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Risk Toggle Buttons
+// -----------------------------------------------------------------------------
+
+.tools-risk-btn {
+  display: flex;
+  align-items: center;
+  gap: @sp-1\.5;
+  border-radius: @radius-lg;
+  border: 1px solid;
+  padding: @sp-1\.5 @sp-2\.5;
+  font-size: @text-xs;
+  .transition-colors();
+  cursor: pointer;
+  background: none;
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__count {
+    border-radius: @radius-full;
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: 10px;
+    font-weight: @font-medium;
+    line-height: @leading-none;
+
+    &--active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &--inactive {
+      background: var(--color-bg-secondary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Divider
+// -----------------------------------------------------------------------------
+
+.tools-divider {
+  margin: 0 @sp-1;
+  height: 1.25rem;
+  width: 1px;
+  background: var(--color-border-secondary);
+
+  .dark & {
+    background: var(--color-hover-bg);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Bulk Toggle
+// -----------------------------------------------------------------------------
+
+.tools-bulk-btn {
+  border-radius: @radius-lg;
+  padding: @sp-2 @sp-1\.5;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Search Input
+// -----------------------------------------------------------------------------
+
+.tools-search {
+  &__input {
+    .input-base();
+    height: 2.25rem;
+    padding-left: @sp-10;
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    left: @sp-3;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Category Filter
+// -----------------------------------------------------------------------------
+
+.tools-category-bar {
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: @sp-1;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+}
+
+.tools-category-btn {
+  border-radius: @radius-md;
+  padding: @sp-1 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  .transition-colors();
+  border: none;
+  cursor: pointer;
+  background: none;
+
+  &--active {
+    background: var(--color-active-bg);
+    color: var(--color-text-primary);
+
+    .dark & {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &--inactive {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Content Area
+// -----------------------------------------------------------------------------
+
+.tools-content {
+  padding: @sp-6;
+
+  &__loading {
+    .flex-center();
+    padding: @sp-12 0;
+    color: var(--color-text-secondary);
+  }
+
+  &__error {
+    .flex-center();
+    gap: @sp-2;
+    padding: @sp-12 0;
+    color: @red-400;
+  }
+
+  &__empty {
+    padding: @sp-12 0;
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tools Plugin Group
+// -----------------------------------------------------------------------------
+
+.tools-plugin-group {
+  margin-bottom: @sp-8;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    margin-bottom: @sp-3;
+  }
+
+  &__icon {
+    height: 1.25rem;
+    width: 1.25rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__count {
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__capability {
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__always-on {
+    border-radius: @radius-full;
+    background: rgba(@green-500, 0.1);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    color: @green-500;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Card
+// -----------------------------------------------------------------------------
+
+.tool-card {
+  position: relative;
+  border-radius: @radius-xl;
+  border: 1px solid;
+  padding: @sp-4;
+  .transition-all();
+
+  &--enabled {
+    border-color: rgba(var(--accent-500-rgb, 168, 85, 247), 0.5);
+    background: rgba(var(--accent-500-rgb, 168, 85, 247), 0.05);
+  }
+
+  &--disabled {
+    border-color: var(--color-border-primary);
+    background: var(--color-bg-tertiary);
+
+    .dark & {
+      background: color-mix(in srgb, var(--color-bg-primary) 30%, transparent);
+    }
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &__icon-box {
+    .flex-center();
+    height: 2.5rem;
+    width: 2.5rem;
+    border-radius: @radius-lg;
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__icon {
+    height: 1.25rem;
+    width: 1.25rem;
+    color: var(--color-text-primary);
+  }
+
+  &__name {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__actions {
+    margin-top: @sp-3;
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    opacity: 0;
+    transition: opacity @transition-fast;
+
+    .tool-card:hover & {
+      opacity: 1;
+    }
+  }
+
+  &__action-btn {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    border-radius: @radius-sm;
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Details Panel
+// -----------------------------------------------------------------------------
+
+.tool-details-panel {
+  width: 24rem;
+  flex-shrink: 0;
+  border-left: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+
+  .dark & {
+    background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  }
+
+  &__header {
+    .flex-between();
+    padding: @sp-3 @sp-4;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__title {
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__close {
+    border-radius: @radius-sm;
+    padding: @sp-1;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__body {
+    padding: @sp-4;
+  }
+
+  &__icon-box {
+    .flex-center();
+    height: 3.5rem;
+    width: 3.5rem;
+    border-radius: @radius-xl;
+    background: var(--color-bg-secondary);
+  }
+
+  &__icon {
+    height: 1.75rem;
+    width: 1.75rem;
+    color: var(--color-text-primary);
+  }
+
+  &__name {
+    font-size: @text-lg;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__category {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__section-title {
+    margin-bottom: @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__risk-description {
+    margin-top: @sp-2;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Parameter Card
+// -----------------------------------------------------------------------------
+
+.tool-param-card {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-3;
+
+  &__type {
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__required {
+    border-radius: @radius-sm;
+    background: rgba(@red-500, 0.2);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+    color: @red-400;
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tool Details Actions
+// -----------------------------------------------------------------------------
+
+.tool-details-actions {
+  display: flex;
+  gap: @sp-2;
+}
+
+.tool-details-btn {
+  .flex-center();
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  padding: @sp-2;
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &--enable {
+    flex: 1;
+    background: var(--accent-600);
+    color: white;
+
+    &:hover {
+      background: var(--accent-500);
+    }
+  }
+
+  &--disable {
+    flex: 1;
+    background: rgba(@red-600, 0.2);
+    color: @red-400;
+
+    &:hover {
+      background: rgba(@red-600, 0.3);
+    }
+  }
+
+  &--test {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    padding: @sp-2 @sp-4;
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}

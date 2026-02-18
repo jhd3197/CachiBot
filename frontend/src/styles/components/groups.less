@@ -1,0 +1,448 @@
+// =============================================================================
+// Groups — components/groups.less
+// Groups list, detail panel, modals, member management
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Groups View — outermost container
+// -----------------------------------------------------------------------------
+
+.groups-view {
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Groups Header
+// -----------------------------------------------------------------------------
+
+.groups-header {
+  position: sticky;
+  top: 0;
+  z-index: @z-sticky;
+  background: color-mix(in srgb, var(--color-bg-primary) 80%, transparent);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--color-border-primary);
+
+  .dark & {
+    background: color-mix(in srgb, var(--color-bg-app) 80%, transparent);
+  }
+
+  &__inner {
+    .flex-between();
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: @sp-4;
+  }
+
+  &__back-btn {
+    padding: @sp-2;
+    border-radius: @radius-lg;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Groups Table
+// -----------------------------------------------------------------------------
+
+.groups-table {
+  background: var(--color-bg-primary);
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  overflow: hidden;
+
+  &__header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 80px 120px 48px;
+    gap: @sp-4;
+    padding: @sp-3 @sp-4;
+    background: var(--color-bg-secondary);
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__empty {
+    padding: @sp-4 @sp-8;
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
+
+  &__count {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    margin-top: @sp-4;
+    text-align: center;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Group Row
+// -----------------------------------------------------------------------------
+
+.group-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 80px 120px 48px;
+  gap: @sp-4;
+  padding: @sp-3 @sp-4;
+  border-top: 1px solid var(--color-border-primary);
+  align-items: center;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-hover-bg) 30%, transparent);
+  }
+
+  &--active {
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    .flex-center();
+
+    .dark & {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &__avatar-icon {
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__name {
+    font-weight: @font-medium;
+    .truncate();
+  }
+
+  &__description {
+    color: var(--color-text-secondary);
+    .truncate();
+  }
+
+  &__member-count {
+    color: var(--color-text-primary);
+  }
+
+  &__created-by {
+    color: var(--color-text-secondary);
+    .truncate();
+    font-size: @text-sm;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Group Context Menu
+// -----------------------------------------------------------------------------
+
+.group-menu-btn {
+  padding: @sp-1\.5;
+  border-radius: @radius-sm;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.group-context-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: @sp-1;
+  width: 11rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: @radius-lg;
+  box-shadow: @shadow-lg;
+  padding: @sp-1;
+  z-index: @z-dropdown;
+
+  .dark & {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-secondary);
+  }
+
+  &__item {
+    display: block;
+    width: 100%;
+    padding: @sp-2 @sp-3;
+    text-align: left;
+    font-size: @text-sm;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--danger {
+      color: @red-400;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Group Detail Panel
+// -----------------------------------------------------------------------------
+
+.group-detail {
+  width: 24rem;
+  flex-shrink: 0;
+
+  &__card {
+    background: var(--color-bg-primary);
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    overflow: hidden;
+  }
+
+  &__header {
+    padding: @sp-4;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__close-btn {
+    padding: @sp-1\.5;
+    border-radius: @radius-lg;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &__close-icon {
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+  }
+
+  &__description {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Group Members
+// -----------------------------------------------------------------------------
+
+.group-members-header {
+  .flex-between();
+  padding: @sp-3 @sp-4;
+  background: var(--color-bg-secondary);
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  &__add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1;
+    font-size: @text-xs;
+    color: @blue-400;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: @blue-300;
+    }
+  }
+}
+
+.group-members-empty {
+  padding: @sp-4 @sp-6;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: @text-sm;
+}
+
+// -----------------------------------------------------------------------------
+// Group Member Row
+// -----------------------------------------------------------------------------
+
+.group-member {
+  .flex-between();
+  padding: @sp-3 @sp-4;
+  border-top: 1px solid var(--color-border-primary);
+  .transition-colors();
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-hover-bg) 30%, transparent);
+  }
+
+  &__avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    .flex-center();
+    flex-shrink: 0;
+
+    .dark & {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &__avatar-icon {
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__avatar-icon--owner {
+    height: 1rem;
+    width: 1rem;
+    color: @purple-400;
+  }
+
+  &__name {
+    font-weight: @font-medium;
+    font-size: @text-sm;
+    .truncate();
+  }
+
+  &__you-badge {
+    font-size: @text-xs;
+    color: @blue-400;
+    margin-left: @sp-1\.5;
+  }
+
+  &__email {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    .truncate();
+  }
+
+  &__role {
+    display: inline-flex;
+    align-items: center;
+    padding: @sp-0\.5 @sp-2;
+    border-radius: @radius-sm;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    &--owner {
+      background: rgba(@purple-500, 0.2);
+      color: @purple-300;
+    }
+
+    &--member {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+
+  &__remove-btn {
+    padding: @sp-1;
+    border-radius: @radius-sm;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: @red-400;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Groups Modal
+// -----------------------------------------------------------------------------
+
+.groups-modal {
+  .dialog-backdrop();
+
+  &__panel {
+    background: var(--color-bg-primary);
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-6;
+    width: 100%;
+    max-width: @dialog-md;
+    margin: 0 @sp-4;
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    margin-bottom: @sp-4;
+  }
+
+  &__label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    margin-bottom: @sp-1\.5;
+  }
+
+  &__input {
+    .input-base();
+  }
+
+  &__select {
+    .input-base();
+    cursor: pointer;
+  }
+}

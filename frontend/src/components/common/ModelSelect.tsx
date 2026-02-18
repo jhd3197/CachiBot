@@ -153,7 +153,7 @@ export function ModelSelect({
   }
 
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('model-select', className)}>
       <button
         ref={triggerRef}
         type="button"
@@ -162,33 +162,33 @@ export function ModelSelect({
           setSearch('')
           setManualMode(false)
         }}
-        className="w-full bg-white border border-zinc-300 text-sm rounded-lg py-2 px-3 pr-8 focus:border-cachi-500 focus:outline-none text-left flex items-center justify-between gap-2 dark:bg-zinc-900 dark:border-zinc-700"
+        className="model-select__trigger"
       >
         <span
           className={cn(
-            'truncate',
-            value ? 'text-zinc-900 font-mono text-xs dark:text-zinc-100' : 'text-zinc-500'
+            'model-select__trigger-text',
+            value && 'model-select__trigger-text--value'
           )}
         >
           {value || placeholder}
         </span>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 h-4 w-4 pointer-events-none" />
+        <ChevronDown className="model-select__trigger-chevron h-4 w-4" />
       </button>
 
       {open &&
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-zinc-300 rounded-lg shadow-xl overflow-hidden dark:bg-zinc-900 dark:border-zinc-700"
+            className="model-select__dropdown"
             style={{ top: pos.top, left: pos.left, width: Math.max(pos.width, 300) }}
           >
             {manualMode ? (
               /* Manual input mode */
-              <div className="p-2">
-                <p className="text-[10px] text-zinc-500 mb-1.5 px-1">
+              <div className="model-select__manual">
+                <p className="model-select__manual-hint">
                   Enter model in provider/model format
                 </p>
-                <div className="flex gap-1.5">
+                <div className="model-select__manual-form">
                   <input
                     ref={manualRef}
                     type="text"
@@ -202,13 +202,13 @@ export function ModelSelect({
                       }
                     }}
                     placeholder="openrouter/moonshotai/kimi-k2.5"
-                    className="flex-1 bg-zinc-100 border border-zinc-300 text-zinc-900 text-xs font-mono rounded-md py-1.5 px-2 focus:border-cachi-500 focus:outline-none dark:bg-zinc-950 dark:border-zinc-700 dark:text-zinc-100"
+                    className="model-select__manual-input"
                   />
                   <button
                     type="button"
                     onClick={handleManualSubmit}
                     disabled={!manualValue.trim()}
-                    className="bg-cachi-600 hover:bg-cachi-500 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                    className="model-select__manual-submit"
                   >
                     Set
                   </button>
@@ -217,25 +217,25 @@ export function ModelSelect({
             ) : (
               <>
                 {/* Search input */}
-                <div className="p-2 border-b border-zinc-200 dark:border-zinc-800">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 h-3.5 w-3.5" />
+                <div className="model-select__search">
+                  <div className="model-select__search-wrap">
+                    <Search className="model-select__search-icon h-3.5 w-3.5" />
                     <input
                       ref={searchRef}
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search models..."
-                      className="w-full bg-zinc-100 border border-zinc-300 text-zinc-900 text-xs rounded-md py-1.5 pl-8 pr-3 focus:border-cachi-500 focus:outline-none dark:bg-zinc-950 dark:border-zinc-700 dark:text-zinc-100"
+                      className="model-select__search-input"
                     />
                   </div>
                 </div>
 
                 {/* Model list */}
-                <div className="max-h-64 overflow-y-auto">
+                <div className="model-select__list">
                   {/* Loading state */}
                   {loading && (
-                    <div className="px-3 py-6 text-center text-xs text-zinc-500">
+                    <div className="model-select__loading">
                       Discovering models...
                     </div>
                   )}
@@ -249,12 +249,12 @@ export function ModelSelect({
                         setOpen(false)
                       }}
                       className={cn(
-                        'w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 transition-colors flex items-center justify-between dark:hover:bg-zinc-800',
-                        !value ? 'text-cachi-600 dark:text-cachi-400' : 'text-zinc-600 dark:text-zinc-400'
+                        'model-select__item model-select__item--default',
+                        !value && 'model-select__item--selected'
                       )}
                     >
                       <span>{placeholder}</span>
-                      {!value && <Check className="h-3.5 w-3.5 text-cachi-500" />}
+                      {!value && <Check className="model-select__check h-3.5 w-3.5" />}
                     </button>
                   )}
 
@@ -263,9 +263,9 @@ export function ModelSelect({
                       .sort(([a], [b]) => a.localeCompare(b))
                       .map(([provider, items]) => (
                         <div key={provider}>
-                          <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-100/50 sticky top-0 dark:bg-zinc-950/50">
+                          <div className="model-select__group-header">
                             {providerLabel(provider)}
-                            <span className="ml-1.5 text-zinc-400 dark:text-zinc-600">{items.length}</span>
+                            <span className="model-select__group-count">{items.length}</span>
                           </div>
                           {items.map((m) => {
                             const isSelected = value === m.id
@@ -279,33 +279,31 @@ export function ModelSelect({
                                   setOpen(false)
                                 }}
                                 className={cn(
-                                  'w-full text-left px-3 py-1.5 text-sm hover:bg-zinc-100 transition-colors flex items-center justify-between gap-2 dark:hover:bg-zinc-800',
-                                  isSelected
-                                    ? 'text-cachi-600 bg-cachi-500/5 dark:text-cachi-400'
-                                    : 'text-zinc-700 dark:text-zinc-300'
+                                  'model-select__item',
+                                  isSelected && 'model-select__item--selected'
                                 )}
                               >
-                                <span className="truncate font-mono text-xs">
+                                <span className="model-select__item-id">
                                   {m.id}
                                 </span>
-                                <span className="flex items-center gap-2 shrink-0">
+                                <span className="model-select__item-meta">
                                   {ctx && (
-                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-600">
+                                    <span className="model-select__item-ctx">
                                       {ctx}
                                     </span>
                                   )}
                                   {m.supports_vision && (
-                                    <span className="text-[9px] bg-zinc-200 text-zinc-600 px-1 rounded dark:bg-zinc-800 dark:text-zinc-400">
+                                    <span className="model-select__badge model-select__badge--vision">
                                       vision
                                     </span>
                                   )}
                                   {m.is_reasoning && (
-                                    <span className="text-[9px] bg-purple-100 text-purple-600 px-1 rounded dark:bg-purple-900/40 dark:text-purple-400">
+                                    <span className="model-select__badge model-select__badge--reasoning">
                                       reasoning
                                     </span>
                                   )}
                                   {isSelected && (
-                                    <Check className="h-3.5 w-3.5 text-cachi-500" />
+                                    <Check className="model-select__check h-3.5 w-3.5" />
                                   )}
                                 </span>
                               </button>
@@ -315,7 +313,7 @@ export function ModelSelect({
                       ))}
 
                   {!loading && totalCount === 0 && (
-                    <div className="px-3 py-6 text-center text-xs text-zinc-500">
+                    <div className="model-select__empty">
                       {Object.keys(groups).length === 0
                         ? 'No models available. Configure API keys first.'
                         : 'No models match your search.'}
@@ -324,14 +322,14 @@ export function ModelSelect({
                 </div>
 
                 {/* Manual entry option */}
-                <div className="border-t border-zinc-200 dark:border-zinc-800">
+                <div className="model-select__footer">
                   <button
                     type="button"
                     onClick={() => {
                       setManualValue(value || '')
                       setManualMode(true)
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 transition-colors flex items-center gap-2 dark:hover:text-zinc-300 dark:hover:bg-zinc-800"
+                    className="model-select__footer-btn"
                   >
                     <Pencil className="h-3 w-3" />
                     Enter manually

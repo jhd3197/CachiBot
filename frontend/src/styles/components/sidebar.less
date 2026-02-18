@@ -1,0 +1,62 @@
+// =============================================================================
+// Sidebar — components/sidebar.less
+// .sidebar-item, .rail-btn, .nav-btn
+// =============================================================================
+
+.sidebar-item {
+  .sidebar-item();
+
+  &--active {
+    background: var(--color-selected-bg);
+    color: var(--color-text-primary);
+  }
+}
+
+.rail-btn {
+  .flex-center();
+  width: @height-md;
+  height: @height-md;
+  border-radius: @radius-lg;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+
+  &--active {
+    background: var(--color-selected-bg);
+    color: var(--accent-600);
+  }
+}
+
+.nav-btn {
+  position: relative;
+  .flex-center();
+  height: 2rem;
+  width: 2rem;
+  border-radius: @radius-lg;
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all @transition-fast;
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+
+  &--active {
+    background: rgba(var(--accent-600-rgb, 22, 163, 74), 0.2);
+    color: var(--accent-600);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+}

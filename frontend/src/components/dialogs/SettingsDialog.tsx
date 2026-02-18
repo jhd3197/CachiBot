@@ -79,11 +79,11 @@ export function SettingsDialog() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className={cn(
-        'w-full rounded-xl bg-white shadow-xl dark:bg-zinc-900',
+        'w-full rounded-xl bg-white shadow-xl dark:bg-[var(--color-bg-primary)]',
         activeTab === 'platform-tools' ? 'max-w-2xl' : 'max-w-md'
       )}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
           <h2 className="text-lg font-semibold">Settings</h2>
           <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)}>
             <X className="h-5 w-5" />
@@ -92,14 +92,14 @@ export function SettingsDialog() {
 
         {/* Tabs */}
         {isAdmin && (
-          <div className="flex border-b border-zinc-200 px-6 dark:border-zinc-800">
+          <div className="flex border-b border-zinc-200 px-6 dark:border-[var(--color-border-primary)]">
             <button
               onClick={() => setActiveTab('general')}
               className={cn(
                 'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 activeTab === 'general'
                   ? 'border-cachi-500 text-cachi-600 dark:text-cachi-400'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               )}
             >
               <Settings className="h-4 w-4" />
@@ -111,7 +111,7 @@ export function SettingsDialog() {
                 'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                 activeTab === 'platform-tools'
                   ? 'border-cachi-500 text-cachi-600 dark:text-cachi-400'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               )}
             >
               <Wrench className="h-4 w-4" />
@@ -163,7 +163,7 @@ export function SettingsDialog() {
               {config && (
                 <div>
                   <label className="mb-1 block text-sm font-medium">Workspace</label>
-                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
+                  <p className="truncate text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                     {config.workspacePath}
                   </p>
                 </div>
@@ -225,8 +225,8 @@ function PlatformToolsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin text-zinc-500" />
-        <span className="text-sm text-zinc-500">Loading platform tools...</span>
+        <Loader2 className="mr-2 h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+        <span className="text-sm text-[var(--color-text-secondary)]">Loading platform tools...</span>
       </div>
     )
   }
@@ -253,13 +253,13 @@ function PlatformToolsTab() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
         Disable capabilities or skills globally. Disabled items won't appear in any bot's settings or be available at runtime.
       </p>
 
       {/* Capabilities */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-200">Capabilities</h3>
+        <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">Capabilities</h3>
         <div className="space-y-2">
           {Object.entries(CAPABILITY_META).map(([key, meta]) => {
             const disabled = config.disabledCapabilities.includes(key)
@@ -271,14 +271,14 @@ function PlatformToolsTab() {
                   'flex items-center justify-between rounded-lg border p-3 transition-colors',
                   disabled
                     ? 'border-red-500/30 bg-red-500/5'
-                    : 'border-zinc-700 bg-zinc-800/30'
+                    : 'border-[var(--color-border-secondary)] bg-[var(--card-bg)]'
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={cn('h-4 w-4', disabled ? 'text-red-400' : 'text-zinc-400')} />
+                  <Icon className={cn('h-4 w-4', disabled ? 'text-red-400' : 'text-[var(--color-text-secondary)]')} />
                   <div>
-                    <div className="text-sm font-medium text-zinc-200">{meta.label}</div>
-                    <div className="text-xs text-zinc-500">{meta.description}</div>
+                    <div className="text-sm font-medium text-[var(--color-text-primary)]">{meta.label}</div>
+                    <div className="text-xs text-[var(--color-text-secondary)]">{meta.description}</div>
                   </div>
                 </div>
                 <button
@@ -297,26 +297,26 @@ function PlatformToolsTab() {
       </div>
 
       {/* Skills */}
-      <div className="border-t border-zinc-800 pt-6">
-        <h3 className="mb-3 text-sm font-semibold text-zinc-200">Skills</h3>
+      <div className="border-t border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">Skills</h3>
 
         {skillsLoading ? (
-          <div className="flex items-center py-4 text-sm text-zinc-500">
+          <div className="flex items-center py-4 text-sm text-[var(--color-text-secondary)]">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading skills...
           </div>
         ) : allSkills.length === 0 ? (
-          <p className="text-sm text-zinc-500">No skills installed.</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">No skills installed.</p>
         ) : (
           <>
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
               <input
                 type="text"
                 value={skillSearch}
                 onChange={(e) => setSkillSearch(e.target.value)}
                 placeholder="Search skills..."
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cachi-500 focus:outline-none"
+                className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--input-placeholder)] focus:border-[var(--color-border-focus)] focus:outline-none"
               />
             </div>
 
@@ -330,20 +330,20 @@ function PlatformToolsTab() {
                       'flex items-center justify-between rounded-lg border p-3 transition-colors',
                       disabled
                         ? 'border-red-500/30 bg-red-500/5'
-                        : 'border-zinc-700 bg-zinc-800/30'
+                        : 'border-[var(--color-border-secondary)] bg-[var(--card-bg)]'
                     )}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <Sparkles className={cn('h-3.5 w-3.5', disabled ? 'text-red-400' : 'text-zinc-400')} />
-                        <span className="text-sm font-medium text-zinc-200">{skill.name}</span>
+                        <Sparkles className={cn('h-3.5 w-3.5', disabled ? 'text-red-400' : 'text-[var(--color-text-secondary)]')} />
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">{skill.name}</span>
                         {skill.version && (
-                          <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400">
+                          <span className="rounded bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
                             v{skill.version}
                           </span>
                         )}
                       </div>
-                      <p className="mt-0.5 truncate text-xs text-zinc-500">{skill.description}</p>
+                      <p className="mt-0.5 truncate text-xs text-[var(--color-text-secondary)]">{skill.description}</p>
                     </div>
                     <button
                       onClick={() => toggleSkill(skill.id)}
@@ -363,7 +363,7 @@ function PlatformToolsTab() {
       </div>
 
       {/* Summary */}
-      <div className="text-center text-xs text-zinc-500">
+      <div className="text-center text-xs text-[var(--color-text-secondary)]">
         {config.disabledCapabilities.length} capabilities disabled,{' '}
         {config.disabledSkills.length} skills disabled
       </div>
@@ -387,7 +387,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{description}</p>
+        <p className="text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{description}</p>
       </div>
       <button
         type="button"
@@ -396,7 +396,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
         onClick={() => onChange(!checked)}
         className={cn(
           'relative h-6 w-11 rounded-full transition-colors',
-          checked ? 'bg-cachi-600' : 'bg-zinc-200 dark:bg-zinc-700'
+          checked ? 'bg-cachi-600' : 'bg-zinc-200 dark:bg-[var(--color-hover-bg)]'
         )}
       >
         <span

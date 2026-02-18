@@ -57,7 +57,7 @@ export function TemplateSelectStep() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
@@ -78,7 +78,7 @@ export function TemplateSelectStep() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-[var(--color-text-secondary)]">
         Select a template to customize, or browse the full marketplace.
       </p>
 
@@ -95,7 +95,7 @@ export function TemplateSelectStep() {
       {/* More templates link */}
       <button
         onClick={() => setMarketplaceOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 py-3 text-sm text-zinc-400 transition-colors hover:border-cachi-500 hover:text-cachi-400"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border-secondary)] py-3 text-sm text-[var(--color-text-secondary)] transition-colors hover:border-cachi-500 hover:text-cachi-400"
       >
         <Store className="h-4 w-4" />
         Browse All Templates
