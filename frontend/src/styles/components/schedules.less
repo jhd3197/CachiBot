@@ -1,0 +1,479 @@
+// =============================================================================
+// Schedules — components/schedules.less
+// Schedule list, cards, details, and create form
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Schedules View — outermost container
+// -----------------------------------------------------------------------------
+
+.schedules-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Header
+// -----------------------------------------------------------------------------
+
+.schedule-header {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Search Bar
+// -----------------------------------------------------------------------------
+
+.schedule-search {
+  padding: @sp-3 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__input {
+    .input-base();
+    height: 2.25rem;
+    padding-left: @sp-10;
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    left: @sp-3;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule List Panel
+// -----------------------------------------------------------------------------
+
+.schedule-list {
+  width: 24rem;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border-primary);
+  padding: @sp-4;
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Empty State
+// -----------------------------------------------------------------------------
+
+.schedule-empty {
+  padding: @sp-12 0;
+  text-align: center;
+
+  &__icon {
+    margin: 0 auto @sp-3;
+    height: 2rem;
+    width: 2rem;
+    color: var(--color-text-tertiary);
+  }
+
+  &__text {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Card
+// -----------------------------------------------------------------------------
+
+.schedule-card {
+  width: 100%;
+  border-radius: @radius-xl;
+  border: 1px solid;
+  padding: @sp-4;
+  text-align: left;
+  .transition-colors();
+
+  &--enabled {
+    border-color: rgba(168, 85, 247, 0.3);
+    background: rgba(168, 85, 247, 0.05);
+  }
+
+  &--disabled {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+    opacity: 0.6;
+
+    .dark & {
+      background: var(--card-bg);
+    }
+  }
+
+  &--selected {
+    ring: 1px solid;
+    box-shadow: 0 0 0 1px @purple-500;
+  }
+
+  &__name {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-0\.5;
+    .truncate();
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__expression {
+    display: inline-block;
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--color-bg-inset);
+    }
+  }
+
+  &__runs {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__toggle {
+    flex-shrink: 0;
+    .transition-colors();
+
+    &--on {
+      color: @purple-400;
+    }
+
+    &--off {
+      color: var(--color-text-tertiary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Details
+// -----------------------------------------------------------------------------
+
+.schedule-details {
+  padding: @sp-6;
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    color: var(--color-text-secondary);
+  }
+
+  &__delete-btn {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    border-radius: @radius-lg;
+    background: rgba(@red-600, 0.2);
+    padding: @sp-2 @sp-3;
+    font-size: @text-sm;
+    color: @red-400;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: rgba(@red-600, 0.3);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Stat Badge
+// -----------------------------------------------------------------------------
+
+.schedule-stat {
+  &__value {
+    .flex-center();
+    height: 2rem;
+    min-width: 2rem;
+    border-radius: @radius-lg;
+    padding: 0 @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-bold;
+
+    &--green {
+      background: rgba(@green-500, 0.2);
+      color: @green-400;
+    }
+
+    &--zinc {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-secondary);
+
+      .dark & {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Status Badge
+// -----------------------------------------------------------------------------
+
+.schedule-badge {
+  border-radius: @radius-full;
+  padding: @sp-0\.5 @sp-2;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+
+  &--enabled {
+    background: rgba(@green-500, 0.2);
+    color: @green-400;
+  }
+
+  &--disabled {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Info Card
+// -----------------------------------------------------------------------------
+
+.schedule-info-card {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+  padding: @sp-3;
+
+  .dark & {
+    background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  }
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+
+    &--uppercase {
+      font-weight: @font-medium;
+      text-transform: uppercase;
+    }
+  }
+
+  &__value {
+    margin-top: @sp-1;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+
+    &--mono {
+      font-family: @font-mono;
+      font-size: @text-lg;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Form
+// -----------------------------------------------------------------------------
+
+.schedule-form {
+  max-width: 42rem;
+  margin: 0 auto;
+
+  &__label {
+    display: block;
+    margin-bottom: @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__input {
+    .input-base();
+    height: @height-md;
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__textarea {
+    .input-base();
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__hint {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__unit {
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Type Picker
+// -----------------------------------------------------------------------------
+
+.schedule-type-btn {
+  .flex-col();
+  align-items: center;
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  border: 1px solid;
+  padding: @sp-4;
+  .transition-all();
+  cursor: pointer;
+  background: none;
+
+  &--active {
+    border-color: @purple-500;
+    background: rgba(@purple-500, 0.1);
+  }
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &__label {
+    font-size: @text-sm;
+    text-transform: capitalize;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Toggle Row
+// -----------------------------------------------------------------------------
+
+.schedule-toggle-row {
+  .flex-between();
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: @sp-4;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &__title {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Form Actions
+// -----------------------------------------------------------------------------
+
+.schedule-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: @sp-3;
+  padding-top: @sp-4;
+}
+
+.schedule-btn-cancel {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  padding: @sp-2 @sp-4;
+  font-size: @text-sm;
+  color: var(--color-text-primary);
+  background: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.schedule-btn-create {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  background: @purple-600;
+  padding: @sp-2 @sp-4;
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: white;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: @purple-500;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Schedule Details Placeholder
+// -----------------------------------------------------------------------------
+
+.schedule-placeholder {
+  .flex-center();
+  height: 100%;
+  color: var(--color-text-secondary);
+}

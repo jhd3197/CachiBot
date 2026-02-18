@@ -64,27 +64,27 @@ export function TasksView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-[var(--color-bg-app)]">
+    <div className="tasks-view">
       {/* Header */}
-      <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
+      <div className="tasks-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Tasks</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <h1 className="tasks-header__title">Tasks</h1>
+            <p className="tasks-header__subtitle">
               {stats.done}/{tasks.length} completed
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             {/* View toggle */}
-            <div className="flex items-center rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-1">
+            <div className="tasks-view-toggle">
               <button
                 onClick={() => setViewMode('kanban')}
                 className={cn(
-                  'rounded-md p-1.5 transition-colors',
+                  'tasks-view-toggle__btn',
                   viewMode === 'kanban'
-                    ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
+                    ? 'tasks-view-toggle__btn--active'
+                    : 'tasks-view-toggle__btn--inactive'
                 )}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -92,10 +92,10 @@ export function TasksView() {
               <button
                 onClick={() => setViewMode('list')}
                 className={cn(
-                  'rounded-md p-1.5 transition-colors',
+                  'tasks-view-toggle__btn',
                   viewMode === 'list'
-                    ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
+                    ? 'tasks-view-toggle__btn--active'
+                    : 'tasks-view-toggle__btn--inactive'
                 )}
               >
                 <List className="h-4 w-4" />
@@ -121,14 +121,14 @@ export function TasksView() {
               placeholder="Search tasks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] pl-10 pr-4 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+              className="tasks-search"
             />
           </div>
 
           <select
             value={filter.priority}
             onChange={(e) => setFilter({ priority: e.target.value as TaskPriority | 'all' })}
-            className="h-9 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] px-3 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+            className="tasks-filter-select"
           >
             <option value="all">All priorities</option>
             <option value="high">High</option>
@@ -197,23 +197,20 @@ function KanbanBoard({ tasks, onMoveTask, onDeleteTask, onAddTask }: KanbanBoard
   }, [tasks])
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4">
+    <div className="tasks-kanban">
       {columns.map((column) => (
-        <div
-          key={column.id}
-          className="flex w-80 flex-shrink-0 flex-col rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/30"
-        >
+        <div key={column.id} className="tasks-column">
           {/* Column header */}
-          <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-4 py-3">
+          <div className="tasks-column__header">
             <column.icon className={cn('h-5 w-5', column.color)} />
-            <span className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{column.label}</span>
-            <span className="ml-auto rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+            <span className="tasks-column__label">{column.label}</span>
+            <span className="tasks-column__count">
               {tasksByStatus[column.id].length}
             </span>
           </div>
 
           {/* Tasks */}
-          <div className="flex-1 space-y-2 overflow-y-auto p-3">
+          <div className="tasks-column__body space-y-2">
             {tasksByStatus[column.id].map((task) => (
               <TaskCard
                 key={task.id}
@@ -230,7 +227,7 @@ function KanbanBoard({ tasks, onMoveTask, onDeleteTask, onAddTask }: KanbanBoard
                   const title = prompt('Task title:')
                   if (title) onAddTask(title, column.id)
                 }}
-                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-3 text-sm text-[var(--color-text-secondary)] transition-colors hover:border-cachi-500 hover:text-cachi-400"
+                className="tasks-add-btn"
               >
                 <Plus className="h-4 w-4" />
                 Add task
@@ -256,23 +253,15 @@ interface TaskCardProps {
 function TaskCard({ task, onMove, onDelete }: TaskCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const priorityConfig = {
-    high: { color: 'text-red-400', bg: 'bg-red-500/10' },
-    medium: { color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-    low: { color: 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]', bg: 'bg-zinc-200 dark:bg-[var(--color-hover-bg)]' },
-  }
-
-  const config = priorityConfig[task.priority]
-
   return (
     <div
       className={cn(
-        'group relative rounded-lg border bg-zinc-100 dark:bg-[var(--card-bg)] p-3 transition-all hover:border-[var(--color-border-secondary)]',
-        task.status === 'done' ? 'border-green-500/30' : 'border-zinc-300 dark:border-[var(--color-border-secondary)]'
+        'task-card group',
+        task.status === 'done' && 'task-card--done'
       )}
     >
       {/* Priority indicator */}
-      <div className="absolute left-0 top-3 h-5 w-1 rounded-r-full bg-gradient-to-b"
+      <div className="task-card__priority-bar"
         style={{
           background: task.priority === 'high'
             ? 'linear-gradient(to bottom, #ef4444, #f87171)'
@@ -283,36 +272,33 @@ function TaskCard({ task, onMove, onDelete }: TaskCardProps) {
       />
 
       {/* Content */}
-      <div className="ml-2">
+      <div className="task-card__content">
         <div className="flex items-start justify-between gap-2">
           <span
             className={cn(
-              'text-sm font-medium',
-              task.status === 'done' ? 'text-[var(--color-text-secondary)] line-through' : 'text-zinc-800 dark:text-[var(--color-text-primary)]'
+              'task-card__title',
+              task.status === 'done' && 'task-card__title--done'
             )}
           >
             {task.title}
           </span>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="flex-shrink-0 rounded p-1 text-[var(--color-text-secondary)] opacity-0 transition-opacity hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] group-hover:opacity-100"
+            className="task-card__menu-btn"
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
         </div>
 
         {task.description && (
-          <p className="mt-1 text-xs text-[var(--color-text-secondary)] line-clamp-2">{task.description}</p>
+          <p className="task-card__description line-clamp-2">{task.description}</p>
         )}
 
         {/* Tags */}
         {task.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {task.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
-              >
+              <span key={tag} className="task-card__tag">
                 {tag}
               </span>
             ))}
@@ -321,12 +307,17 @@ function TaskCard({ task, onMove, onDelete }: TaskCardProps) {
 
         {/* Footer */}
         <div className="mt-3 flex items-center justify-between">
-          <div className={cn('flex items-center gap-1 rounded px-1.5 py-0.5 text-xs', config.bg, config.color)}>
+          <div className={cn(
+            'task-card__priority',
+            task.priority === 'high' && 'task-card__priority--high',
+            task.priority === 'medium' && 'task-card__priority--medium',
+            task.priority === 'low' && 'task-card__priority--low'
+          )}>
             <Flag className="h-3 w-3" />
             {task.priority}
           </div>
           {task.dueDate && (
-            <div className="flex items-center gap-1 text-xs text-[var(--color-text-secondary)]">
+            <div className="task-card__due">
               <Calendar className="h-3 w-3" />
               {new Date(task.dueDate).toLocaleDateString()}
             </div>
@@ -336,7 +327,7 @@ function TaskCard({ task, onMove, onDelete }: TaskCardProps) {
 
       {/* Context menu */}
       {menuOpen && (
-        <div className="absolute right-0 top-8 z-10 w-48 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] py-1 shadow-xl">
+        <div className="task-context-menu">
           {columns
             .filter((col) => col.id !== task.status)
             .map((col) => (
@@ -346,19 +337,19 @@ function TaskCard({ task, onMove, onDelete }: TaskCardProps) {
                   onMove(task.id, col.id)
                   setMenuOpen(false)
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)]"
+                className="task-context-menu__item"
               >
                 <ArrowRight className="h-4 w-4" />
                 Move to {col.label}
               </button>
             ))}
-          <div className="my-1 h-px bg-zinc-300 dark:bg-[var(--color-hover-bg)]" />
+          <div className="task-context-menu__divider" />
           <button
             onClick={() => {
               onDelete(task.id)
               setMenuOpen(false)
             }}
-            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)]"
+            className="task-context-menu__item--danger"
           >
             <Trash2 className="h-4 w-4" />
             Delete
@@ -383,20 +374,15 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
   return (
     <div className="space-y-1">
       {tasks.map((task) => (
-        <div
-          key={task.id}
-          className="flex items-center gap-4 rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/30 px-4 py-3"
-        >
+        <div key={task.id} className="task-list-row">
           {/* Checkbox */}
           <button
             onClick={() =>
               onMoveTask(task.id, task.status === 'done' ? 'todo' : 'done')
             }
             className={cn(
-              'flex h-5 w-5 items-center justify-center rounded border transition-colors',
-              task.status === 'done'
-                ? 'border-green-500 bg-green-500 text-white'
-                : 'border-[var(--color-border-secondary)] hover:border-cachi-500'
+              'task-list-row__checkbox',
+              task.status === 'done' && 'task-list-row__checkbox--done'
             )}
           >
             {task.status === 'done' && <CheckCircle2 className="h-4 w-4" />}
@@ -405,8 +391,8 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
           {/* Title */}
           <span
             className={cn(
-              'flex-1',
-              task.status === 'done' ? 'text-[var(--color-text-secondary)] line-through' : 'text-zinc-800 dark:text-[var(--color-text-primary)]'
+              'task-list-row__title',
+              task.status === 'done' && 'task-list-row__title--done'
             )}
           >
             {task.title}
@@ -415,7 +401,7 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
           {/* Tags */}
           <div className="flex items-center gap-2">
             {task.tags.map((tag) => (
-              <span key={tag} className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+              <span key={tag} className="task-list-row__tag">
                 {tag}
               </span>
             ))}
@@ -424,10 +410,10 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
           {/* Priority */}
           <div
             className={cn(
-              'rounded px-2 py-0.5 text-xs font-medium',
-              task.priority === 'high' && 'bg-red-500/20 text-red-400',
-              task.priority === 'medium' && 'bg-yellow-500/20 text-yellow-400',
-              task.priority === 'low' && 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]'
+              'task-list-row__priority',
+              task.priority === 'high' && 'task-list-row__priority--high',
+              task.priority === 'medium' && 'task-list-row__priority--medium',
+              task.priority === 'low' && 'task-list-row__priority--low'
             )}
           >
             {task.priority}
@@ -437,7 +423,7 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
           <select
             value={task.status}
             onChange={(e) => onMoveTask(task.id, e.target.value as TaskStatus)}
-            className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-1 text-xs text-zinc-700 dark:text-[var(--color-text-primary)] outline-none"
+            className="task-list-row__status-select"
           >
             {columns.map((col) => (
               <option key={col.id} value={col.id}>
@@ -449,7 +435,7 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
           {/* Delete */}
           <button
             onClick={() => onDeleteTask(task.id)}
-            className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
+            className="task-list-row__delete-btn"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -457,7 +443,7 @@ function TaskListView({ tasks, onMoveTask, onDeleteTask }: TaskListViewProps) {
       ))}
 
       {tasks.length === 0 && (
-        <div className="py-12 text-center text-[var(--color-text-secondary)]">No tasks yet</div>
+        <div className="tasks-empty">No tasks yet</div>
       )}
     </div>
   )
@@ -484,9 +470,9 @@ function NewTaskModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-white dark:bg-[var(--color-bg-primary)] p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">New Task</h2>
+    <div className="task-modal">
+      <div className="task-modal__panel">
+        <h2 className="task-modal__title">New Task</h2>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
@@ -494,13 +480,13 @@ function NewTaskModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
-            className="mb-4 h-10 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+            className="task-modal__input"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+              className="task-modal__cancel"
             >
               Cancel
             </button>

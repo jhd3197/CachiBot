@@ -1,0 +1,260 @@
+// =============================================================================
+// Script Editor — components/script-editor.less
+// Script editor view, toolbar, tabs, versions, code area
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Script Editor — outermost container
+// -----------------------------------------------------------------------------
+
+.script-editor {
+  .flex-col();
+  height: 100%;
+}
+
+// -----------------------------------------------------------------------------
+// Editor Header
+// -----------------------------------------------------------------------------
+
+.editor-header {
+  .flex-between();
+  padding: @sp-3 @sp-4;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__back-btn {
+    .flex-center();
+    height: 2rem;
+    width: 2rem;
+    border-radius: @radius-lg;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__status {
+    border-radius: @radius-full;
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: 10px;
+    font-weight: @font-medium;
+
+    &--active {
+      background: rgba(@green-500, 0.1);
+      color: @green-500;
+    }
+
+    &--error {
+      background: rgba(@red-500, 0.1);
+      color: @red-500;
+    }
+
+    &--default {
+      background: rgba(@zinc-500, 0.1);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__unsaved {
+    color: @yellow-500;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Editor Toolbar Buttons
+// -----------------------------------------------------------------------------
+
+.editor-btn {
+  display: flex;
+  align-items: center;
+  gap: @sp-1\.5;
+  border-radius: @radius-lg;
+  padding: @sp-1\.5 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &--save {
+    background: var(--accent-600);
+    color: white;
+
+    &:hover {
+      background: var(--accent-700);
+    }
+
+    &:disabled {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &--run {
+    background: @green-600;
+    color: white;
+
+    &:hover {
+      background: @green-700;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Editor Tabs
+// -----------------------------------------------------------------------------
+
+.editor-tabs {
+  display: flex;
+  align-items: center;
+  gap: @sp-1;
+  padding: 0 @sp-4;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.editor-tab {
+  padding: @sp-2 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  .transition-colors();
+  color: var(--color-text-secondary);
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+
+  &--active {
+    border-bottom-color: var(--accent-600);
+    color: var(--accent-600);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Code Area
+// -----------------------------------------------------------------------------
+
+.editor-code {
+  height: 100%;
+
+  &__textarea {
+    display: block;
+    height: 100%;
+    width: 100%;
+    resize: none;
+    background: var(--color-bg-app);
+    padding: @sp-4;
+    font-family: @font-mono;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    border: none;
+    outline: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Version List
+// -----------------------------------------------------------------------------
+
+.editor-versions {
+  overflow: auto;
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__empty {
+    .flex-col();
+    align-items: center;
+    padding: @sp-8 0;
+    color: var(--color-text-secondary);
+  }
+
+  &__item {
+    .flex-between();
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-3;
+  }
+
+  &__badge {
+    .flex-center();
+    height: 2rem;
+    width: 2rem;
+    border-radius: @radius-lg;
+    background: var(--color-bg-secondary);
+    font-size: @text-xs;
+    font-weight: @font-bold;
+    color: var(--color-text-secondary);
+  }
+
+  &__name {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__meta {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+
+  &__approved {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    font-size: 10px;
+    color: @green-500;
+  }
+
+  &__link {
+    font-size: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &--approve {
+      color: var(--accent-600);
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    &--rollback {
+      color: @yellow-600;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}

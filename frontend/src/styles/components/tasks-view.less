@@ -1,0 +1,501 @@
+// =============================================================================
+// Tasks View — components/tasks-view.less
+// Kanban board, task cards, list view, new task modal
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Tasks View — outermost container
+// -----------------------------------------------------------------------------
+
+.tasks-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tasks Header
+// -----------------------------------------------------------------------------
+
+.tasks-header {
+  .page-header();
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// View Toggle — kanban / list switcher
+// -----------------------------------------------------------------------------
+
+.tasks-view-toggle {
+  display: flex;
+  align-items: center;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: @sp-1;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &__btn {
+    border-radius: @radius-md;
+    padding: @sp-1\.5;
+    .transition-colors();
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &--active {
+      background: var(--color-active-bg);
+      color: var(--color-text-primary);
+    }
+
+    &--inactive {
+      color: var(--color-text-secondary);
+
+      &:hover {
+        color: var(--color-text-primary);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tasks Search Input
+// -----------------------------------------------------------------------------
+
+.tasks-search {
+  .input-base();
+  height: @height-sm;
+  padding-left: @sp-10;
+
+  .dark & {
+    background: var(--card-bg);
+  }
+}
+
+.tasks-filter-select {
+  height: @height-sm;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: 0 @sp-3;
+  font-size: @text-sm;
+  color: var(--btn-secondary-text);
+  outline: none;
+  .transition-colors();
+
+  .dark & {
+    background: var(--card-bg);
+    color: var(--color-text-primary);
+  }
+
+  &:focus {
+    border-color: var(--color-border-focus);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Kanban Board
+// -----------------------------------------------------------------------------
+
+.tasks-kanban {
+  display: flex;
+  height: 100%;
+  gap: @sp-4;
+  overflow-x: auto;
+  padding-bottom: @sp-4;
+}
+
+// -----------------------------------------------------------------------------
+// Kanban Column
+// -----------------------------------------------------------------------------
+
+.tasks-column {
+  .flex-col();
+  width: 20rem;
+  flex-shrink: 0;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+
+  .dark & {
+    background: rgba(var(--color-bg-primary), 0.3);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    border-bottom: 1px solid var(--color-border-primary);
+    padding: @sp-3 @sp-4;
+  }
+
+  &__label {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__count {
+    margin-left: auto;
+    border-radius: @radius-full;
+    background: var(--color-active-bg);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: @sp-3;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Task Card
+// -----------------------------------------------------------------------------
+
+.task-card {
+  position: relative;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-secondary);
+  padding: @sp-3;
+  .transition-all();
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+  }
+
+  &--done {
+    border-color: rgba(@green-500, 0.3);
+  }
+
+  &__priority-bar {
+    position: absolute;
+    left: 0;
+    top: @sp-3;
+    height: @sp-5;
+    width: @sp-1;
+    border-radius: 0 @radius-full @radius-full 0;
+  }
+
+  &__content {
+    margin-left: @sp-2;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+
+    &--done {
+      color: var(--color-text-secondary);
+      text-decoration: line-through;
+    }
+  }
+
+  &__menu-btn {
+    flex-shrink: 0;
+    border-radius: @radius-sm;
+    padding: @sp-1;
+    color: var(--color-text-secondary);
+    opacity: 0;
+    .transition-colors();
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    .task-card:hover & {
+      opacity: 1;
+    }
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__tag {
+    border-radius: @radius-sm;
+    background: var(--color-hover-bg);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__priority {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    border-radius: @radius-sm;
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+
+    &--high {
+      background: rgba(@red-500, 0.1);
+      color: @red-400;
+    }
+
+    &--medium {
+      background: rgba(@yellow-500, 0.1);
+      color: @yellow-400;
+    }
+
+    &--low {
+      background: var(--color-hover-bg);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__due {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Task Context Menu
+// -----------------------------------------------------------------------------
+
+.task-context-menu {
+  .context-menu();
+  position: absolute;
+  right: 0;
+  top: @sp-8;
+  width: 12rem;
+
+  &__item {
+    .context-menu-item();
+  }
+
+  &__item--danger {
+    .context-menu-item();
+    color: @red-400;
+  }
+
+  &__divider {
+    margin: @sp-1 0;
+    height: 1px;
+    background: var(--color-border-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Add Task Button (dashed)
+// -----------------------------------------------------------------------------
+
+.tasks-add-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  border: 1px dashed var(--color-border-secondary);
+  padding: @sp-3;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+  background: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--accent-500);
+    color: var(--accent-400);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Task List View
+// -----------------------------------------------------------------------------
+
+.task-list-row {
+  display: flex;
+  align-items: center;
+  gap: @sp-4;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-tertiary);
+  padding: @sp-3 @sp-4;
+
+  .dark & {
+    background: rgba(var(--color-bg-primary), 0.3);
+  }
+
+  &__checkbox {
+    .flex-center();
+    height: @sp-5;
+    width: @sp-5;
+    border-radius: @radius-sm;
+    border: 1px solid var(--color-border-secondary);
+    .transition-colors();
+    background: none;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--accent-500);
+    }
+
+    &--done {
+      border-color: @green-500;
+      background: @green-500;
+      color: white;
+    }
+  }
+
+  &__title {
+    flex: 1;
+    color: var(--color-text-primary);
+
+    &--done {
+      color: var(--color-text-secondary);
+      text-decoration: line-through;
+    }
+  }
+
+  &__tag {
+    border-radius: @radius-sm;
+    background: var(--color-hover-bg);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__priority {
+    border-radius: @radius-sm;
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    &--high {
+      background: rgba(@red-500, 0.2);
+      color: @red-400;
+    }
+
+    &--medium {
+      background: rgba(@yellow-500, 0.2);
+      color: @yellow-400;
+    }
+
+    &--low {
+      background: var(--color-hover-bg);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__status-select {
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    color: var(--btn-secondary-text);
+    outline: none;
+
+    .dark & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__delete-btn {
+    border-radius: @radius-sm;
+    padding: @sp-1;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: @red-400;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// New Task Modal
+// -----------------------------------------------------------------------------
+
+.task-modal {
+  .dialog-backdrop();
+
+  &__panel {
+    .dialog-panel(md);
+    padding: @sp-6;
+  }
+
+  &__title {
+    margin-bottom: @sp-4;
+    font-size: @text-lg;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__input {
+    .input-base();
+    height: @height-md;
+    margin-bottom: @sp-4;
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__cancel {
+    border-radius: @radius-lg;
+    padding: @sp-2 @sp-4;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tasks Empty State
+// -----------------------------------------------------------------------------
+
+.tasks-empty {
+  padding: @sp-12 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+}

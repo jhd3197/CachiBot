@@ -25,7 +25,7 @@ export function SchedulesView() {
   if (!activeBot) return null
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-[var(--color-bg-app)]">
+    <div className="schedules-view">
       {scheduleSection === 'all' && <ScheduleListSection botId={activeBot.id} filter="all" />}
       {scheduleSection === 'enabled' && <ScheduleListSection botId={activeBot.id} filter="enabled" />}
       {scheduleSection === 'disabled' && <ScheduleListSection botId={activeBot.id} filter="disabled" />}
@@ -82,11 +82,11 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
+      <div className="schedule-header">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">{titles[filter]}</h1>
-            <p className="text-sm text-[var(--color-text-secondary)]">{descriptions[filter]}</p>
+            <h1 className="schedule-header__title">{titles[filter]}</h1>
+            <p className="schedule-header__subtitle">{descriptions[filter]}</p>
           </div>
 
           {/* Stats */}
@@ -101,15 +101,15 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
       </div>
 
       {/* Search */}
-      <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-3">
+      <div className="schedule-search">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+          <Search className="schedule-search__icon" />
           <input
             type="text"
             placeholder="Search schedules..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] pl-10 pr-4 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-purple-500"
+            className="schedule-search__input"
           />
         </div>
       </div>
@@ -117,11 +117,11 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Schedule list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+        <div className="schedule-list">
           {filteredSchedules.length === 0 ? (
-            <div className="py-12 text-center">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" />
-              <p className="text-sm text-[var(--color-text-secondary)]">
+            <div className="schedule-empty">
+              <AlertCircle className="schedule-empty__icon" />
+              <p className="schedule-empty__text">
                 {search ? 'No schedules match your search' : 'No schedules yet'}
               </p>
             </div>
@@ -145,8 +145,8 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
           {selectedSchedule ? (
             <ScheduleDetails schedule={selectedSchedule} />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-[var(--color-text-secondary)]">Select a schedule to view details</p>
+            <div className="schedule-placeholder">
+              <p>Select a schedule to view details</p>
             </div>
           )}
         </div>
@@ -181,41 +181,43 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
-        <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Create Schedule</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">Set up a new automated trigger</p>
+      <div className="schedule-header">
+        <div>
+          <h1 className="schedule-header__title">Create Schedule</h1>
+          <p className="schedule-header__subtitle">Set up a new automated trigger</p>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
+        <form onSubmit={handleSubmit} className="schedule-form space-y-6">
           {/* Name */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Name</label>
+            <label className="schedule-form__label">Name</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Daily Report"
-              className="h-10 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+              className="schedule-form__input"
               required
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Description</label>
+            <label className="schedule-form__label">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="What does this schedule do?"
               rows={2}
-              className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+              className="schedule-form__textarea"
             />
           </div>
 
           {/* Schedule Type */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Schedule Type</label>
+            <label className="schedule-form__label">Schedule Type</label>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {(['cron', 'interval', 'once', 'event'] as ScheduleType[]).map((type) => (
                 <button
@@ -223,17 +225,17 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
                   type="button"
                   onClick={() => setFormData({ ...formData, scheduleType: type })}
                   className={cn(
-                    'flex flex-col items-center gap-2 rounded-lg border p-4 transition-all',
+                    'schedule-type-btn',
                     formData.scheduleType === type
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]'
+                      ? 'schedule-type-btn--active'
+                      : 'schedule-type-btn--inactive'
                   )}
                 >
                   {type === 'cron' && <Calendar className="h-5 w-5 text-purple-400" />}
                   {type === 'interval' && <Timer className="h-5 w-5 text-blue-400" />}
                   {type === 'once' && <Clock className="h-5 w-5 text-orange-400" />}
                   {type === 'event' && <Zap className="h-5 w-5 text-yellow-400" />}
-                  <span className="text-sm capitalize text-zinc-700 dark:text-[var(--color-text-primary)]">{type}</span>
+                  <span className="schedule-type-btn__label">{type}</span>
                 </button>
               ))}
             </div>
@@ -242,15 +244,15 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
           {/* Type-specific fields */}
           {formData.scheduleType === 'cron' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Cron Expression</label>
+              <label className="schedule-form__label">Cron Expression</label>
               <input
                 type="text"
                 value={formData.cronExpression}
                 onChange={(e) => setFormData({ ...formData, cronExpression: e.target.value })}
                 placeholder="0 2 * * *"
-                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 font-mono text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+                className="schedule-form__input font-mono"
               />
-              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              <p className="schedule-form__hint">
                 Format: minute hour day month weekday (e.g., "0 2 * * *" = 2am daily)
               </p>
             </div>
@@ -258,72 +260,75 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
 
           {formData.scheduleType === 'interval' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Interval</label>
+              <label className="schedule-form__label">Interval</label>
               <div className="flex items-center gap-3">
                 <input
                   type="number"
                   value={formData.intervalSeconds / 60}
                   onChange={(e) => setFormData({ ...formData, intervalSeconds: parseInt(e.target.value) * 60 })}
                   min={1}
-                  className="h-10 w-24 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+                  className="schedule-form__input w-24"
                 />
-                <span className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">minutes</span>
+                <span className="schedule-form__unit">minutes</span>
               </div>
             </div>
           )}
 
           {formData.scheduleType === 'once' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Run At</label>
+              <label className="schedule-form__label">Run At</label>
               <input
                 type="datetime-local"
                 value={formData.runAt}
                 onChange={(e) => setFormData({ ...formData, runAt: e.target.value })}
-                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+                className="schedule-form__input"
               />
             </div>
           )}
 
           {formData.scheduleType === 'event' && (
             <div>
-              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Event Trigger</label>
+              <label className="schedule-form__label">Event Trigger</label>
               <input
                 type="text"
                 value={formData.eventTrigger}
                 onChange={(e) => setFormData({ ...formData, eventTrigger: e.target.value })}
                 placeholder="webhook_received"
-                className="h-10 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-purple-500"
+                className="schedule-form__input"
               />
             </div>
           )}
 
           {/* Enabled toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-4">
+          <div className="schedule-toggle-row">
             <div>
-              <div className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Enable immediately</div>
-              <div className="text-sm text-[var(--color-text-secondary)]">Start running this schedule right away</div>
+              <div className="schedule-toggle-row__title">Enable immediately</div>
+              <div className="schedule-toggle-row__subtitle">Start running this schedule right away</div>
             </div>
             <button
               type="button"
               onClick={() => setFormData({ ...formData, enabled: !formData.enabled })}
-              className={formData.enabled ? 'text-purple-400' : 'text-[var(--color-text-tertiary)]'}
+              className={cn(
+                'schedule-card__toggle',
+                formData.enabled ? 'schedule-card__toggle--on' : 'schedule-card__toggle--off'
+              )}
             >
               {formData.enabled ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
             </button>
           </div>
 
           {/* Submit */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="schedule-form-actions">
             <button
               type="button"
               onClick={() => setScheduleSection('all')}
-              className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+              className="schedule-btn-cancel"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-500"
+              className="schedule-btn-create"
             >
               <Plus className="h-4 w-4" />
               Create Schedule
@@ -348,17 +353,15 @@ function Stat({
   value: number
   color: 'green' | 'zinc'
 }) {
-  const colors = {
-    green: 'bg-green-500/20 text-green-400',
-    zinc: 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]',
-  }
-
   return (
     <div className="flex items-center gap-2">
-      <div className={cn('flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-sm font-bold', colors[color])}>
+      <div className={cn(
+        'schedule-stat__value',
+        color === 'green' ? 'schedule-stat__value--green' : 'schedule-stat__value--zinc'
+      )}>
         {value}
       </div>
-      <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
+      <span className="schedule-stat__label">{label}</span>
     </div>
   )
 }
@@ -405,32 +408,30 @@ function ScheduleCard({
     <button
       onClick={onClick}
       className={cn(
-        'w-full rounded-xl border p-4 text-left transition-all',
-        selected && 'ring-1 ring-purple-500',
-        schedule.enabled
-          ? 'border-purple-500/30 bg-purple-500/5'
-          : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] opacity-60'
+        'schedule-card',
+        schedule.enabled ? 'schedule-card--enabled' : 'schedule-card--disabled',
+        selected && 'schedule-card--selected'
       )}
     >
       <div className="flex items-start gap-3">
         {getScheduleTypeIcon(schedule.scheduleType)}
         <div className="min-w-0 flex-1">
-          <span className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{schedule.name}</span>
+          <span className="schedule-card__name">{schedule.name}</span>
           {schedule.description && (
-            <p className="mt-0.5 truncate text-sm text-[var(--color-text-secondary)]">{schedule.description}</p>
+            <p className="schedule-card__description">{schedule.description}</p>
           )}
 
           {/* Schedule info */}
-          <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-            <span className="rounded bg-zinc-200 dark:bg-[var(--color-bg-inset)] px-1.5 py-0.5 font-mono">
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <span className="schedule-card__expression">
               {formatSchedule(schedule)}
             </span>
           </div>
 
           {/* Run stats */}
           {schedule.runCount > 0 && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-              <span>{schedule.runCount} runs</span>
+            <div className="mt-2">
+              <span className="schedule-card__runs">{schedule.runCount} runs</span>
             </div>
           )}
         </div>
@@ -442,8 +443,8 @@ function ScheduleCard({
             onToggle?.()
           }}
           className={cn(
-            'flex-shrink-0 transition-colors',
-            schedule.enabled ? 'text-purple-400' : 'text-[var(--color-text-tertiary)]'
+            'schedule-card__toggle',
+            schedule.enabled ? 'schedule-card__toggle--on' : 'schedule-card__toggle--off'
           )}
           title={schedule.enabled ? 'Disable' : 'Enable'}
         >
@@ -470,24 +471,22 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="schedule-details">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">{schedule.name}</h2>
-            <span
-              className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium',
-                schedule.enabled ? 'bg-green-500/20 text-green-400' : 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]'
-              )}
-            >
+            <h2 className="schedule-details__title">{schedule.name}</h2>
+            <span className={cn(
+              'schedule-badge',
+              schedule.enabled ? 'schedule-badge--enabled' : 'schedule-badge--disabled'
+            )}>
               {schedule.enabled ? 'Enabled' : 'Disabled'}
             </span>
           </div>
-          {schedule.description && <p className="mt-1 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{schedule.description}</p>}
+          {schedule.description && <p className="schedule-details__description">{schedule.description}</p>}
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-red-600/20 px-3 py-2 text-sm text-red-400 hover:bg-red-600/30">
+        <button className="schedule-details__delete-btn">
           <Trash2 className="h-4 w-4" />
           Delete
         </button>
@@ -502,9 +501,9 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
       </div>
 
       {/* Schedule expression */}
-      <div className="mb-6 rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-4">
-        <div className="text-xs font-medium uppercase text-[var(--color-text-secondary)]">Schedule</div>
-        <div className="mt-2 font-mono text-lg text-zinc-800 dark:text-[var(--color-text-primary)]">
+      <div className="schedule-info-card mb-6" style={{ padding: '1rem' }}>
+        <div className="schedule-info-card__label schedule-info-card__label--uppercase">Schedule</div>
+        <div className="schedule-info-card__value schedule-info-card__value--mono">
           {schedule.scheduleType === 'cron' && schedule.cronExpression}
           {schedule.scheduleType === 'interval' && `Every ${schedule.intervalSeconds} seconds`}
           {schedule.scheduleType === 'once' && formatTime(schedule.runAt)}
@@ -514,15 +513,15 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
 
       {/* Timing info */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-4">
-          <div className="text-xs font-medium uppercase text-[var(--color-text-secondary)]">Next Run</div>
-          <div className="mt-2 text-zinc-800 dark:text-[var(--color-text-primary)]">
+        <div className="schedule-info-card" style={{ padding: '1rem' }}>
+          <div className="schedule-info-card__label schedule-info-card__label--uppercase">Next Run</div>
+          <div className="schedule-info-card__value">
             {schedule.nextRunAt ? formatTime(schedule.nextRunAt) : 'Not scheduled'}
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-4">
-          <div className="text-xs font-medium uppercase text-[var(--color-text-secondary)]">Last Run</div>
-          <div className="mt-2 text-zinc-800 dark:text-[var(--color-text-primary)]">
+        <div className="schedule-info-card" style={{ padding: '1rem' }}>
+          <div className="schedule-info-card__label schedule-info-card__label--uppercase">Last Run</div>
+          <div className="schedule-info-card__value">
             {schedule.lastRunAt ? formatTime(schedule.lastRunAt) : 'Never'}
           </div>
         </div>
@@ -533,9 +532,9 @@ function ScheduleDetails({ schedule }: { schedule: Schedule }) {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-3">
-      <div className="text-xs text-[var(--color-text-secondary)]">{label}</div>
-      <div className="mt-1 font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{value}</div>
+    <div className="schedule-info-card">
+      <div className="schedule-info-card__label">{label}</div>
+      <div className="schedule-info-card__value">{value}</div>
     </div>
   )
 }

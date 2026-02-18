@@ -118,20 +118,18 @@ export function SettingsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-100 dark:bg-[var(--color-bg-app)]">
+    <div className="settings-view">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-3">
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">
+      <div className="settings-view__header">
+        <h1 className="settings-view__title">
           {sectionTitles[settingsSection]}
         </h1>
         {settingsSection !== 'danger' && settingsSection !== 'environment' && (
           <button
             onClick={handleSave}
             className={cn(
-              'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-              saved
-                ? 'bg-green-600 text-white'
-                : 'bg-cachi-600 text-white hover:bg-cachi-500'
+              'settings-save-btn flex items-center gap-2',
+              saved ? 'settings-save-btn--saved' : 'settings-save-btn--default'
             )}
           >
             <Save className="h-4 w-4" />
@@ -141,8 +139,8 @@ export function SettingsView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-2xl">
+      <div className="settings-view__content">
+        <div className="settings-view__inner">
           {settingsSection === 'general' && (
             <GeneralSection
               form={form}
@@ -186,26 +184,26 @@ export function SettingsView() {
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)] p-6 shadow-2xl">
-            <div className="mb-4 flex items-center gap-3 text-red-400">
+        <div className="settings-modal">
+          <div className="settings-modal__panel">
+            <div className="settings-modal__header settings-modal__header--danger">
               <AlertTriangle className="h-6 w-6" />
-              <h2 className="text-lg font-bold">Delete Bot</h2>
+              <h2 className="settings-modal__header-title">Delete Bot</h2>
             </div>
-            <p className="mb-6 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-              Are you sure you want to delete <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">{activeBot.name}</strong>?
+            <p className="settings-modal__body">
+              Are you sure you want to delete <strong className="settings-modal__strong">{activeBot.name}</strong>?
               This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+                className="settings-modal__cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+                className="settings-modal__confirm-btn--danger"
               >
                 Delete Bot
               </button>
@@ -264,7 +262,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       <div className="flex justify-end">
         <button
           onClick={() => setShowResetConfirm(true)}
-          className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] transition-colors hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
+          className="settings-reset-btn flex items-center gap-2"
         >
           <RotateCcw className="h-3 w-3" />
           Reset to Default
@@ -273,21 +271,21 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
       {/* Reset confirmation modal */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)] p-6 shadow-2xl">
-            <div className="mb-4 flex items-center gap-3 text-amber-400">
+        <div className="settings-modal">
+          <div className="settings-modal__panel">
+            <div className="settings-modal__header settings-modal__header--warning">
               <RotateCcw className="h-6 w-6" />
-              <h2 className="text-lg font-bold">Reset General Settings</h2>
+              <h2 className="settings-modal__header-title">Reset General Settings</h2>
             </div>
-            <p className="mb-6 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+            <p className="settings-modal__body">
               This will reset the bot's name, description, icon, color, model, and system prompt to their default values.
               <br /><br />
-              <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">Connections will not be affected.</strong>
+              <strong className="settings-modal__strong">Connections will not be affected.</strong>
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+                className="settings-modal__cancel-btn"
               >
                 Cancel
               </button>
@@ -296,7 +294,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   onReset()
                   setShowResetConfirm(false)
                 }}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500"
+                className="settings-modal__confirm-btn--warning"
               >
                 Reset Settings
               </button>
@@ -307,36 +305,36 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
       <div className="space-y-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Name</label>
+          <label className="settings-form__label">Name</label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="h-10 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+            className="settings-form__input"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Description</label>
+          <label className="settings-form__label">Description</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={2}
-            className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+            className="settings-form__textarea"
           />
         </div>
       </div>
 
       {/* Models */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
-          <Cpu className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+      <div className="settings-section">
+        <h3 className="settings-section__heading">
+          <Cpu className="h-4 w-4 settings-section__heading-icon" />
           Models
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
-              <Layers className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
+            <label className="settings-form__label--small">
+              <Layers className="h-3.5 w-3.5" />
               Default Model
             </label>
             <ModelSelect
@@ -349,7 +347,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
               className="w-full"
               filter={(m) => !m.supports_image_generation && !m.supports_audio}
             />
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            <p className="settings-form__hint">
               Main conversational model. Leave empty to use the system default.
             </p>
           </div>
@@ -365,9 +363,9 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                 onToggle={(v) => toggleCapability('imageGeneration', v)}
               />
               {!!activeBot?.capabilities?.imageGeneration && (
-                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
-                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-                    <Image className="h-3 w-3 text-[var(--color-text-secondary)]" />
+                <div className="settings-capability-nest">
+                  <label className="settings-form__label--small">
+                    <Image className="h-3 w-3" />
                     Image Model
                   </label>
                   <ModelSelect
@@ -380,7 +378,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                     className="w-full"
                     groups={imageGroups}
                   />
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  <p className="settings-form__hint">
                     e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
                   </p>
                 </div>
@@ -399,11 +397,11 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                 onToggle={(v) => toggleCapability('audioGeneration', v)}
               />
               {!!activeBot?.capabilities?.audioGeneration && (
-                <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30 space-y-4">
+                <div className="settings-capability-nest space-y-4">
                   {/* Audio Model */}
                   <div>
-                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-                      <AudioLines className="h-3 w-3 text-[var(--color-text-secondary)]" />
+                    <label className="settings-form__label--small">
+                      <AudioLines className="h-3 w-3" />
                       Audio Model
                     </label>
                     <ModelSelect
@@ -416,15 +414,15 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                       className="w-full"
                       groups={audioGroups}
                     />
-                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    <p className="settings-form__hint">
                       e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
                     </p>
                   </div>
 
                   {/* TTS Voice */}
                   <div>
-                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-                      <Mic className="h-3 w-3 text-[var(--color-text-secondary)]" />
+                    <label className="settings-form__label--small">
+                      <Mic className="h-3 w-3" />
                       TTS Voice
                     </label>
                     <div className="flex flex-wrap gap-1.5">
@@ -433,10 +431,10 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                           key={voice}
                           onClick={() => updateVoiceSettings({ ttsVoice: voice })}
                           className={cn(
-                            'rounded-md border px-2.5 py-1 text-xs capitalize transition-all',
+                            'settings-voice-chip',
                             voiceSettings.ttsVoice === voice
-                              ? 'border-cachi-500 bg-cachi-500/20 text-cachi-300'
-                              : 'border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]',
+                              ? 'settings-voice-chip--active'
+                              : 'settings-voice-chip--inactive',
                           )}
                         >
                           {voice}
@@ -448,13 +446,13 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                       placeholder="Custom voice ID (ElevenLabs)"
                       value={voiceSettings.ttsVoice}
                       onChange={(e) => updateVoiceSettings({ ttsVoice: e.target.value })}
-                      className="mt-1.5 h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-xs text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                      className="settings-form__input--small mt-1.5"
                     />
                   </div>
 
                   {/* Speech Speed */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                    <label className="settings-form__label--small">
                       Speech Speed
                     </label>
                     <div className="flex items-center gap-3">
@@ -467,19 +465,19 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                         onChange={(e) => updateVoiceSettings({ ttsSpeed: parseFloat(e.target.value) })}
                         className="flex-1"
                       />
-                      <span className="w-10 text-center text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{voiceSettings.ttsSpeed}x</span>
+                      <span className="settings-speed-value">{voiceSettings.ttsSpeed}x</span>
                     </div>
                   </div>
 
                   {/* STT Language */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                    <label className="settings-form__label--small">
                       Speech Recognition Language
                     </label>
                     <select
                       value={voiceSettings.sttLanguage || ''}
                       onChange={(e) => updateVoiceSettings({ sttLanguage: e.target.value || null })}
-                      className="h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-2 text-xs text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+                      className="settings-form__select"
                     >
                       {STT_LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -489,14 +487,14 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
                   {/* Voice toggles */}
                   <div className="space-y-2">
-                    <label className="flex items-center justify-between">
+                    <label className="settings-voice-toggle">
                       <div>
-                        <p className="text-xs font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Enable Interruption</p>
-                        <p className="text-[11px] text-[var(--color-text-secondary)]">Allow interrupting the bot while it speaks</p>
+                        <p className="settings-voice-toggle__label">Enable Interruption</p>
+                        <p className="settings-voice-toggle__sublabel">Allow interrupting the bot while it speaks</p>
                       </div>
                       <button
                         onClick={() => updateVoiceSettings({ enableInterruption: !voiceSettings.enableInterruption })}
-                        className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
+                        className="settings-voice-toggle__btn"
                       >
                         {voiceSettings.enableInterruption
                           ? <ToggleRight className="h-5 w-5 text-cachi-500" />
@@ -504,14 +502,14 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                       </button>
                     </label>
 
-                    <label className="flex items-center justify-between">
+                    <label className="settings-voice-toggle">
                       <div>
-                        <p className="text-xs font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Save Transcripts</p>
-                        <p className="text-[11px] text-[var(--color-text-secondary)]">Save voice conversations to chat history</p>
+                        <p className="settings-voice-toggle__label">Save Transcripts</p>
+                        <p className="settings-voice-toggle__sublabel">Save voice conversations to chat history</p>
                       </div>
                       <button
                         onClick={() => updateVoiceSettings({ saveTranscripts: !voiceSettings.saveTranscripts })}
-                        className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
+                        className="settings-voice-toggle__btn"
                       >
                         {voiceSettings.saveTranscripts
                           ? <ToggleRight className="h-5 w-5 text-cachi-500" />
@@ -527,14 +525,14 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       </div>
 
       {/* Appearance */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
-          <Palette className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+      <div className="settings-section">
+        <h3 className="settings-section__heading">
+          <Palette className="h-4 w-4 settings-section__heading-icon" />
           Appearance
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-xs text-[var(--color-text-secondary)]">Icon</label>
+            <label className="settings-form__label--icon">Icon</label>
             <div className="flex flex-wrap gap-2">
               {BOT_ICON_OPTIONS.map((option) => (
                 <button
@@ -542,10 +540,10 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   onClick={() => setForm({ ...form, icon: option.id })}
                   title={option.label}
                   className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-lg border transition-all',
+                    'settings-icon-btn',
                     form.icon === option.id
-                      ? 'border-cachi-500 bg-cachi-500/20'
-                      : 'border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]'
+                      ? 'settings-icon-btn--active'
+                      : 'settings-icon-btn--inactive'
                   )}
                 >
                   <BotIconRenderer icon={option.id} size={20} />
@@ -554,17 +552,17 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-xs text-[var(--color-text-secondary)]">Color</label>
+            <label className="settings-form__label--icon">Color</label>
             <div className="flex flex-wrap gap-2">
               {COLOR_OPTIONS.map((color) => (
                 <button
                   key={color}
                   onClick={() => setForm({ ...form, color })}
                   className={cn(
-                    'h-8 w-8 rounded-lg border-2 transition-all',
+                    'settings-color-btn',
                     form.color === color
-                      ? 'border-white scale-110'
-                      : 'border-transparent hover:scale-105'
+                      ? 'settings-color-btn--active'
+                      : 'settings-color-btn--inactive'
                   )}
                   style={{ backgroundColor: color }}
                 />
@@ -575,9 +573,9 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       </div>
 
       {/* System Prompt */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
-          <Brain className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
+      <div className="settings-section">
+        <h3 className="settings-section__heading">
+          <Brain className="h-4 w-4 settings-section__heading-icon" />
           System Prompt
         </h3>
         <textarea
@@ -585,7 +583,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
           onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
           rows={6}
           placeholder="Define the bot's personality and behavior..."
-          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 py-3 font-mono text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+          className="settings-form__textarea--mono"
         />
       </div>
     </div>
@@ -618,9 +616,9 @@ function KnowledgeSection({ botId }: { botId: string }) {
       <KnowledgeStatsComponent botId={botId} />
 
       {/* Notes section (main feature) */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Notes & Memory</h3>
-        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
+      <div className="settings-section">
+        <h3 className="settings-section__subtitle">Notes & Memory</h3>
+        <p className="settings-section__description">
           Save notes for your bot to remember. The bot can also create notes during conversations.
         </p>
         <NotesManager
@@ -631,18 +629,18 @@ function KnowledgeSection({ botId }: { botId: string }) {
       </div>
 
       {/* Search tester */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Search Knowledge</h3>
-        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
+      <div className="settings-section">
+        <h3 className="settings-section__subtitle">Search Knowledge</h3>
+        <p className="settings-section__description">
           Test search across documents and notes.
         </p>
         <KnowledgeSearch botId={botId} />
       </div>
 
       {/* Documents section */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Documents</h3>
-        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
+      <div className="settings-section">
+        <h3 className="settings-section__subtitle">Documents</h3>
+        <p className="settings-section__description">
           Upload documents to give your bot specialized knowledge.
         </p>
         <DocumentUploader botId={botId} />
@@ -655,7 +653,7 @@ function KnowledgeSection({ botId }: { botId: string }) {
       </div>
 
       {/* Instructions editor */}
-      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+      <div className="settings-section">
         <InstructionsEditor botId={botId} />
       </div>
 
@@ -792,7 +790,7 @@ function SkillsSection({ botId }: { botId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-[var(--color-text-secondary)]">Loading skills...</div>
+        <div className="settings-section__description">Loading skills...</div>
       </div>
     )
   }
@@ -802,21 +800,21 @@ function SkillsSection({ botId }: { botId: string }) {
 
       {/* Error display */}
       {error && (
-        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="settings-error">
           {error}
         </div>
       )}
 
       {/* Header with actions */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+        <p className="settings-section__description" style={{ marginBottom: 0 }}>
           Activate skills to give your bot specialized behaviors and capabilities.
         </p>
-        <div className="flex gap-2">
+        <div className="settings-skills__actions">
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)] disabled:opacity-50"
+            className="settings-skills__refresh-btn flex items-center gap-1.5"
             title="Rescan skill directories"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
@@ -824,7 +822,7 @@ function SkillsSection({ botId }: { botId: string }) {
           </button>
           <button
             onClick={() => setShowInstallDialog(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-cachi-600 px-3 py-1.5 text-xs text-white hover:bg-cachi-500"
+            className="settings-skills__install-btn flex items-center gap-1.5"
           >
             <Download className="h-3.5 w-3.5" />
             Install
@@ -833,14 +831,14 @@ function SkillsSection({ botId }: { botId: string }) {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+      <div className="settings-skills__search">
+        <Search className="settings-skills__search-icon h-4 w-4" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search skills..."
-          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--input-placeholder)] focus:border-[var(--color-border-focus)] focus:outline-none"
+          className="settings-skills__search-input"
         />
       </div>
 
@@ -859,23 +857,23 @@ function SkillsSection({ botId }: { botId: string }) {
           ))}
         </div>
       ) : searchQuery ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-8 text-center">
-          <p className="text-sm text-[var(--color-text-secondary)]">No skills match your search.</p>
+        <div className="settings-skills-empty">
+          <p className="settings-section__description" style={{ marginBottom: 0 }}>No skills match your search.</p>
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
-            <Sparkles className="h-6 w-6 text-[var(--color-text-secondary)]" />
+        <div className="settings-skills-empty">
+          <div className="settings-skills-empty__icon">
+            <Sparkles className="h-6 w-6" />
           </div>
-          <h3 className="mb-2 font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">No skills available</h3>
-          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
-            Create SKILL.md files in <code className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">~/.claude/skills/</code>
+          <h3 className="settings-skills-empty__title">No skills available</h3>
+          <p className="settings-section__description">
+            Create SKILL.md files in <code>~/.claude/skills/</code>
             {' '}or install from a URL.
           </p>
           <div className="flex justify-center gap-3">
             <button
               onClick={() => setShowInstallDialog(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-cachi-600 px-4 py-2 text-sm text-white hover:bg-cachi-500"
+              className="settings-skills__install-btn flex items-center gap-1.5 px-4 py-2 text-sm"
             >
               <Download className="h-4 w-4" />
               Install Skill
@@ -884,7 +882,7 @@ function SkillsSection({ botId }: { botId: string }) {
               href="https://skills.sh"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+              className="settings-skills-empty__browse-btn flex items-center gap-1.5"
             >
               <ExternalLink className="h-4 w-4" />
               Browse skills.sh
@@ -895,7 +893,7 @@ function SkillsSection({ botId }: { botId: string }) {
 
       {/* Active skills count */}
       {activeSkillIds.size > 0 && (
-        <div className="text-center text-xs text-[var(--color-text-secondary)]">
+        <div className="settings-section__description" style={{ textAlign: 'center', marginBottom: 0 }}>
           {activeSkillIds.size} skill{activeSkillIds.size !== 1 ? 's' : ''} active
         </div>
       )}
@@ -924,24 +922,25 @@ function CapabilityToggle({ icon, label, description, enabled, onToggle }: Capab
   return (
     <div
       className={cn(
-        'flex items-center justify-between rounded-lg border p-3 transition-colors',
-        enabled
-          ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--card-bg)]'
+        'capability-toggle',
+        enabled ? 'capability-toggle--active' : 'capability-toggle--inactive'
       )}
     >
-      <div className="flex items-center gap-3">
-        <div className={cn('text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]', enabled && 'text-cachi-500')}>
+      <div className="capability-toggle__info">
+        <div className={cn('capability-toggle__icon', enabled && 'capability-toggle__icon--active')}>
           {icon}
         </div>
         <div>
-          <div className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{label}</div>
-          <div className="text-xs text-[var(--color-text-secondary)]">{description}</div>
+          <div className="capability-toggle__label">{label}</div>
+          <div className="capability-toggle__description">{description}</div>
         </div>
       </div>
       <button
         onClick={() => onToggle(!enabled)}
-        className={enabled ? 'text-cachi-500' : 'text-[var(--color-text-tertiary)]'}
+        className={cn(
+          'capability-toggle__toggle',
+          enabled ? 'capability-toggle__toggle--active' : 'capability-toggle__toggle--inactive'
+        )}
       >
         {enabled ? <ToggleRight className="h-7 w-7" /> : <ToggleLeft className="h-7 w-7" />}
       </button>
@@ -962,32 +961,30 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
   return (
     <div
       className={cn(
-        'rounded-lg border p-4 transition-colors',
-        isActive
-          ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--card-bg)]'
+        'skill-card',
+        isActive ? 'skill-card--active' : 'skill-card--inactive'
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{skill.name}</h3>
+            <h3 className="skill-card__name">{skill.name}</h3>
             {skill.version && (
-              <span className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+              <span className="skill-card__badge">
                 v{skill.version}
               </span>
             )}
-            <span className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
+            <span className="skill-card__badge">
               {skill.source}
             </span>
           </div>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{skill.description}</p>
+          <p className="skill-card__description">{skill.description}</p>
           {skill.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {skill.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]"
+                  className="skill-card__tag"
                 >
                   {tag}
                 </span>
@@ -995,7 +992,7 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
             </div>
           )}
           {skill.requiresTools.length > 0 && (
-            <div className="mt-2 text-xs text-[var(--color-text-secondary)]">
+            <div className="skill-card__requires">
               Requires: {skill.requiresTools.join(', ')}
             </div>
           )}
@@ -1004,7 +1001,7 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
           {showDelete && (
             <button
               onClick={() => onDelete(skill.id)}
-              className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
+              className="skill-card__delete-btn"
               title="Delete skill"
             >
               <X className="h-4 w-4" />
@@ -1012,7 +1009,10 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
           )}
           <button
             onClick={() => onToggle(skill.id, !isActive)}
-            className={isActive ? 'text-cachi-500' : 'text-[var(--color-text-tertiary)]'}
+            className={cn(
+              'skill-card__toggle',
+              isActive ? 'skill-card__toggle--active' : 'skill-card__toggle--inactive'
+            )}
           >
             {isActive ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
           </button>
@@ -1048,25 +1048,25 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white dark:bg-[var(--color-bg-primary)] shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Install Skill</h2>
+    <div className="skill-install-dialog">
+      <div className="skill-install-dialog__panel">
+        <div className="skill-install-dialog__header">
+          <h2 className="skill-install-dialog__title">Install Skill</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+            className="skill-install-dialog__close-btn"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-4 space-y-4">
+        <div className="skill-install-dialog__body space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">
+            <div className="settings-error">
               {error}
             </div>
           )}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="settings-form__label">
               Skill URL or skills.sh identifier
             </label>
             <input
@@ -1074,24 +1074,24 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://... or skills.sh/skill-name"
-              className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--input-placeholder)] focus:border-[var(--color-border-focus)] focus:outline-none"
+              className="settings-form__input"
             />
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+            <p className="settings-form__hint">
               Enter a URL to a skill markdown file or a skills.sh identifier.
             </p>
           </div>
         </div>
-        <div className="flex justify-end gap-3 border-t border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+        <div className="skill-install-dialog__footer">
           <button
             onClick={onClose}
-            className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+            className="skill-install-dialog__cancel-btn"
           >
             Cancel
           </button>
           <button
             onClick={handleInstall}
             disabled={!url.trim() || loading}
-            className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white hover:bg-cachi-500 disabled:opacity-50"
+            className="skill-install-dialog__submit-btn flex items-center gap-2"
           >
             {loading ? (
               <>
@@ -1115,7 +1115,7 @@ function ConnectionsSection({ botId }: { botId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+        <p className="settings-section__description">
           Connect your bot to messaging platforms to send and receive messages.
         </p>
         <BotConnectionsPanel botId={botId} />
@@ -1166,9 +1166,9 @@ function DangerSection({
   return (
     <div className="space-y-6">
       {/* Export section */}
-      <div className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-6">
-        <h3 className="text-lg font-semibold text-zinc-800 dark:text-[var(--color-text-primary)]">Export Bot</h3>
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+      <div className="settings-danger__panel">
+        <h3 className="settings-danger__title">Export Bot</h3>
+        <p className="settings-danger__text">
           Download this bot's configuration as a JSON file. You can import it later to recreate the bot.
         </p>
         {exportError && (
@@ -1177,7 +1177,7 @@ function DangerSection({
         <button
           onClick={handleExport}
           disabled={isExporting}
-          className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] disabled:opacity-50"
+          className="settings-danger__export-btn flex items-center gap-2"
         >
           <Download className="h-4 w-4" />
           {isExporting ? 'Exporting...' : 'Export Configuration'}
@@ -1186,22 +1186,22 @@ function DangerSection({
 
       {/* Delete section */}
       {isDefault ? (
-        <div className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-6">
-          <h3 className="text-lg font-semibold text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Delete this bot</h3>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+        <div className="settings-danger__panel">
+          <h3 className="settings-danger__title--disabled">Delete this bot</h3>
+          <p className="settings-danger__text">
             The default bot cannot be deleted.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
-          <h3 className="text-lg font-semibold text-red-400">Delete this bot</h3>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-            Once you delete <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">{botName}</strong>, there is no going back.
+        <div className="settings-danger__panel--delete">
+          <h3 className="settings-danger__title--delete">Delete this bot</h3>
+          <p className="settings-danger__text">
+            Once you delete <strong className="settings-modal__strong">{botName}</strong>, there is no going back.
             All chats, jobs, and tasks will be permanently deleted.
           </p>
           <button
             onClick={onDelete}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+            className="settings-danger__delete-btn flex items-center gap-2"
           >
             <Trash2 className="h-4 w-4" />
             Delete Bot
@@ -1211,4 +1211,3 @@ function DangerSection({
     </div>
   )
 }
-

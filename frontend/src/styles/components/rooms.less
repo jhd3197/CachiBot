@@ -405,6 +405,173 @@
 }
 
 // -----------------------------------------------------------------------------
+// Rooms View — list page
+// -----------------------------------------------------------------------------
+
+.rooms-view {
+  .flex-col();
+  height: 100%;
+
+  &__header {
+    .flex-between();
+    height: 3.5rem;
+    padding: 0 @sp-6;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__title {
+    font-size: @text-base;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: @sp-6;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    padding: @sp-12 0;
+    text-align: center;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Card — list items
+// -----------------------------------------------------------------------------
+
+.room-card {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: @sp-4;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-primary);
+  padding: @sp-4;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+  }
+
+  &--active {
+    border-color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+  }
+
+  &__icon {
+    .flex-center();
+    height: 2.5rem;
+    width: 2.5rem;
+    flex-shrink: 0;
+    border-radius: @radius-lg;
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+    color: var(--accent-600);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: 2px;
+    .truncate();
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__stats {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    margin-top: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__menu-btn {
+    position: absolute;
+    right: @sp-3;
+    top: @sp-3;
+    .flex-center();
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: @radius-sm;
+    color: var(--color-text-secondary);
+    opacity: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    .group:hover & {
+      opacity: 1;
+    }
+
+    &--open {
+      opacity: 1;
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Card Menu — dropdown
+// -----------------------------------------------------------------------------
+
+.room-card-menu {
+  position: absolute;
+  right: 0;
+  top: 2.5rem;
+  z-index: @z-dropdown;
+  width: 10rem;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-primary);
+  padding: @sp-1 0;
+  box-shadow: @shadow-xl;
+
+  &__item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &--danger {
+      color: @red-500;
+
+      .dark & {
+        color: @red-400;
+      }
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Create Room (within Dialog pattern)
 // -----------------------------------------------------------------------------
 

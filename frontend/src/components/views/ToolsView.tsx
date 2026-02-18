@@ -207,15 +207,15 @@ export function ToolsView() {
   }
 
   return (
-    <div className="flex h-full bg-white dark:bg-[var(--color-bg-app)]">
+    <div className="tools-view">
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
+        <div className="tools-header">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Tools</h1>
-              <p className="text-sm text-[var(--color-text-secondary)]">
+              <h1 className="tools-header__title">Tools</h1>
+              <p className="tools-header__subtitle">
                 {enabledCount} tools enabled for {activeBot.name}
               </p>
             </div>
@@ -236,34 +236,28 @@ export function ToolsView() {
                     onClick={() => handleToggleRiskLevel(level)}
                     title={allEnabled ? `Disable all ${level} tools` : `Enable all ${level} tools`}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors',
+                      'tools-risk-btn',
                       allEnabled
                         ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                        : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-secondary)]'
+                        : 'tools-risk-btn--inactive'
                     )}
                   >
                     <RiskIcon className="h-3.5 w-3.5" />
                     <span className="capitalize">{level}</span>
                     <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                      allEnabled ? 'bg-white/10' : 'bg-zinc-300 dark:bg-[var(--color-hover-bg)]'
+                      'tools-risk-btn__count',
+                      allEnabled ? 'tools-risk-btn__count--active' : 'tools-risk-btn__count--inactive'
                     )}>
                       {enabledAtLevel}/{totalAtLevel}
                     </span>
                   </button>
                 )
               })}
-              <div className="mx-1 h-5 w-px bg-zinc-300 dark:bg-[var(--color-hover-bg)]" />
-              <button
-                onClick={handleEnableAll}
-                className="rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
-              >
+              <div className="tools-divider" />
+              <button onClick={handleEnableAll} className="tools-bulk-btn">
                 All on
               </button>
-              <button
-                onClick={handleDisableAll}
-                className="rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
-              >
+              <button onClick={handleDisableAll} className="tools-bulk-btn">
                 All off
               </button>
             </div>
@@ -272,24 +266,22 @@ export function ToolsView() {
           {/* Search and filters */}
           <div className="mt-4 flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+              <Search className="tools-search__icon" />
               <input
                 type="text"
                 placeholder="Search tools..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] pl-10 pr-4 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                className="tools-search__input"
               />
             </div>
 
-            <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-1">
+            <div className="tools-category-bar">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn(
-                  'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                  selectedCategory === 'all'
-                    ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
-                    : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
+                  'tools-category-btn',
+                  selectedCategory === 'all' ? 'tools-category-btn--active' : 'tools-category-btn--inactive'
                 )}
               >
                 All
@@ -301,10 +293,8 @@ export function ToolsView() {
                     key={key}
                     onClick={() => setSelectedCategory(key as ToolCategory)}
                     className={cn(
-                      'rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                      selectedCategory === key
-                        ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
-                        : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
+                      'tools-category-btn',
+                      selectedCategory === key ? 'tools-category-btn--active' : 'tools-category-btn--inactive'
                     )}
                   >
                     {config.label}
@@ -315,23 +305,23 @@ export function ToolsView() {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="tools-content">
           {loading && (
-            <div className="flex items-center justify-center py-12 text-[var(--color-text-secondary)]">
+            <div className="tools-content__loading">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Loading plugins...
             </div>
           )}
 
           {error && (
-            <div className="flex items-center justify-center gap-2 py-12 text-red-400">
+            <div className="tools-content__error">
               <AlertCircle className="h-5 w-5" />
               {error}
             </div>
           )}
 
           {!loading && !error && filteredGroups.length === 0 && (
-            <div className="py-12 text-center text-[var(--color-text-secondary)]">No tools match your search</div>
+            <div className="tools-content__empty">No tools match your search</div>
           )}
 
           {!loading &&
@@ -341,20 +331,20 @@ export function ToolsView() {
               const pluginDisplayName = plugin.displayName || humanizeName(plugin.name)
               const PluginIcon = resolveIconName(plugin.icon)
               return (
-                <div key={plugin.name} className="mb-8">
-                  <div className="mb-3 flex items-center gap-2">
-                    <PluginIcon className="h-5 w-5 text-[var(--color-text-secondary)]" />
-                    <h2 className="text-sm font-semibold text-zinc-700 dark:text-[var(--color-text-primary)]">{pluginDisplayName}</h2>
-                    <span className="rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)]">
+                <div key={plugin.name} className="tools-plugin-group">
+                  <div className="tools-plugin-group__header">
+                    <PluginIcon className="tools-plugin-group__icon" />
+                    <h2 className="tools-plugin-group__name">{pluginDisplayName}</h2>
+                    <span className="tools-plugin-group__count">
                       {tools.length}
                     </span>
                     {plugin.capability && (
-                      <span className="rounded-full bg-zinc-100 dark:bg-[var(--card-bg)] px-2 py-0.5 text-xs text-[var(--color-text-tertiary)]">
+                      <span className="tools-plugin-group__capability">
                         {plugin.capability}
                       </span>
                     )}
                     {plugin.alwaysEnabled && (
-                      <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-500">
+                      <span className="tools-plugin-group__always-on">
                         always on
                       </span>
                     )}
@@ -428,20 +418,18 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
   return (
     <div
       className={cn(
-        'group relative rounded-xl border p-4 transition-all',
-        enabled
-          ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/30 hover:border-zinc-300 dark:hover:border-[var(--color-border-secondary)]'
+        'tool-card group',
+        enabled ? 'tool-card--enabled' : 'tool-card--disabled'
       )}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
-            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-5 w-5 text-zinc-700 dark:text-[var(--color-text-primary)]" />
+          <div className="tool-card__icon-box">
+            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="tool-card__icon" />
           </div>
           <div>
-            <h3 className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{tool.name}</h3>
+            <h3 className="tool-card__name">{tool.name}</h3>
             <div className={cn('flex items-center gap-1 text-xs', config.color)}>
               <RiskIcon className="h-3 w-3" />
               {tool.riskLevel}
@@ -462,14 +450,11 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
       </div>
 
       {/* Description */}
-      <p className="mt-3 text-sm text-[var(--color-text-secondary)] line-clamp-2">{tool.description}</p>
+      <p className="tool-card__description line-clamp-2">{tool.description}</p>
 
       {/* Actions */}
-      <div className="mt-3 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={onSelect}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
-        >
+      <div className="tool-card__actions">
+        <button onClick={onSelect} className="tool-card__action-btn">
           <Info className="h-3 w-3" />
           Details
         </button>
@@ -479,7 +464,7 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
               e.stopPropagation()
               onConfigure()
             }}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+            className="tool-card__action-btn"
           >
             <Settings className="h-3 w-3" />
             Configure
@@ -533,27 +518,24 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
   const RiskIcon = config.icon
 
   return (
-    <div className="w-96 flex-shrink-0 border-l border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50">
+    <div className="tool-details-panel">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-4 py-3">
-        <h2 className="font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Tool Details</h2>
-        <button
-          onClick={onClose}
-          className="rounded p-1 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
-        >
+      <div className="tool-details-panel__header">
+        <h2 className="tool-details-panel__title">Tool Details</h2>
+        <button onClick={onClose} className="tool-details-panel__close">
           x
         </button>
       </div>
 
-      <div className="p-4">
+      <div className="tool-details-panel__body">
         {/* Tool info */}
         <div className="mb-6 flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
-            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-7 w-7 text-zinc-700 dark:text-[var(--color-text-primary)]" />
+          <div className="tool-details-panel__icon-box">
+            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="tool-details-panel__icon" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">{tool.name}</h3>
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <h3 className="tool-details-panel__name">{tool.name}</h3>
+            <p className="tool-details-panel__category">
               {categoryConfig[tool.category]?.label || tool.category}
             </p>
           </div>
@@ -565,7 +547,7 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
             <RiskIcon className="h-5 w-5" />
             <span className="font-medium capitalize">{tool.riskLevel} Risk</span>
           </div>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+          <p className="tool-details-panel__risk-description">
             {tool.riskLevel === 'safe' &&
               'This tool is safe to use and cannot modify system resources.'}
             {tool.riskLevel === 'moderate' &&
@@ -579,29 +561,29 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
 
         {/* Description */}
         <div className="mb-6">
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Description</h4>
-          <p className="text-sm text-[var(--color-text-secondary)]">{tool.description}</p>
+          <h4 className="tool-details-panel__section-title">Description</h4>
+          <p className="tool-card__description">{tool.description}</p>
         </div>
 
         {/* Parameters */}
         {tool.parameters && tool.parameters.length > 0 && (
           <div className="mb-6">
-            <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Parameters</h4>
+            <h4 className="tool-details-panel__section-title">Parameters</h4>
             <div className="space-y-2">
               {tool.parameters.map((param) => (
-                <div key={param.name} className="rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] bg-white dark:bg-[var(--color-bg-primary)] p-3">
+                <div key={param.name} className="tool-param-card">
                   <div className="flex items-center gap-2">
                     <code className="font-mono text-sm text-cachi-400">{param.name}</code>
-                    <span className="rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
+                    <span className="tool-param-card__type">
                       {param.type}
                     </span>
                     {param.required && (
-                      <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-xs text-red-400">
+                      <span className="tool-param-card__required">
                         required
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{param.description}</p>
+                  <p className="tool-param-card__description">{param.description}</p>
                 </div>
               ))}
             </div>
@@ -609,14 +591,12 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
         )}
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="tool-details-actions">
           <button
             onClick={onToggle}
             className={cn(
-              'flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors',
-              enabled
-                ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
-                : 'bg-cachi-600 text-white hover:bg-cachi-500'
+              'tool-details-btn',
+              enabled ? 'tool-details-btn--disable' : 'tool-details-btn--enable'
             )}
           >
             {enabled ? (
@@ -631,7 +611,7 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
               </>
             )}
           </button>
-          <button className="flex items-center justify-center gap-2 rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)]">
+          <button className="tool-details-btn tool-details-btn--test">
             <Play className="h-4 w-4" />
             Test
           </button>
