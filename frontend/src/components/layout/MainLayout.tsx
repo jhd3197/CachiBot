@@ -26,7 +26,7 @@ import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
-import { useUIStore, accentColors } from '../../stores/ui'
+import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
@@ -68,7 +68,7 @@ export function MainLayout() {
   const { activeView, activeBotId, bots, setActiveBot, setActiveView } = useBotStore()
   const { activeChatId, chats, setActiveChat } = useChatStore()
   const { setActiveTask } = useTaskStore()
-  const { theme, accentColor, mobileMenuOpen, setMobileMenuOpen } = useUIStore()
+  const { theme, accentColor, customHex, mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { setConfig } = useConfigStore()
   const { refresh: refreshModels } = useModelsStore()
   const { providers, refresh: refreshProviders } = useProvidersStore()
@@ -159,7 +159,9 @@ export function MainLayout() {
 
   // Apply accent color
   useEffect(() => {
-    const palette = accentColors[accentColor]?.palette
+    const palette = accentColor === 'custom'
+      ? generatePalette(customHex)
+      : accentColors[accentColor]?.palette
     if (palette) {
       const root = document.documentElement
       Object.entries(palette).forEach(([shade, color]) => {
@@ -172,7 +174,7 @@ export function MainLayout() {
         root.style.setProperty(`--accent-${shade}-rgb`, `${r}, ${g}, ${b}`)
       })
     }
-  }, [accentColor])
+  }, [accentColor, customHex])
 
   // Load config on mount
   useEffect(() => {
@@ -227,9 +229,11 @@ export function MainLayout() {
     }
   }, [hasCompletedOnboarding, providers, openOnboarding])
 
-  // Check for updates on mount
+  // Check for updates on mount (pip-based, skip in Electron)
   useEffect(() => {
-    useUpdateStore.getState().checkForUpdate()
+    if (!window.electronAPI?.isDesktop) {
+      useUpdateStore.getState().checkForUpdate()
+    }
   }, [])
 
   const renderActiveView = () => {

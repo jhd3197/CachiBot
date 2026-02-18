@@ -20,6 +20,7 @@ import {
   AudioLines,
   Layers,
   Mic,
+  Plus,
 } from 'lucide-react'
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
@@ -47,6 +48,8 @@ import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
 const COLOR_OPTIONS = [
   '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
   '#f59e0b', '#ef4444', '#06b6d4', '#84cc16',
+  '#14b8a6', '#6366f1', '#f43f5e', '#eab308',
+  '#a855f7',
 ]
 
 export function SettingsView() {
@@ -553,20 +556,40 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
           </div>
           <div>
             <label className="settings-form__label--icon">Color</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="settings-color-grid">
               {COLOR_OPTIONS.map((color) => (
                 <button
                   key={color}
                   onClick={() => setForm({ ...form, color })}
                   className={cn(
-                    'settings-color-btn',
-                    form.color === color
-                      ? 'settings-color-btn--active'
-                      : 'settings-color-btn--inactive'
+                    'settings-color-circle',
+                    form.color === color && 'settings-color-circle--active'
                   )}
-                  style={{ backgroundColor: color }}
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: form.color === color ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${color}` : undefined,
+                  }}
                 />
               ))}
+              <label
+                className={cn(
+                  'settings-color-circle settings-color-circle--custom',
+                  form.color && !COLOR_OPTIONS.includes(form.color) && 'settings-color-circle--active'
+                )}
+                style={{
+                  backgroundColor: form.color && !COLOR_OPTIONS.includes(form.color) ? form.color : 'var(--color-active-bg)',
+                  boxShadow: form.color && !COLOR_OPTIONS.includes(form.color) ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${form.color}` : undefined,
+                }}
+                title="Custom color"
+              >
+                <Plus className="settings-color-circle__icon" />
+                <input
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm({ ...form, color: e.target.value })}
+                  className="settings-color-circle__input"
+                />
+              </label>
             </div>
           </div>
         </div>

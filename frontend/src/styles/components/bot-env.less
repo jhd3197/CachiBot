@@ -1,0 +1,400 @@
+// =============================================================================
+// Bot Environment Panel — components/bot-env.less
+// Per-bot environment variables: provider keys, custom vars, badges
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Loading state
+// -----------------------------------------------------------------------------
+
+.bot-env-loading {
+  .flex-center();
+  padding: @sp-8 0;
+  gap: @sp-2;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+}
+
+// -----------------------------------------------------------------------------
+// Error banner
+// -----------------------------------------------------------------------------
+
+.bot-env-error {
+  border-radius: @radius-lg;
+  border: 1px solid rgba(@red-500, 0.5);
+  background: rgba(@red-500, 0.1);
+  padding: @sp-3;
+  font-size: @text-sm;
+  color: @red-400;
+}
+
+// -----------------------------------------------------------------------------
+// Info banner
+// -----------------------------------------------------------------------------
+
+.bot-env-info {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--card-bg);
+  padding: @sp-4;
+
+  &__body {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-3;
+  }
+
+  &__icon {
+    margin-top: 2px;
+    flex-shrink: 0;
+    color: var(--accent-500);
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__text {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Section toggle (Provider Keys / Custom Variables)
+// -----------------------------------------------------------------------------
+
+.bot-env-section-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: @sp-2;
+  font-size: @text-sm;
+  font-weight: @font-medium;
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &__chevron {
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__icon {
+    height: 1rem;
+    width: 1rem;
+    color: var(--color-text-secondary);
+  }
+
+  &__count {
+    border-radius: @radius-full;
+    background: var(--color-hover-bg);
+    padding: @sp-0\.5 @sp-2;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Provider key card
+// -----------------------------------------------------------------------------
+
+.bot-env-card {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  padding: @sp-3;
+
+  &__row {
+    .flex-between();
+  }
+
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__env-key {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__masked {
+    margin-top: 2px;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Action buttons (edit, delete, override)
+// -----------------------------------------------------------------------------
+
+.bot-env-icon-btn {
+  border-radius: @radius-sm;
+  padding: 6px;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+
+  &--danger:hover {
+    color: @red-400;
+  }
+}
+
+.bot-env-override-btn {
+  border-radius: @radius-sm;
+  padding: @sp-1 @sp-2;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Edit form (inline key editing)
+// -----------------------------------------------------------------------------
+
+.bot-env-edit {
+  &__input-wrap {
+    position: relative;
+  }
+
+  &__input {
+    .input-base();
+    padding: @sp-1\.5 @sp-10 @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+  }
+
+  &__toggle-vis {
+    position: absolute;
+    right: @sp-2;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: @sp-2;
+  }
+
+  &__save-btn {
+    .button-base();
+    .button-size(xs);
+    background: var(--accent-600);
+    color: white;
+
+    &:hover {
+      background: var(--accent-500);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__cancel-btn {
+    .button-base();
+    .button-size(xs);
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background: var(--color-active-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Add custom key form
+// -----------------------------------------------------------------------------
+
+.bot-env-add-form {
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--card-bg);
+  padding: @sp-3;
+
+  &__input {
+    .input-base();
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+  }
+
+  &__input--mono {
+    .input-base();
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+    font-family: @font-mono;
+  }
+}
+
+.bot-env-add-btn {
+  .flex-center();
+  width: 100%;
+  gap: @sp-2;
+  border-radius: @radius-lg;
+  border: 1px dashed var(--color-border-secondary);
+  padding: @sp-2\.5;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+  background: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--color-text-tertiary);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Source badge
+// -----------------------------------------------------------------------------
+
+.bot-env-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: @radius-full;
+  padding: @sp-0\.5 @sp-2;
+  font-size: 10px;
+  font-weight: @font-medium;
+
+  &--bot {
+    background: rgba(@green-500, 0.2);
+    color: @green-400;
+  }
+
+  &--platform {
+    background: rgba(@blue-500, 0.2);
+    color: @blue-400;
+  }
+
+  &--global {
+    background: var(--color-hover-bg);
+    color: var(--color-text-secondary);
+  }
+
+  &--none {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-tertiary);
+  }
+
+  &--default {
+    background: var(--color-bg-inset, var(--color-hover-bg));
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Danger zone
+// -----------------------------------------------------------------------------
+
+.bot-env-danger {
+  border-top: 1px solid var(--color-border-primary);
+  padding-top: @sp-6;
+
+  &__panel {
+    border-radius: @radius-lg;
+    border: 1px solid rgba(@red-500, 0.3);
+    background: rgba(@red-500, 0.05);
+    padding: @sp-4;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: @red-400;
+  }
+
+  &__text {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__confirm-text {
+    font-size: @text-xs;
+    color: @red-400;
+  }
+
+  &__reset-btn {
+    .button-base();
+    .button-size(xs);
+    border: 1px solid rgba(@red-500, 0.5);
+    border-radius: @radius-lg;
+    color: @red-400;
+    background: none;
+
+    &:hover {
+      background: rgba(@red-500, 0.1);
+    }
+  }
+
+  &__confirm-btn {
+    .button-base();
+    .button-size(xs);
+    background: @red-600;
+    color: white;
+
+    &:hover {
+      background: @red-500;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__cancel-btn {
+    border-radius: @radius-sm;
+    padding: @sp-1 @sp-3;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+}
