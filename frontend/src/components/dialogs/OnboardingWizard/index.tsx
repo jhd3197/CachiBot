@@ -14,6 +14,8 @@ import {
 import { WelcomeStep } from './steps/WelcomeStep'
 import { ApiKeyStep } from './steps/ApiKeyStep'
 import { ModelStep } from './steps/ModelStep'
+import { DatabaseStep } from './steps/DatabaseStep'
+import { SmtpStep } from './steps/SmtpStep'
 import { PreferencesStep } from './steps/PreferencesStep'
 import { CompleteStep } from './steps/CompleteStep'
 
@@ -21,6 +23,8 @@ const WIZARD_STEPS: Step[] = [
   { id: 'welcome', label: 'Welcome' },
   { id: 'api-key', label: 'API Key' },
   { id: 'model', label: 'Model' },
+  { id: 'database', label: 'Database' },
+  { id: 'smtp', label: 'Email' },
   { id: 'preferences', label: 'Style' },
   { id: 'complete', label: 'Done' },
 ]
@@ -30,6 +34,8 @@ function getStepSubtitle(step: string): string {
     welcome: 'Get started with CachiBot',
     'api-key': 'Connect an AI provider',
     model: 'Choose your default model',
+    database: 'Choose your database backend',
+    smtp: 'Configure email (optional)',
     preferences: 'Personalize your experience',
     complete: 'Setup complete',
   }
@@ -44,6 +50,8 @@ export function OnboardingWizard() {
     prevStep,
     completeOnboarding,
     skipOnboarding,
+    databaseType,
+    databaseConfigured,
   } = useOnboardingStore()
   const { providers } = useProvidersStore()
   const { defaultModel } = useModelsStore()
@@ -57,6 +65,9 @@ export function OnboardingWizard() {
         return providers.some((p) => p.configured)
       case 'model':
         return defaultModel !== ''
+      case 'database':
+        return databaseType === 'sqlite' || databaseConfigured
+      // smtp is always optional
       default:
         return true
     }
@@ -70,6 +81,10 @@ export function OnboardingWizard() {
         return <ApiKeyStep />
       case 'model':
         return <ModelStep />
+      case 'database':
+        return <DatabaseStep />
+      case 'smtp':
+        return <SmtpStep />
       case 'preferences':
         return <PreferencesStep />
       case 'complete':

@@ -2213,7 +2213,9 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                         'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
                         user.role === 'admin'
                           ? 'bg-purple-500/20 text-purple-300'
-                          : 'bg-zinc-700 text-zinc-300'
+                          : user.role === 'manager'
+                            ? 'bg-teal-500/20 text-teal-300'
+                            : 'bg-zinc-700 text-zinc-300'
                       )}
                     >
                       {user.role === 'admin' ? (
@@ -2348,6 +2350,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                 >
                   <option value="user">User</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -2424,6 +2427,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
                 >
                   <option value="user">User</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

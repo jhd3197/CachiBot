@@ -11,8 +11,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from cachibot.api.auth import require_bot_access
+from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
+from cachibot.models.group import BotAccessLevel
 from cachibot.models.work import (
     BotFunction,
     FailureAction,
@@ -585,7 +586,7 @@ async def list_functions(
 async def create_function(
     bot_id: str,
     request: CreateFunctionRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> FunctionResponse:
     """Create a new function."""
     now = datetime.utcnow()
@@ -644,7 +645,7 @@ async def update_function(
     bot_id: str,
     function_id: str,
     request: UpdateFunctionRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> FunctionResponse:
     """Update a function."""
     fn = await function_repo.get(function_id)
@@ -692,7 +693,7 @@ async def update_function(
 async def delete_function(
     bot_id: str,
     function_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a function."""
     fn = await function_repo.get(function_id)
@@ -706,7 +707,7 @@ async def run_function(
     bot_id: str,
     function_id: str,
     params: dict[str, Any] | None = None,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Instantiate a function as work."""
     fn = await function_repo.get(function_id)
@@ -783,7 +784,7 @@ async def list_schedules(
 async def create_schedule(
     bot_id: str,
     request: CreateScheduleRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Create a new schedule."""
     now = datetime.utcnow()
@@ -828,7 +829,7 @@ async def update_schedule(
     bot_id: str,
     schedule_id: str,
     request: UpdateScheduleRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Update a schedule."""
     schedule = await schedule_repo.get(schedule_id)
@@ -869,7 +870,7 @@ async def update_schedule(
 async def toggle_schedule(
     bot_id: str,
     schedule_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScheduleResponse:
     """Toggle schedule enabled state."""
     schedule = await schedule_repo.get(schedule_id)
@@ -885,7 +886,7 @@ async def toggle_schedule(
 async def delete_schedule(
     bot_id: str,
     schedule_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a schedule."""
     schedule = await schedule_repo.get(schedule_id)
@@ -939,7 +940,7 @@ async def get_active_work(
 async def create_work(
     bot_id: str,
     request: CreateWorkRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> WorkResponse:
     """Create new work."""
     now = datetime.utcnow()
@@ -1012,7 +1013,7 @@ async def update_work(
     bot_id: str,
     work_id: str,
     request: UpdateWorkRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> WorkResponse:
     """Update work."""
     work = await work_repo.get(work_id)
@@ -1053,7 +1054,7 @@ async def update_work(
 async def start_work(
     bot_id: str,
     work_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Start work (set status to in_progress)."""
     work = await work_repo.get(work_id)
@@ -1073,7 +1074,7 @@ async def complete_work(
     bot_id: str,
     work_id: str,
     result: Any | None = None,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Complete work."""
     work = await work_repo.get(work_id)
@@ -1096,7 +1097,7 @@ async def fail_work(
     bot_id: str,
     work_id: str,
     error: str | None = None,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Mark work as failed."""
     work = await work_repo.get(work_id)
@@ -1115,7 +1116,7 @@ async def fail_work(
 async def cancel_work(
     bot_id: str,
     work_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Cancel a running work item and its jobs."""
     work = await work_repo.get(work_id)
@@ -1141,7 +1142,7 @@ async def cancel_work(
 async def delete_work(
     bot_id: str,
     work_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete work (cascades to tasks and jobs)."""
     work = await work_repo.get(work_id)
@@ -1190,7 +1191,7 @@ async def create_task(
     bot_id: str,
     work_id: str,
     request: CreateTaskRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Create a new task."""
     work = await work_repo.get(work_id)
@@ -1241,7 +1242,7 @@ async def update_task(
     bot_id: str,
     task_id: str,
     request: UpdateTaskRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TaskResponse:
     """Update a task."""
     task = await task_repo.get(task_id)
@@ -1279,7 +1280,7 @@ async def update_task(
 async def start_task(
     bot_id: str,
     task_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Start a task (creates a job)."""
     task = await task_repo.get(task_id)
@@ -1315,7 +1316,7 @@ async def complete_task(
     bot_id: str,
     task_id: str,
     result: Any | None = None,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Complete a task."""
     task = await task_repo.get(task_id)
@@ -1346,7 +1347,7 @@ async def fail_task(
     bot_id: str,
     task_id: str,
     error: str | None = None,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Fail a task."""
     task = await task_repo.get(task_id)
@@ -1373,7 +1374,7 @@ async def fail_task(
 async def delete_task(
     bot_id: str,
     task_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a task."""
     task = await task_repo.get(task_id)
@@ -1445,7 +1446,7 @@ async def append_job_log(
     bot_id: str,
     job_id: str,
     request: AppendJobLogRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> JobResponse:
     """Append a log entry to a job."""
     job = await job_repo.get(job_id)
@@ -1462,7 +1463,7 @@ async def update_job_progress(
     bot_id: str,
     job_id: str,
     progress: float,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> JobResponse:
     """Update job progress."""
     job = await job_repo.get(job_id)
@@ -1508,7 +1509,7 @@ async def list_open_todos(
 async def create_todo(
     bot_id: str,
     request: CreateTodoRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TodoResponse:
     """Create a new todo."""
     now = datetime.utcnow()
@@ -1546,7 +1547,7 @@ async def update_todo(
     bot_id: str,
     todo_id: str,
     request: UpdateTodoRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TodoResponse:
     """Update a todo."""
     todo = await todo_repo.get(todo_id)
@@ -1574,7 +1575,7 @@ async def update_todo(
 async def mark_todo_done(
     bot_id: str,
     todo_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TodoResponse:
     """Mark a todo as done."""
     todo = await todo_repo.get(todo_id)
@@ -1590,7 +1591,7 @@ async def mark_todo_done(
 async def dismiss_todo(
     bot_id: str,
     todo_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TodoResponse:
     """Dismiss a todo."""
     todo = await todo_repo.get(todo_id)
@@ -1607,7 +1608,7 @@ async def convert_todo_to_work(
     bot_id: str,
     todo_id: str,
     request: ConvertTodoRequest,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Convert a todo to work."""
     todo = await todo_repo.get(todo_id)
@@ -1638,7 +1639,7 @@ async def convert_todo_to_work(
 async def delete_todo(
     bot_id: str,
     todo_id: str,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a todo."""
     todo = await todo_repo.get(todo_id)

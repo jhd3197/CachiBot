@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 export type Theme = 'light' | 'dark' | 'system'
 export type AccentColor = 'green' | 'pink' | 'blue' | 'purple' | 'orange' | 'red' | 'cyan' | 'yellow'
-export type SettingsSection = 'general' | 'knowledge' | 'skills' | 'connections' | 'environment' | 'voice' | 'advanced' | 'danger'
+export type SettingsSection = 'general' | 'knowledge' | 'skills' | 'connections' | 'environment' | 'danger'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'

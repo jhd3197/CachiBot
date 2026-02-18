@@ -42,9 +42,14 @@ from cachibot.storage.models.env_var import (
     EnvAuditLog,
     PlatformEnvironment,
 )
+from cachibot.storage.models.group import BotGroupAccess, Group, GroupMember
+
+# Custom instructions
+from cachibot.storage.models.instruction import InstructionRecord, InstructionVersion
 from cachibot.storage.models.job import Job
 from cachibot.storage.models.knowledge import BotDocument, BotInstruction, BotNote, DocChunk
 from cachibot.storage.models.message import BotMessage, Message
+from cachibot.storage.models.platform_config import PlatformToolConfig
 from cachibot.storage.models.room import Room, RoomBot, RoomMember, RoomMessage
 from cachibot.storage.models.skill import BotSkill, Skill
 from cachibot.storage.models.user import User
@@ -79,6 +84,8 @@ __all__ = [
     "PlatformEnvironment",
     "BotSkillConfig",
     "EnvAuditLog",
+    # Platform tool config
+    "PlatformToolConfig",
     # Skills
     "Skill",
     "BotSkill",
@@ -89,6 +96,10 @@ __all__ = [
     "Task",
     "WorkJob",
     "Todo",
+    # Groups & access
+    "Group",
+    "GroupMember",
+    "BotGroupAccess",
     # Rooms
     "Room",
     "RoomMember",
@@ -101,4 +112,7 @@ __all__ = [
     "ExecutionLogLine",
     "TimelineEvent",
     "ExecutionDailySummary",
+    # Custom instructions
+    "InstructionRecord",
+    "InstructionVersion",
 ]

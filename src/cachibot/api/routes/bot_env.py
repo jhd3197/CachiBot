@@ -17,8 +17,9 @@ from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select as sa_select
 
-from cachibot.api.auth import get_admin_user, require_bot_access
+from cachibot.api.auth import get_admin_user, require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
+from cachibot.models.group import BotAccessLevel
 from cachibot.services.encryption import get_encryption_service
 from cachibot.storage import db
 from cachibot.storage.models.env_var import (
@@ -170,7 +171,7 @@ async def set_bot_env_var(
     key: str,
     body: EnvVarSetRequest,
     request: Request,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Set or update a per-bot environment variable."""
     enc = get_encryption_service()
@@ -230,7 +231,7 @@ async def delete_bot_env_var(
     bot_id: str,
     key: str,
     request: Request,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete a per-bot environment variable override (falls back to inherited)."""
     async with db.ensure_initialized()() as session:
@@ -329,7 +330,7 @@ async def get_resolved_env(
 async def reset_bot_env(
     bot_id: str,
     request: Request,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete ALL per-bot environment overrides (reset to defaults)."""
     async with db.ensure_initialized()() as session:
@@ -522,7 +523,7 @@ async def set_skill_config(
     skill_name: str,
     body: SkillConfigSetRequest,
     request: Request,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Set skill configuration for a bot."""
     config_json = json.dumps(body.config)
@@ -572,7 +573,7 @@ async def delete_skill_config(
     bot_id: str,
     skill_name: str,
     request: Request,
-    user: User = Depends(require_bot_access),
+    user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> dict:
     """Delete skill configuration for a bot (revert to defaults)."""
     async with db.ensure_initialized()() as session:

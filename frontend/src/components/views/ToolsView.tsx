@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { useBotStore } from '../../stores/bots'
+import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { ToolIconRenderer, resolveIconName } from '../common/ToolIconRenderer'
 import { ToolConfigDialog } from '../dialogs/ToolConfigDialog'
 import { cn } from '../../lib/utils'
@@ -97,13 +98,15 @@ export function ToolsView() {
   const [error, setError] = useState<string | null>(null)
 
   const activeBot = getActiveBot()
+  const { config: platformConfig, fetchConfig: fetchPlatformConfig } = usePlatformToolsStore()
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    getPlugins()
-      .then((data) => {
+    // Fetch plugins and platform tool config in parallel
+    Promise.all([getPlugins(), fetchPlatformConfig()])
+      .then(([data]) => {
         if (!cancelled) setPlugins(data)
       })
       .catch((err) => {
@@ -115,12 +118,17 @@ export function ToolsView() {
     return () => {
       cancelled = true
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (!activeBot) return null
 
-  // Flatten all skills into tools and group by plugin
-  const pluginGroups = plugins.map((plugin) => {
+  // Filter out plugins whose capability is globally disabled, then group
+  const disabledCaps = new Set(platformConfig?.disabledCapabilities ?? [])
+  const visiblePlugins = plugins.filter(
+    (p) => !p.capability || !disabledCaps.has(p.capability)
+  )
+  const pluginGroups = visiblePlugins.map((plugin) => {
     const tools = plugin.skills.map(skillToTool)
     return { plugin, tools }
   })

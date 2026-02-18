@@ -2,6 +2,8 @@
 Plugin introspection endpoints.
 
 Allows the frontend to discover available plugins and their skills.
+Respects the global PlatformToolConfig — plugins whose capability is
+globally disabled are omitted from the response.
 """
 
 from fastapi import APIRouter
@@ -9,13 +11,18 @@ from fastapi import APIRouter
 from cachibot.plugins import CACHIBOT_PLUGINS
 from cachibot.plugins.base import CachibotPlugin
 from cachibot.services.plugin_manager import ALWAYS_ENABLED, CAPABILITY_PLUGINS
+from cachibot.storage.repository import PlatformToolConfigRepository
 
 router = APIRouter()
+
+_platform_repo = PlatformToolConfigRepository()
 
 
 @router.get("/api/plugins")
 async def list_plugins():
     """List all available plugins with their skills and capability mapping."""
+    disabled_caps = set(await _platform_repo.get_disabled_capabilities())
+
     # Build reverse map: plugin class -> capability name
     plugin_to_cap: dict[str, str | None] = {}
     for cap_name, classes in CAPABILITY_PLUGINS.items():
@@ -27,6 +34,11 @@ async def list_plugins():
     result = []
     for name, cls in CACHIBOT_PLUGINS.items():
         cap = plugin_to_cap.get(cls.__name__)
+
+        # Skip plugins whose capability is globally disabled
+        if cap and cap in disabled_caps:
+            continue
+
         plugin_data: dict = {
             "name": name,
             "class": cls.__name__,
@@ -120,35 +132,47 @@ def _instantiate_for_introspection(cls: type):
 
 
 def _get_plugin_skills_metadata(cls: type) -> list[dict]:
-    """Get full skill metadata from a plugin class."""
+    """Get full skill metadata from a plugin class.
+
+    Includes both skills and instructions (LLM-powered tools).
+    """
     try:
         plugin = _instantiate_for_introspection(cls)
         skills = []
+
+        # Collect regular skills
         for skill_name, skill_obj in plugin.skills.items():
-            desc = skill_obj.descriptor
-            skill_data: dict = {
-                "name": skill_name,
-                "description": desc.description,
-                "category": desc.category,
-                "tags": desc.tags,
-                "version": desc.version,
-                "isAsync": desc.is_async,
-                "idempotent": desc.idempotent,
-                "sideEffects": desc.side_effects,
-                "requiresNetwork": desc.requires_network,
-                "requiresFilesystem": desc.requires_filesystem,
-                # New metadata from Tukuy
-                "displayName": desc.resolved_display_name,
-                "icon": desc.icon,
-                "riskLevel": desc.resolved_risk_level.value,
-                "group": desc.group,
-                "configParams": [p.to_dict() for p in desc.config_params]
-                if desc.config_params
-                else [],
-                "hidden": desc.hidden,
-                "deprecated": desc.deprecated,
-            }
-            skills.append(skill_data)
+            skills.append(_descriptor_to_dict(skill_name, skill_obj.descriptor))
+
+        # Collect instructions (LLM-powered tools)
+        for instr_name, instr_obj in plugin.instructions.items():
+            entry = _descriptor_to_dict(instr_name, instr_obj.descriptor)
+            entry["isInstruction"] = True
+            skills.append(entry)
+
         return skills
     except Exception:
         return []
+
+
+def _descriptor_to_dict(name: str, desc: object) -> dict:
+    """Convert a SkillDescriptor or InstructionDescriptor to a dict."""
+    return {
+        "name": name,
+        "description": desc.description,
+        "category": desc.category,
+        "tags": desc.tags,
+        "version": desc.version,
+        "isAsync": desc.is_async,
+        "idempotent": desc.idempotent,
+        "sideEffects": desc.side_effects,
+        "requiresNetwork": desc.requires_network,
+        "requiresFilesystem": desc.requires_filesystem,
+        "displayName": desc.resolved_display_name,
+        "icon": desc.icon,
+        "riskLevel": desc.resolved_risk_level.value,
+        "group": desc.group,
+        "configParams": [p.to_dict() for p in desc.config_params] if desc.config_params else [],
+        "hidden": desc.hidden,
+        "deprecated": desc.deprecated,
+    }

@@ -25,6 +25,8 @@ from cachibot.models.knowledge import (
     DocumentStatus,
     NoteSource,
 )
+from cachibot.models.platform_tools import PlatformToolConfig as PlatformToolConfigSchema
+from cachibot.models.platform_tools import PlatformToolConfigUpdate
 from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSource
 from cachibot.storage import db
 from cachibot.storage.models.bot import Bot as BotModel
@@ -46,6 +48,7 @@ from cachibot.storage.models.knowledge import (
 )
 from cachibot.storage.models.message import BotMessage as BotMessageModel
 from cachibot.storage.models.message import Message as MessageModel
+from cachibot.storage.models.platform_config import PlatformToolConfig as PlatformToolConfigModel
 from cachibot.storage.models.skill import BotSkill as BotSkillModel
 from cachibot.storage.models.skill import Skill as SkillModel
 
@@ -1505,3 +1508,103 @@ class SkillsRepository:
                 enabled=row.enabled,
                 activated_at=row.activated_at,
             )
+
+
+class PlatformToolConfigRepository:
+    """Repository for platform-wide tool visibility configuration."""
+
+    _ROW_ID = "default"
+
+    async def get_config(self) -> PlatformToolConfigSchema:
+        """Return the global tool config, creating the default row if missing."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)
+            )
+            row = result.scalar_one_or_none()
+
+        if row is None:
+            # First access — upsert the default row
+            return await self._upsert_default()
+
+        return PlatformToolConfigSchema(
+            disabled_capabilities=row.disabled_capabilities or [],
+            disabled_skills=row.disabled_skills or [],
+        )
+
+    async def update_config(
+        self,
+        payload: PlatformToolConfigUpdate,
+        user_id: str | None = None,
+    ) -> PlatformToolConfigSchema:
+        """Merge provided fields into the config row."""
+        now = datetime.now(timezone.utc)
+
+        # Ensure the row exists
+        current = await self.get_config()
+
+        caps = (
+            payload.disabled_capabilities
+            if payload.disabled_capabilities is not None
+            else current.disabled_capabilities
+        )
+        skills = (
+            payload.disabled_skills
+            if payload.disabled_skills is not None
+            else current.disabled_skills
+        )
+
+        async with db.ensure_initialized()() as session:
+            await session.execute(
+                update(PlatformToolConfigModel)
+                .where(PlatformToolConfigModel.id == self._ROW_ID)
+                .values(
+                    disabled_capabilities=caps,
+                    disabled_skills=skills,
+                    updated_at=now,
+                    updated_by=user_id,
+                )
+            )
+            await session.commit()
+
+        return PlatformToolConfigSchema(
+            disabled_capabilities=caps,
+            disabled_skills=skills,
+        )
+
+    async def get_disabled_capabilities(self) -> list[str]:
+        """Convenience: return only the disabled capability keys."""
+        cfg = await self.get_config()
+        return cfg.disabled_capabilities
+
+    async def get_disabled_skills(self) -> list[str]:
+        """Convenience: return only the disabled skill IDs."""
+        cfg = await self.get_config()
+        return cfg.disabled_skills
+
+    async def _upsert_default(self) -> PlatformToolConfigSchema:
+        """Insert the default row if it doesn't exist."""
+        now = datetime.now(timezone.utc)
+        async with db.ensure_initialized()() as session:
+            # Check again inside the session to avoid races
+            result = await session.execute(
+                select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                return PlatformToolConfigSchema(
+                    disabled_capabilities=existing.disabled_capabilities or [],
+                    disabled_skills=existing.disabled_skills or [],
+                )
+
+            session.add(
+                PlatformToolConfigModel(
+                    id=self._ROW_ID,
+                    disabled_capabilities=[],
+                    disabled_skills=[],
+                    updated_at=now,
+                )
+            )
+            await session.commit()
+
+        return PlatformToolConfigSchema()

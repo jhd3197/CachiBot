@@ -1313,4 +1313,105 @@ export async function restartServer(): Promise<UpdateRestartResponse> {
   return request('/update/restart', { method: 'POST' })
 }
 
+// =============================================================================
+// SETUP API (Onboarding: Database + SMTP)
+// =============================================================================
+
+export interface DatabaseTestRequest {
+  host: string
+  port: number
+  database: string
+  username: string
+  password: string
+}
+
+export interface DatabaseTestResponse {
+  success: boolean
+  message: string
+  db_version: string
+}
+
+export interface DatabaseSetupRequest {
+  db_type: 'sqlite' | 'postgresql'
+  host?: string
+  port?: number
+  database?: string
+  username?: string
+  password?: string
+}
+
+export interface DatabaseStatusResponse {
+  db_type: string
+  url_configured: boolean
+  restart_required: boolean
+}
+
+export interface SmtpTestRequest {
+  host: string
+  port: number
+  username?: string
+  password?: string
+  use_tls: boolean
+  from_address?: string
+  send_test_to?: string
+}
+
+export interface SmtpTestResponse {
+  success: boolean
+  message: string
+}
+
+export interface SmtpSetupRequest {
+  host: string
+  port: number
+  username?: string
+  password?: string
+  from_address?: string
+  use_tls: boolean
+}
+
+export interface SmtpStatusResponse {
+  configured: boolean
+  host: string
+  port: number
+  from_address: string
+  use_tls: boolean
+}
+
+export async function getDatabaseStatus(): Promise<DatabaseStatusResponse> {
+  return request('/setup/database/status')
+}
+
+export async function testDatabaseConnection(data: DatabaseTestRequest): Promise<DatabaseTestResponse> {
+  return request('/setup/database/test', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function saveDatabaseConfig(data: DatabaseSetupRequest): Promise<DatabaseStatusResponse> {
+  return request('/setup/database/save', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getSmtpStatus(): Promise<SmtpStatusResponse> {
+  return request('/setup/smtp/status')
+}
+
+export async function testSmtpConnection(data: SmtpTestRequest): Promise<SmtpTestResponse> {
+  return request('/setup/smtp/test', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function saveSmtpConfig(data: SmtpSetupRequest): Promise<SmtpStatusResponse> {
+  return request('/setup/smtp/save', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 export { ApiError }

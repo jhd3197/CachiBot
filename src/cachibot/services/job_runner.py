@@ -330,7 +330,7 @@ class JobRunnerService:
         Returns:
             Tuple of (result_text, usage_data dict).
         """
-        from cachibot.agent import CachibotAgent
+        from cachibot.agent import CachibotAgent, load_disabled_capabilities
         from cachibot.storage.repository import BotRepository
 
         bot_repo = BotRepository()
@@ -370,6 +370,7 @@ class JobRunnerService:
         except Exception:
             logger.debug("Could not resolve per-bot environment for bot %s", task.bot_id)
 
+        disabled_caps = await load_disabled_capabilities()
         agent = CachibotAgent(
             config=config,
             system_prompt_override=bot.system_prompt,
@@ -379,7 +380,13 @@ class JobRunnerService:
             bot_models=bot.models,
             driver=driver,
             provider_environment=provider_environment,
+            disabled_capabilities=disabled_caps,
         )
+
+        # Load custom instructions from DB
+        from cachibot.agent import load_dynamic_instructions
+
+        await load_dynamic_instructions(agent)
 
         # Build the user message from task action
         action = task.action or task.title
