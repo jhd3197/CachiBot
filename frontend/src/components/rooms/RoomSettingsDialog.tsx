@@ -100,127 +100,114 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
   const availableBots = allBots.filter((b) => !roomBotIds.has(b.id))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 max-h-[80vh] w-full max-w-md overflow-y-auto rounded-xl border border-zinc-300 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="dialog__backdrop">
+      <div className="dialog__panel dialog__panel--sm room-settings__panel">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-300 px-4 py-3 dark:border-zinc-800">
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <div className="dialog__header">
+          <h3 className="room-panel__title" style={{ fontSize: '1rem' }}>
             Room Settings
           </h3>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-          >
-            <X className="h-4 w-4" />
+          <button onClick={onClose} className="btn-close">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="room-settings__section">
           {/* Title & description */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Title
-            </label>
+          <div className="form-field">
+            <label className="form-field__label">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+              className="input"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Description
-            </label>
+          <div className="form-field">
+            <label className="form-field__label">Description</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+              className="input"
             />
           </div>
 
           {/* Members */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <div className="form-field">
+            <label className="form-field__label">
               Members ({room.members.length})
             </label>
-            <div className="space-y-1 rounded-lg border border-zinc-300 p-2 dark:border-zinc-700">
+            <div className="room-settings__member-list">
               {room.members.map((m) => (
-                <div
-                  key={m.userId}
-                  className="flex items-center justify-between rounded px-2 py-1 text-sm"
-                >
-                  <span className="text-zinc-700 dark:text-zinc-300">
+                <div key={m.userId} className="room-settings__member-item">
+                  <span className="room-settings__member-name">
                     {m.username}
                     {m.role === 'creator' && (
-                      <span className="ml-1 text-xs text-zinc-500">(creator)</span>
+                      <span className="room-settings__member-role">(creator)</span>
                     )}
                   </span>
                   {m.role !== 'creator' && (
                     <button
                       onClick={() => handleRemoveMember(m.userId, m.username)}
-                      className="text-red-400 hover:text-red-300"
+                      className="room-settings__bot-remove"
                     >
-                      <UserMinus className="h-3.5 w-3.5" />
+                      <UserMinus size={14} />
                     </button>
                   )}
                 </div>
               ))}
-              <div className="mt-2 flex gap-2">
+              <div className="room-settings__invite-row">
                 <input
                   type="text"
                   value={inviteUsername}
                   onChange={(e) => setInviteUsername(e.target.value)}
                   placeholder="Invite by username"
-                  className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+                  className="room-settings__invite-input"
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                 />
                 <button
                   onClick={handleInvite}
                   disabled={!inviteUsername.trim()}
-                  className="rounded bg-accent-600 px-2 py-1 text-xs text-white hover:bg-accent-500 disabled:opacity-50"
+                  className="room-settings__invite-btn"
                 >
-                  <UserPlus className="h-3.5 w-3.5" />
+                  <UserPlus size={14} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Bots */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          <div className="form-field">
+            <label className="form-field__label">
               Bots ({room.bots.length}/4)
             </label>
-            <div className="space-y-1 rounded-lg border border-zinc-300 p-2 dark:border-zinc-700">
+            <div className="room-settings__member-list">
               {room.bots.map((rb) => (
-                <div
-                  key={rb.botId}
-                  className="flex items-center justify-between rounded px-2 py-1 text-sm"
-                >
-                  <span className="text-zinc-700 dark:text-zinc-300">{rb.botName}</span>
+                <div key={rb.botId} className="room-settings__member-item">
+                  <span className="room-settings__member-name">{rb.botName}</span>
                   {room.bots.length > 2 && (
                     <button
                       onClick={() => handleRemoveBot(rb.botId)}
-                      className="text-red-400 hover:text-red-300"
+                      className="room-settings__bot-remove"
                     >
-                      <Minus className="h-3.5 w-3.5" />
+                      <Minus size={14} />
                     </button>
                   )}
                 </div>
               ))}
               {room.bots.length < 4 && availableBots.length > 0 && (
-                <div className="mt-2">
-                  <p className="mb-1 text-xs text-zinc-500">Add a bot:</p>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <p className="form-field__help" style={{ marginBottom: '0.25rem' }}>Add a bot:</p>
                   {availableBots.slice(0, 5).map((bot) => (
                     <button
                       key={bot.id}
                       onClick={() => handleAddBot(bot.id)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                      className="room-settings__bot-item"
                     >
                       <BotIconRenderer icon={bot.icon} size={14} />
                       <span>{bot.name}</span>
-                      <Plus className="ml-auto h-3.5 w-3.5 text-zinc-400" />
+                      <Plus size={14} style={{ marginLeft: 'auto', color: 'var(--color-text-tertiary)' }} />
                     </button>
                   ))}
                 </div>
@@ -229,29 +216,27 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
           </div>
 
           {/* Cooldown & auto-relevance */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Cooldown (seconds)
-              </label>
+          <div className="room-settings__setting-row">
+            <div style={{ flex: 1 }}>
+              <label className="form-field__label">Cooldown (seconds)</label>
               <input
                 type="number"
                 value={cooldown}
                 onChange={(e) => setCooldown(Number(e.target.value))}
                 min={1}
                 max={30}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+                className="input"
               />
             </div>
-            <div className="flex items-center gap-2 pt-4">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem' }}>
               <input
                 id="settings-auto-relevance"
                 type="checkbox"
                 checked={autoRelevance}
                 onChange={(e) => setAutoRelevance(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300"
+                className="consent__checkbox"
               />
-              <label htmlFor="settings-auto-relevance" className="text-xs text-zinc-600 dark:text-zinc-400">
+              <label htmlFor="settings-auto-relevance" className="form-field__help">
                 Auto-respond
               </label>
             </div>
@@ -259,17 +244,14 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-zinc-300 px-4 py-3 dark:border-zinc-800">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          >
+        <div className="dialog__footer">
+          <button onClick={onClose} className="btn btn--ghost btn--sm">
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-accent-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-500 disabled:opacity-50"
+            className="btn btn--primary btn--sm"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>

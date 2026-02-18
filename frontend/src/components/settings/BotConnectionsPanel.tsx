@@ -244,7 +244,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
       case 'error':
         return 'text-red-400'
       default:
-        return 'text-zinc-500'
+        return 'text-[var(--color-text-secondary)]'
     }
   }
 
@@ -316,7 +316,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
   }
 
   if (loading) {
-    return <div className="text-sm text-zinc-500">Loading connections...</div>
+    return <div className="text-sm text-[var(--color-text-secondary)]">Loading connections...</div>
   }
 
   // Render config fields for the selected platform
@@ -329,7 +329,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
         {/* Required config fields */}
         {meta.required_config.map((key) => (
           <div key={key} className="space-y-2">
-            <label className="block text-xs text-zinc-500">
+            <label className="block text-xs text-[var(--color-text-secondary)]">
               {formatConfigLabel(key)}
               {isEdit ? ' (leave blank to keep current)' : ''}
             </label>
@@ -338,7 +338,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
               value={formConfig[key] || ''}
               onChange={(e) => setFormConfig({ ...formConfig, [key]: e.target.value })}
               placeholder={isEdit ? 'Enter new value to update...' : `Enter ${key}...`}
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+              className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
             />
           </div>
         ))}
@@ -351,9 +351,9 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
               onChange={(e) =>
                 setFormConfig({ ...formConfig, [key]: e.target.checked ? 'true' : 'false' })
               }
-              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-cachi-500 focus:ring-cachi-500"
+              className="h-4 w-4 rounded border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] text-cachi-500 focus:ring-[var(--color-border-focus)]"
             />
-            <span className="text-xs text-zinc-400">{description}</span>
+            <span className="text-xs text-[var(--color-text-secondary)]">{description}</span>
           </label>
         ))}
       </>
@@ -373,18 +373,18 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
         {connections.map((connection) => (
           <div
             key={connection.id}
-            className="rounded-lg border border-zinc-800 p-3"
+            className="rounded-lg border border-[var(--color-border-primary)] p-3"
           >
             {editingId === connection.id ? (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <label className="block text-xs text-zinc-500">Name</label>
+                  <label className="block text-xs text-[var(--color-text-secondary)]">Name</label>
                   <input
                     type="text"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Connection name"
-                    className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+                    className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
                     autoFocus
                   />
                 </div>
@@ -398,7 +398,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                   </button>
                   <button
                     onClick={cancelForm}
-                    className="rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+                    className="rounded bg-[var(--color-hover-bg)] px-2 py-1 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-active-bg)]"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -407,13 +407,13 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             ) : (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-800">
-                    <MessageCircle className="h-5 w-5 text-zinc-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-bg-secondary)]">
+                    <MessageCircle className="h-5 w-5 text-[var(--color-text-secondary)]" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-200">{connection.name}</span>
-                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+                      <span className="font-medium text-[var(--color-text-primary)]">{connection.name}</span>
+                      <span className="rounded bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
                         {getPlatformDisplayName(connection.platform)}
                       </span>
                     </div>
@@ -422,12 +422,12 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                         {getStatusText(connection.status)}
                       </span>
                       {connection.strip_markdown && (
-                        <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-zinc-400">
+                        <span className="rounded bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-[var(--color-text-secondary)]">
                           Plain text
                         </span>
                       )}
                       {connection.message_count > 0 && (
-                        <span className="text-zinc-500">
+                        <span className="text-[var(--color-text-secondary)]">
                           {connection.message_count} messages
                         </span>
                       )}
@@ -445,7 +445,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                             e.stopPropagation()
                             copyToClipboard(`${window.location.origin}/api/webhooks/custom/${connection.id}`)
                           }}
-                          className="rounded p-0.5 text-zinc-500 hover:text-cachi-400"
+                          className="rounded p-0.5 text-[var(--color-text-secondary)] hover:text-cachi-400"
                           title="Copy webhook URL"
                         >
                           {copiedText === `${window.location.origin}/api/webhooks/custom/${connection.id}` ? (
@@ -461,12 +461,12 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                 <div className="flex items-center gap-1">
                   {actionLoading === connection.id ? (
                     <div className="p-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                      <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-secondary)]" />
                     </div>
                   ) : connection.status === 'connected' ? (
                     <button
                       onClick={() => handleDisconnect(connection.id)}
-                      className="rounded p-2 text-green-400 hover:bg-zinc-800 hover:text-red-400"
+                      className="rounded p-2 text-green-400 hover:bg-[var(--color-hover-bg)] hover:text-red-400"
                       title="Disconnect"
                     >
                       <Power className="h-4 w-4" />
@@ -474,7 +474,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                   ) : (
                     <button
                       onClick={() => handleConnect(connection.id)}
-                      className="rounded p-2 text-zinc-500 hover:bg-zinc-800 hover:text-green-400"
+                      className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-green-400"
                       title="Connect"
                     >
                       <PowerOff className="h-4 w-4" />
@@ -482,14 +482,14 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                   )}
                   <button
                     onClick={() => startEdit(connection)}
-                    className="rounded p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                    className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-primary)]"
                     title="Edit"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(connection.id)}
-                    className="rounded p-2 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                    className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-red-400"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -503,16 +503,16 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
 
       {/* Add form */}
       {isAdding ? (
-        <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+        <div className="space-y-3 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--card-bg)] p-3">
           <div className="space-y-2">
-            <label className="block text-xs text-zinc-500">Platform</label>
+            <label className="block text-xs text-[var(--color-text-secondary)]">Platform</label>
             <select
               value={formPlatform}
               onChange={(e) => {
                 setFormPlatform(e.target.value)
                 setFormConfig({})
               }}
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+              className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
             >
               {platformIds.map((id) => (
                 <option key={id} value={id}>
@@ -522,13 +522,13 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="block text-xs text-zinc-500">Name</label>
+            <label className="block text-xs text-[var(--color-text-secondary)]">Name</label>
             <input
               type="text"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder={`My ${getPlatformDisplayName(formPlatform)} Bot`}
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+              className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
             />
           </div>
           {renderConfigFields(formPlatform, false)}
@@ -536,7 +536,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
           {formPlatform === 'custom' && (
             <>
               <div className="space-y-2">
-                <label className="block text-xs text-zinc-500">
+                <label className="block text-xs text-[var(--color-text-secondary)]">
                   API Key (optional)
                 </label>
                 <input
@@ -544,36 +544,36 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                   value={formConfig['api_key'] || ''}
                   onChange={(e) => setFormConfig({ ...formConfig, api_key: e.target.value })}
                   placeholder="Shared secret for webhook authentication"
-                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+                  className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
                 />
-                <p className="text-xs text-zinc-600">
+                <p className="text-xs text-[var(--color-text-tertiary)]">
                   If set, CachiBot will require this key on inbound webhooks and send it on outbound requests.
                 </p>
               </div>
               {customSpec && (
-                <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3">
-                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+                <div className="space-y-3 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)]/50 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-[var(--color-text-primary)]">
                     <ExternalLink className="h-3.5 w-3.5" />
                     API Contract
                   </div>
                   {/* Inbound webhook */}
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-zinc-400">Inbound Webhook</div>
-                    <p className="text-xs text-zinc-500">
+                    <div className="text-xs font-medium text-[var(--color-text-secondary)]">Inbound Webhook</div>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
                       Your platform POSTs messages to this URL (available after creating the connection):
                     </p>
-                    <code className="block rounded bg-zinc-800 px-2 py-1 text-xs text-cachi-400">
+                    <code className="block rounded bg-[var(--color-bg-secondary)] px-2 py-1 text-xs text-cachi-400">
                       POST {window.location.origin}/api/webhooks/custom/{'<connection_id>'}
                     </code>
-                    <div className="mt-1 text-xs text-zinc-500">Expected JSON body:</div>
-                    <pre className="rounded bg-zinc-800 px-2 py-1.5 text-xs text-zinc-300 overflow-x-auto">
+                    <div className="mt-1 text-xs text-[var(--color-text-secondary)]">Expected JSON body:</div>
+                    <pre className="rounded bg-[var(--color-bg-secondary)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] overflow-x-auto">
 {JSON.stringify(customSpec.inbound.example, null, 2)}
                     </pre>
                   </div>
                   {/* Outbound endpoints */}
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-zinc-400">Outbound Endpoints</div>
-                    <p className="text-xs text-zinc-500">
+                    <div className="text-xs font-medium text-[var(--color-text-secondary)]">Outbound Endpoints</div>
+                    <p className="text-xs text-[var(--color-text-secondary)]">
                       CachiBot will POST to these endpoints on your API:
                     </p>
                     <div className="space-y-1">
@@ -583,11 +583,11 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                           : formConfig[ep.capability] === 'true'
                         return (
                           <div key={ep.capability} className="flex items-center gap-2 text-xs">
-                            <span className={isActive ? 'text-green-400' : 'text-zinc-600'}>
+                            <span className={isActive ? 'text-green-400' : 'text-[var(--color-text-tertiary)]'}>
                               {isActive ? '\u25CF' : '\u25CB'}
                             </span>
-                            <code className="text-zinc-400">{ep.endpoint}</code>
-                            <span className={isActive ? 'text-green-400' : 'text-zinc-600'}>
+                            <code className="text-[var(--color-text-secondary)]">{ep.endpoint}</code>
+                            <span className={isActive ? 'text-green-400' : 'text-[var(--color-text-tertiary)]'}>
                               {isActive ? 'active' : 'inactive'}
                             </span>
                           </div>
@@ -609,7 +609,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             </button>
             <button
               onClick={cancelForm}
-              className="rounded bg-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+              className="rounded bg-[var(--color-hover-bg)] px-3 py-1 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-active-bg)]"
             >
               Cancel
             </button>
@@ -618,7 +618,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
       ) : (
         <button
           onClick={startAdd}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 p-3 text-sm text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border-secondary)] p-3 text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-secondary)]"
         >
           <Plus className="h-4 w-4" />
           Add Connection
@@ -626,17 +626,17 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
       )}
 
       {connections.length === 0 && !isAdding && (
-        <p className="text-center text-sm text-zinc-500">
+        <p className="text-center text-sm text-[var(--color-text-secondary)]">
           No connections yet. Add a connection to a messaging platform.
         </p>
       )}
 
       {/* Archived Chats Section */}
       {connections.length > 0 && (
-        <div className="mt-6 border-t border-zinc-800 pt-4">
+        <div className="mt-6 border-t border-[var(--color-border-primary)] pt-4">
           <button
             onClick={handleToggleArchived}
-            className="flex w-full items-center gap-2 text-sm text-zinc-400 hover:text-zinc-300"
+            className="flex w-full items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
           >
             {showArchived ? (
               <ChevronDown className="h-4 w-4" />
@@ -646,7 +646,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             <Archive className="h-4 w-4" />
             <span>Archived Chats</span>
             {archivedChats.length > 0 && (
-              <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs">
+              <span className="rounded-full bg-[var(--color-hover-bg)] px-2 py-0.5 text-xs">
                 {archivedChats.length}
               </span>
             )}
@@ -655,31 +655,31 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
           {showArchived && (
             <div className="mt-3 space-y-2">
               {loadingArchived ? (
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading archived chats...
                 </div>
               ) : archivedChats.length === 0 ? (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-[var(--color-text-secondary)]">
                   No archived chats. Use "Archive" from a chat's menu to hide it from the sidebar.
                 </p>
               ) : (
                 <>
-                  <p className="text-xs text-zinc-500 mb-2">
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-2">
                     Archived chats are hidden and won't receive new messages. Unarchive to restore them.
                   </p>
                   {archivedChats.map((chat) => (
                     <div
                       key={chat.id}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-800/30 p-3"
+                      className="flex items-center justify-between rounded-lg border border-[var(--color-border-primary)] bg-[var(--card-bg)] p-3"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-700">
-                          <MessageCircle className="h-4 w-4 text-zinc-400" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-hover-bg)]">
+                          <MessageCircle className="h-4 w-4 text-[var(--color-text-secondary)]" />
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-zinc-300">{chat.title}</div>
-                          <div className="flex items-center gap-2 text-xs text-zinc-500">
+                          <div className="text-sm font-medium text-[var(--color-text-primary)]">{chat.title}</div>
+                          <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                             <span className="capitalize">{chat.platform}</span>
                             <span>·</span>
                             <span>Archived</span>
@@ -689,20 +689,20 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                       <div className="flex items-center gap-1">
                         {archiveActionLoading === chat.id ? (
                           <div className="p-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-secondary)]" />
                           </div>
                         ) : (
                           <>
                             <button
                               onClick={() => handleUnarchive(chat.id)}
-                              className="rounded p-2 text-zinc-500 hover:bg-zinc-700 hover:text-green-400"
+                              className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-green-400"
                               title="Unarchive (restore chat)"
                             >
                               <ArchiveRestore className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handlePermanentDelete(chat.id)}
-                              className="rounded p-2 text-zinc-500 hover:bg-zinc-700 hover:text-red-400"
+                              className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-red-400"
                               title="Delete permanently"
                             >
                               <Trash2 className="h-4 w-4" />

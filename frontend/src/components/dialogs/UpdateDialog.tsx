@@ -31,7 +31,7 @@ export function UpdateDialog() {
         <DialogContent>
           <div className="flex flex-col items-center gap-4 py-8">
             <Spinner size="lg" className="text-accent-500" />
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               Waiting for the new server to come online...
             </p>
           </div>
@@ -51,7 +51,7 @@ export function UpdateDialog() {
         <DialogContent>
           <div className="flex flex-col items-center gap-4 py-8">
             <Spinner size="lg" className="text-accent-500" />
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               Installing CachiBot v{latestVersion}...
             </p>
           </div>
@@ -77,18 +77,18 @@ export function UpdateDialog() {
         />
         <DialogContent>
           <div className="space-y-3">
-            <p className="text-sm text-zinc-300">{updateResult.message}</p>
+            <p className="text-sm text-[var(--color-text-primary)]">{updateResult.message}</p>
             {updateResult.success && (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 {updateResult.old_version} &rarr; {updateResult.new_version}
               </p>
             )}
             {updateResult.pip_output && (
               <details className="mt-3">
-                <summary className="cursor-pointer text-xs text-zinc-500 hover:text-zinc-400">
+                <summary className="cursor-pointer text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]">
                   Show pip output
                 </summary>
-                <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-400">
+                <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-[var(--color-bg-app)] p-3 text-xs text-[var(--color-text-secondary)]">
                   {updateResult.pip_output}
                 </pre>
               </details>
@@ -139,8 +139,8 @@ export function UpdateDialog() {
           {/* Release notes */}
           {checkResult.release_notes && (
             <div>
-              <h3 className="mb-2 text-sm font-medium text-zinc-300">Release Notes</h3>
-              <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+              <h3 className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">Release Notes</h3>
+              <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-app)] p-4">
                 <MarkdownRenderer content={checkResult.release_notes} />
               </div>
             </div>
@@ -161,12 +161,12 @@ export function UpdateDialog() {
 
           {/* Beta opt-in */}
           {checkResult.prerelease_available && (
-            <label className="flex items-center gap-2 text-sm text-zinc-400">
+            <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
               <input
                 type="checkbox"
                 checked={optIntoBeta}
                 onChange={(e) => setOptIntoBeta(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-800 text-accent-600 focus:ring-accent-500"
+                className="rounded border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] text-accent-600 focus:ring-accent-500"
               />
               Include pre-release / beta versions
             </label>

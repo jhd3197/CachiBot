@@ -1,0 +1,809 @@
+// =============================================================================
+// Settings View — components/settings-view.less
+// Bot settings page: general, knowledge, skills, connections, danger zone
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Settings View — outermost container
+// -----------------------------------------------------------------------------
+
+.settings-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-app);
+
+  &__header {
+    .flex-between();
+    border-bottom: 1px solid var(--color-border-primary);
+    padding: @sp-3 @sp-6;
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: @sp-6;
+    .scrollbar-thin();
+  }
+
+  &__inner {
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Settings Save Button
+// -----------------------------------------------------------------------------
+
+.settings-save-btn {
+  .button-base();
+  border-radius: @radius-lg;
+  padding: 0 @sp-4;
+  height: @height-md;
+  font-size: @text-sm;
+  color: white;
+
+  &--default {
+    background: var(--accent-600);
+    &:hover { background: var(--accent-500); }
+  }
+
+  &--saved {
+    background: @green-600;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Settings Reset Button
+// -----------------------------------------------------------------------------
+
+.settings-reset-btn {
+  .button-base();
+  border: 1px solid var(--color-border-secondary);
+  border-radius: @radius-lg;
+  padding: 0 @sp-3;
+  height: @height-sm;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+  background: transparent;
+
+  &:hover {
+    border-color: var(--color-border-focus);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Settings Section — repeated section blocks
+// -----------------------------------------------------------------------------
+
+.settings-section {
+  border-top: 1px solid var(--color-border-primary);
+  padding-top: @sp-6;
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    margin-bottom: @sp-4;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__heading-icon {
+    color: var(--color-text-secondary);
+  }
+
+  &__description {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    margin-bottom: @sp-4;
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    margin-bottom: @sp-2;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Settings Form — labels, inputs, textareas
+// -----------------------------------------------------------------------------
+
+.settings-form {
+  &__label {
+    display: block;
+    margin-bottom: @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__label--small {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    margin-bottom: @sp-1\.5;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  &__label--icon {
+    display: block;
+    margin-bottom: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__input {
+    .input-base();
+    height: @height-md;
+    padding: 0 @sp-4;
+  }
+
+  &__input--small {
+    .input-base();
+    height: @height-sm;
+    padding: 0 @sp-3;
+    font-size: @text-xs;
+  }
+
+  &__textarea {
+    .input-base();
+    padding: @sp-2 @sp-4;
+    resize: vertical;
+  }
+
+  &__textarea--mono {
+    .input-base();
+    padding: @sp-3 @sp-4;
+    font-family: @font-mono;
+    resize: vertical;
+  }
+
+  &__select {
+    .input-base();
+    height: @height-sm;
+    padding: 0 @sp-2;
+    font-size: @text-xs;
+  }
+
+  &__hint {
+    margin-top: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Settings Capability Nested Area
+// -----------------------------------------------------------------------------
+
+.settings-capability-nest {
+  margin-top: @sp-2;
+  margin-left: @sp-8;
+  padding-left: @sp-3;
+  border-left: 2px solid color-mix(in srgb, var(--accent-500) 30%, transparent);
+}
+
+// -----------------------------------------------------------------------------
+// Capability Toggle
+// -----------------------------------------------------------------------------
+
+.capability-toggle {
+  .flex-between();
+  border-radius: @radius-lg;
+  border: 1px solid;
+  padding: @sp-3;
+  .transition-colors();
+
+  &--active {
+    border-color: color-mix(in srgb, var(--accent-500) 50%, transparent);
+    background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+  }
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-tertiary);
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+  }
+
+  &__icon {
+    color: var(--color-text-secondary);
+
+    &--active {
+      color: var(--accent-500);
+    }
+  }
+
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+
+    &--active {
+      color: var(--accent-500);
+    }
+
+    &--inactive {
+      color: var(--color-text-tertiary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice Toggle Row
+// -----------------------------------------------------------------------------
+
+.settings-voice-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &__label {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__sublabel {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  &__btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TTS Voice Picker
+// -----------------------------------------------------------------------------
+
+.settings-voice-chip {
+  border-radius: @radius-md;
+  border: 1px solid;
+  padding: @sp-1 @sp-2\.5;
+  font-size: @text-xs;
+  text-transform: capitalize;
+  .transition-all();
+  cursor: pointer;
+  background: none;
+
+  &--active {
+    border-color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 20%, transparent);
+    color: var(--accent-400);
+  }
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-primary);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      border-color: var(--color-border-focus);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Speed Display
+// -----------------------------------------------------------------------------
+
+.settings-speed-value {
+  width: @sp-10;
+  text-align: center;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+}
+
+// -----------------------------------------------------------------------------
+// Icon Picker
+// -----------------------------------------------------------------------------
+
+.settings-icon-btn {
+  .flex-center();
+  height: @height-md;
+  width: @height-md;
+  border-radius: @radius-lg;
+  border: 1px solid;
+  .transition-all();
+  cursor: pointer;
+  background: none;
+
+  &--active {
+    border-color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 20%, transparent);
+  }
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-primary);
+
+    &:hover {
+      border-color: var(--color-border-focus);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Color Picker
+// -----------------------------------------------------------------------------
+
+.settings-color-btn {
+  height: @height-sm;
+  width: @height-sm;
+  border-radius: @radius-lg;
+  .transition-all();
+  cursor: pointer;
+
+  &--active {
+    border: 2px solid white;
+    transform: scale(1.1);
+  }
+
+  &--inactive {
+    border: 2px solid transparent;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skills Section
+// -----------------------------------------------------------------------------
+
+.settings-skills {
+  &__actions {
+    display: flex;
+    gap: @sp-2;
+  }
+
+  &__refresh-btn {
+    .button-base();
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    padding: 0 @sp-3;
+    height: @height-sm;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: transparent;
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__install-btn {
+    .button-base();
+    border-radius: @radius-lg;
+    padding: 0 @sp-3;
+    height: @height-sm;
+    font-size: @text-xs;
+    color: white;
+    background: var(--accent-600);
+
+    &:hover {
+      background: var(--accent-500);
+    }
+  }
+
+  &__search {
+    position: relative;
+
+    &-icon {
+      position: absolute;
+      left: @sp-3;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-text-secondary);
+    }
+
+    &-input {
+      .input-base();
+      padding: @sp-2 @sp-3 @sp-2 @sp-10;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skill Card
+// -----------------------------------------------------------------------------
+
+.skill-card {
+  border-radius: @radius-lg;
+  border: 1px solid;
+  padding: @sp-4;
+  .transition-colors();
+
+  &--active {
+    border-color: color-mix(in srgb, var(--accent-500) 50%, transparent);
+    background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+  }
+
+  &--inactive {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-tertiary);
+  }
+
+  &__name {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__badge {
+    display: inline-block;
+    border-radius: @radius-sm;
+    background: var(--color-hover-bg);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__tag {
+    display: inline-block;
+    border-radius: @radius-sm;
+    background: var(--color-bg-secondary);
+    padding: @sp-0\.5 @sp-1\.5;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__requires {
+    margin-top: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__delete-btn {
+    border-radius: @radius-sm;
+    padding: @sp-1;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: @red-400;
+    }
+  }
+
+  &__toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+
+    &--active {
+      color: var(--accent-500);
+    }
+
+    &--inactive {
+      color: var(--color-text-tertiary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skills Empty State
+// -----------------------------------------------------------------------------
+
+.settings-skills-empty {
+  border-radius: @radius-lg;
+  border: 1px dashed var(--color-border-secondary);
+  padding: @sp-8;
+  text-align: center;
+
+  &__icon {
+    .flex-center();
+    margin: 0 auto @sp-4;
+    height: @sp-12;
+    width: @sp-12;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+  }
+
+  &__title {
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    margin-bottom: @sp-2;
+  }
+
+  &__browse-btn {
+    .button-base();
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    background: transparent;
+    text-decoration: none;
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Error Banner
+// -----------------------------------------------------------------------------
+
+.settings-error {
+  border-radius: @radius-lg;
+  border: 1px solid color-mix(in srgb, @red-500 50%, transparent);
+  background: color-mix(in srgb, @red-500 10%, transparent);
+  padding: @sp-3;
+  font-size: @text-sm;
+  color: @red-400;
+}
+
+// -----------------------------------------------------------------------------
+// Danger Section — export & delete panels
+// -----------------------------------------------------------------------------
+
+.settings-danger {
+  &__panel {
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+    padding: @sp-6;
+  }
+
+  &__panel--delete {
+    border-radius: @radius-lg;
+    border: 1px solid color-mix(in srgb, @red-500 30%, transparent);
+    background: color-mix(in srgb, @red-500 5%, transparent);
+    padding: @sp-6;
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__title--delete {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: @red-400;
+  }
+
+  &__title--disabled {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  &__text {
+    margin-top: @sp-2;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__export-btn {
+    .button-base();
+    margin-top: @sp-4;
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &__delete-btn {
+    .button-base();
+    .button-variant(danger);
+    margin-top: @sp-4;
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Confirmation Modal (delete / reset)
+// -----------------------------------------------------------------------------
+
+.settings-modal {
+  .dialog-backdrop();
+
+  &__panel {
+    .dialog-panel(sm);
+    padding: @sp-6;
+    border-radius: @radius-2xl;
+    box-shadow: @shadow-2xl;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    margin-bottom: @sp-4;
+  }
+
+  &__header--danger {
+    color: @red-400;
+  }
+
+  &__header--warning {
+    color: @yellow-400;
+  }
+
+  &__header-title {
+    font-size: @text-lg;
+    font-weight: @font-bold;
+  }
+
+  &__body {
+    margin-bottom: @sp-6;
+    color: var(--color-text-secondary);
+  }
+
+  &__strong {
+    color: var(--color-text-primary);
+    font-weight: @font-bold;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: @sp-2;
+  }
+
+  &__cancel-btn {
+    .button-base();
+    .button-variant(ghost);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+  }
+
+  &__confirm-btn--danger {
+    .button-base();
+    .button-variant(danger);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+  }
+
+  &__confirm-btn--warning {
+    .button-base();
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    background: @yellow-600;
+    color: white;
+    &:hover { background: @yellow-500; }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skill Install Dialog
+// -----------------------------------------------------------------------------
+
+.skill-install-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: @z-modal;
+  .flex-center();
+  background: var(--color-bg-overlay);
+  padding: @sp-4;
+
+  &__panel {
+    width: 100%;
+    max-width: @dialog-md;
+    border-radius: @radius-xl;
+    background: var(--color-bg-primary);
+    box-shadow: @shadow-xl;
+  }
+
+  &__header {
+    .dialog-header();
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__close-btn {
+    .button-base();
+    .button-variant(ghost);
+    border-radius: @radius-lg;
+    padding: @sp-2;
+  }
+
+  &__body {
+    padding: @sp-4;
+  }
+
+  &__footer {
+    .dialog-footer();
+  }
+
+  &__cancel-btn {
+    .button-base();
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    background: transparent;
+    color: var(--color-text-primary);
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+
+  &__submit-btn {
+    .button-base();
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    color: white;
+    background: var(--accent-600);
+
+    &:hover {
+      background: var(--accent-500);
+    }
+  }
+}

@@ -84,8 +84,8 @@ export function ApiKeyStep() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">Connect an AI Provider</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Connect an AI Provider</h3>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
           You need at least one API key to use CachiBot.
           {configuredCount > 0 && (
             <span className="ml-1 text-green-400">
@@ -105,17 +105,17 @@ export function ApiKeyStep() {
           return (
             <div
               key={provider.name}
-              className="rounded-lg border border-zinc-800 bg-zinc-800/50 p-4 space-y-3"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 space-y-3 dark:border-[var(--color-border-primary)] dark:bg-[var(--card-bg)]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-zinc-200">{label}</h4>
+                  <h4 className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{label}</h4>
                   <span
                     className={cn(
                       'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium',
                       provider.configured
                         ? 'bg-green-500/20 text-green-400'
-                        : 'bg-zinc-700 text-zinc-400'
+                        : 'bg-zinc-200 text-[var(--color-text-secondary)] dark:bg-[var(--color-hover-bg)] dark:text-[var(--color-text-secondary)]'
                     )}
                   >
                     {provider.configured ? 'Active' : 'Not set'}
@@ -124,7 +124,7 @@ export function ApiKeyStep() {
                 {provider.configured && (
                   <button
                     onClick={() => handleDelete(provider.name)}
-                    className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="rounded p-1 text-[var(--color-text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400 dark:text-[var(--color-text-secondary)]"
                     title="Remove key"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -134,14 +134,14 @@ export function ApiKeyStep() {
 
               {provider.configured && !(provider.name in editValues) && (
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-lg border border-zinc-700 bg-zinc-700/50 px-3 py-2 font-mono text-sm text-zinc-400">
+                  <div className="flex-1 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 font-mono text-sm text-[var(--color-text-secondary)] dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-inset)] dark:text-[var(--color-text-secondary)]">
                     {isVisible
                       ? provider.masked_value
                       : provider.masked_value.replace(/./g, '*').slice(0, 20) + '****'}
                   </div>
                   <button
                     onClick={() => toggleVisibility(provider.name)}
-                    className="rounded p-2 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                    className="rounded p-2 text-[var(--color-text-secondary)] transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)] dark:hover:text-[var(--color-text-primary)]"
                   >
                     {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -156,11 +156,11 @@ export function ApiKeyStep() {
                     setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
                   }
                   placeholder={provider.configured ? 'Update API key...' : 'Enter API key...'}
-                  className="h-10 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 font-mono text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                  className="h-10 flex-1 rounded-lg border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-900 outline-none transition-colors focus:border-accent-500 dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-primary)]"
                 />
                 <button
                   onClick={() => toggleVisibility(provider.name)}
-                  className="rounded-lg border border-zinc-700 px-3 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                  className="rounded-lg border border-zinc-300 px-3 text-[var(--color-text-secondary)] transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:border-[var(--color-border-secondary)] dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)] dark:hover:text-[var(--color-text-primary)]"
                 >
                   {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -182,7 +182,7 @@ export function ApiKeyStep() {
         })}
       </div>
 
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-[var(--color-text-secondary)]">
         More providers available in Settings &gt; API Keys after setup.
       </p>
     </div>

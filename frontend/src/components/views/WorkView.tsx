@@ -24,7 +24,7 @@ export function WorkView() {
   if (!activeBot) return null
 
   return (
-    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="work-view">
       {workSection === 'overview' && <WorkOverview botId={activeBot.id} />}
       {workSection === 'active' && <WorkListSection botId={activeBot.id} filter="active" />}
       {workSection === 'completed' && <WorkListSection botId={activeBot.id} filter="completed" />}
@@ -52,25 +52,25 @@ function WorkOverview({ botId }: { botId: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-xl font-bold text-zinc-100">Work Overview</h1>
-        <p className="text-sm text-zinc-500">Manage your work items, tasks, and jobs</p>
+      <div className="work-header">
+        <h1 className="work-header__title">Work Overview</h1>
+        <p className="work-header__subtitle">Manage your work items, tasks, and jobs</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="work-content">
         {/* Stats grid */}
         <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-5">
-          <StatCard label="Total" value={stats.total} color="zinc" />
-          <StatCard label="Active" value={stats.active} color="blue" pulse />
-          <StatCard label="Pending" value={stats.pending} color="yellow" />
-          <StatCard label="Completed" value={stats.completed} color="green" />
-          <StatCard label="Failed" value={stats.failed} color="red" />
+          <WorkStatCard label="Total" value={stats.total} color="zinc" />
+          <WorkStatCard label="Active" value={stats.active} color="blue" pulse />
+          <WorkStatCard label="Pending" value={stats.pending} color="yellow" />
+          <WorkStatCard label="Completed" value={stats.completed} color="green" />
+          <WorkStatCard label="Failed" value={stats.failed} color="red" />
         </div>
 
         {/* Recent active work */}
         {activeWork.length > 0 && (
           <div className="mb-8">
-            <h2 className="mb-4 text-lg font-semibold text-zinc-200">Active Work</h2>
+            <h2 className="work-section-title">Active Work</h2>
             <div className="space-y-3">
               {activeWork.slice(0, 5).map((work) => (
                 <WorkCard key={work.id} work={work} />
@@ -81,12 +81,12 @@ function WorkOverview({ botId }: { botId: string }) {
 
         {/* Empty state */}
         {allWork.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800">
-              <FolderKanban className="h-8 w-8 text-zinc-500" />
+          <div className="work-empty">
+            <div className="work-empty__icon-wrap">
+              <FolderKanban className="h-8 w-8 text-[var(--color-text-secondary)]" />
             </div>
-            <h3 className="mb-2 text-lg font-medium text-zinc-300">No work items yet</h3>
-            <p className="mb-6 text-center text-sm text-zinc-500">
+            <h3 className="work-empty__title">No work items yet</h3>
+            <p className="work-empty__description">
               Work items will appear here when created through chat or automations.
             </p>
           </div>
@@ -138,33 +138,33 @@ function WorkListSection({ botId, filter }: { botId: string; filter: 'active' | 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-xl font-bold text-zinc-100">{titles[filter]}</h1>
-        <p className="text-sm text-zinc-500">{descriptions[filter]}</p>
+      <div className="work-header">
+        <h1 className="work-header__title">{titles[filter]}</h1>
+        <p className="work-header__subtitle">{descriptions[filter]}</p>
       </div>
 
       {/* Search */}
-      <div className="border-b border-zinc-800 px-6 py-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+      <div className="work-search">
+        <div className="work-search__input-wrap">
+          <Search className="h-4 w-4 work-search__icon" />
           <input
             type="text"
             placeholder="Search work items..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-blue-500"
+            className="work-search__input"
           />
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="work-split">
         {/* Work list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-800 p-4">
+        <div className="work-split__list">
           {filteredWork.length === 0 ? (
-            <div className="py-12 text-center">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-              <p className="text-sm text-zinc-500">
+            <div className="work-list-empty">
+              <AlertCircle className="mx-auto h-8 w-8 work-list-empty__icon" />
+              <p className="work-list-empty__text">
                 {search ? 'No work items match your search' : 'No work items'}
               </p>
             </div>
@@ -184,12 +184,12 @@ function WorkListSection({ botId, filter }: { botId: string; filter: 'active' | 
         </div>
 
         {/* Work details */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="work-split__detail">
           {selectedWork ? (
             <WorkDetails work={selectedWork} />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-zinc-500">Select a work item to view details</p>
+            <div className="work-split__detail-empty">
+              <p>Select a work item to view details</p>
             </div>
           )}
         </div>
@@ -202,7 +202,7 @@ function WorkListSection({ botId, filter }: { botId: string; filter: 'active' | 
 // COMPONENTS
 // =============================================================================
 
-function StatCard({
+function WorkStatCard({
   label,
   value,
   color,
@@ -213,20 +213,12 @@ function StatCard({
   color: 'blue' | 'green' | 'red' | 'yellow' | 'zinc'
   pulse?: boolean
 }) {
-  const colors = {
-    blue: 'border-blue-500/30 bg-blue-500/10 text-blue-400',
-    green: 'border-green-500/30 bg-green-500/10 text-green-400',
-    red: 'border-red-500/30 bg-red-500/10 text-red-400',
-    yellow: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400',
-    zinc: 'border-zinc-700 bg-zinc-800/50 text-zinc-300',
-  }
-
   return (
-    <div className={cn('rounded-xl border p-4', colors[color])}>
-      <div className={cn('text-3xl font-bold', pulse && value > 0 && 'animate-pulse')}>
+    <div className={cn('work-stat', `work-stat--${color}`)}>
+      <div className={cn('work-stat__value', pulse && value > 0 && 'animate-pulse')}>
         {value}
       </div>
-      <div className="mt-1 text-sm opacity-80">{label}</div>
+      <div className="work-stat__label">{label}</div>
     </div>
   )
 }
@@ -244,71 +236,60 @@ function WorkCard({
 }) {
   const getStatusIcon = (status: WorkStatus) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4 text-zinc-400" />
+      case 'pending': return <Clock className="h-4 w-4 text-[var(--color-text-secondary)]" />
       case 'in_progress': return <Play className="h-4 w-4 text-blue-400" />
       case 'completed': return <CheckCircle2 className="h-4 w-4 text-green-400" />
       case 'failed': return <XCircle className="h-4 w-4 text-red-400" />
-      case 'cancelled': return <XCircle className="h-4 w-4 text-zinc-500" />
+      case 'cancelled': return <XCircle className="h-4 w-4 text-[var(--color-text-secondary)]" />
       case 'paused': return <Pause className="h-4 w-4 text-yellow-400" />
     }
   }
 
-  const getStatusColor = (status: WorkStatus) => {
-    switch (status) {
-      case 'pending': return 'border-zinc-700 bg-zinc-800/50'
-      case 'in_progress': return 'border-blue-500/30 bg-blue-500/10'
-      case 'completed': return 'border-green-500/30 bg-green-500/10'
-      case 'failed': return 'border-red-500/30 bg-red-500/10'
-      case 'cancelled': return 'border-zinc-700 bg-zinc-800/30'
-      case 'paused': return 'border-yellow-500/30 bg-yellow-500/10'
+  const getPriorityClass = (priority: string) => {
+    const map: Record<string, string> = {
+      urgent: 'work-card__priority--urgent',
+      high: 'work-card__priority--high',
+      normal: 'work-card__priority--normal',
+      low: 'work-card__priority--low',
     }
-  }
-
-  const getPriorityBadge = (priority: string) => {
-    const colors: Record<string, string> = {
-      urgent: 'bg-red-500/20 text-red-400',
-      high: 'bg-orange-500/20 text-orange-400',
-      normal: 'bg-zinc-500/20 text-zinc-400',
-      low: 'bg-zinc-600/20 text-zinc-500',
-    }
-    return colors[priority] || colors.normal
+    return map[priority] || 'work-card__priority--normal'
   }
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        'w-full rounded-xl border p-4 text-left transition-all',
-        selected && 'ring-1 ring-blue-500',
-        getStatusColor(work.status),
-        onClick && 'hover:border-zinc-600'
+        'work-card',
+        `work-card--${work.status}`,
+        selected && 'work-card--selected',
+        onClick && 'work-card--clickable'
       )}
     >
       <div className="flex items-start gap-3">
         {getStatusIcon(work.status)}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-zinc-200">{work.title}</span>
+            <span className="work-card__title">{work.title}</span>
             {work.priority !== 'normal' && (
-              <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium uppercase', getPriorityBadge(work.priority))}>
+              <span className={cn('work-card__priority', getPriorityClass(work.priority))}>
                 {work.priority}
               </span>
             )}
           </div>
           {work.description && !compact && (
-            <p className="mt-1 truncate text-sm text-zinc-500">{work.description}</p>
+            <p className="work-card__description">{work.description}</p>
           )}
 
           {/* Progress bar */}
           {work.status === 'in_progress' && work.progress > 0 && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-zinc-500">
+            <div className="work-card__progress">
+              <div className="work-card__progress-header">
                 <span>Progress</span>
                 <span>{work.progress}%</span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-700">
+              <div className="work-card__progress-bar">
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                  className="work-card__progress-fill"
                   style={{ width: `${work.progress}%` }}
                 />
               </div>
@@ -317,13 +298,13 @@ function WorkCard({
 
           {/* Task count */}
           {work.taskCount !== undefined && work.taskCount > 0 && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-zinc-500">
+            <div className="work-card__tasks">
               <CheckCircle2 className="h-3 w-3" />
               {work.completedTaskCount || 0}/{work.taskCount} tasks
             </div>
           )}
         </div>
-        {onClick && <ChevronRight className="h-4 w-4 text-zinc-600" />}
+        {onClick && <ChevronRight className="h-4 w-4 text-[var(--color-text-tertiary)]" />}
       </div>
     </button>
   )
@@ -335,15 +316,15 @@ function WorkDetails({ work }: { work: Work }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="work-details">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-zinc-100">{work.title}</h2>
-        {work.description && <p className="mt-1 text-zinc-400">{work.description}</p>}
+        <h2 className="work-details__title">{work.title}</h2>
+        {work.description && <p className="work-details__description">{work.description}</p>}
         {work.goal && (
-          <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-            <div className="text-xs font-medium uppercase text-blue-400">Goal</div>
-            <p className="mt-1 text-sm text-zinc-300">{work.goal}</p>
+          <div className="work-details__goal">
+            <div className="work-details__goal-label">Goal</div>
+            <p className="work-details__goal-text">{work.goal}</p>
           </div>
         )}
       </div>
@@ -358,14 +339,14 @@ function WorkDetails({ work }: { work: Work }) {
 
       {/* Progress bar */}
       {work.status === 'in_progress' && (
-        <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-zinc-400">Progress</span>
-            <span className="font-mono text-zinc-300">{work.progress}%</span>
+        <div className="work-detail-progress">
+          <div className="work-detail-progress__header">
+            <span className="work-detail-progress__label">Progress</span>
+            <span className="work-detail-progress__value">{work.progress}%</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
+          <div className="work-detail-progress__bar">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-300"
+              className="work-detail-progress__fill"
               style={{ width: `${work.progress}%` }}
             />
           </div>
@@ -374,23 +355,23 @@ function WorkDetails({ work }: { work: Work }) {
 
       {/* Error message */}
       {work.error && (
-        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-          <div className="flex items-center gap-2 text-red-400">
+        <div className="work-error-box">
+          <div className="work-error-box__header">
             <XCircle className="h-5 w-5" />
-            <span className="font-medium">Error</span>
+            <span className="work-error-box__title">Error</span>
           </div>
-          <pre className="mt-2 overflow-x-auto text-sm text-red-300">{work.error}</pre>
+          <pre className="work-error-box__content">{work.error}</pre>
         </div>
       )}
 
       {/* Result */}
       {work.result !== undefined && work.result !== null && (
-        <div className="mb-6 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
-          <div className="flex items-center gap-2 text-green-400">
+        <div className="work-result-box">
+          <div className="work-result-box__header">
             <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">Result</span>
+            <span className="work-result-box__title">Result</span>
           </div>
-          <pre className="mt-2 overflow-x-auto text-sm text-green-300">
+          <pre className="work-result-box__content">
             {typeof work.result === 'string' ? work.result : String(JSON.stringify(work.result, null, 2))}
           </pre>
         </div>
@@ -400,7 +381,7 @@ function WorkDetails({ work }: { work: Work }) {
       {work.tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {work.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-400">
+            <span key={tag} className="work-tag">
               {tag}
             </span>
           ))}
@@ -412,9 +393,9 @@ function WorkDetails({ work }: { work: Work }) {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-medium capitalize text-zinc-200">{value}</div>
+    <div className="work-info-card">
+      <div className="work-info-card__label">{label}</div>
+      <div className="work-info-card__value">{value}</div>
     </div>
   )
 }

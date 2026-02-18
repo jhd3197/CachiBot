@@ -13,7 +13,6 @@ import {
   type MarketplaceTemplate,
   type MarketplaceCategory,
 } from '../../api/client'
-import { cn } from '../../lib/utils'
 
 interface MarketplaceBrowserProps {
   open: boolean
@@ -83,23 +82,18 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
         <DialogHeader
           title="Bot Marketplace"
           subtitle="Discover and install bot templates"
-          icon={<Store className="h-5 w-5 text-cachi-500" />}
+          icon={<Store size={20} style={{ color: 'var(--accent-500)' }} />}
           onClose={onClose}
         />
 
         <DialogContent className="p-0">
-          <div className="flex h-[500px]">
+          <div className="marketplace">
             {/* Sidebar */}
-            <div className="w-56 shrink-0 border-r border-zinc-800 p-4">
-              <nav className="space-y-1">
+            <div className="marketplace__sidebar">
+              <nav className="marketplace__nav">
                 <button
                   onClick={() => setSelectedCategory(null)}
-                  className={cn(
-                    'w-full rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                    selectedCategory === null
-                      ? 'bg-cachi-600/20 text-cachi-400'
-                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                  )}
+                  className={`marketplace__category${selectedCategory === null ? ' marketplace__category--active' : ''}`}
                 >
                   All Templates
                 </button>
@@ -107,83 +101,70 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={cn(
-                      'w-full rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                      selectedCategory === cat.id
-                        ? 'bg-cachi-600/20 text-cachi-400'
-                        : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                    )}
+                    className={`marketplace__category${selectedCategory === cat.id ? ' marketplace__category--active' : ''}`}
                   >
                     <span>{cat.name}</span>
-                    <span className="ml-2 text-xs text-zinc-600">({cat.count})</span>
+                    <span className="marketplace__category-count">({cat.count})</span>
                   </button>
                 ))}
               </nav>
             </div>
 
             {/* Main content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="marketplace__main">
               {/* Search */}
-              <div className="border-b border-zinc-800 p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <div className="marketplace__search">
+                <div className="marketplace__search-wrap">
+                  <Search size={16} className="marketplace__search-icon" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search templates..."
-                    className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 pl-10 pr-10 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
+                    className="marketplace__search-input"
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                      className="marketplace__search-clear"
                     >
-                      <X className="h-4 w-4" />
+                      <X size={16} />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Templates grid */}
-              <div className="h-[calc(100%-68px)] overflow-y-auto p-4">
+              <div className="marketplace__grid">
                 {loading ? (
-                  <div className="flex h-full items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
+                  <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
+                    <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
                   </div>
                 ) : error ? (
-                  <div className="flex h-full flex-col items-center justify-center text-center">
-                    <p className="text-sm text-red-400">{error}</p>
-                    <button
-                      onClick={loadTemplates}
-                      className="mt-2 text-sm text-cachi-400 hover:underline"
-                    >
+                  <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-danger-text)' }}>{error}</p>
+                    <button onClick={loadTemplates} className="marketplace__retry">
                       Try again
                     </button>
                   </div>
                 ) : templates.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center text-center">
-                    <Store className="mb-3 h-10 w-10 text-zinc-600" />
-                    <p className="text-sm text-zinc-500">No templates found</p>
+                  <div className="marketplace__empty" style={{ gridColumn: '1 / -1' }}>
+                    <Store size={40} style={{ marginBottom: '0.75rem', color: 'var(--color-text-tertiary)' }} />
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>No templates found</p>
                     {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="mt-2 text-sm text-cachi-400 hover:underline"
-                      >
+                      <button onClick={() => setSearchQuery('')} className="marketplace__retry">
                         Clear search
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {templates.map((template) => (
-                      <BotCard
-                        key={template.id}
-                        template={template}
-                        onClick={() => setSelectedTemplate(template)}
-                      />
-                    ))}
-                  </div>
+                  templates.map((template) => (
+                    <BotCard
+                      key={template.id}
+                      template={template}
+                      onClick={() => setSelectedTemplate(template)}
+                    />
+                  ))
                 )}
               </div>
             </div>

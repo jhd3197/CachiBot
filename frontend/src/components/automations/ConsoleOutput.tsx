@@ -7,15 +7,6 @@ interface ConsoleOutputProps {
   className?: string
 }
 
-const levelColors: Record<string, string> = {
-  debug: 'text-zinc-500',
-  info: 'text-blue-400',
-  warning: 'text-yellow-400',
-  error: 'text-red-400',
-  stdout: 'text-zinc-300',
-  stderr: 'text-red-300',
-}
-
 export function ConsoleOutput({ lines, className }: ConsoleOutputProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -28,28 +19,20 @@ export function ConsoleOutput({ lines, className }: ConsoleOutputProps) {
   return (
     <div
       ref={containerRef}
-      className={cn(
-        'overflow-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs',
-        className
-      )}
+      className={cn('console-output', className)}
     >
       {lines.length === 0 ? (
-        <div className="text-zinc-600">No output yet...</div>
+        <div className="console-output__empty">No output yet...</div>
       ) : (
         lines.map((line) => (
-          <div key={line.id} className="flex gap-2 py-0.5">
-            <span className="flex-shrink-0 text-zinc-600">
+          <div key={line.id} className="console-output__line">
+            <span className="console-output__timestamp">
               {new Date(line.timestamp).toLocaleTimeString()}
             </span>
-            <span
-              className={cn(
-                'flex-shrink-0 w-12 text-right uppercase',
-                levelColors[line.level] || 'text-zinc-500'
-              )}
-            >
+            <span className={`console-output__level console-output__level--${line.level}`}>
               {line.level}
             </span>
-            <span className="text-zinc-300 whitespace-pre-wrap break-all">
+            <span className="console-output__text">
               {line.content}
             </span>
           </div>

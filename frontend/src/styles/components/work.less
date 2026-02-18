@@ -1,0 +1,471 @@
+// =============================================================================
+// Work — components/work.less
+// Work view, overview, list, cards, details
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Work View — outermost container
+// -----------------------------------------------------------------------------
+
+.work-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-app);
+}
+
+// -----------------------------------------------------------------------------
+// Work Header
+// -----------------------------------------------------------------------------
+
+.work-header {
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Content — scrollable area
+// -----------------------------------------------------------------------------
+
+.work-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-6;
+  .scrollbar-thin();
+}
+
+// -----------------------------------------------------------------------------
+// Work Stat Card
+// -----------------------------------------------------------------------------
+
+.work-stat {
+  border-radius: @radius-xl;
+  border: 1px solid;
+  padding: @sp-4;
+
+  &--blue   { border-color: rgba(@blue-500, 0.3);   background: rgba(@blue-500, 0.1);   color: @blue-400;   }
+  &--green  { border-color: rgba(@green-500, 0.3);  background: rgba(@green-500, 0.1);  color: @green-400;  }
+  &--red    { border-color: rgba(@red-500, 0.3);    background: rgba(@red-500, 0.1);    color: @red-400;    }
+  &--yellow { border-color: rgba(@yellow-500, 0.3); background: rgba(@yellow-500, 0.1); color: @yellow-400; }
+  &--zinc   { border-color: var(--color-border-secondary); background: var(--card-bg); color: var(--color-text-primary); }
+
+  &__value {
+    font-size: @text-3xl;
+    font-weight: @font-bold;
+  }
+
+  &__label {
+    margin-top: @sp-1;
+    font-size: @text-sm;
+    opacity: 0.8;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Section Title
+// -----------------------------------------------------------------------------
+
+.work-section-title {
+  margin-bottom: @sp-4;
+  font-size: @text-lg;
+  font-weight: @font-semibold;
+  color: var(--color-text-primary);
+}
+
+// -----------------------------------------------------------------------------
+// Work Empty State
+// -----------------------------------------------------------------------------
+
+.work-empty {
+  .flex-col();
+  align-items: center;
+  justify-content: center;
+  padding: @sp-16 0;
+
+  &__icon-wrap {
+    .flex-center();
+    margin-bottom: @sp-4;
+    height: 4rem;
+    width: 4rem;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+  }
+
+  &__title {
+    margin-bottom: @sp-2;
+    font-size: @text-lg;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-bottom: @sp-6;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Search
+// -----------------------------------------------------------------------------
+
+.work-search {
+  padding: @sp-3 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__input-wrap {
+    position: relative;
+  }
+
+  &__icon {
+    position: absolute;
+    left: @sp-3;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+  }
+
+  &__input {
+    height: 2.25rem;
+    width: 100%;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--card-bg);
+    padding-left: @sp-10;
+    padding-right: @sp-4;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    outline: none;
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--input-placeholder);
+    }
+
+    &:focus {
+      border-color: @blue-500;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Split Layout
+// -----------------------------------------------------------------------------
+
+.work-split {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+
+  &__list {
+    width: 24rem;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--color-border-primary);
+    padding: @sp-4;
+    .scrollbar-thin();
+  }
+
+  &__detail {
+    flex: 1;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__detail-empty {
+    .flex-center();
+    height: 100%;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Card
+// -----------------------------------------------------------------------------
+
+.work-card {
+  width: 100%;
+  border-radius: @radius-xl;
+  border: 1px solid;
+  padding: @sp-4;
+  text-align: left;
+  background: none;
+  cursor: default;
+  .transition-all();
+
+  &--pending   { border-color: var(--color-border-secondary); background: var(--card-bg); }
+  &--in_progress { border-color: rgba(@blue-500, 0.3); background: rgba(@blue-500, 0.1); }
+  &--completed { border-color: rgba(@green-500, 0.3); background: rgba(@green-500, 0.1); }
+  &--failed    { border-color: rgba(@red-500, 0.3); background: rgba(@red-500, 0.1); }
+  &--cancelled { border-color: var(--color-border-secondary); background: var(--card-bg); }
+  &--paused    { border-color: rgba(@yellow-500, 0.3); background: rgba(@yellow-500, 0.1); }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &--selected {
+    box-shadow: 0 0 0 1px @blue-500;
+  }
+
+  &__title {
+    .truncate();
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    .truncate();
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__priority {
+    .badge-base();
+    text-transform: uppercase;
+    font-size: 10px;
+
+    &--urgent { background: rgba(@red-500, 0.2);    color: @red-400;    }
+    &--high   { background: rgba(@orange-500, 0.2); color: @orange-400; }
+    &--normal { background: rgba(@zinc-500, 0.2);   color: var(--color-text-secondary); }
+    &--low    { background: rgba(@zinc-600, 0.2);   color: var(--color-text-secondary); }
+  }
+
+  &__progress {
+    margin-top: @sp-3;
+  }
+
+  &__progress-header {
+    .flex-between();
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__progress-bar {
+    margin-top: @sp-1;
+    height: @sp-1\.5;
+    overflow: hidden;
+    border-radius: @radius-full;
+    background: var(--color-hover-bg);
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: @radius-full;
+    background: @blue-500;
+    transition: width 300ms ease;
+  }
+
+  &__tasks {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    margin-top: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Details
+// -----------------------------------------------------------------------------
+
+.work-details {
+  padding: @sp-6;
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__description {
+    margin-top: @sp-1;
+    color: var(--color-text-secondary);
+  }
+
+  &__goal {
+    margin-top: @sp-3;
+    border-radius: @radius-lg;
+    border: 1px solid rgba(@blue-500, 0.3);
+    background: rgba(@blue-500, 0.1);
+    padding: @sp-3;
+  }
+
+  &__goal-label {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    text-transform: uppercase;
+    color: @blue-400;
+  }
+
+  &__goal-text {
+    margin-top: @sp-1;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Info Card
+// -----------------------------------------------------------------------------
+
+.work-info-card {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  padding: @sp-3;
+
+  &__label {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    margin-top: @sp-1;
+    font-weight: @font-medium;
+    text-transform: capitalize;
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Detail Progress
+// -----------------------------------------------------------------------------
+
+.work-detail-progress {
+  margin-bottom: @sp-6;
+
+  &__header {
+    .flex-between();
+    margin-bottom: @sp-2;
+    font-size: @text-sm;
+  }
+
+  &__label {
+    color: var(--color-text-secondary);
+  }
+
+  &__value {
+    font-family: @font-mono;
+    color: var(--color-text-primary);
+  }
+
+  &__bar {
+    height: @sp-3;
+    overflow: hidden;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+  }
+
+  &__fill {
+    height: 100%;
+    border-radius: @radius-full;
+    background: linear-gradient(to right, @blue-600, @blue-400);
+    transition: width 300ms ease;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Error/Result Boxes
+// -----------------------------------------------------------------------------
+
+.work-error-box {
+  margin-bottom: @sp-6;
+  border-radius: @radius-xl;
+  border: 1px solid rgba(@red-500, 0.3);
+  background: rgba(@red-500, 0.1);
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    color: @red-400;
+  }
+
+  &__title {
+    font-weight: @font-medium;
+  }
+
+  &__content {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    font-size: @text-sm;
+    color: @red-300;
+  }
+}
+
+.work-result-box {
+  margin-bottom: @sp-6;
+  border-radius: @radius-xl;
+  border: 1px solid rgba(@green-500, 0.3);
+  background: rgba(@green-500, 0.1);
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    color: @green-400;
+  }
+
+  &__title {
+    font-weight: @font-medium;
+  }
+
+  &__content {
+    margin-top: @sp-2;
+    overflow-x: auto;
+    font-size: @text-sm;
+    color: @green-300;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Work Tags
+// -----------------------------------------------------------------------------
+
+.work-tag {
+  display: inline-block;
+  border-radius: @radius-full;
+  background: var(--color-bg-secondary);
+  padding: @sp-1 @sp-3;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+}
+
+// -----------------------------------------------------------------------------
+// Work List Empty
+// -----------------------------------------------------------------------------
+
+.work-list-empty {
+  padding: @sp-12 0;
+  text-align: center;
+
+  &__icon {
+    color: var(--color-text-tertiary);
+  }
+
+  &__text {
+    margin-top: @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+}

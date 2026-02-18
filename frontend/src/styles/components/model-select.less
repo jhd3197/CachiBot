@@ -1,0 +1,293 @@
+// =============================================================================
+// Model Select — components/model-select.less
+// Custom model-selection dropdown with search, grouping, and manual entry
+// =============================================================================
+
+.model-select {
+  position: relative;
+
+  // ---------------------------------------------------------------------------
+  // Trigger (select-like button)
+  // ---------------------------------------------------------------------------
+  &__trigger {
+    .input-base();
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: @sp-2;
+    padding-right: @sp-8;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  &__trigger-text {
+    .truncate();
+    color: var(--color-text-tertiary);
+
+    &--value {
+      color: var(--color-text-primary);
+      font-family: @font-mono;
+      font-size: @text-xs;
+    }
+  }
+
+  &__trigger-chevron {
+    position: absolute;
+    right: @sp-3;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+    pointer-events: none;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dropdown (portal container)
+  // ---------------------------------------------------------------------------
+  &__dropdown {
+    position: fixed;
+    z-index: 9999;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    box-shadow: @shadow-xl;
+    overflow: hidden;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search area
+  // ---------------------------------------------------------------------------
+  &__search {
+    padding: @sp-2;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__search-wrap {
+    position: relative;
+  }
+
+  &__search-icon {
+    position: absolute;
+    left: @sp-2\.5;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+  }
+
+  &__search-input {
+    width: 100%;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-secondary);
+    color: var(--color-text-primary);
+    font-size: @text-xs;
+    border-radius: @radius-md;
+    padding: @sp-1\.5 @sp-3 @sp-1\.5 @sp-8;
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--input-placeholder);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Model list
+  // ---------------------------------------------------------------------------
+  &__list {
+    max-height: 16rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Provider group header
+  // ---------------------------------------------------------------------------
+  &__group-header {
+    padding: @sp-1\.5 @sp-3;
+    font-size: 10px;
+    font-weight: @font-semibold;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: color-mix(in srgb, var(--color-bg-secondary) 50%, transparent);
+    position: sticky;
+    top: 0;
+  }
+
+  &__group-count {
+    margin-left: @sp-1\.5;
+    color: var(--color-text-tertiary);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Model item
+  // ---------------------------------------------------------------------------
+  &__item {
+    width: 100%;
+    text-align: left;
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: @sp-2;
+    cursor: pointer;
+    .transition-colors();
+    background: none;
+    border: none;
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--selected {
+      color: var(--accent-600);
+      background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+
+    &--default {
+      font-size: @text-sm;
+    }
+  }
+
+  &__item-id {
+    .truncate();
+    font-family: @font-mono;
+    font-size: @text-xs;
+  }
+
+  &__item-meta {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    flex-shrink: 0;
+  }
+
+  &__item-ctx {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Capability badges
+  // ---------------------------------------------------------------------------
+  &__badge {
+    font-size: 9px;
+    padding: 0 @sp-1;
+    border-radius: @radius-sm;
+
+    &--vision {
+      background: var(--color-active-bg);
+      color: var(--color-text-secondary);
+    }
+
+    &--reasoning {
+      background: @purple-100;
+      color: @purple-600;
+
+      .dark & {
+        background: rgba(147, 51, 234, 0.15);
+        color: @purple-400;
+      }
+    }
+  }
+
+  &__check {
+    color: var(--accent-500);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Manual entry
+  // ---------------------------------------------------------------------------
+  &__manual {
+    padding: @sp-2;
+  }
+
+  &__manual-hint {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    margin-bottom: @sp-1\.5;
+    padding: 0 @sp-1;
+  }
+
+  &__manual-form {
+    display: flex;
+    gap: @sp-1\.5;
+  }
+
+  &__manual-input {
+    flex: 1;
+    background: var(--color-bg-inset);
+    border: 1px solid var(--color-border-secondary);
+    color: var(--color-text-primary);
+    font-size: @text-xs;
+    font-family: @font-mono;
+    border-radius: @radius-md;
+    padding: @sp-1\.5 @sp-2;
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--input-placeholder);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
+    }
+  }
+
+  &__manual-submit {
+    .button-base();
+    .button-variant(primary);
+    padding: @sp-1\.5 @sp-2\.5;
+    font-size: @text-xs;
+    height: auto;
+    border-radius: @radius-md;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Footer (manual entry link)
+  // ---------------------------------------------------------------------------
+  &__footer {
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  &__footer-btn {
+    width: 100%;
+    text-align: left;
+    padding: @sp-2 @sp-3;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    cursor: pointer;
+    .transition-colors();
+    background: none;
+    border: none;
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-hover-bg);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Empty / loading states
+  // ---------------------------------------------------------------------------
+  &__empty,
+  &__loading {
+    padding: @sp-3 @sp-3 @sp-6;
+    text-align: center;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}

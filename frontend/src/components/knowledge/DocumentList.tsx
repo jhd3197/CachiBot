@@ -89,14 +89,14 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
   if (isLoading && documents.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-5 w-5 animate-spin text-zinc-500" />
+        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
 
   if (documents.length === 0) {
     return (
-      <div className="text-center py-8 text-zinc-500">
+      <div className="text-center py-8 text-[var(--color-text-secondary)]">
         <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>No documents uploaded yet</p>
       </div>
@@ -107,8 +107,8 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
     <div className="space-y-2">
       {documents.map((doc) => (
         <div key={doc.id}>
-          <div className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-lg">
-            <FileText className="h-5 w-5 text-zinc-400 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-3 bg-[var(--card-bg)] rounded-lg">
+            <FileText className="h-5 w-5 text-[var(--color-text-secondary)] flex-shrink-0" />
 
             <div
               className={`flex-1 min-w-0 ${doc.status === 'ready' && onViewChunks ? 'cursor-pointer hover:opacity-80' : ''}`}
@@ -118,8 +118,8 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
                 }
               }}
             >
-              <p className="text-sm text-zinc-200 truncate">{doc.filename}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-sm text-[var(--color-text-primary)] truncate">{doc.filename}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">
                 {formatSize(doc.file_size)}
                 {doc.chunk_count > 0 && ` - ${doc.chunk_count} chunks`}
                 {' - '}
@@ -133,7 +133,7 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
             {doc.status === 'ready' && onViewChunks && (
               <button
                 onClick={() => onViewChunks(doc.id, doc.filename)}
-                className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="p-1.5 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
                 title="View chunks"
               >
                 <Eye className="h-4 w-4" />
@@ -145,7 +145,7 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
               <button
                 onClick={() => handleRetry(doc.id)}
                 disabled={retrying === doc.id}
-                className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-yellow-400 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-yellow-400 transition-colors disabled:opacity-50"
                 title="Retry processing"
               >
                 <RotateCcw className={`h-4 w-4 ${retrying === doc.id ? 'animate-spin' : ''}`} />
@@ -155,7 +155,7 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
             {/* Delete button */}
             <button
               onClick={() => setConfirmingDelete(doc.id)}
-              className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
+              className="p-1.5 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-red-400 transition-colors"
               title="Delete document"
             >
               <Trash2 className="h-4 w-4" />
@@ -174,7 +174,7 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
               </button>
               <button
                 onClick={() => setConfirmingDelete(null)}
-                className="px-2 py-1 text-xs rounded border border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                className="px-2 py-1 text-xs rounded border border-[var(--color-border-secondary)] text-[var(--color-text-primary)] hover:bg-[var(--color-hover-bg)]"
               >
                 Cancel
               </button>

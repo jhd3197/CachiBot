@@ -23,10 +23,10 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
   const messages = activeChatId ? getMessages(activeChatId) : []
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="chat-panel">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="chat-panel__messages">
+        <div className="chat-panel__messages-inner">
           {messages.length === 0 ? (
             <EmptyState />
           ) : (
@@ -49,7 +49,7 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
 
           {/* Error display */}
           {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+            <div className="chat-panel__error">
               {error}
             </div>
           )}
@@ -58,14 +58,14 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
 
       {/* Usage display - not currently tracked in new store */}
       {showCost && (
-        <div className="border-t border-zinc-200 dark:border-zinc-800">
+        <div className="chat-panel__usage">
           {/* Usage display placeholder */}
         </div>
       )}
 
       {/* Input area */}
-      <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto max-w-3xl px-4 py-4">
+      <div className="chat-panel__input-area">
+        <div className="chat-panel__input-inner">
           <InputArea
             onSend={onSendMessage}
             onCancel={onCancel}
@@ -80,14 +80,14 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
 
 function EmptyState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-cachi-100 dark:bg-cachi-900/30">
+    <div className="chat-empty">
+      <div className="chat-empty__icon">
         <BotIconRenderer icon="shield" size={32} className="text-cachi-600 dark:text-cachi-400" />
       </div>
-      <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+      <h2 className="chat-empty__title">
         Welcome to CachiBot
       </h2>
-      <p className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="chat-empty__description">
         The Armored AI Agent. I can help you with coding tasks, run Python code
         safely, read and write files in your workspace.
       </p>

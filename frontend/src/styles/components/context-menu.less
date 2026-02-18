@@ -1,0 +1,26 @@
+// =============================================================================
+// Context Menu — components/context-menu.less
+// .context-menu, __item, __divider
+// =============================================================================
+
+.context-menu {
+  .context-menu();
+
+  &__item {
+    .context-menu-item();
+
+    &--danger {
+      color: var(--color-danger-text);
+
+      &:hover {
+        background: var(--color-danger-bg);
+      }
+    }
+  }
+
+  &__divider {
+    height: 1px;
+    background: var(--color-border-primary);
+    margin: @sp-1 0;
+  }
+}

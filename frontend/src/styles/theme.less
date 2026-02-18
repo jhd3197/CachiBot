@@ -1,0 +1,167 @@
+// =============================================================================
+// Theme — theme.less
+// CSS custom properties for light/dark mode.
+// Uses LESS variables from variables.less, outputs CSS custom properties.
+// =============================================================================
+
+:root {
+  // Backgrounds
+  --color-bg-app: @zinc-100;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: @zinc-100;
+  --color-bg-tertiary: @zinc-50;
+  --color-bg-inset: @zinc-100;
+  --color-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  // Text
+  --color-text-primary: @zinc-900;
+  --color-text-secondary: @zinc-500;
+  --color-text-tertiary: @zinc-400;
+  --color-text-inverted: white;
+
+  // Borders
+  --color-border-primary: @zinc-200;
+  --color-border-secondary: @zinc-300;
+  --color-border-focus: var(--accent-500);
+
+  // Interactive states
+  --color-hover-bg: @zinc-100;
+  --color-active-bg: @zinc-200;
+  --color-selected-bg: @zinc-200;
+
+  // Status — Success
+  --color-success-bg: @green-50;
+  --color-success-text: @green-700;
+  --color-success-border: @green-200;
+
+  // Status — Warning
+  --color-warning-bg: @yellow-50;
+  --color-warning-text: @yellow-700;
+  --color-warning-border: @yellow-200;
+
+  // Status — Danger
+  --color-danger-bg: @red-50;
+  --color-danger-text: @red-700;
+  --color-danger-border: @red-200;
+
+  // Status — Info
+  --color-info-bg: @blue-50;
+  --color-info-text: @blue-700;
+  --color-info-border: @blue-200;
+
+  // Component tokens — Buttons
+  --btn-secondary-bg: @zinc-100;
+  --btn-secondary-text: @zinc-700;
+  --btn-secondary-hover: @zinc-200;
+  --btn-secondary-border: @zinc-200;
+  --btn-ghost-hover: @zinc-100;
+  --btn-ghost-text: @zinc-600;
+  --btn-ghost-text-hover: @zinc-900;
+
+  // Component tokens — Inputs
+  --input-bg: #ffffff;
+  --input-border: @zinc-300;
+  --input-text: @zinc-900;
+  --input-placeholder: @zinc-400;
+
+  // Component tokens — Cards
+  --card-bg: #ffffff;
+  --card-border: @zinc-200;
+  --card-shadow: @shadow-sm;
+
+  // Component tokens — Labels
+  --label-text: @zinc-600;
+
+  // Component tokens — Code
+  --code-bg: @zinc-100;
+  --code-text: @zinc-900;
+
+  // Component tokens — Chat bubbles
+  --chat-bubble-bot-bg: #ffffff;
+  --chat-bubble-bot-text: @zinc-900;
+
+  // Component tokens — Scrollbar
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+}
+
+.dark {
+  // Backgrounds
+  --color-bg-app: @zinc-950;
+  --color-bg-primary: @zinc-900;
+  --color-bg-secondary: @zinc-800;
+  --color-bg-tertiary: @zinc-800;
+  --color-bg-inset: @zinc-900;
+  --color-bg-overlay: rgba(0, 0, 0, 0.7);
+
+  // Text
+  --color-text-primary: @zinc-100;
+  --color-text-secondary: @zinc-400;
+  --color-text-tertiary: @zinc-600;
+  --color-text-inverted: white;
+
+  // Borders
+  --color-border-primary: @zinc-800;
+  --color-border-secondary: @zinc-700;
+  --color-border-focus: var(--accent-500);
+
+  // Interactive states
+  --color-hover-bg: @zinc-800;
+  --color-active-bg: @zinc-700;
+  --color-selected-bg: @zinc-700;
+
+  // Status — Success
+  --color-success-bg: rgba(34, 197, 94, 0.1);
+  --color-success-text: @green-400;
+  --color-success-border: rgba(34, 197, 94, 0.2);
+
+  // Status — Warning
+  --color-warning-bg: rgba(234, 179, 8, 0.1);
+  --color-warning-text: @yellow-400;
+  --color-warning-border: rgba(234, 179, 8, 0.2);
+
+  // Status — Danger
+  --color-danger-bg: rgba(239, 68, 68, 0.1);
+  --color-danger-text: @red-400;
+  --color-danger-border: rgba(239, 68, 68, 0.2);
+
+  // Status — Info
+  --color-info-bg: rgba(59, 130, 246, 0.1);
+  --color-info-text: @blue-400;
+  --color-info-border: rgba(59, 130, 246, 0.2);
+
+  // Component tokens — Buttons
+  --btn-secondary-bg: @zinc-800;
+  --btn-secondary-text: @zinc-200;
+  --btn-secondary-hover: @zinc-700;
+  --btn-secondary-border: @zinc-700;
+  --btn-ghost-hover: @zinc-800;
+  --btn-ghost-text: @zinc-400;
+  --btn-ghost-text-hover: @zinc-100;
+
+  // Component tokens — Inputs
+  --input-bg: @zinc-900;
+  --input-border: @zinc-700;
+  --input-text: @zinc-100;
+  --input-placeholder: @zinc-500;
+
+  // Component tokens — Cards
+  --card-bg: @zinc-900;
+  --card-border: @zinc-800;
+  --card-shadow: none;
+
+  // Component tokens — Labels
+  --label-text: @zinc-400;
+
+  // Component tokens — Code
+  --code-bg: @zinc-800;
+  --code-text: @zinc-100;
+
+  // Component tokens — Chat bubbles
+  --chat-bubble-bot-bg: @zinc-800;
+  --chat-bubble-bot-text: @zinc-100;
+
+  // Component tokens — Scrollbar
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+}

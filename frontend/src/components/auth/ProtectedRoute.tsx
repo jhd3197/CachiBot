@@ -18,8 +18,10 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
     isLoading,
     user,
     setupRequired,
+    legacyDbDetected,
     setUser,
     setSetupRequired,
+    setLegacyDbDetected,
     setLoading,
     logout,
   } = useAuthStore()
@@ -44,8 +46,14 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
       // Check if setup is required first
       if (setupRequired === null) {
         try {
-          const { setup_required } = await withTimeout(checkSetupRequired())
+          const { setup_required, legacy_db_detected } = await withTimeout(checkSetupRequired())
           if (cancelled) return
+          if (legacy_db_detected) {
+            setLegacyDbDetected(true)
+            setLoading(false)
+            setChecked(true)
+            return
+          }
           setSetupRequired(setup_required)
           if (setup_required) {
             setLoading(false)
@@ -80,7 +88,7 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
 
     verifyAuth()
     return () => { cancelled = true }
-  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLoading, logout])
+  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLegacyDbDetected, setLoading, logout])
 
   // Check consent status after auth is verified (with timeout to avoid hanging)
   useEffect(() => {
@@ -104,15 +112,20 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
   // Show loading spinner while checking auth
   if (isLoading || !checked || (isAuthenticated && !consentChecked)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-950">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-100 dark:bg-[var(--color-bg-app)]">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
         {slow && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Taking longer than expected&hellip; the server may still be starting.
           </p>
         )}
       </div>
     )
+  }
+
+  // Redirect to upgrade page if legacy V1 database detected
+  if (legacyDbDetected) {
+    return <Navigate to="/upgrade" state={{ from: location }} replace />
   }
 
   // Redirect to setup if needed, otherwise to login if not authenticated

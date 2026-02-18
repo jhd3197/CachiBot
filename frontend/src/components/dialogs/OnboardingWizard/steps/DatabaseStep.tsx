@@ -114,8 +114,8 @@ export function DatabaseStep() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-zinc-100">Choose Your Database</h3>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Choose Your Database</h3>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
           Select where CachiBot stores its data. You can change this later in settings.
         </p>
       </div>
@@ -129,7 +129,7 @@ export function DatabaseStep() {
             'relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all',
             databaseType === 'sqlite'
               ? 'border-emerald-500 bg-emerald-500/10'
-              : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+              : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-[var(--color-border-secondary)] dark:bg-[var(--card-bg)] dark:hover:border-[var(--color-border-secondary)]'
           )}
         >
           <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
@@ -137,16 +137,16 @@ export function DatabaseStep() {
           </span>
           <div className={cn(
             'flex h-12 w-12 items-center justify-center rounded-xl',
-            databaseType === 'sqlite' ? 'bg-emerald-500/20' : 'bg-zinc-700/50'
+            databaseType === 'sqlite' ? 'bg-emerald-500/20' : 'bg-zinc-200 dark:bg-[var(--color-bg-inset)]'
           )}>
             <HardDrive className={cn(
               'h-6 w-6',
-              databaseType === 'sqlite' ? 'text-emerald-400' : 'text-zinc-400'
+              databaseType === 'sqlite' ? 'text-emerald-400' : 'text-[var(--color-text-secondary)]'
             )} />
           </div>
           <div>
-            <p className="font-medium text-zinc-100">SQLite</p>
-            <p className="mt-0.5 text-xs text-zinc-500">Zero config, file-based</p>
+            <p className="font-medium text-zinc-900 dark:text-[var(--color-text-primary)]">SQLite</p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">Zero config, file-based</p>
           </div>
         </button>
 
@@ -157,76 +157,76 @@ export function DatabaseStep() {
             'relative flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all',
             databaseType === 'postgresql'
               ? 'border-blue-500 bg-blue-500/10'
-              : 'border-zinc-700 bg-zinc-800/50 hover:border-zinc-600'
+              : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 dark:border-[var(--color-border-secondary)] dark:bg-[var(--card-bg)] dark:hover:border-[var(--color-border-secondary)]'
           )}
         >
           <div className={cn(
             'flex h-12 w-12 items-center justify-center rounded-xl',
-            databaseType === 'postgresql' ? 'bg-blue-500/20' : 'bg-zinc-700/50'
+            databaseType === 'postgresql' ? 'bg-blue-500/20' : 'bg-zinc-200 dark:bg-[var(--color-bg-inset)]'
           )}>
             <Database className={cn(
               'h-6 w-6',
-              databaseType === 'postgresql' ? 'text-blue-400' : 'text-zinc-400'
+              databaseType === 'postgresql' ? 'text-blue-400' : 'text-[var(--color-text-secondary)]'
             )} />
           </div>
           <div>
-            <p className="font-medium text-zinc-100">PostgreSQL</p>
-            <p className="mt-0.5 text-xs text-zinc-500">Scalable, production-ready</p>
+            <p className="font-medium text-zinc-900 dark:text-[var(--color-text-primary)]">PostgreSQL</p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">Scalable, production-ready</p>
           </div>
         </button>
       </div>
 
       {/* PostgreSQL connection form */}
       {databaseType === 'postgresql' && (
-        <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-800/30 p-4">
+        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 dark:border-[var(--color-border-primary)] dark:bg-[var(--card-bg)] p-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Host</label>
+              <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Host</label>
               <input
                 type="text"
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors focus:border-accent-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Port</label>
+              <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Port</label>
               <input
                 type="text"
                 value={port}
                 onChange={(e) => setPort(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors focus:border-accent-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Database</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Database</label>
             <input
               type="text"
               value={database}
               onChange={(e) => setDatabase(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors focus:border-accent-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Username</label>
+              <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Username</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors focus:border-accent-500"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-400">Password</label>
+              <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 outline-none transition-colors focus:border-accent-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors focus:border-accent-500"
               />
             </div>
           </div>
@@ -252,7 +252,7 @@ export function DatabaseStep() {
             <button
               onClick={handleTest}
               disabled={testing || !host}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)] transition-colors hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {testing && <Loader2 className="h-4 w-4 animate-spin" />}
               Test Connection

@@ -54,29 +54,19 @@ function ToolCallItem({ call }: ToolCallItemProps) {
   const mediaUri = imageUri || audioUri
   const resultMeta = mediaUri ? extractResultMeta(resultStr) : null
 
+  const statusClass = isComplete
+    ? isSuccess ? 'tool-call--success' : 'tool-call--error'
+    : 'tool-call--loading'
+
+  const iconStatusClass = isComplete
+    ? isSuccess ? 'tool-call__status-icon--success' : 'tool-call__status-icon--error'
+    : 'tool-call__status-icon--loading'
+
   return (
-    <div
-      className={cn(
-        'rounded-lg border p-3',
-        isComplete
-          ? isSuccess
-            ? 'border-cachi-200 bg-cachi-50 dark:border-cachi-900 dark:bg-cachi-900/20'
-            : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20'
-          : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50'
-      )}
-    >
-      <div className="flex items-center gap-2">
+    <div className={cn('tool-call', statusClass)}>
+      <div className="tool-call__header">
         {/* Status icon */}
-        <div
-          className={cn(
-            'flex h-6 w-6 items-center justify-center rounded-full',
-            isComplete
-              ? isSuccess
-                ? 'bg-cachi-200 text-cachi-700 dark:bg-cachi-800 dark:text-cachi-300'
-                : 'bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-300'
-              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
-          )}
-        >
+        <div className={cn('tool-call__status-icon', iconStatusClass)}>
           {isComplete ? (
             isSuccess ? (
               <Check className="h-3 w-3" />
@@ -89,14 +79,14 @@ function ToolCallItem({ call }: ToolCallItemProps) {
         </div>
 
         {/* Tool name */}
-        <div className="flex items-center gap-1.5">
-          <Wrench className="h-3.5 w-3.5 text-zinc-500" />
-          <span className="text-sm font-medium">{call.tool}</span>
+        <div className="tool-call__name">
+          <Wrench className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
+          <span>{call.tool}</span>
         </div>
 
         {/* Duration */}
         {isComplete && (
-          <span className="ml-auto text-xs text-zinc-500">
+          <span className="tool-call__duration">
             {((call.endTime! - call.startTime) / 1000).toFixed(1)}s
           </span>
         )}
@@ -104,8 +94,8 @@ function ToolCallItem({ call }: ToolCallItemProps) {
 
       {/* Arguments preview */}
       {Object.keys(call.args).length > 0 ? (
-        <div className="mt-2 overflow-x-auto">
-          <pre className="text-xs text-zinc-600 dark:text-zinc-400">
+        <div className="tool-call__args">
+          <pre>
             {JSON.stringify(call.args, null, 2).slice(0, 200)}
             {JSON.stringify(call.args, null, 2).length > 200 ? '...' : null}
           </pre>
@@ -114,30 +104,29 @@ function ToolCallItem({ call }: ToolCallItemProps) {
 
       {/* Media result (image or audio) */}
       {imageUri ? (
-        <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+        <div className="tool-call__media">
           <img
             src={imageUri}
             alt="Generated"
-            className="max-w-full rounded-md"
           />
           {resultMeta ? (
-            <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
+            <p className="meta">
               {resultMeta}
             </p>
           ) : null}
         </div>
       ) : audioUri ? (
-        <div className="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
-          <audio controls className="w-full" src={audioUri} />
+        <div className="tool-call__media">
+          <audio controls src={audioUri} />
           {resultMeta ? (
-            <p className="mt-1 text-xs italic text-zinc-500 dark:text-zinc-400">
+            <p className="meta">
               {resultMeta}
             </p>
           ) : null}
         </div>
       ) : isComplete && call.result ? (
-        <div className="mt-2 overflow-x-auto border-t border-zinc-200 pt-2 dark:border-zinc-700">
-          <pre className="text-xs text-zinc-600 dark:text-zinc-400">
+        <div className="tool-call__result">
+          <pre>
             {resultStr.slice(0, 300)}
             {resultStr.length > 300 ? '...' : null}
           </pre>

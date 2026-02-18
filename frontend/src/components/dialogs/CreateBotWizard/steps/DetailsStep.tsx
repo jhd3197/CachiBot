@@ -83,8 +83,8 @@ export function DetailsStep() {
           </div>
         </div>
         <div className="text-center">
-          <p className="text-lg font-medium text-zinc-200">Getting to know you better...</p>
-          <p className="mt-1 text-sm text-zinc-500">Creating personalized questions for {form.name}</p>
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">Getting to know you better...</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Creating personalized questions for {form.name}</p>
         </div>
         <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
       </div>
@@ -97,10 +97,10 @@ export function DetailsStep() {
         <div className="flex items-start gap-3">
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-cachi-400" />
           <div>
-            <p className="text-sm font-medium text-zinc-200">
+            <p className="text-sm font-medium text-[var(--color-text-primary)]">
               Help {form.name} understand you better
             </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               These answers will help create a personalized assistant just for you.
             </p>
           </div>
@@ -114,7 +114,7 @@ export function DetailsStep() {
             className="group animate-in fade-in slide-in-from-bottom-2 duration-300"
             style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
           >
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
+            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cachi-600/20 text-xs text-cachi-400">
                 {index + 1}
               </span>
@@ -125,7 +125,7 @@ export function DetailsStep() {
               onChange={(e) => updateFollowUpAnswer(q.id, e.target.value)}
               placeholder={q.placeholder}
               rows={2}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cachi-500"
+              className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none transition-colors focus:border-[var(--color-border-focus)]"
             />
           </div>
         ))}
@@ -133,12 +133,12 @@ export function DetailsStep() {
         {/* Placeholder while streaming */}
         {isGenerating && form.followUpQuestions.length < 3 && (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]" />
           </div>
         )}
       </div>
 
-      <p className="text-center text-xs text-zinc-600">
+      <p className="text-center text-xs text-[var(--color-text-tertiary)]">
         Don't worry, you can always refine your bot later
       </p>
     </div>

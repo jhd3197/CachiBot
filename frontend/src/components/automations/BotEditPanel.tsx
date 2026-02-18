@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { X, Send, Loader2 } from 'lucide-react'
-import { cn } from '../../lib/utils'
 
 interface BotEditPanelProps {
   open: boolean
@@ -35,41 +34,40 @@ export function BotEditPanel({
     }, 2000)
   }
 
+  const isActive = instruction.trim() && !loading
+
   return (
-    <div className="fixed inset-y-0 right-0 z-40 flex w-96 flex-col border-l border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="bot-edit-panel">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="bot-edit-panel__header">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="bot-edit-panel__title">
             Ask Bot to Edit
           </h3>
-          <p className="text-xs text-zinc-500">Editing: {scriptName}</p>
+          <p className="bot-edit-panel__subtitle">Editing: {scriptName}</p>
         </div>
-        <button
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-        >
-          <X className="h-4 w-4" />
+        <button onClick={onClose} className="bot-edit-panel__close">
+          <X size={16} />
         </button>
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="text-xs text-zinc-400">
+      <div className="bot-edit-panel__chat">
+        <div className="bot-edit-panel__hint">
           Describe what changes you want the bot to make to this script.
           The bot will modify the code and show you the result for approval.
         </div>
       </div>
 
       {/* Input */}
-      <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <div className="flex items-end gap-2">
+      <div className="bot-edit-panel__input">
+        <div className="bot-edit-panel__input-row">
           <textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder="e.g., Add error handling for the API call..."
             rows={3}
-            className="flex-1 resize-none rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:border-accent-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            className="bot-edit-panel__textarea"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 handleSubmit()
@@ -78,18 +76,13 @@ export function BotEditPanel({
           />
           <button
             onClick={handleSubmit}
-            disabled={!instruction.trim() || loading}
-            className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
-              instruction.trim() && !loading
-                ? 'bg-accent-600 text-white hover:bg-accent-700'
-                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'
-            )}
+            disabled={!isActive}
+            className={`bot-edit-panel__send bot-edit-panel__send--${isActive ? 'active' : 'disabled'}`}
           >
             {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 size={16} className="animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send size={16} />
             )}
           </button>
         </div>

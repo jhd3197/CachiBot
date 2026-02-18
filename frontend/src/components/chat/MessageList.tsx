@@ -26,17 +26,15 @@ function MessageItem({ message }: MessageItemProps) {
   return (
     <div
       className={cn(
-        'flex gap-3',
-        isUser ? 'flex-row-reverse' : 'flex-row'
+        'chat-message',
+        isUser ? 'chat-message--user' : 'chat-message--bot'
       )}
     >
       {/* Avatar */}
       <div
         className={cn(
-          'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full',
-          isUser
-            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-            : 'bg-cachi-100 text-cachi-600 dark:bg-cachi-900/30 dark:text-cachi-400'
+          'chat-message__avatar',
+          isUser ? 'chat-message__avatar--user' : 'chat-message__avatar--bot'
         )}
       >
         {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
@@ -45,21 +43,19 @@ function MessageItem({ message }: MessageItemProps) {
       {/* Content */}
       <div
         className={cn(
-          'flex max-w-[80%] flex-col',
-          isUser ? 'items-end' : 'items-start'
+          'chat-message__content',
+          isUser ? 'chat-message__content--user' : 'chat-message__content--bot'
         )}
       >
         <div
           className={cn(
-            'rounded-2xl px-4 py-2',
-            isUser
-              ? 'bg-blue-600 text-white'
-              : 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+            'chat-message__bubble',
+            isUser ? 'chat-message__bubble--user' : 'chat-message__bubble--bot'
           )}
         >
           <MessageContent content={message.content} />
         </div>
-        <span className="mt-1 text-xs text-zinc-400">
+        <span className="chat-message__time">
           {formatTime(message.timestamp)}
         </span>
       </div>
@@ -86,7 +82,7 @@ function MessageContent({ content }: MessageContentProps) {
             return (
               <pre
                 key={index}
-                className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100"
+                className="chat-message__code-block"
               >
                 <code>{code.trim()}</code>
               </pre>
@@ -103,7 +99,7 @@ function MessageContent({ content }: MessageContentProps) {
                 return (
                   <code
                     key={inlineIndex}
-                    className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-700"
+                    className="chat-message__inline-code"
                   >
                     {inlinePart.slice(1, -1)}
                   </code>

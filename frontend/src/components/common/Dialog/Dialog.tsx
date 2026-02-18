@@ -12,14 +12,6 @@ export interface DialogProps {
   closeOnEscape?: boolean
 }
 
-const sizeClasses = {
-  sm: 'max-w-md',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-  full: 'max-w-[90vw]',
-}
-
 export function Dialog({
   open,
   onClose,
@@ -66,17 +58,10 @@ export function Dialog({
   }
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={handleBackdropClick}
-    >
+    <div className="dialog__backdrop" onClick={handleBackdropClick}>
       <div
         ref={dialogRef}
-        className={cn(
-          'w-full rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl animate-in zoom-in-95 duration-150',
-          sizeClasses[size],
-          className
-        )}
+        className={cn('dialog__panel', `dialog__panel--${size}`, className)}
         role="dialog"
         aria-modal="true"
       >

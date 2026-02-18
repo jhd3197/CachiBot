@@ -13,12 +13,7 @@ export function DialogFooter({
   leftContent,
 }: DialogFooterProps) {
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between border-t border-zinc-800 px-6 py-4',
-        className
-      )}
-    >
+    <div className={cn('dialog__footer', className)}>
       <div>{leftContent}</div>
       <div className="flex items-center gap-2">{children}</div>
     </div>
@@ -35,17 +30,6 @@ export interface DialogButtonProps {
   type?: 'button' | 'submit'
 }
 
-const variantClasses = {
-  primary:
-    'rounded-lg bg-cachi-600 px-6 py-2 text-sm font-medium text-white hover:bg-cachi-500 disabled:opacity-50 disabled:cursor-not-allowed',
-  secondary:
-    'rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed',
-  danger:
-    'rounded-lg bg-red-600 px-6 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed',
-  ghost:
-    'rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed',
-}
-
 export function DialogButton({
   onClick,
   disabled,
@@ -59,7 +43,7 @@ export function DialogButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cn(variantClasses[variant], className)}
+      className={cn('btn', `btn--${variant}`, 'btn--md', className)}
     >
       {children}
     </button>

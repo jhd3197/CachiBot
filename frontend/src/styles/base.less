@@ -1,0 +1,98 @@
+// =============================================================================
+// Base — base.less
+// Reset, global defaults, scrollbars, keyframes.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Body defaults
+// -----------------------------------------------------------------------------
+body {
+  font-family: @font-sans;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  line-height: @leading-normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// -----------------------------------------------------------------------------
+// Code blocks
+// -----------------------------------------------------------------------------
+pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  border-radius: @radius-lg;
+  padding: @sp-4;
+  overflow-x: auto;
+  font-family: @font-mono;
+  font-size: @text-sm;
+}
+
+code {
+  font-family: @font-mono;
+  font-size: @text-sm;
+}
+
+// Inline code
+:not(pre) > code {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: @sp-0\.5 @sp-1\.5;
+  border-radius: @radius-sm;
+  font-size: @text-sm;
+}
+
+// -----------------------------------------------------------------------------
+// Title bar drag regions (Electron)
+// -----------------------------------------------------------------------------
+.title-bar-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.title-bar-btn {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+// -----------------------------------------------------------------------------
+// Keyframe animations
+// -----------------------------------------------------------------------------
+@keyframes reply-flash {
+  0% { background-color: rgba(34, 197, 94, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.reply-highlight {
+  animation: reply-flash 1.5s ease-out;
+}
+
+@keyframes thinking {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

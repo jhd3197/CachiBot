@@ -114,7 +114,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
   }
 
   if (isLoading) {
-    return <div className="text-sm text-zinc-500">Loading contacts...</div>
+    return <div className="text-sm text-[var(--color-text-secondary)]">Loading contacts...</div>
   }
 
   return (
@@ -130,7 +130,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
         {botContacts.map((contact) => (
           <div
             key={contact.id}
-            className="flex items-center justify-between rounded-lg border border-zinc-800 p-3"
+            className="flex items-center justify-between rounded-lg border border-[var(--color-border-primary)] p-3"
           >
             {editingId === contact.id ? (
               <div className="flex-1 space-y-2">
@@ -139,7 +139,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Name"
-                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+                  className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
                   autoFocus
                 />
                 <input
@@ -147,7 +147,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
                   value={formDetails}
                   onChange={(e) => setFormDetails(e.target.value)}
                   placeholder="Details (email, phone, notes...)"
-                  className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+                  className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
                 />
                 <div className="flex gap-2">
                   <button
@@ -158,7 +158,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
                   </button>
                   <button
                     onClick={cancelForm}
-                    className="rounded bg-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+                    className="rounded bg-[var(--color-hover-bg)] px-2 py-1 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-active-bg)]"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -167,26 +167,26 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
             ) : (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800">
-                    <User className="h-4 w-4 text-zinc-400" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-bg-secondary)]">
+                    <User className="h-4 w-4 text-[var(--color-text-secondary)]" />
                   </div>
                   <div>
-                    <div className="font-medium text-zinc-200">{contact.name}</div>
+                    <div className="font-medium text-[var(--color-text-primary)]">{contact.name}</div>
                     {contact.details && (
-                      <div className="text-xs text-zinc-500">{contact.details}</div>
+                      <div className="text-xs text-[var(--color-text-secondary)]">{contact.details}</div>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => startEdit(contact)}
-                    className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                    className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-primary)]"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(contact.id)}
-                    className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                    className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-red-400"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -199,13 +199,13 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
 
       {/* Add form */}
       {isAdding ? (
-        <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+        <div className="space-y-2 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--card-bg)] p-3">
           <input
             type="text"
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
             placeholder="Name"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+            className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
             autoFocus
           />
           <input
@@ -213,7 +213,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
             value={formDetails}
             onChange={(e) => setFormDetails(e.target.value)}
             placeholder="Details (email, phone, notes...)"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-sm text-zinc-100"
+            className="w-full rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-2 py-1 text-sm text-[var(--color-text-primary)]"
           />
           <div className="flex gap-2">
             <button
@@ -225,7 +225,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
             </button>
             <button
               onClick={cancelForm}
-              className="rounded bg-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-600"
+              className="rounded bg-[var(--color-hover-bg)] px-3 py-1 text-xs text-[var(--color-text-primary)] hover:bg-[var(--color-active-bg)]"
             >
               Cancel
             </button>
@@ -234,7 +234,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
       ) : (
         <button
           onClick={startAdd}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 p-3 text-sm text-zinc-500 hover:border-zinc-600 hover:text-zinc-400"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border-secondary)] p-3 text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-secondary)]"
         >
           <Plus className="h-4 w-4" />
           Add Contact
@@ -242,7 +242,7 @@ export function ContactsPanel({ botId }: ContactsPanelProps) {
       )}
 
       {botContacts.length === 0 && !isAdding && (
-        <p className="text-center text-sm text-zinc-500">
+        <p className="text-center text-sm text-[var(--color-text-secondary)]">
           No contacts yet. Add contacts that your bot can reference.
         </p>
       )}

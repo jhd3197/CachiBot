@@ -1,0 +1,271 @@
+// =============================================================================
+// Voice — components/voice.less
+// Voice call view, waveform, transcripts, controls
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Voice View — outermost container
+// -----------------------------------------------------------------------------
+
+.voice-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-secondary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice Header
+// -----------------------------------------------------------------------------
+
+.voice-header {
+  display: flex;
+  align-items: center;
+  gap: @sp-3;
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+
+  &__icon {
+    .flex-center();
+    height: 2.5rem;
+    width: 2.5rem;
+    border-radius: @radius-xl;
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__clear-btn {
+    border-radius: @radius-lg;
+    padding: @sp-1\.5 @sp-3;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice Transcripts
+// -----------------------------------------------------------------------------
+
+.voice-transcripts {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-4 @sp-6;
+  .scrollbar-thin();
+
+  &__empty {
+    .flex-col();
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: @sp-3;
+    color: var(--color-text-secondary);
+  }
+
+  &__bubble {
+    max-width: 80%;
+    border-radius: @radius-2xl;
+    padding: @sp-2\.5 @sp-4;
+
+    &--user {
+      color: white;
+    }
+
+    &--bot {
+      background: var(--color-active-bg);
+      color: var(--color-text-primary);
+
+      .dark & {
+        background: var(--color-bg-secondary);
+      }
+    }
+  }
+
+  &__time {
+    margin-top: @sp-1;
+    font-size: 10px;
+    opacity: 0.6;
+  }
+
+  &__tool-call {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    font-size: @text-xs;
+    color: @yellow-400;
+  }
+
+  &__thinking {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice Error
+// -----------------------------------------------------------------------------
+
+.voice-error {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  margin: 0 @sp-6 @sp-2;
+  border-radius: @radius-lg;
+  background: rgba(@red-500, 0.1);
+  padding: @sp-2 @sp-4;
+  font-size: @text-sm;
+  color: @red-400;
+}
+
+// -----------------------------------------------------------------------------
+// Voice Waveform
+// -----------------------------------------------------------------------------
+
+.voice-waveform {
+  height: 4rem;
+  margin: 0 @sp-6;
+  overflow: hidden;
+  border-radius: @radius-xl;
+  background: var(--color-bg-inset);
+
+  .dark & {
+    background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice PTT Indicator
+// -----------------------------------------------------------------------------
+
+.voice-ptt {
+  padding: @sp-2 0;
+  text-align: center;
+  font-size: @text-xs;
+  color: var(--color-text-secondary);
+
+  &__active {
+    font-weight: @font-medium;
+    color: @blue-400;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Voice Controls
+// -----------------------------------------------------------------------------
+
+.voice-controls {
+  .flex-center();
+  gap: @sp-3;
+  padding: @sp-5 @sp-6;
+  border-top: 1px solid var(--color-border-primary);
+}
+
+.voice-btn {
+  .flex-center();
+  border-radius: @radius-full;
+  border: none;
+  cursor: pointer;
+  .transition-all();
+
+  &--mute {
+    height: 3rem;
+    width: 3rem;
+    background: var(--color-active-bg);
+    color: var(--color-text-tertiary);
+
+    &:hover {
+      background: var(--color-border-secondary);
+    }
+
+    .dark & {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-secondary);
+
+      &:hover {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+
+  &--muted {
+    height: 3rem;
+    width: 3rem;
+    background: rgba(@red-500, 0.2);
+    color: @red-400;
+
+    &:hover {
+      background: rgba(@red-500, 0.3);
+    }
+  }
+
+  &--connect {
+    height: 3.5rem;
+    width: 3.5rem;
+    background: @green-500;
+    color: white;
+
+    &:hover {
+      background: @green-600;
+    }
+  }
+
+  &--disconnect {
+    height: 3.5rem;
+    width: 3.5rem;
+    background: @red-500;
+    color: white;
+
+    &:hover {
+      background: @red-600;
+    }
+  }
+
+  &--mode {
+    height: 3rem;
+    width: 3rem;
+    background: var(--color-active-bg);
+    color: var(--color-text-tertiary);
+
+    &:hover {
+      background: var(--color-border-secondary);
+    }
+
+    .dark & {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-secondary);
+
+      &:hover {
+        background: var(--color-hover-bg);
+      }
+    }
+  }
+
+  &--interrupt {
+    height: 3rem;
+    width: 3rem;
+    background: rgba(@yellow-500, 0.2);
+    color: @yellow-400;
+
+    &:hover {
+      background: rgba(@yellow-500, 0.3);
+    }
+  }
+}

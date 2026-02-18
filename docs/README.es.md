@@ -26,7 +26,7 @@
     <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python" /></a>
     <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18+-61DAFB.svg" alt="React" /></a>
     <a href="https://github.com/jhd3197/CachiBot/stargazers"><img src="https://img.shields.io/github/stars/jhd3197/CachiBot?style=social" alt="Estrellas" /></a>
-    <a href="https://discord.gg/V9bKwYVJ"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
+    <a href="https://discord.gg/Xzw45fGhqq"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
   </p>
 
   <p>
@@ -39,7 +39,7 @@
     <a href="#-arquitectura">Arquitectura</a> ·
     <a href="#-seguridad">Seguridad</a> ·
     <a href="#-contribuir">Contribuir</a> ·
-    <a href="https://discord.gg/V9bKwYVJ">Discord</a>
+    <a href="https://discord.gg/Xzw45fGhqq">Discord</a>
   </p>
 
 </div>
@@ -281,7 +281,7 @@ Consulta [CONTRIBUTING.md](../CONTRIBUTING.md) para todos los modos del script d
   <a href="https://cachibot.ai">
     <img src="https://img.shields.io/badge/Website-cachibot.ai-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website" />
   </a>
-  <a href="https://discord.gg/V9bKwYVJ">
+  <a href="https://discord.gg/Xzw45fGhqq">
     <img src="https://img.shields.io/badge/Discord-Únete_a_la_comunidad-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
   </a>
   <a href="https://github.com/jhd3197/CachiBot/issues">

@@ -80,14 +80,14 @@ export function SetupPage() {
 
   if (isLoading || setupNeeded === null) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-[var(--color-bg-app)]">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
       </div>
     )
   }
 
   return (
-    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-[var(--color-bg-app)] px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -95,11 +95,11 @@ export function SetupPage() {
             <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">CachiBot Setup</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Create your admin account to get started</p>
+          <p className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] mt-1">Create your admin account to get started</p>
         </div>
 
         {/* Setup Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
+        <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] p-6 shadow-sm">
           <form onSubmit={handleSetup} className="space-y-4">
             <div className="flex items-center gap-2 mb-4 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
               <UserPlus className="h-5 w-5 text-blue-400 flex-shrink-0" />
@@ -109,7 +109,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
                 Email
               </label>
               <input
@@ -118,14 +118,14 @@ export function SetupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white placeholder-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
                 autoFocus
               />
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="username" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
                 Username
               </label>
               <input
@@ -134,7 +134,7 @@ export function SetupPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin"
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white placeholder-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
                 minLength={3}
                 maxLength={32}
@@ -142,7 +142,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -152,14 +152,14 @@ export function SetupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 8 characters"
-                  className="w-full px-3 py-2 pr-10 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 pr-10 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white placeholder-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                   minLength={8}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-300"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -167,7 +167,7 @@ export function SetupPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-300 mb-1.5">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--color-text-primary)] mb-1.5">
                 Confirm Password
               </label>
               <input
@@ -176,7 +176,7 @@ export function SetupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat your password"
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white placeholder-[var(--input-placeholder)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
@@ -202,7 +202,7 @@ export function SetupPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-zinc-500 text-sm mt-6">
+        <p className="text-center text-[var(--color-text-secondary)] text-sm mt-6">
           The Armored AI Agent
         </p>
       </div>

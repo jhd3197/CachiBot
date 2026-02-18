@@ -88,8 +88,8 @@ export function PromptReviewStep() {
           </div>
         </div>
         <div className="text-center">
-          <p className="text-lg font-medium text-zinc-200">Creating {form.name}'s personality...</p>
-          <p className="mt-1 text-sm text-zinc-500">Crafting a unique system prompt just for you</p>
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">Creating {form.name}'s personality...</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Crafting a unique system prompt just for you</p>
         </div>
         <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
       </div>
@@ -112,9 +112,9 @@ export function PromptReviewStep() {
       )}
 
       {/* Bot identity header */}
-      <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+      <div className="flex items-center justify-between rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 px-4 py-3">
         <div>
-          <p className="text-sm text-zinc-500">Personality for</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">Personality for</p>
           <p className="text-lg font-bold text-cachi-400">{form.name}</p>
         </div>
         <button
@@ -128,22 +128,22 @@ export function PromptReviewStep() {
 
       {/* System prompt editor */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
+        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
           System Prompt
         </label>
         <textarea
           value={form.systemPrompt}
           onChange={(e) => updateForm({ systemPrompt: e.target.value })}
           rows={8}
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 font-mono text-xs leading-relaxed text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+          className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 font-mono text-xs leading-relaxed text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
         />
       </div>
 
       {/* Refine with AI */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4">
         <div className="mb-3 flex items-center gap-2">
           <Wand2 className="h-4 w-4 text-cachi-400" />
-          <span className="text-sm font-medium text-zinc-300">Refine with AI</span>
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">Refine with AI</span>
         </div>
         <div className="flex gap-2">
           <input
@@ -152,7 +152,7 @@ export function PromptReviewStep() {
             onChange={(e) => setRefineInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleRefine()}
             placeholder="e.g., 'make it more motivating' or 'add more personality'"
-            className="h-9 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+            className="h-9 flex-1 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
           />
           <button
             onClick={handleRefine}

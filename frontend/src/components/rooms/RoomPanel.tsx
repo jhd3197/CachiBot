@@ -6,7 +6,6 @@ import { getRoomMessages, getRoom } from '../../api/rooms'
 import { RoomMessageList } from './RoomMessageList'
 import { RoomInputArea } from './RoomInputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
-import { cn } from '../../lib/utils'
 import { useAuthStore } from '../../stores/auth'
 import type { Room } from '../../types'
 
@@ -59,15 +58,15 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+      <div className="room-panel__loading">
+        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
       </div>
     )
   }
 
   if (!room) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+      <div className="room-panel__empty">
         Room not found
       </div>
     )
@@ -82,30 +81,30 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   const isCreator = user?.id === room.creatorId
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="room-panel">
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-zinc-300 px-4 dark:border-zinc-800">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="room-panel__header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <h2 className="room-panel__title">
             {room.title}
           </h2>
           {!isConnected && (
-            <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-medium text-yellow-600 dark:text-yellow-400">
+            <span className="room-panel__reconnecting">
               Reconnecting...
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {/* Online members */}
-          <div className="flex items-center gap-1 text-xs text-zinc-500">
-            <Users className="h-3.5 w-3.5" />
+          <div className="room-panel__counter">
+            <Users size={14} />
             <span>{roomOnline.length}/{room.members.length}</span>
           </div>
 
           {/* Bot count */}
-          <div className="flex items-center gap-1 text-xs text-zinc-500">
-            <Bot className="h-3.5 w-3.5" />
+          <div className="room-panel__counter">
+            <Bot size={14} />
             <span>{room.bots.length}</span>
           </div>
 
@@ -113,9 +112,9 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           {isCreator && (
             <button
               onClick={() => setShowSettings(true)}
-              className="flex h-7 w-7 items-center justify-center rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              className="room-panel__icon-btn"
             >
-              <Settings className="h-4 w-4" />
+              <Settings size={16} />
             </button>
           )}
         </div>
@@ -123,20 +122,15 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
 
       {/* Bot status bar */}
       {activeBots.length > 0 && (
-        <div className="flex items-center gap-2 border-b border-zinc-300 px-4 py-1.5 dark:border-zinc-800">
+        <div className="room-panel__status-bar">
           {activeBots.map(([botId, state]) => {
             const bot = room.bots.find((b) => b.botId === botId)
             return (
               <span
                 key={botId}
-                className={cn(
-                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-                  state === 'thinking'
-                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                    : 'bg-accent-500/20 text-accent-600 dark:text-accent-400'
-                )}
+                className={`room-panel__bot-status room-panel__bot-status--${state === 'thinking' ? 'thinking' : 'responding'}`}
               >
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <Loader2 size={12} className="animate-spin" />
                 {bot?.botName || botId} is {state === 'thinking' ? 'thinking' : 'responding'}...
               </span>
             )
@@ -149,7 +143,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
 
       {/* Typing indicators */}
       {roomTyping.length > 0 && (
-        <div className="px-4 py-1 text-xs text-zinc-500">
+        <div className="room-panel__typing">
           {roomTyping.map((t) => t.username).join(', ')}
           {roomTyping.length === 1 ? ' is' : ' are'} typing...
         </div>

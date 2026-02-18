@@ -93,23 +93,23 @@ export function RoomInputArea({ onSend, onTyping, bots, disabled }: RoomInputAre
   }, [input])
 
   return (
-    <div className="relative border-t border-zinc-300 px-4 py-3 dark:border-zinc-800">
+    <div className="room-input">
       {/* @mention popup */}
       {showMentions && filteredBots.length > 0 && (
-        <div className="absolute bottom-full left-4 right-4 z-10 mb-1 rounded-lg border border-zinc-300 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="room-input__mention-popup">
           {filteredBots.map((bot) => (
             <button
               key={bot.botId}
               onClick={() => insertMention(bot.botName)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="room-input__mention-item"
             >
-              <span className="font-medium">@{bot.botName}</span>
+              <span style={{ fontWeight: 500 }}>@{bot.botName}</span>
             </button>
           ))}
         </div>
       )}
 
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
+      <div className="room-input__inner">
         <textarea
           ref={inputRef}
           value={input}
@@ -118,14 +118,14 @@ export function RoomInputArea({ onSend, onTyping, bots, disabled }: RoomInputAre
           placeholder="Type a message... Use @BotName to mention a specific bot"
           disabled={disabled}
           rows={1}
-          className="max-h-[120px] min-h-[40px] flex-1 resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+          className="room-input__textarea"
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || disabled}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent-600 text-white transition-colors hover:bg-accent-500 disabled:opacity-50"
+          className="room-input__send"
         >
-          <Send className="h-4 w-4" />
+          <Send size={16} />
         </button>
       </div>
     </div>

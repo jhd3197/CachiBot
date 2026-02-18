@@ -42,6 +42,9 @@ async_session_maker: async_sessionmaker[AsyncSession] | None = None
 # Database dialect: "sqlite" or "postgresql" (set during init_db)
 db_type: str = "sqlite"
 
+# Set to True when a V1 legacy database is detected (has users but no groups table)
+legacy_db_detected: bool = False
+
 
 def resolve_database_url() -> str:
     """Determine the database URL from config, env vars, or default.
@@ -188,6 +191,16 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def _detect_legacy_database(connection) -> bool:  # type: ignore[no-untyped-def]
+    """Detect a V1 legacy database by its structural fingerprint.
+
+    A V1 database has a ``users`` table but no ``groups`` table.  Fresh V2
+    installs always create both, so this check has no false positives.
+    """
+    inspector = inspect(connection)
+    return inspector.has_table("users") and not inspector.has_table("groups")
+
+
 def _reconcile_schema(connection) -> None:  # type: ignore[no-untyped-def]
     """Add missing columns to existing tables.
 
@@ -232,7 +245,7 @@ async def init_db() -> None:
     - Auto-creates all tables for fresh installs (via Base.metadata.create_all)
     - Logs which database backend is being used
     """
-    global engine, async_session_maker, db_type
+    global engine, async_session_maker, db_type, legacy_db_detected
 
     url = resolve_database_url()
     db_type = _detect_db_type(url)
@@ -299,6 +312,16 @@ async def init_db() -> None:
                         "pgvector extension not available. Vector search features will be limited."
                     )
 
+            # Detect V1 legacy database before create_all (SQLite only)
+            if db_type == "sqlite":
+                is_legacy = await conn.run_sync(_detect_legacy_database)
+                if is_legacy:
+                    legacy_db_detected = True
+                    logger.warning(
+                        "Legacy V1 database detected — has users table but no groups table. "
+                        "User will be prompted to reset or keep the database."
+                    )
+
             # Create all tables that don't exist yet
             await conn.run_sync(Base.metadata.create_all)
 
@@ -324,3 +347,41 @@ async def close_db() -> None:
         await engine.dispose()
     engine = None
     async_session_maker = None
+
+
+async def reset_database() -> str:
+    """Reset a legacy V1 database by renaming it and creating a fresh one.
+
+    Returns the path to the backup file.
+    """
+    global legacy_db_detected
+
+    url = resolve_database_url()
+    if not url.startswith("sqlite"):
+        raise RuntimeError("reset_database is only supported for SQLite")
+
+    # Extract path from URL: sqlite+aiosqlite:///path/to/db
+    db_path_str = url.split("///", 1)[-1] if "///" in url else ""
+    if not db_path_str:
+        raise RuntimeError("Cannot determine SQLite database path")
+
+    db_path = Path(db_path_str)
+
+    # Dispose current engine
+    await close_db()
+
+    # Rename old DB to .v1.bak (with numeric suffix if backup exists)
+    backup_path = db_path.with_suffix(".db.v1.bak")
+    counter = 1
+    while backup_path.exists():
+        backup_path = db_path.with_suffix(f".db.v1.bak.{counter}")
+        counter += 1
+
+    db_path.rename(backup_path)
+    logger.info("Legacy database backed up to %s", backup_path)
+
+    # Clear the flag and create a fresh DB
+    legacy_db_detected = False
+    await init_db()
+
+    return str(backup_path)

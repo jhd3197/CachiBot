@@ -162,7 +162,15 @@ async def get_execution_stats(
     """Get execution stats for a bot (24h, 7d, 30d)."""
     if period not in ("24h", "7d", "30d"):
         raise HTTPException(status_code=422, detail="period must be 24h, 7d, or 30d")
-    return await exec_log_repo.get_stats(bot_id=bot_id, period=period)
+    raw = await exec_log_repo.get_stats(bot_id=bot_id, period=period)
+    return {
+        "totalRuns": raw.get("total", 0),
+        "successCount": raw.get("success", 0),
+        "errorCount": raw.get("errors", 0),
+        "avgDurationMs": raw.get("avg_duration_ms", 0),
+        "totalCredits": raw.get("total_credits", 0),
+        "totalTokens": raw.get("total_tokens", 0),
+    }
 
 
 @router.get("/executions/{exec_id}")

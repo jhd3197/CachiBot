@@ -67,6 +67,7 @@ export interface SetupRequest {
 
 export interface SetupStatusResponse {
   setup_required: boolean
+  legacy_db_detected: boolean
 }
 
 export interface UserListResponse {

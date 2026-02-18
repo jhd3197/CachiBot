@@ -59,7 +59,16 @@ async def admin_error_spotlight(
     user: User = Depends(get_admin_user),
 ) -> list[dict]:
     """Error spotlight: errors grouped by type (admin only)."""
-    return await exec_log_repo.get_error_spotlight(days=days)
+    rows = await exec_log_repo.get_error_spotlight(days=days)
+    return [
+        {
+            "errorType": r.get("error", "Unknown"),
+            "count": r.get("count", 0),
+            "lastSeen": r.get("last_seen"),
+            "botIds": [r["bot_id"]] if r.get("bot_id") else [],
+        }
+        for r in rows
+    ]
 
 
 @router.get("/executions/costs")
@@ -69,7 +78,17 @@ async def admin_cost_analysis(
     user: User = Depends(get_admin_user),
 ) -> list[dict]:
     """Cost analysis: ranked by credits consumed (admin only)."""
-    return await exec_log_repo.get_cost_analysis(days=days, limit=limit)
+    rows = await exec_log_repo.get_cost_analysis(days=days, limit=limit)
+    return [
+        {
+            "botId": r.get("bot_id", ""),
+            "botName": r.get("source_name", r.get("bot_id", "")),
+            "totalCredits": r.get("total_credits", 0),
+            "totalTokens": r.get("total_tokens", 0),
+            "executionCount": r.get("run_count", 0),
+        }
+        for r in rows
+    ]
 
 
 @router.get("/executions/stats")
@@ -80,7 +99,15 @@ async def admin_global_stats(
     """Global execution stats (admin only)."""
     if period not in ("24h", "7d", "30d"):
         raise HTTPException(status_code=422, detail="period must be 24h, 7d, or 30d")
-    return await exec_log_repo.get_stats(period=period)
+    raw = await exec_log_repo.get_stats(period=period)
+    return {
+        "totalRuns": raw.get("total", 0),
+        "successCount": raw.get("success", 0),
+        "errorCount": raw.get("errors", 0),
+        "avgDurationMs": raw.get("avg_duration_ms", 0),
+        "totalCredits": raw.get("total_credits", 0),
+        "totalTokens": raw.get("total_tokens", 0),
+    }
 
 
 @router.get("/executions/running")

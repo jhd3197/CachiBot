@@ -1,0 +1,67 @@
+// =============================================================================
+// Entry Point — index.less
+// Single entry point for all LESS styles.
+// Import order matters: each file can reference anything above it.
+// =============================================================================
+
+// 1. Raw LESS variables (no output)
+@import './variables.less';
+
+// 2. CSS custom properties (light + dark)
+@import './theme.less';
+
+// 3. Global resets and defaults
+@import './base.less';
+
+// 4. Parametric mixins (no output)
+@import './mixins.less';
+
+// 5. Layout
+@import './layout/app-shell.less';
+@import './layout/title-bar.less';
+@import './layout/header.less';
+@import './layout/pages.less';
+@import './layout/auth.less';
+
+// 6. Components
+@import './components/buttons.less';
+@import './components/inputs.less';
+@import './components/cards.less';
+@import './components/badges.less';
+@import './components/dialogs.less';
+@import './components/sidebar.less';
+@import './components/tables.less';
+@import './components/context-menu.less';
+@import './components/stepper.less';
+@import './components/spinner.less';
+@import './components/model-select.less';
+@import './components/update-banner.less';
+@import './components/markdown.less';
+@import './components/tooltip.less';
+@import './components/bot-rail.less';
+@import './components/bot-sidebar.less';
+@import './components/chat.less';
+@import './components/rooms.less';
+@import './components/automations.less';
+@import './components/marketplace.less';
+
+// 6b. View-specific components
+@import './components/app-settings.less';
+@import './components/settings-view.less';
+@import './components/dashboard.less';
+@import './components/schedules.less';
+@import './components/tools-view.less';
+@import './components/groups.less';
+@import './components/tasks-view.less';
+@import './components/users.less';
+@import './components/jobs.less';
+@import './components/global-log.less';
+@import './components/work.less';
+@import './components/voice.less';
+@import './components/script-editor.less';
+
+// 7. Utilities (last, so they can override)
+@import './utilities.less';
+
+// 8. Vendor overrides
+@import './vendor/monaco-overrides.less';

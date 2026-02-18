@@ -46,6 +46,7 @@ import {
   Star,
   Sparkles,
   Search,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, accentColors } from '../../stores/ui'
@@ -64,15 +65,23 @@ import {
   getTelemetryPreview,
 } from '../../api/telemetry'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
+import {
+  listGroups,
+  createGroup,
+  getGroup,
+  deleteGroup,
+  addMember,
+  removeMember,
+} from '../../api/groups'
 import { checkHealth, type HealthInfo } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
 import { cn } from '../../lib/utils'
-import type { Config, User, UserRole } from '../../types'
+import type { Config, User, UserRole, Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
 
-type SettingsTab = 'general' | 'appearance' | 'models' | 'keys' | 'advanced' | 'data' | 'users'
+type SettingsTab = 'general' | 'appearance' | 'models' | 'keys' | 'advanced' | 'data' | 'users' | 'groups'
 
-const VALID_TABS: SettingsTab[] = ['general', 'appearance', 'models', 'keys', 'advanced', 'data', 'users']
+const VALID_TABS: SettingsTab[] = ['general', 'appearance', 'models', 'keys', 'advanced', 'data', 'users', 'groups']
 
 export function AppSettingsView() {
   const { settingsTab: urlTab } = useParams<{ settingsTab?: string }>()
@@ -93,6 +102,7 @@ export function AppSettingsView() {
   const { user: currentUser } = useAuthStore()
 
   const isAdmin = currentUser?.role === 'admin'
+  const isManagerOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager'
 
   const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null)
 
@@ -108,6 +118,8 @@ export function AppSettingsView() {
     if (!VALID_TABS.includes(urlTab as SettingsTab)) return 'general'
     // Non-admins can't access users tab
     if (urlTab === 'users' && !isAdmin) return 'general'
+    // Non-managers can't access groups tab
+    if (urlTab === 'groups' && !isManagerOrAdmin) return 'general'
     return urlTab as SettingsTab
   }
 
@@ -131,32 +143,31 @@ export function AppSettingsView() {
     { id: 'keys' as SettingsTab, label: 'API Keys', icon: Key },
     { id: 'advanced' as SettingsTab, label: 'Advanced', icon: Sliders },
     { id: 'data' as SettingsTab, label: 'Data & Privacy', icon: Database },
-    ...(isAdmin ? [{ id: 'users' as SettingsTab, label: 'Users', icon: Users }] : []),
+    ...(isManagerOrAdmin ? [{ id: 'groups' as SettingsTab, label: 'Groups', icon: Users }] : []),
+    ...(isAdmin ? [{ id: 'users' as SettingsTab, label: 'Users', icon: UserPlus }] : []),
   ]
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className="app-settings">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-300 px-6 py-4 dark:border-zinc-800">
+      <div className="app-settings__header">
         <div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Settings</h1>
-          <p className="text-sm text-zinc-500">Configure CachiBot preferences</p>
+          <h1 className="app-settings__title">Settings</h1>
+          <p className="app-settings__subtitle">Configure CachiBot preferences</p>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="app-settings__body">
         {/* Sidebar */}
-        <nav className="w-56 border-r border-zinc-300 p-4 dark:border-zinc-800">
+        <nav className="settings-nav">
           <div className="space-y-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                  activeTab === tab.id
-                    ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-                    : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+                  'settings-nav__item',
+                  activeTab === tab.id && 'settings-nav__item--active'
                 )}
               >
                 <tab.icon className="h-4 w-4" />
@@ -167,8 +178,8 @@ export function AppSettingsView() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="mx-auto max-w-2xl space-y-8">
+        <div className="app-settings__content">
+          <div className="app-settings__content-inner space-y-8">
             {activeTab === 'general' && (
               <GeneralSettings
                 showThinking={showThinking}
@@ -193,6 +204,7 @@ export function AppSettingsView() {
             {activeTab === 'keys' && <ApiKeysSettings />}
             {activeTab === 'advanced' && <AdvancedSettings config={config} />}
             {activeTab === 'data' && <DataSettings />}
+            {activeTab === 'groups' && isManagerOrAdmin && <GroupsSettings currentUser={currentUser} />}
             {activeTab === 'users' && isAdmin && <UsersSettings currentUser={currentUser} />}
           </div>
         </div>
@@ -264,13 +276,13 @@ function GeneralSettings({
                 type="text"
                 value={config?.workspacePath || './workspace'}
                 readOnly
-                className="h-10 flex-1 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className="settings-input settings-input--readonly flex-1"
               />
-              <button className="rounded-lg bg-zinc-200 px-4 text-sm text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+              <button className="settings-btn-secondary">
                 Browse
               </button>
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               Directory where bots can read and write files
             </p>
           </Field>
@@ -279,37 +291,37 @@ function GeneralSettings({
 
       <Section icon={Info} title="About">
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Version</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Version</span>
+            <span className="settings-info-row__value">
               {healthInfo?.version ?? '...'}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Build</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Build</span>
+            <span className="settings-info-row__value">
               {healthInfo?.build ?? '...'}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Python</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Python</span>
+            <span className="settings-info-row__value">
               {healthInfo?.python ?? '...'}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Platform</span>
-            <span className="font-mono text-zinc-800 dark:text-zinc-200">
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Platform</span>
+            <span className="settings-info-row__value">
               {healthInfo?.platform ?? '...'}
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Documentation</span>
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Documentation</span>
             <a
               href="https://github.com/jhd3197/CachiBot"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-cachi-600 hover:text-cachi-500 dark:text-cachi-400 dark:hover:text-cachi-300"
+              className="settings-info-row__link"
             >
               GitHub
               <ExternalLink className="h-3 w-3" />
@@ -333,16 +345,16 @@ function SetupWizardButton() {
 
   return (
     <Section icon={RefreshCw} title="Setup">
-      <div className="flex items-center justify-between">
+      <div className="settings-card-row">
         <div>
-          <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Run Setup Wizard</h4>
-          <p className="text-sm text-zinc-500">
+          <h4 className="settings-card-row__title">Run Setup Wizard</h4>
+          <p className="settings-card-row__desc">
             Re-run the initial setup to configure API keys, models, and preferences
           </p>
         </div>
         <button
           onClick={handleRunWizard}
-          className="flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500"
+          className="settings-btn-accent flex items-center gap-2"
         >
           <RefreshCw className="h-4 w-4" />
           Run Wizard
@@ -387,12 +399,12 @@ function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const buildBadge = healthInfo?.build ? (
     <span
       className={cn(
-        'ml-2 rounded-full px-2 py-0.5 text-xs font-medium',
+        'build-badge',
         healthInfo.build === 'release'
-          ? 'bg-green-500/20 text-green-400'
+          ? 'build-badge--release'
           : healthInfo.build === 'dev'
-            ? 'bg-amber-500/20 text-amber-400'
-            : 'bg-zinc-500/20 text-zinc-400'
+            ? 'build-badge--dev'
+            : 'build-badge--other'
       )}
     >
       {healthInfo.build}
@@ -402,16 +414,16 @@ function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
   return (
     <Section icon={Download} title="Updates">
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500 dark:text-zinc-400">Current Version</span>
-          <span className="font-mono text-zinc-800 dark:text-zinc-200">
+        <div className="settings-info-row">
+          <span className="settings-info-row__label">Current Version</span>
+          <span className="settings-info-row__value">
             {currentVersion}
             {buildBadge}
           </span>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-zinc-500 dark:text-zinc-400">Latest Version</span>
+        <div className="settings-info-row">
+          <span className="settings-info-row__label">Latest Version</span>
           {latestStable ? (
             <span
               className={cn(
@@ -425,13 +437,13 @@ function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
               {!checkResult?.update_available && ' (up to date)'}
             </span>
           ) : (
-            <span className="text-zinc-500">—</span>
+            <span className="text-[var(--color-text-secondary)]">—</span>
           )}
         </div>
 
         {latestPrerelease && optIntoBeta && (
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-500 dark:text-zinc-400">Latest Pre-release</span>
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Latest Pre-release</span>
             <span className="font-mono text-amber-400">{latestPrerelease}</span>
           </div>
         )}
@@ -444,7 +456,7 @@ function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
         />
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-[var(--color-text-secondary)]">
             Last checked: {formatRelativeTime(lastCheckAt)}
           </span>
         </div>
@@ -453,7 +465,7 @@ function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
           <button
             onClick={() => checkForUpdate(true)}
             disabled={isChecking}
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="settings-btn-secondary flex items-center gap-2"
           >
             {isChecking ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -515,10 +527,8 @@ function AppearanceSettings({
                   key={option.value}
                   onClick={() => setTheme(option.value)}
                   className={cn(
-                    'flex flex-1 items-center justify-center gap-2 rounded-lg border py-3 transition-all',
-                    theme === option.value
-                      ? 'border-accent-500 bg-accent-500/20 text-accent-600 dark:text-accent-400'
-                      : 'border-zinc-300 bg-zinc-100 text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600'
+                    'settings-theme-btn',
+                    theme === option.value && 'settings-theme-btn--active'
                   )}
                 >
                   <option.icon className="h-4 w-4" />
@@ -534,23 +544,18 @@ function AppearanceSettings({
                 <button
                   key={value}
                   onClick={() => setAccentColor(value)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg border p-3 transition-all',
-                    accentColor === value
-                      ? 'border-2 ring-1 ring-offset-1 ring-offset-zinc-900'
-                      : 'border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600'
-                  )}
+                  className="settings-color-btn"
                   style={{
                     borderColor: accentColor === value ? palette[500] : undefined,
-                    // @ts-expect-error - Tailwind CSS variable
-                    '--tw-ring-color': accentColor === value ? palette[500] : undefined,
+                    borderWidth: accentColor === value ? 2 : undefined,
+                    boxShadow: accentColor === value ? `0 0 0 1px ${palette[500]}` : undefined,
                   }}
                 >
                   <div
-                    className="h-5 w-5 rounded-full"
+                    className="settings-color-btn__swatch"
                     style={{ backgroundColor: palette[500] }}
                   />
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300">{name}</span>
+                  <span className="settings-color-btn__name">{name}</span>
                 </button>
               ))}
             </div>
@@ -567,7 +572,7 @@ function AppearanceSettings({
             onChange={setSidebarCollapsed}
           />
           <Field label="Chat Message Style">
-            <select className="h-10 w-full rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+            <select className="settings-select w-full">
               <option value="detailed">Detailed (with metadata)</option>
               <option value="compact">Compact</option>
               <option value="minimal">Minimal</option>
@@ -579,7 +584,7 @@ function AppearanceSettings({
       <Section icon={Code} title="Code Display">
         <div className="space-y-4">
           <Field label="Code Font">
-            <select className="h-10 w-full rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
+            <select className="settings-select w-full">
               <option value="jetbrains-mono">JetBrains Mono</option>
               <option value="fira-code">Fira Code</option>
               <option value="monaco">Monaco</option>
@@ -696,7 +701,7 @@ function ModelsSettings() {
               placeholder="Select default model..."
               className="w-full"
             />
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
               Used when no specific model is configured for a bot.
             </p>
           </Field>
@@ -708,18 +713,18 @@ function ModelsSettings() {
         <div className="space-y-3">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
             <input
               type="text"
               placeholder="Search models..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-300 bg-zinc-100 pl-10 pr-8 text-sm text-zinc-900 placeholder-zinc-500 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
+              className="settings-input w-full pl-10 pr-8"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 settings-modal__close-btn"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -727,7 +732,7 @@ function ModelsSettings() {
           </div>
 
           {/* Summary */}
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-[var(--color-text-secondary)]">
             {isSearching
               ? `${filteredTotal} result${filteredTotal !== 1 ? 's' : ''} across ${providerCount} provider${providerCount !== 1 ? 's' : ''}`
               : `${totalModels} model${totalModels !== 1 ? 's' : ''} from ${providerCount} provider${providerCount !== 1 ? 's' : ''}`}
@@ -735,7 +740,7 @@ function ModelsSettings() {
 
           {/* Loading */}
           {loading && (
-            <div className="flex items-center justify-center gap-2 py-6 text-zinc-500">
+            <div className="flex items-center justify-center gap-2 py-6 text-[var(--color-text-secondary)]">
               <Loader2 className="h-4 w-4 animate-spin" />
               Discovering models...
             </div>
@@ -744,9 +749,9 @@ function ModelsSettings() {
           {/* Empty */}
           {!loading && totalModels === 0 && (
             <div className="text-center py-6">
-              <Brain className="h-7 w-7 text-zinc-400 dark:text-zinc-600 mx-auto mb-2" />
-              <p className="text-sm text-zinc-500">No models available</p>
-              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-1">
+              <Brain className="h-7 w-7 text-[var(--color-text-tertiary)] mx-auto mb-2" />
+              <p className="text-sm text-[var(--color-text-secondary)]">No models available</p>
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Configure API keys to discover models.
               </p>
             </div>
@@ -754,7 +759,7 @@ function ModelsSettings() {
 
           {/* No search results */}
           {!loading && totalModels > 0 && filteredTotal === 0 && (
-            <div className="text-center py-6 text-zinc-500 text-sm">
+            <div className="text-center py-6 text-[var(--color-text-secondary)] text-sm">
               No models match your search
             </div>
           )}
@@ -774,45 +779,45 @@ function ModelsSettings() {
                   return (
                     <div
                       key={provider}
-                      className="rounded-lg border border-zinc-200 overflow-hidden dark:border-zinc-700"
+                      className="model-provider"
                     >
                       {/* Provider header - clickable */}
                       <button
                         onClick={() => toggleProvider(provider)}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-zinc-100/50 transition-colors dark:hover:bg-zinc-800/50"
+                        className="model-provider__header"
                       >
                         <ChevronRight
                           className={cn(
-                            'h-3.5 w-3.5 text-zinc-400 transition-transform',
+                            'h-3.5 w-3.5 text-[var(--color-text-secondary)] transition-transform',
                             isOpen && 'rotate-90'
                           )}
                         />
                         <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        <span className="model-provider__label">
                           {label}
                         </span>
-                        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                        <span className="model-provider__count">
                           {modelList.length}
                         </span>
                       </button>
 
                       {/* Model list */}
                       {isOpen && (
-                        <div className="border-t border-zinc-200 dark:border-zinc-700 max-h-64 overflow-y-auto">
+                        <div className="model-provider__list">
                           {modelList.map((m) => {
                             const isDefault = m.id === defaultModel
                             return (
                               <div
                                 key={m.id}
                                 className={cn(
-                                  'group flex items-center gap-2 px-3 py-1.5 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors dark:border-zinc-800 dark:hover:bg-zinc-800/40',
-                                  isDefault && 'bg-accent-500/5'
+                                  'model-row group',
+                                  isDefault && 'model-row--default'
                                 )}
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span
-                                      className="text-[13px] text-zinc-800 dark:text-zinc-200 truncate"
+                                      className="model-row__name truncate"
                                       title={m.id}
                                     >
                                       {m.id}
@@ -824,16 +829,16 @@ function ModelsSettings() {
                                       <Sparkles className="h-3 w-3 shrink-0 text-purple-400" />
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                                  <div className="model-row__meta">
                                     <span>{formatModelNum(m.context_window)} ctx</span>
                                     {m.pricing && (
                                       <>
-                                        <span className="text-zinc-300 dark:text-zinc-700">/</span>
-                                        <span className="text-emerald-600 dark:text-emerald-400">
+                                        <span className="model-row__separator">/</span>
+                                        <span className="model-row__price-in">
                                           {formatModelPrice(m.pricing.input)}
                                         </span>
-                                        <span className="text-zinc-300 dark:text-zinc-700">·</span>
-                                        <span className="text-amber-600 dark:text-amber-400">
+                                        <span className="model-row__separator">&middot;</span>
+                                        <span className="model-row__price-out">
                                           {formatModelPrice(m.pricing.output)}
                                         </span>
                                       </>
@@ -843,7 +848,7 @@ function ModelsSettings() {
                                 {!isDefault && (
                                   <button
                                     onClick={() => handleDefaultModelChange(m.id)}
-                                    className="shrink-0 rounded p-1 text-zinc-300 opacity-0 transition-all hover:text-accent-500 group-hover:opacity-100 dark:text-zinc-600 dark:hover:text-accent-400"
+                                    className="model-row__star-btn"
                                     title="Set as default"
                                   >
                                     <Star className="h-3.5 w-3.5" />
@@ -972,17 +977,17 @@ function ApiKeysSettings() {
     return (
       <div
         key={provider.name}
-        className="flex flex-col gap-3 rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
+        className="provider-card"
       >
-        <div className="flex items-center justify-between">
+        <div className="provider-card__header">
           <div className="flex items-center gap-2">
-            <h4 className="font-medium text-zinc-800 dark:text-zinc-200">{label}</h4>
+            <h4 className="provider-card__name">{label}</h4>
             <span
               className={cn(
-                'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium',
+                'provider-card__badge',
                 provider.configured
-                  ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                  : 'bg-zinc-300 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                  ? 'provider-card__badge--active'
+                  : 'provider-card__badge--inactive'
               )}
             >
               {provider.configured ? 'Active' : 'Not set'}
@@ -991,7 +996,7 @@ function ApiKeysSettings() {
           {provider.configured && (
             <button
               onClick={() => handleDelete(provider.name)}
-              className="rounded p-1 text-zinc-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+              className="provider-card__delete-btn"
               title="Remove key"
             >
               <Trash2 className="h-4 w-4" />
@@ -999,22 +1004,22 @@ function ApiKeysSettings() {
           )}
         </div>
 
-        <p className="text-xs text-zinc-500">
-          {isEndpoint ? 'Endpoint URL' : 'API Key'}: <code className="text-zinc-400">{provider.env_key}</code>
+        <p className="provider-card__env-key">
+          {isEndpoint ? 'Endpoint URL' : 'API Key'}: <code className="text-[var(--color-text-secondary)]">{provider.env_key}</code>
           {provider.default && (
-            <span className="ml-1 text-zinc-500">(default: {provider.default})</span>
+            <span className="ml-1 text-[var(--color-text-secondary)]">(default: {provider.default})</span>
           )}
         </p>
 
         {/* Show masked value if configured and not editing */}
         {provider.configured && !isEditing && (
           <div className="flex items-center gap-2">
-            <div className="flex-1 rounded-lg border border-zinc-300 bg-zinc-200/50 px-3 py-2 font-mono text-sm text-zinc-500 dark:border-zinc-600 dark:bg-zinc-700/50 dark:text-zinc-400">
+            <div className="provider-card__masked">
               {isVisible ? provider.masked_value : provider.masked_value.replace(/./g, '*').slice(0, 20) + '****'}
             </div>
             <button
               onClick={() => toggleVisibility(provider.name)}
-              className="rounded p-2 text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+              className="provider-card__visibility-btn"
               title={isVisible ? 'Hide' : 'Show'}
             >
               {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
@@ -1031,12 +1036,12 @@ function ApiKeysSettings() {
               setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
             }
             placeholder={isEndpoint ? (provider.default || 'Enter endpoint URL...') : 'Enter API key...'}
-            className="h-10 flex-1 rounded-lg border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-900 outline-none transition-colors focus:border-accent-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="provider-card__key-input flex-1"
           />
           {!isEndpoint && (
             <button
               onClick={() => toggleVisibility(provider.name)}
-              className="rounded-lg border border-zinc-300 px-3 text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-600 dark:border-zinc-600 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+              className="provider-card__visibility-btn-bordered"
               title={isVisible ? 'Hide' : 'Show'}
             >
               {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
@@ -1045,7 +1050,7 @@ function ApiKeysSettings() {
           <button
             onClick={() => handleSave(provider.name)}
             disabled={!inputValue.trim() || isSaving}
-            className="flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 text-sm font-medium text-white transition-colors hover:bg-accent-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="provider-card__save-btn"
           >
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -1071,7 +1076,7 @@ function ApiKeysSettings() {
     <>
       <Section icon={Cloud} title="Cloud Providers">
         <div className="space-y-4">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Configure API keys for cloud-based AI providers. Models will be automatically discovered
             once a valid key is saved.
           </p>
@@ -1081,7 +1086,7 @@ function ApiKeysSettings() {
 
       <Section icon={Server} title="Local Providers">
         <div className="space-y-4">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             Configure endpoints for locally-running model servers.
           </p>
           {localProviders.map(renderProviderCard)}
@@ -1115,9 +1120,9 @@ function AdvancedSettings({
               <input
                 type="number"
                 value={config?.sandbox.timeoutSeconds ?? 30}
-                className="h-10 w-24 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className="settings-input w-24"
               />
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">seconds</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">seconds</span>
             </div>
           </Field>
         </div>
@@ -1135,11 +1140,11 @@ function AdvancedSettings({
                 defaultValue={config?.agent.temperature ?? 0.7}
                 className="flex-1"
               />
-              <span className="w-12 text-center text-sm text-zinc-400">
+              <span className="w-12 text-center text-sm text-[var(--color-text-secondary)]">
                 {config?.agent.temperature ?? 0.7}
               </span>
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               Controls randomness in responses (0 = deterministic, 1 = creative)
             </p>
           </Field>
@@ -1150,9 +1155,9 @@ function AdvancedSettings({
               value={config?.agent.maxIterations ?? 20}
               min={1}
               max={100}
-              className="h-10 w-32 rounded-lg border border-zinc-300 bg-zinc-100 px-4 text-zinc-900 outline-none focus:border-cachi-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="settings-input w-32"
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               Maximum tool calls per conversation turn
             </p>
           </Field>
@@ -1257,42 +1262,42 @@ function DataSettings() {
       <Section icon={Shield} title="Privacy & Telemetry">
         <div className="space-y-4">
           {/* Telemetry toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Anonymous Analytics</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">Anonymous Analytics</h4>
+              <p className="settings-card-row__desc">
                 Send anonymous usage statistics to help improve CachiBot
               </p>
             </div>
             <button
               onClick={handleToggleTelemetry}
               className={cn(
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                'settings-toggle__switch',
                 telemetryStatus?.enabled
-                  ? 'bg-accent-600'
-                  : 'bg-zinc-300 dark:bg-zinc-600'
+                  ? 'settings-toggle__switch--on'
+                  : 'settings-toggle__switch--off'
               )}
             >
               <span
                 className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white transition-transform',
-                  telemetryStatus?.enabled ? 'translate-x-6' : 'translate-x-1'
+                  'settings-toggle__knob',
+                  telemetryStatus?.enabled ? 'settings-toggle__knob--on' : 'settings-toggle__knob--off'
                 )}
               />
             </button>
           </div>
 
           {/* View report */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">View Telemetry Report</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">View Telemetry Report</h4>
+              <p className="settings-card-row__desc">
                 See exactly what data would be sent
               </p>
             </div>
             <button
               onClick={handleViewTelemetryReport}
-              className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              className="settings-btn-secondary flex items-center gap-2"
             >
               <EyeIcon className="h-4 w-4" />
               View
@@ -1300,12 +1305,12 @@ function DataSettings() {
           </div>
 
           {/* Reset ID */}
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Reset Install ID</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">Reset Install ID</h4>
+              <p className="settings-card-row__desc">
                 Generate a new anonymous identifier{telemetryStatus?.install_id && (
-                  <span className="ml-1 font-mono text-xs text-zinc-400">
+                  <span className="ml-1 font-mono text-xs text-[var(--color-text-secondary)]">
                     ({telemetryStatus.install_id.slice(0, 8)}...)
                   </span>
                 )}
@@ -1313,7 +1318,7 @@ function DataSettings() {
             </div>
             <button
               onClick={() => setShowResetIdConfirm(true)}
-              className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+              className="settings-btn-secondary flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
               Reset
@@ -1322,7 +1327,7 @@ function DataSettings() {
 
           {/* Last sent */}
           {telemetryStatus?.last_sent && (
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-[var(--color-text-secondary)]">
               Last sent: {new Date(telemetryStatus.last_sent).toLocaleString()}
             </p>
           )}
@@ -1342,24 +1347,24 @@ function DataSettings() {
 
       {/* Telemetry preview modal */}
       {showTelemetryPreview && telemetryPayload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+        <div className="settings-modal">
+          <div className="settings-modal__panel" style={{ maxWidth: '32rem' }}>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Telemetry Report Preview</h2>
+              <h2 className="settings-modal__heading">Telemetry Report Preview</h2>
               <button
                 onClick={() => setShowTelemetryPreview(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                className="settings-modal__close-btn"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <pre className="max-h-96 overflow-auto rounded-lg bg-zinc-100 p-4 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+            <pre className="settings-modal__pre">
               {JSON.stringify(telemetryPayload, null, 2)}
             </pre>
-            <div className="mt-4 flex justify-end">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowTelemetryPreview(false)}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="settings-modal__cancel-btn"
               >
                 Close
               </button>
@@ -1370,26 +1375,26 @@ function DataSettings() {
 
       {/* Reset ID confirmation modal */}
       {showResetIdConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
-            <div className="mb-4 flex items-center gap-3 text-zinc-600 dark:text-zinc-400">
+        <div className="settings-modal">
+          <div className="settings-modal__panel" style={{ maxWidth: '28rem' }}>
+            <div className="mb-4 flex items-center gap-3 text-[var(--color-text-secondary)]">
               <RefreshCw className="h-6 w-6" />
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Reset Install ID?</h2>
+              <h2 className="settings-modal__heading">Reset Install ID?</h2>
             </div>
-            <p className="mb-6 text-sm text-zinc-500">
+            <p className="mb-6 text-sm settings-modal__body-text">
               This will generate a new anonymous identifier. Your previous telemetry data
               will no longer be associated with this installation.
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowResetIdConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                className="settings-modal__cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleResetId}
-                className="rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
+                className="settings-modal__confirm-btn"
               >
                 Reset ID
               </button>
@@ -1400,30 +1405,30 @@ function DataSettings() {
 
       <Section icon={Database} title="Data Management">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Export Data</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">Export Data</h4>
+              <p className="settings-card-row__desc">
                 Download all your data as a JSON file
               </p>
             </div>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white hover:bg-cachi-500"
+              className="settings-btn-accent flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
               Export
             </button>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Import Data</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">Import Data</h4>
+              <p className="settings-card-row__desc">
                 Restore from a previous backup
               </p>
             </div>
-            <button className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600">
+            <button className="settings-btn-secondary flex items-center gap-2">
               <Upload className="h-4 w-4" />
               Import
             </button>
@@ -1436,14 +1441,14 @@ function DataSettings() {
 
       <Section icon={RefreshCw} title="Cache">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-zinc-300 bg-zinc-100/50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <div className="settings-card-row">
             <div>
-              <h4 className="font-medium text-zinc-800 dark:text-zinc-200">Clear Cache</h4>
-              <p className="text-sm text-zinc-500">
+              <h4 className="settings-card-row__title">Clear Cache</h4>
+              <p className="settings-card-row__desc">
                 Remove cached responses and temporary data
               </p>
             </div>
-            <button className="flex items-center gap-2 rounded-lg bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-400 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600">
+            <button className="settings-btn-secondary flex items-center gap-2">
               <RefreshCw className="h-4 w-4" />
               Clear
             </button>
@@ -1452,15 +1457,15 @@ function DataSettings() {
       </Section>
 
       <Section icon={AlertTriangle} title="Danger Zone" danger>
-        <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
-          <h4 className="font-medium text-red-400">Delete All Data</h4>
-          <p className="mt-1 text-sm text-zinc-500">
+        <div className="settings-danger-zone">
+          <h4 className="settings-danger-zone__title">Delete All Data</h4>
+          <p className="settings-danger-zone__desc">
             Permanently delete all bots, chats, jobs, tasks, and settings. This
             cannot be undone.
           </p>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="mt-3 flex items-center gap-2 rounded-lg bg-red-600/20 px-4 py-2 text-sm text-red-400 hover:bg-red-600/30"
+            className="settings-btn-danger mt-3"
           >
             <Trash2 className="h-4 w-4" />
             Delete Everything
@@ -1470,26 +1475,26 @@ function DataSettings() {
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+        <div className="settings-modal">
+          <div className="settings-modal__panel" style={{ maxWidth: '28rem' }}>
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
-              <h2 className="text-lg font-bold">Delete All Data</h2>
+              <h2 className="settings-modal__heading">Delete All Data</h2>
             </div>
-            <p className="mb-6 text-zinc-400">
+            <p className="mb-6 settings-modal__body-text">
               Are you sure you want to delete all your data? This will remove all
               bots, chats, jobs, tasks, connections, and settings.
             </p>
-            <div className="flex justify-end gap-2">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800"
+                className="settings-modal__cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearAll}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+                className="settings-modal__confirm-btn--danger"
               >
                 Delete Everything
               </button>
@@ -1754,10 +1759,10 @@ function BotDataManager() {
   return (
     <Section icon={Bot} title="Bot Data Manager">
       <div className="space-y-4">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-[var(--color-text-secondary)]">
           Clear specific data for each bot while keeping bot settings and connections intact.
           {loadingPlatform && (
-            <span className="ml-2 text-zinc-400">
+            <span className="ml-2 text-[var(--color-text-secondary)]">
               <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
               Loading platform data...
             </span>
@@ -1779,17 +1784,17 @@ function BotDataManager() {
             return (
               <div
                 key={info.botId}
-                className="rounded-lg border border-zinc-300 bg-zinc-100/30 overflow-hidden dark:border-zinc-700 dark:bg-zinc-800/30"
+                className="bot-data-card"
               >
                 {/* Bot header */}
                 <button
                   onClick={() => toggleBot(info.botId)}
-                  className="flex w-full items-center gap-3 p-3 hover:bg-zinc-200/50 transition-colors dark:hover:bg-zinc-800/50"
+                  className="bot-data-card__header"
                 >
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                    <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-zinc-500" />
+                    <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
                   )}
                   <div
                     className="h-8 w-8 rounded-lg flex items-center justify-center"
@@ -1798,8 +1803,8 @@ function BotDataManager() {
                     <Bot className="h-4 w-4" style={{ color: info.botColor }} />
                   </div>
                   <div className="flex-1 text-left">
-                    <div className="font-medium text-zinc-800 dark:text-zinc-200">{info.botName}</div>
-                    <div className="text-xs text-zinc-500">
+                    <div className="bot-data-card__name">{info.botName}</div>
+                    <div className="bot-data-card__stats">
                       {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
                       {info.platformChatsCount > 0 && (
                         <span className="text-cyan-400"> · {info.platformChatsCount} platform chats</span>
@@ -1807,7 +1812,7 @@ function BotDataManager() {
                     </div>
                   </div>
                   {botSelected && botSelected.size > 0 && (
-                    <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
+                    <span className="bot-data-card__selected-badge">
                       {botSelected.size} selected
                     </span>
                   )}
@@ -1815,25 +1820,25 @@ function BotDataManager() {
 
                 {/* Expanded content */}
                 {isExpanded && (
-                  <div className="border-t border-zinc-300 p-3 dark:border-zinc-700">
+                  <div className="bot-data-card__content">
                     {!hasData ? (
-                      <p className="text-sm text-zinc-500 text-center py-2">
+                      <p className="text-sm text-[var(--color-text-secondary)] text-center py-2">
                         No data to clear for this bot
                       </p>
                     ) : (
                       <>
                         {/* Quick actions */}
-                        <div className="flex gap-2 mb-3">
+                        <div className="bot-data-card__quick-actions">
                           <button
                             onClick={() => selectAllForBot(info.botId, info)}
-                            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-200"
+                            className="bot-data-card__quick-btn"
                           >
                             Select all
                           </button>
-                          <span className="text-zinc-400 dark:text-zinc-600">·</span>
+                          <span className="bot-data-card__separator">&middot;</span>
                           <button
                             onClick={() => clearSelectionForBot(info.botId)}
-                            className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors dark:text-zinc-400 dark:hover:text-zinc-200"
+                            className="bot-data-card__quick-btn"
                           >
                             Clear selection
                           </button>
@@ -1911,14 +1916,14 @@ function BotDataManager() {
 
         {/* Clear button */}
         {hasSelection && (
-          <div className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+          <div className="settings-delete-bar">
             <div className="text-sm">
-              <span className="text-red-400 font-medium">{getTotalSelectedItems()}</span>
-              <span className="text-zinc-400"> items selected for deletion</span>
+              <span className="settings-delete-bar__count">{getTotalSelectedItems()}</span>
+              <span className="settings-delete-bar__label"> items selected for deletion</span>
             </div>
             <button
               onClick={() => setShowConfirmModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 transition-colors"
+              className="settings-modal__confirm-btn--danger flex items-center gap-2"
             >
               <Trash2 className="h-4 w-4" />
               Clear Selected
@@ -1929,25 +1934,25 @@ function BotDataManager() {
 
       {/* Confirmation modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+        <div className="settings-modal">
+          <div className="settings-modal__panel" style={{ maxWidth: '28rem' }}>
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
-              <h2 className="text-lg font-bold">Clear Bot Data</h2>
+              <h2 className="settings-modal__heading">Clear Bot Data</h2>
             </div>
-            <p className="mb-4 text-zinc-400">
+            <p className="mb-4 settings-modal__body-text">
               Are you sure you want to clear the selected data? This action cannot be undone.
             </p>
 
             {/* Summary of what will be deleted */}
-            <div className="mb-6 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 space-y-2">
+            <div className="mb-6 settings-modal__summary space-y-2">
               {Array.from(selectedItems.entries()).map(([botId, categories]) => {
                 const info = botDataInfos.find((b) => b.botId === botId)
                 if (!info) return null
                 return (
                   <div key={botId} className="text-sm">
-                    <span className="font-medium text-zinc-200">{info.botName}:</span>
-                    <span className="text-zinc-400 ml-2">
+                    <span className="font-medium text-[var(--color-text-primary)]">{info.botName}:</span>
+                    <span className="text-[var(--color-text-secondary)] ml-2">
                       {Array.from(categories).map((cat) => categoryConfig[cat].label).join(', ')}
                     </span>
                   </div>
@@ -1955,18 +1960,18 @@ function BotDataManager() {
               })}
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="settings-modal__footer">
               <button
                 onClick={() => setShowConfirmModal(false)}
                 disabled={clearing}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800 disabled:opacity-50"
+                className="settings-modal__cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearSelected}
                 disabled={clearing}
-                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+                className="settings-modal__confirm-btn--danger flex items-center gap-2"
               >
                 {clearing ? (
                   <>
@@ -2005,16 +2010,14 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
     <button
       onClick={onToggle}
       className={cn(
-        'flex items-center gap-2 rounded-lg border p-2 transition-all text-left',
-        selected
-          ? 'border-red-500/50 bg-red-500/10'
-          : 'border-zinc-300 bg-zinc-100/50 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-zinc-600'
+        'data-category',
+        selected && 'data-category--selected'
       )}
     >
       <div
         className={cn(
-          'h-6 w-6 rounded flex items-center justify-center transition-colors',
-          selected ? 'bg-red-500/20' : 'bg-zinc-300 dark:bg-zinc-700'
+          'data-category__icon-box',
+          selected && 'data-category__icon-box--selected'
         )}
       >
         {selected ? (
@@ -2024,14 +2027,452 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className={cn('text-sm font-medium', selected ? 'text-red-400' : 'text-zinc-800 dark:text-zinc-200')}>
+        <div className={cn('data-category__label', selected && 'data-category__label--selected')}>
           {config.label}
         </div>
-        <div className="text-xs text-zinc-500">
+        <div className="data-category__count">
           {count} {detail || (count === 1 ? 'item' : 'items')}
         </div>
       </div>
     </button>
+  )
+}
+
+// =============================================================================
+// GROUPS SETTINGS (Manager+)
+// =============================================================================
+
+function GroupsSettings({ currentUser }: { currentUser: User | null }) {
+  const [groups, setGroups] = useState<Group[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Create group modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState({ name: '', description: '' })
+  const [creating, setCreating] = useState(false)
+
+  // Group detail panel state
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [activeGroup, setActiveGroup] = useState<GroupWithMembers | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
+  // Add member modal state
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
+  const [addMemberForm, setAddMemberForm] = useState({ userId: '', role: 'member' as GroupRole })
+  const [addingMember, setAddingMember] = useState(false)
+
+  // Context menu state
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchGroupsList()
+  }, [])
+
+  useEffect(() => {
+    if (activeGroupId) {
+      fetchGroupDetail(activeGroupId)
+    } else {
+      setActiveGroup(null)
+    }
+  }, [activeGroupId])
+
+  const fetchGroupsList = async () => {
+    try {
+      const response = await listGroups()
+      setGroups(response)
+    } catch {
+      toast.error('Failed to load groups')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchGroupDetail = async (groupId: string) => {
+    setLoadingDetail(true)
+    try {
+      const group = await getGroup(groupId)
+      setActiveGroup(group)
+    } catch {
+      toast.error('Failed to load group details')
+      setActiveGroupId(null)
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!createForm.name) {
+      toast.error('Group name is required')
+      return
+    }
+    setCreating(true)
+    try {
+      const newGroup = await createGroup({
+        name: createForm.name,
+        description: createForm.description || undefined,
+      })
+      setGroups([newGroup, ...groups])
+      setShowCreateModal(false)
+      setCreateForm({ name: '', description: '' })
+      toast.success('Group created successfully')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create group'
+      toast.error(message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm('Are you sure you want to delete this group?')) return
+    try {
+      await deleteGroup(groupId)
+      setGroups(groups.filter((g) => g.id !== groupId))
+      if (activeGroupId === groupId) setActiveGroupId(null)
+      toast.success('Group deleted')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete group'
+      toast.error(message)
+    }
+    setMenuOpen(null)
+  }
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeGroupId || !addMemberForm.userId) {
+      toast.error('User ID is required')
+      return
+    }
+    setAddingMember(true)
+    try {
+      const newMember = await addMember(activeGroupId, {
+        user_id: addMemberForm.userId,
+        role: addMemberForm.role,
+      })
+      if (activeGroup) {
+        setActiveGroup({
+          ...activeGroup,
+          members: [...activeGroup.members, newMember],
+          member_count: activeGroup.member_count + 1,
+        })
+      }
+      setGroups(
+        groups.map((g) =>
+          g.id === activeGroupId ? { ...g, member_count: g.member_count + 1 } : g
+        )
+      )
+      setShowAddMemberModal(false)
+      setAddMemberForm({ userId: '', role: 'member' })
+      toast.success('Member added successfully')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add member'
+      toast.error(message)
+    } finally {
+      setAddingMember(false)
+    }
+  }
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!activeGroupId) return
+    if (!confirm('Are you sure you want to remove this member?')) return
+    try {
+      await removeMember(activeGroupId, userId)
+      if (activeGroup) {
+        setActiveGroup({
+          ...activeGroup,
+          members: activeGroup.members.filter((m) => m.user_id !== userId),
+          member_count: activeGroup.member_count - 1,
+        })
+      }
+      setGroups(
+        groups.map((g) =>
+          g.id === activeGroupId ? { ...g, member_count: g.member_count - 1 } : g
+        )
+      )
+      toast.success('Member removed')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove member'
+      toast.error(message)
+    }
+  }
+
+  const isGroupOwnerOrAdmin = (group: Group): boolean => {
+    if (!currentUser) return false
+    if (currentUser.role === 'admin') return true
+    return group.created_by === currentUser.id
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <Section icon={Users} title="Groups">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              {groups.length} group{groups.length !== 1 ? 's' : ''} total
+            </p>
+            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+              <UserPlus className="h-4 w-4 mr-1.5" />
+              Create Group
+            </Button>
+          </div>
+
+          {/* Groups Table */}
+          <div className="settings-table">
+            <div className="settings-table__header-row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5">
+              <div>Name</div>
+              <div>Description</div>
+              <div>Members</div>
+              <div></div>
+            </div>
+
+            {groups.length === 0 ? (
+              <div className="settings-table__empty py-8">
+                No groups found
+              </div>
+            ) : (
+              groups.map((group) => (
+                <div
+                  key={group.id}
+                  className={cn(
+                    'settings-table__row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5 items-center cursor-pointer text-sm',
+                    activeGroupId === group.id && 'settings-table__row--active'
+                  )}
+                  onClick={() => setActiveGroupId(activeGroupId === group.id ? null : group.id)}
+                >
+                  <div className="font-medium truncate">{group.name}</div>
+                  <div className="text-[var(--color-text-secondary)] truncate">
+                    {group.description || '\u2014'}
+                  </div>
+                  <div>{group.member_count}</div>
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => setMenuOpen(menuOpen === group.id ? null : group.id)}
+                      className="settings-btn-ghost p-1.5"
+                    >
+                      <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                    </button>
+                    {menuOpen === group.id && (
+                      <div className="settings-context-menu" style={{ width: '10rem' }}>
+                        <button
+                          onClick={() => { setActiveGroupId(group.id); setMenuOpen(null) }}
+                          className="settings-context-menu__item w-full"
+                        >
+                          View Members
+                        </button>
+                        {isGroupOwnerOrAdmin(group) && (
+                          <button
+                            onClick={() => handleDeleteGroup(group.id)}
+                            className="settings-context-menu__item settings-context-menu__item--danger w-full"
+                          >
+                            Delete Group
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* Group Detail Panel */}
+      {activeGroupId && (
+        <Section icon={Shield} title={activeGroup?.name || 'Group Details'}>
+          {loadingDetail ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            </div>
+          ) : activeGroup ? (
+            <div className="space-y-4">
+              {activeGroup.description && (
+                <p className="text-sm text-[var(--color-text-secondary)]">{activeGroup.description}</p>
+              )}
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Members ({activeGroup.members.length})
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Member
+                  </button>
+                  <button
+                    onClick={() => setActiveGroupId(null)}
+                    className="settings-btn-ghost p-1"
+                  >
+                    <X className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="settings-table">
+                {activeGroup.members.length === 0 ? (
+                  <div className="settings-table__empty py-6">
+                    No members yet
+                  </div>
+                ) : (
+                  activeGroup.members.map((member: GroupMember) => (
+                    <div
+                      key={member.user_id}
+                      className="member-row"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="member-row__avatar">
+                          {member.role === 'owner' ? (
+                            <Shield className="h-3.5 w-3.5 text-purple-400" />
+                          ) : (
+                            <UserIcon className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="member-row__name truncate">
+                            {member.username}
+                            {member.user_id === currentUser?.id && (
+                              <span className="member-row__you-tag">You</span>
+                            )}
+                          </div>
+                          <div className="member-row__email truncate">
+                            {member.email}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={cn(
+                            'role-badge',
+                            member.role === 'owner'
+                              ? 'role-badge--owner'
+                              : 'role-badge--default'
+                          )}
+                        >
+                          {member.role}
+                        </span>
+                        {member.user_id !== currentUser?.id && (
+                          <button
+                            onClick={() => handleRemoveMember(member.user_id)}
+                            className="member-row__remove-btn"
+                            title="Remove member"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
+        </Section>
+      )}
+
+      {/* Create Group Modal */}
+      {showCreateModal && (
+        <div className="settings-modal">
+          <div className="settings-modal__panel--sm mx-4">
+            <h2 className="settings-modal__heading mb-4">Create New Group</h2>
+            <form onSubmit={handleCreateGroup} className="space-y-4">
+              <div>
+                <label className="settings-modal__label">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="settings-modal__input"
+                  required
+                  placeholder="Group name"
+                />
+              </div>
+              <div>
+                <label className="settings-modal__label">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  className="settings-modal__input"
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={creating}>
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Group'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="settings-modal">
+          <div className="settings-modal__panel--sm mx-4">
+            <h2 className="settings-modal__heading mb-4">Add Member</h2>
+            <form onSubmit={handleAddMember} className="space-y-4">
+              <div>
+                <label className="settings-modal__label">
+                  User ID
+                </label>
+                <input
+                  type="text"
+                  value={addMemberForm.userId}
+                  onChange={(e) => setAddMemberForm({ ...addMemberForm, userId: e.target.value })}
+                  className="settings-modal__input"
+                  required
+                  placeholder="Enter user ID"
+                />
+              </div>
+              <div>
+                <label className="settings-modal__label">
+                  Role
+                </label>
+                <select
+                  value={addMemberForm.role}
+                  onChange={(e) => setAddMemberForm({ ...addMemberForm, role: e.target.value as GroupRole })}
+                  className="settings-modal__select"
+                >
+                  <option value="member">Member</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowAddMemberModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={addingMember}>
+                  {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Member'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close menu */}
+      {menuOpen && <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />}
+    </>
   )
 }
 
@@ -2164,7 +2605,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
       <Section icon={Users} title="User Management">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               {total} user{total !== 1 ? 's' : ''} total
             </p>
             <Button onClick={() => setShowCreateModal(true)} size="sm">
@@ -2174,9 +2615,9 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
           </div>
 
           {/* Users Table */}
-          <div className="rounded-lg border border-zinc-300 overflow-hidden dark:border-zinc-700">
+          <div className="settings-table">
             {/* Table Header */}
-            <div className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2 bg-zinc-100/50 text-xs text-zinc-500 font-medium dark:bg-zinc-800/50 dark:text-zinc-400">
+            <div className="settings-table__header-row grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2">
               <div>User</div>
               <div>Email</div>
               <div>Role</div>
@@ -2186,36 +2627,36 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
 
             {/* User Rows */}
             {users.length === 0 ? (
-              <div className="px-4 py-6 text-center text-zinc-500 text-sm">
+              <div className="settings-table__empty py-6">
                 No users found
               </div>
             ) : (
               users.map((user) => (
                 <div
                   key={user.id}
-                  className="grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 border-t border-zinc-300 items-center hover:bg-zinc-100/30 transition-colors dark:border-zinc-700 dark:hover:bg-zinc-800/30"
+                  className="settings-table__row grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 items-center"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-zinc-300 flex items-center justify-center flex-shrink-0 dark:bg-zinc-700">
-                      <AtSign className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                    <div className="user-avatar-circle">
+                      <AtSign className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
                     </div>
                     <div className="min-w-0">
-                      <div className="font-medium text-sm truncate text-zinc-800 dark:text-zinc-100">{user.username}</div>
+                      <div className="member-row__name truncate">{user.username}</div>
                       {user.id === currentUser?.id && (
-                        <div className="text-xs text-cachi-600 dark:text-cachi-400">You</div>
+                        <div className="text-xs text-accent-500">You</div>
                       )}
                     </div>
                   </div>
-                  <div className="text-zinc-500 text-sm truncate dark:text-zinc-400">{user.email}</div>
+                  <div className="member-row__email truncate">{user.email}</div>
                   <div>
                     <span
                       className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
+                        'role-badge',
                         user.role === 'admin'
-                          ? 'bg-purple-500/20 text-purple-300'
+                          ? 'role-badge--admin'
                           : user.role === 'manager'
-                            ? 'bg-teal-500/20 text-teal-300'
-                            : 'bg-zinc-700 text-zinc-300'
+                            ? 'role-badge--manager'
+                            : 'role-badge--default'
                       )}
                     >
                       {user.role === 'admin' ? (
@@ -2229,10 +2670,10 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   <div>
                     <span
                       className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
+                        'status-badge',
                         user.is_active
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-red-500/20 text-red-300'
+                          ? 'status-badge--active'
+                          : 'status-badge--inactive'
                       )}
                     >
                       {user.is_active ? (
@@ -2246,23 +2687,23 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   <div className="relative">
                     <button
                       onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
-                      className="p-1 hover:bg-zinc-200 rounded transition-colors disabled:opacity-50 dark:hover:bg-zinc-700"
+                      className="settings-btn-ghost p-1"
                       disabled={user.id === currentUser?.id}
                     >
-                      <MoreVertical className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                      <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)]" />
                     </button>
                     {menuOpen === user.id && (
-                      <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-zinc-300 rounded-lg shadow-lg py-1 z-20 dark:bg-zinc-800 dark:border-zinc-700">
+                      <div className="settings-context-menu" style={{ width: '9rem' }}>
                         <button
                           onClick={() => startEditing(user)}
-                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 transition-colors text-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                          className="settings-context-menu__item w-full"
                         >
                           Edit User
                         </button>
                         {user.is_active && (
                           <button
                             onClick={() => handleDeactivateUser(user.id)}
-                            className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-zinc-100 transition-colors dark:text-red-400 dark:hover:bg-zinc-700"
+                            className="settings-context-menu__item settings-context-menu__item--danger w-full"
                           >
                             Deactivate
                           </button>
@@ -2279,40 +2720,40 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
 
       {/* Create User Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-300 p-6 w-full max-w-md mx-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Create New User</h2>
+        <div className="settings-modal">
+          <div className="settings-modal__panel--sm mx-4">
+            <h2 className="settings-modal__heading mb-4">Create New User</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
                   <input
                     type="email"
                     value={createForm.email}
                     onChange={(e) =>
                       setCreateForm({ ...createForm, email: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                    className="settings-modal__input pl-10"
                     required
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Username
                 </label>
                 <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
                   <input
                     type="text"
                     value={createForm.username}
                     onChange={(e) =>
                       setCreateForm({ ...createForm, username: e.target.value })
                     }
-                    className="w-full pl-10 pr-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                    className="settings-modal__input pl-10"
                     required
                     minLength={3}
                     maxLength={32}
@@ -2320,7 +2761,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Password
                 </label>
                 <input
@@ -2329,14 +2770,14 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                  className="settings-modal__input"
                   required
                   minLength={8}
                   placeholder="Min. 8 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Role
                 </label>
                 <select
@@ -2347,7 +2788,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                  className="settings-modal__select"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>
@@ -2378,12 +2819,12 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
 
       {/* Edit User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl border border-zinc-300 p-6 w-full max-w-md mx-4 dark:bg-zinc-900 dark:border-zinc-800">
-            <h2 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Edit User</h2>
+        <div className="settings-modal">
+          <div className="settings-modal__panel--sm mx-4">
+            <h2 className="settings-modal__heading mb-4">Edit User</h2>
             <form onSubmit={handleUpdateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Email
                 </label>
                 <input
@@ -2392,12 +2833,12 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setEditForm({ ...editForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                  className="settings-modal__input"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Username
                 </label>
                 <input
@@ -2406,14 +2847,14 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                   onChange={(e) =>
                     setEditForm({ ...editForm, username: e.target.value })
                   }
-                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                  className="settings-modal__input"
                   required
                   minLength={3}
                   maxLength={32}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5 dark:text-zinc-300">
+                <label className="settings-modal__label">
                   Role
                 </label>
                 <select
@@ -2424,7 +2865,7 @@ function UsersSettings({ currentUser }: { currentUser: User | null }) {
                       role: e.target.value as UserRole,
                     })
                   }
-                  className="w-full px-3 py-2 bg-zinc-100 border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-2 focus:ring-cachi-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
+                  className="settings-modal__select"
                 >
                   <option value="user">User</option>
                   <option value="manager">Manager</option>
@@ -2477,26 +2918,26 @@ interface SectionProps {
 
 function Section({ icon: Icon, title, danger, children }: SectionProps) {
   return (
-    <div className="rounded-xl border border-zinc-300 bg-white dark:border-zinc-800 dark:bg-zinc-900/30">
+    <div className="settings-section">
       <div
         className={cn(
-          'flex items-center gap-2 border-b px-5 py-4',
-          danger ? 'border-red-500/30' : 'border-zinc-300 dark:border-zinc-800'
+          'settings-section__header',
+          danger && 'settings-section__header--danger'
         )}
       >
         <Icon
-          className={cn('h-5 w-5', danger ? 'text-red-400' : 'text-zinc-500 dark:text-zinc-400')}
+          className={cn('settings-section__icon', danger && 'settings-section__icon--danger')}
         />
         <h3
           className={cn(
-            'font-semibold',
-            danger ? 'text-red-400' : 'text-zinc-800 dark:text-zinc-200'
+            'settings-section__title',
+            danger && 'settings-section__title--danger'
           )}
         >
           {title}
         </h3>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="settings-section__body">{children}</div>
     </div>
   )
 }
@@ -2509,7 +2950,7 @@ interface FieldProps {
 function Field({ label, children }: FieldProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <label className="settings-field__label">
         {label}
       </label>
       {children}
@@ -2526,22 +2967,22 @@ interface ToggleFieldProps {
 
 function ToggleField({ label, description, checked, onChange }: ToggleFieldProps) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="settings-toggle">
       <div>
-        <h4 className="font-medium text-zinc-800 dark:text-zinc-200">{label}</h4>
-        <p className="text-sm text-zinc-500">{description}</p>
+        <h4 className="settings-toggle__label">{label}</h4>
+        <p className="settings-toggle__desc">{description}</p>
       </div>
       <button
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative h-6 w-11 rounded-full transition-colors',
-          checked ? 'bg-accent-600' : 'bg-zinc-300 dark:bg-zinc-700'
+          'settings-toggle__switch',
+          checked ? 'settings-toggle__switch--on' : 'settings-toggle__switch--off'
         )}
       >
         <span
           className={cn(
-            'absolute top-1 h-4 w-4 rounded-full bg-white transition-transform',
-            checked ? 'left-6' : 'left-1'
+            'settings-toggle__knob',
+            checked ? 'settings-toggle__knob--on' : 'settings-toggle__knob--off'
           )}
         />
       </button>
@@ -2551,9 +2992,9 @@ function ToggleField({ label, description, checked, onChange }: ToggleFieldProps
 
 function ShortcutItem({ label, shortcut }: { label: string; shortcut: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-zinc-700 dark:text-zinc-300">{label}</span>
-      <kbd className="rounded bg-zinc-200 px-2 py-1 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+    <div className="shortcut-item">
+      <span className="shortcut-item__label">{label}</span>
+      <kbd className="shortcut-item__kbd">
         {shortcut}
       </kbd>
     </div>

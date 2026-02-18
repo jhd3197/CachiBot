@@ -1,0 +1,88 @@
+// =============================================================================
+// Inputs — components/inputs.less
+// .input, .textarea, .select, .chat-input, .form-field
+// =============================================================================
+
+.input {
+  .input-base();
+
+  // Sizes
+  &--sm {
+    height: @height-sm;
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+  }
+
+  &--lg {
+    height: @height-lg;
+    padding: @sp-3 @sp-4;
+    font-size: @text-base;
+  }
+}
+
+// Search input with icon padding
+.input-search {
+  .input-base();
+  padding-left: @sp-10;
+}
+
+// Multi-line textarea
+.textarea {
+  .input-base();
+  min-height: 5rem;
+  resize: vertical;
+  line-height: @leading-normal;
+}
+
+// Native select
+.select {
+  .input-base();
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right @sp-2 center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: @sp-10;
+}
+
+// API key input (monospaced)
+.input-api-key {
+  .input-base();
+  font-family: @font-mono;
+  letter-spacing: 0.05em;
+}
+
+// Chat message input
+.chat-input {
+  .input-base();
+  border-radius: @radius-xl;
+  padding: @sp-3 @sp-4;
+  padding-right: @sp-24;
+  font-size: @text-base;
+  resize: none;
+}
+
+// -----------------------------------------------------------------------------
+// Form field pattern (BEM)
+// -----------------------------------------------------------------------------
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: @sp-1\.5;
+
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--label-text);
+  }
+
+  &__help {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__error {
+    font-size: @text-sm;
+    color: var(--color-danger-text);
+  }
+}

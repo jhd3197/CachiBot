@@ -1,14 +1,13 @@
-import { Plus, Settings, LayoutDashboard, Github, Activity, Users } from 'lucide-react'
+import { Plus, Settings, LayoutDashboard, Github, Activity } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
-import { useAuthStore } from '../../stores/auth'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { cn } from '../../lib/utils'
 import type { Bot } from '../../types'
 
 // App-level paths (not bot views)
-const appPaths = ['/dashboard', '/settings', '/admin/logs', '/groups']
+const appPaths = ['/dashboard', '/settings', '/admin/logs']
 
 interface BotRailProps {
   onNavigate?: () => void
@@ -20,8 +19,6 @@ export function BotRail({ onNavigate }: BotRailProps) {
   const { bots, activeBotId, setActiveBot } = useBotStore()
   const { setActiveChat } = useChatStore()
   const { setCreateBotOpen } = useUIStore()
-  const { user } = useAuthStore()
-  const isManagerOrAdmin = user?.role === 'admin' || user?.role === 'manager'
 
   // Derive current app view from URL
   const currentPath = location.pathname
@@ -45,28 +42,26 @@ export function BotRail({ onNavigate }: BotRailProps) {
   }
 
   return (
-    <div className="flex h-full w-[72px] flex-col items-center bg-zinc-200 py-3 dark:bg-zinc-950">
+    <div className="bot-rail">
       {/* App-level navigation */}
-      <div className="flex flex-col items-center gap-2 pb-3">
+      <div className="bot-rail__section">
         {/* Dashboard */}
         <button
           onClick={() => handleAppViewClick('/dashboard')}
           className={cn(
-            'group relative flex h-12 w-12 items-center justify-center rounded-[24px] transition-all duration-200 hover:rounded-[16px]',
-            currentPath === '/dashboard'
-              ? 'rounded-[16px] bg-accent-600 text-white'
-              : 'bg-zinc-300 text-zinc-600 hover:bg-accent-600/80 hover:text-white dark:bg-zinc-800 dark:text-zinc-400'
+            'bot-rail__avatar-btn',
+            currentPath === '/dashboard' && 'bot-rail__avatar-btn--active'
           )}
         >
           <LayoutDashboard className="h-5 w-5" />
           <Tooltip>Dashboard</Tooltip>
         </button>
 
-        <Divider />
+        <div className="bot-rail__divider" />
       </div>
 
       {/* Bot avatars */}
-      <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto scrollbar-none">
+      <div className="bot-rail__scroll">
         {bots.map((bot) => (
           <BotAvatar
             key={bot.id}
@@ -79,7 +74,7 @@ export function BotRail({ onNavigate }: BotRailProps) {
         {/* Add bot button */}
         <button
           onClick={() => setCreateBotOpen(true)}
-          className="group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-zinc-300 text-zinc-600 transition-all duration-200 hover:rounded-[16px] hover:bg-accent-600 hover:text-white dark:bg-zinc-800 dark:text-zinc-400"
+          className="bot-rail__avatar-btn"
         >
           <Plus className="h-5 w-5" />
           <Tooltip>Create Bot</Tooltip>
@@ -87,33 +82,15 @@ export function BotRail({ onNavigate }: BotRailProps) {
       </div>
 
       {/* Bottom actions */}
-      <div className="mt-auto flex flex-col items-center gap-2 pt-3">
-        <Divider />
-
-        {/* Groups (manager+) */}
-        {isManagerOrAdmin && (
-          <button
-            onClick={() => handleAppViewClick('/groups')}
-            className={cn(
-              'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
-              currentPath === '/groups'
-                ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-                : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
-            )}
-          >
-            <Users className="h-5 w-5" />
-            <Tooltip>Groups</Tooltip>
-          </button>
-        )}
+      <div className="bot-rail__bottom">
+        <div className="bot-rail__divider" />
 
         {/* Admin Logs */}
         <button
           onClick={() => handleAppViewClick('/admin/logs')}
           className={cn(
-            'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
-            currentPath === '/admin/logs'
-              ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-              : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+            'bot-rail__action-btn',
+            currentPath === '/admin/logs' && 'bot-rail__action-btn--active'
           )}
         >
           <Activity className="h-5 w-5" />
@@ -125,7 +102,7 @@ export function BotRail({ onNavigate }: BotRailProps) {
           href="https://github.com/jhd3197/CachiBot"
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative flex h-12 w-12 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          className="bot-rail__action-btn"
         >
           <Github className="h-5 w-5" />
           <Tooltip>GitHub</Tooltip>
@@ -135,10 +112,8 @@ export function BotRail({ onNavigate }: BotRailProps) {
         <button
           onClick={() => handleAppViewClick('/settings')}
           className={cn(
-            'group relative flex h-12 w-12 items-center justify-center rounded-full transition-colors',
-            currentPath === '/settings' || currentPath.startsWith('/settings/')
-              ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-              : 'text-zinc-600 hover:bg-zinc-300 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
+            'bot-rail__action-btn',
+            (currentPath === '/settings' || currentPath.startsWith('/settings/')) && 'bot-rail__action-btn--active'
           )}
         >
           <Settings className="h-5 w-5" />
@@ -167,18 +142,16 @@ function BotAvatar({ bot, active, onClick }: BotAvatarProps) {
       {/* Active indicator */}
       <div
         className={cn(
-          'absolute -left-3 top-1/2 h-2 w-1 -translate-y-1/2 rounded-r-full bg-zinc-900 transition-all duration-200 dark:bg-white',
-          active ? 'h-10' : 'h-0 group-hover:h-5'
+          'bot-rail__active-indicator',
+          active && 'bot-rail__active-indicator--active'
         )}
       />
 
       {/* Avatar */}
       <div
         className={cn(
-          'flex h-12 w-12 items-center justify-center transition-all duration-200',
-          active
-            ? 'rounded-[16px]'
-            : 'rounded-[24px] group-hover:rounded-[16px]'
+          'bot-rail__avatar-btn',
+          active && 'bot-rail__avatar-btn--active'
         )}
         style={{ backgroundColor: bot.color + '30' }}
       >
@@ -193,10 +166,10 @@ function BotAvatar({ bot, active, onClick }: BotAvatarProps) {
       {isShared && (
         <div
           className={cn(
-            'absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-zinc-200 dark:border-zinc-950',
-            accessLevel === 'viewer' ? 'bg-blue-400' :
-            accessLevel === 'operator' ? 'bg-amber-400' :
-            'bg-green-400'
+            'bot-rail__shared-dot',
+            accessLevel === 'viewer' ? 'bot-rail__shared-dot--viewer' :
+            accessLevel === 'operator' ? 'bot-rail__shared-dot--operator' :
+            'bot-rail__shared-dot--editor'
           )}
           title={`Shared (${accessLevel})`}
         />
@@ -209,13 +182,10 @@ function BotAvatar({ bot, active, onClick }: BotAvatarProps) {
 
 function Tooltip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-4 -translate-y-1/2 whitespace-nowrap rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-zinc-900">
+    <div className="bot-rail__tooltip">
       {children}
-      <div className="absolute -left-1 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 bg-zinc-800 dark:bg-zinc-900" />
+      <div className="bot-rail__tooltip-arrow" />
     </div>
   )
 }
 
-function Divider() {
-  return <div className="h-px w-8 bg-zinc-300 dark:bg-zinc-800" />
-}

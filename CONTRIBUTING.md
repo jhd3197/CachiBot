@@ -248,7 +248,7 @@ When reporting issues, please include:
 
 ## Questions?
 
-Feel free to open an issue or join the [Discord](https://discord.gg/V9bKwYVJ).
+Feel free to open an issue or join the [Discord](https://discord.gg/Xzw45fGhqq).
 
 ---
 

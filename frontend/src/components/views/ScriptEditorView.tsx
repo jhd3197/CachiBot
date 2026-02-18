@@ -132,14 +132,14 @@ export function ScriptEditorView() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
 
   if (!script || !activeBotId) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-400">
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
         Script not found
       </div>
     )
@@ -153,31 +153,31 @@ export function ScriptEditorView() {
   ]
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="script-editor">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="editor-header">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(`/${activeBotId}/automations`)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="editor-header__back-btn"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <h1 className="editor-header__title">
               {script.name}
             </h1>
-            <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <div className="editor-header__meta">
               <span>v{script.currentVersion}</span>
               <span className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-                script.status === 'active' ? 'bg-green-500/10 text-green-500' :
-                script.status === 'error' ? 'bg-red-500/10 text-red-500' :
-                'bg-zinc-500/10 text-zinc-400'
+                'editor-header__status',
+                script.status === 'active' ? 'editor-header__status--active' :
+                script.status === 'error' ? 'editor-header__status--error' :
+                'editor-header__status--default'
               )}>
                 {script.status}
               </span>
-              {dirty && <span className="text-yellow-500">* unsaved</span>}
+              {dirty && <span className="editor-header__unsaved">* unsaved</span>}
             </div>
           </div>
         </div>
@@ -187,10 +187,8 @@ export function ScriptEditorView() {
             onClick={handleSave}
             disabled={!dirty || saving}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-              dirty
-                ? 'bg-accent-600 text-white hover:bg-accent-700'
-                : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'
+              'editor-btn',
+              dirty ? 'editor-btn--save' : 'editor-btn--save',
             )}
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -199,7 +197,7 @@ export function ScriptEditorView() {
           <button
             onClick={handleRun}
             disabled={running}
-            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+            className="editor-btn editor-btn--run"
           >
             {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
             Run
@@ -208,16 +206,14 @@ export function ScriptEditorView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 px-4 dark:border-zinc-800">
+      <div className="editor-tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'border-b-2 px-3 py-2 text-xs font-medium transition-colors',
-              activeTab === tab.id
-                ? 'border-accent-600 text-accent-600 dark:text-accent-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+              'editor-tab',
+              activeTab === tab.id && 'editor-tab--active'
             )}
           >
             {tab.label}
@@ -228,21 +224,21 @@ export function ScriptEditorView() {
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'code' && (
-          <div className="h-full">
+          <div className="editor-code">
             <textarea
               value={code}
               onChange={(e) => handleCodeChange(e.target.value)}
               spellCheck={false}
-              className="h-full w-full resize-none bg-zinc-950 p-4 font-mono text-sm text-zinc-300 focus:outline-none"
+              className="editor-code__textarea"
               placeholder="# Write your Python script here..."
             />
           </div>
         )}
 
         {activeTab === 'versions' && (
-          <div className="overflow-auto p-4">
+          <div className="editor-versions">
             {versions.length === 0 ? (
-              <div className="flex flex-col items-center py-8 text-zinc-400">
+              <div className="editor-versions__empty">
                 <GitBranch className="mb-2 h-6 w-6" />
                 <p className="text-sm">No versions yet</p>
               </div>
@@ -251,24 +247,24 @@ export function ScriptEditorView() {
                 {versions.map((v) => (
                   <div
                     key={v.id}
-                    className="flex items-center justify-between rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                    className="editor-versions__item"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                      <div className="editor-versions__badge">
                         v{v.version}
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                        <p className="editor-versions__name">
                           {v.changelog || 'No changelog'}
                         </p>
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="editor-versions__meta">
                           {v.authorType} - {new Date(v.createdAt).toLocaleString()}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {v.approved ? (
-                        <span className="flex items-center gap-1 text-[10px] text-green-500">
+                        <span className="editor-versions__approved">
                           <CheckCircle2 className="h-3 w-3" /> Approved
                         </span>
                       ) : (
@@ -283,7 +279,7 @@ export function ScriptEditorView() {
                               })
                               .catch(() => toast.error('Failed to approve'))
                           }}
-                          className="text-[10px] text-accent-600 hover:underline"
+                          className="editor-versions__link editor-versions__link--approve"
                         >
                           Approve
                         </button>
@@ -300,7 +296,7 @@ export function ScriptEditorView() {
                               })
                               .catch(() => toast.error('Failed to rollback'))
                           }}
-                          className="text-[10px] text-yellow-600 hover:underline"
+                          className="editor-versions__link editor-versions__link--rollback"
                         >
                           Rollback
                         </button>

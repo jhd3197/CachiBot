@@ -1,0 +1,30 @@
+// =============================================================================
+// Spinner — components/spinner.less
+// Animated loading spinner with size variants
+// =============================================================================
+
+.spinner {
+  display: inline-block;
+  border-radius: @radius-full;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin-slow 0.75s linear infinite;
+
+  // ---------------------------------------------------------------------------
+  // Sizes
+  // ---------------------------------------------------------------------------
+  &--sm {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &--md {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  &--lg {
+    width: 2rem;
+    height: 2rem;
+  }
+}

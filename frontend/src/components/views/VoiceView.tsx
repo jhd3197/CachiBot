@@ -37,7 +37,7 @@ const STATE_LABELS: Record<VoiceState, string> = {
 }
 
 const STATE_COLORS: Record<VoiceState, string> = {
-  disconnected: 'text-zinc-500',
+  disconnected: 'text-[var(--color-text-secondary)]',
   connecting: 'text-yellow-400',
   idle: 'text-green-400',
   listening: 'text-blue-400',
@@ -177,7 +177,7 @@ export function VoiceView() {
 
   if (!activeBot) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
         No bot selected
       </div>
     )
@@ -187,17 +187,17 @@ export function VoiceView() {
   const isBotSpeaking = voiceState === 'speaking'
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className="voice-view">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+      <div className="voice-header">
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl"
+          className="voice-header__icon"
           style={{ backgroundColor: activeBot.color + '20' }}
         >
           <BotIconRenderer icon={activeBot.icon} size={22} />
         </div>
         <div className="flex-1">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="voice-header__name">
             {activeBot.name}
           </h2>
           <div className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export function VoiceView() {
         {transcripts.length > 0 && isConnected && (
           <button
             onClick={clearTranscripts}
-            className="rounded-lg px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="voice-header__clear-btn"
           >
             Clear
           </button>
@@ -218,9 +218,9 @@ export function VoiceView() {
       </div>
 
       {/* Transcript area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="voice-transcripts">
         {transcripts.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
+          <div className="voice-transcripts__empty">
             {isConnected ? (
               <>
                 <Mic className="h-8 w-8 opacity-50" />
@@ -249,12 +249,12 @@ export function VoiceView() {
                   className={cn(
                     'max-w-[80%] rounded-2xl px-4 py-2.5',
                     entry.role === 'user'
-                      ? 'bg-accent-600 text-white'
-                      : 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100',
+                      ? 'voice-transcripts__bubble--user bg-accent-600'
+                      : 'voice-transcripts__bubble--bot',
                   )}
                 >
                   <p className="text-sm leading-relaxed">{entry.text}</p>
-                  <p className="mt-1 text-[10px] opacity-60">
+                  <p className="voice-transcripts__time">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </p>
                 </div>
@@ -263,7 +263,7 @@ export function VoiceView() {
 
             {/* Active tool calls */}
             {activeToolCalls.length > 0 && (
-              <div className="flex items-center gap-2 text-xs text-amber-400">
+              <div className="voice-transcripts__tool-call">
                 <Wrench className="h-3.5 w-3.5 animate-spin" />
                 <span>
                   Using {activeToolCalls[activeToolCalls.length - 1].tool}...
@@ -273,7 +273,7 @@ export function VoiceView() {
 
             {/* Thinking indicator */}
             {currentThinking && (
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <div className="voice-transcripts__thinking">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 <span className="italic">Thinking...</span>
               </div>
@@ -286,22 +286,22 @@ export function VoiceView() {
 
       {/* Error banner */}
       {error && (
-        <div className="mx-6 mb-2 flex items-center gap-2 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">
+        <div className="voice-error">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span className="flex-1">{error}</span>
         </div>
       )}
 
       {/* Waveform visualizer */}
-      <div className="mx-6 h-16 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900/50">
+      <div className="voice-waveform">
         <canvas ref={canvasRef} className="h-full w-full" />
       </div>
 
       {/* PTT indicator */}
       {pushToTalkMode && isConnected && (
-        <div className="py-2 text-center text-xs text-zinc-500">
+        <div className="voice-ptt">
           {isHoldingPTT ? (
-            <span className="font-medium text-blue-400">Recording...</span>
+            <span className="voice-ptt__active">Recording...</span>
           ) : (
             'Hold Space to talk'
           )}
@@ -309,16 +309,14 @@ export function VoiceView() {
       )}
 
       {/* Controls bar */}
-      <div className="flex items-center justify-center gap-3 border-t border-zinc-200 px-6 py-5 dark:border-zinc-800">
+      <div className="voice-controls">
         {/* Mute button */}
         {isConnected && (
           <button
             onClick={toggleMute}
             className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-full transition-all',
-              isMuted
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700',
+              'voice-btn',
+              isMuted ? 'voice-btn--muted' : 'voice-btn--mute',
             )}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
@@ -330,10 +328,8 @@ export function VoiceView() {
         <button
           onClick={isConnected ? disconnect : handleConnect}
           className={cn(
-            'flex h-14 w-14 items-center justify-center rounded-full transition-all',
-            isConnected
-              ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-green-500 text-white hover:bg-green-600',
+            'voice-btn',
+            isConnected ? 'voice-btn--disconnect' : 'voice-btn--connect',
             voiceState === 'connecting' && 'animate-pulse',
           )}
           title={isConnected ? 'Disconnect' : 'Connect'}
@@ -351,10 +347,7 @@ export function VoiceView() {
         {isConnected && (
           <button
             onClick={togglePTTMode}
-            className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-full transition-all',
-              'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700',
-            )}
+            className="voice-btn voice-btn--mode"
             title={pushToTalkMode ? 'Switch to auto-detect (VAD)' : 'Switch to push-to-talk'}
           >
             {pushToTalkMode ? <Hand className="h-5 w-5" /> : <Ear className="h-5 w-5" />}
@@ -365,7 +358,7 @@ export function VoiceView() {
         {isBotSpeaking && (
           <button
             onClick={interrupt}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 transition-all hover:bg-amber-500/30"
+            className="voice-btn voice-btn--interrupt"
             title="Interrupt"
           >
             <VolumeX className="h-5 w-5" />

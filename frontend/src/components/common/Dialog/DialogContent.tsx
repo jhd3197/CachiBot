@@ -12,16 +12,9 @@ export function DialogContent({
   children,
   className,
   scrollable = false,
-  maxHeight = 'max-h-[60vh]',
 }: DialogContentProps) {
   return (
-    <div
-      className={cn(
-        'p-6',
-        scrollable && `overflow-y-auto ${maxHeight}`,
-        className
-      )}
-    >
+    <div className={cn(scrollable ? 'dialog__body' : 'dialog__body-base', className)}>
       {children}
     </div>
   )
