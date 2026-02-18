@@ -127,9 +127,7 @@ class InstructionRepository:
 
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                select(InstructionRecord).where(
-                    InstructionRecord.id == instruction_id
-                )
+                select(InstructionRecord).where(InstructionRecord.id == instruction_id)
             )
             record = result.scalar_one_or_none()
             if not record:
@@ -186,9 +184,7 @@ class InstructionRepository:
     # Versions
     # ------------------------------------------------------------------
 
-    async def get_versions(
-        self, instruction_id: str
-    ) -> list[InstructionVersionModel]:
+    async def get_versions(self, instruction_id: str) -> list[InstructionVersionModel]:
         """Get version history for an instruction."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
@@ -220,9 +216,7 @@ class InstructionRepository:
 
             # Load current record
             result = await session.execute(
-                select(InstructionRecord).where(
-                    InstructionRecord.id == instruction_id
-                )
+                select(InstructionRecord).where(InstructionRecord.id == instruction_id)
             )
             record = result.scalar_one_or_none()
             if not record:

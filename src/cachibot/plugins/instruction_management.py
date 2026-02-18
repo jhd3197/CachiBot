@@ -94,9 +94,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             try:
                 # Auto-extract input variables from template if not provided
                 if not input_variables:
-                    input_variables = list(
-                        dict.fromkeys(re.findall(r"\{(\w+)\}", prompt))
-                    )
+                    input_variables = list(dict.fromkeys(re.findall(r"\{(\w+)\}", prompt)))
 
                 repo = InstructionRepository()
 
@@ -239,7 +237,7 @@ class InstructionManagementPlugin(CachibotPlugin):
 
         @skill(
             name="instruction_read",
-            description="Read the full details of a custom instruction including its prompt template.",
+            description="Read the full details of a custom instruction including its template.",
             category="instructions",
             tags=["instructions", "read", "details"],
             is_async=True,

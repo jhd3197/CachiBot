@@ -65,9 +65,7 @@ class InstructionRecord(Base):
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Template variables (JSON list of variable names)
-    input_variables: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
+    input_variables: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Few-shot examples (JSON list of {input, output} dicts)
     few_shot_examples: Mapped[list | None] = mapped_column(sa.JSON, nullable=True)
@@ -104,9 +102,7 @@ class InstructionVersion(Base):
     __tablename__ = "custom_instruction_versions"
     __table_args__ = (
         Index("idx_instr_versions_instruction", "instruction_id"),
-        UniqueConstraint(
-            "instruction_id", "version", name="uq_instruction_version"
-        ),
+        UniqueConstraint("instruction_id", "version", name="uq_instruction_version"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -126,9 +122,7 @@ class InstructionVersion(Base):
     model_hint: Mapped[str | None] = mapped_column(String, nullable=True)
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    input_variables: Mapped[list] = mapped_column(
-        sa.JSON, nullable=False, server_default="[]"
-    )
+    input_variables: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     few_shot_examples: Mapped[list | None] = mapped_column(sa.JSON, nullable=True)
 
     # Authorship

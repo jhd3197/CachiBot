@@ -13,6 +13,7 @@ try {
 
 let mainWindow = null;
 let backendProcess = null;
+let backendStderr = ''; // Capture stderr for error reporting
 
 const isDev = !app.isPackaged;
 const BACKEND_PORT = 6392;
@@ -53,7 +54,12 @@ function startBackend() {
   });
 
   backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString().trim()));
-  backendProcess.stderr.on('data', (d) => console.error('[backend]', d.toString().trim()));
+  backendProcess.stderr.on('data', (d) => {
+    const text = d.toString().trim();
+    console.error('[backend]', text);
+    // Keep last 2KB of stderr for error reporting
+    backendStderr = (backendStderr + '\n' + text).slice(-2048);
+  });
 
   backendProcess.on('error', (err) => {
     console.error('[electron] Failed to start backend:', err.message);
@@ -65,8 +71,8 @@ function startBackend() {
     );
   });
 
-  backendProcess.on('exit', (code) => {
-    console.log('[electron] Backend exited with code', code);
+  backendProcess.on('exit', (code, signal) => {
+    console.log('[electron] Backend exited with code', code, 'signal', signal);
     backendProcess = null;
   });
 }
@@ -86,21 +92,44 @@ function stopBackend() {
 function waitForPort(port, retries = 60, delay = 500) {
   return new Promise((resolve, reject) => {
     let attempts = 0;
+    let backendExited = false;
+    let exitCode = null;
+
+    // Listen for early backend crash so we can fail fast
+    const onExit = (code) => {
+      backendExited = true;
+      exitCode = code;
+    };
+    if (backendProcess) backendProcess.once('exit', onExit);
+
     const tryConnect = () => {
+      // If the backend already exited, fail immediately instead of waiting 30s
+      if (backendExited) {
+        if (backendProcess) backendProcess.removeListener('exit', onExit);
+        return reject(new Error(`Backend process exited with code ${exitCode} before becoming ready`));
+      }
+
       const sock = new net.Socket();
       sock.setTimeout(delay);
       sock.once('connect', () => {
         sock.destroy();
+        if (backendProcess) backendProcess.removeListener('exit', onExit);
         resolve();
       });
       sock.once('error', () => {
         sock.destroy();
-        if (++attempts >= retries) return reject(new Error(`Port ${port} not ready after ${retries} attempts`));
+        if (++attempts >= retries) {
+          if (backendProcess) backendProcess.removeListener('exit', onExit);
+          return reject(new Error(`Port ${port} not ready after ${retries} attempts`));
+        }
         setTimeout(tryConnect, delay);
       });
       sock.once('timeout', () => {
         sock.destroy();
-        if (++attempts >= retries) return reject(new Error(`Port ${port} timed out`));
+        if (++attempts >= retries) {
+          if (backendProcess) backendProcess.removeListener('exit', onExit);
+          return reject(new Error(`Port ${port} timed out`));
+        }
         setTimeout(tryConnect, delay);
       });
       sock.connect(port, BACKEND_HOST);
@@ -277,9 +306,12 @@ app.whenReady().then(async () => {
     } catch (err) {
       splash.close();
       console.error('[electron] Backend failed to start:', err.message);
+      const details = backendStderr.trim()
+        ? `\n\nBackend output:\n${backendStderr.trim().split('\n').slice(-10).join('\n')}`
+        : '';
       dialog.showErrorBox(
         'Backend Error',
-        'The CachiBot backend failed to start within 30 seconds. Please check the logs.'
+        `The CachiBot backend failed to start.\n\n${err.message}${details}`
       );
       app.quit();
       return;

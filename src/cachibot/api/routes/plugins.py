@@ -172,9 +172,7 @@ def _descriptor_to_dict(name: str, desc: object) -> dict:
         "icon": desc.icon,
         "riskLevel": desc.resolved_risk_level.value,
         "group": desc.group,
-        "configParams": [p.to_dict() for p in desc.config_params]
-        if desc.config_params
-        else [],
+        "configParams": [p.to_dict() for p in desc.config_params] if desc.config_params else [],
         "hidden": desc.hidden,
         "deprecated": desc.deprecated,
     }

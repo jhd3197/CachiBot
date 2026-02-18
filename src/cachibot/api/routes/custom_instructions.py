@@ -5,11 +5,8 @@ CRUD endpoints for managing bot custom instructions (LLM-powered tools),
 including versioning, testing, and rollback.
 """
 
-import uuid
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
 from cachibot.models.auth import User
@@ -167,7 +164,9 @@ async def update_custom_instruction(
     if not record or record.bot_id != bot_id:
         raise HTTPException(status_code=404, detail="Instruction not found")
 
-    changes = {k: v for k, v in body.model_dump().items() if v is not None and k != "commit_message"}
+    changes = {
+        k: v for k, v in body.model_dump().items() if v is not None and k != "commit_message"
+    }
     if not changes:
         raise HTTPException(status_code=422, detail="No changes specified")
 

@@ -88,9 +88,7 @@ class GroupRepository:
         )
 
         async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(Group, member_count).order_by(Group.name)
-            )
+            result = await session.execute(select(Group, member_count).order_by(Group.name))
             return [(row[0], row[1]) for row in result.all()]
 
     async def update_group(
@@ -116,9 +114,7 @@ class GroupRepository:
     async def delete_group(self, group_id: str) -> bool:
         """Delete a group. Returns True if group was found and deleted."""
         async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(Group).where(Group.id == group_id)
-            )
+            result = await session.execute(delete(Group).where(Group.id == group_id))
             await session.commit()
             return result.rowcount > 0
 
@@ -267,9 +263,7 @@ class BotAccessRepository:
             )
             return [(row[0], row[1]) for row in result.all()]
 
-    async def get_user_bot_access_level(
-        self, user_id: str, bot_id: str
-    ) -> BotAccessLevel | None:
+    async def get_user_bot_access_level(self, user_id: str, bot_id: str) -> BotAccessLevel | None:
         """Get the highest access level a user has for a bot across all their groups.
 
         Returns None if the user has no group-based access.
@@ -293,9 +287,7 @@ class BotAccessRepository:
         best = max(levels, key=lambda lvl: rank.get(lvl, 0))
         return BotAccessLevel(best)
 
-    async def get_accessible_bot_ids(
-        self, user_id: str
-    ) -> list[tuple[str, BotAccessLevel]]:
+    async def get_accessible_bot_ids(self, user_id: str) -> list[tuple[str, BotAccessLevel]]:
         """Get all bot IDs accessible to a user via groups, with their highest access level."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(

@@ -165,7 +165,7 @@ class CachibotAgent:
                 from prompture.infra.provider_env import ProviderEnvironment
 
                 # Map CachiBotV2 provider names to ProviderEnvironment field names
-                _PROVIDER_TO_FIELD = {
+                provider_to_field = {
                     "openai": "openai_api_key",
                     "claude": "claude_api_key",
                     "google": "google_api_key",
@@ -183,7 +183,7 @@ class CachibotAgent:
                 }
                 kwargs = {}
                 for provider_name, api_key in self.provider_environment.provider_keys.items():
-                    field_name = _PROVIDER_TO_FIELD.get(provider_name)
+                    field_name = provider_to_field.get(provider_name)
                     if field_name:
                         kwargs[field_name] = api_key
                 env = ProviderEnvironment(**kwargs) if kwargs else None
@@ -198,9 +198,7 @@ class CachibotAgent:
 
                 try:
                     loop = asyncio.get_running_loop()
-                    loop.create_task(
-                        _log_instruction_completion(bot_id, chat_id, result)
-                    )
+                    loop.create_task(_log_instruction_completion(bot_id, chat_id, result))
                 except RuntimeError:
                     pass  # No event loop — skip logging
 

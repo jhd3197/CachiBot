@@ -30,6 +30,4 @@ class PlatformToolConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    updated_by: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    updated_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
