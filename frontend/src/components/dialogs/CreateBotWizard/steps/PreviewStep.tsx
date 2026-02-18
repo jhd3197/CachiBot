@@ -54,18 +54,18 @@ export function PreviewStep() {
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
         <MessageCircle className="h-4 w-4 text-cachi-400" />
-        <span className="text-sm font-medium text-zinc-300">Chat with {form.name}</span>
+        <span className="text-sm font-medium text-[var(--color-text-primary)]">Chat with {form.name}</span>
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4">
         {previewMessages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-cachi-500/10">
               <Bot className="h-7 w-7 text-cachi-400" />
             </div>
-            <p className="text-lg font-medium text-zinc-300">{form.name}</p>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="text-lg font-medium text-[var(--color-text-primary)]">{form.name}</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               See how your bot responds before creating it
             </p>
           </div>
@@ -88,14 +88,14 @@ export function PreviewStep() {
                   'max-w-[80%] rounded-2xl px-4 py-2.5',
                   msg.role === 'user'
                     ? 'bg-cachi-600 text-white'
-                    : 'bg-zinc-800 text-zinc-100'
+                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)]'
                 )}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
               </div>
               {msg.role === 'user' && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700">
-                  <User className="h-4 w-4 text-zinc-300" />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-hover-bg)]">
+                  <User className="h-4 w-4 text-[var(--color-text-primary)]" />
                 </div>
               )}
             </div>
@@ -106,8 +106,8 @@ export function PreviewStep() {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cachi-600/20">
               <Bot className="h-4 w-4 text-cachi-400" />
             </div>
-            <div className="rounded-2xl bg-zinc-800 px-4 py-2.5">
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+            <div className="rounded-2xl bg-[var(--color-bg-secondary)] px-4 py-2.5">
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
             </div>
           </div>
         )}
@@ -120,7 +120,7 @@ export function PreviewStep() {
             <button
               key={i}
               onClick={() => sendMessage(msg)}
-              className="rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+              className="rounded-full border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-primary)]"
             >
               {msg}
             </button>
@@ -136,7 +136,7 @@ export function PreviewStep() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={`Message ${form.name}...`}
           disabled={isPreviewLoading}
-          className="h-10 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500 disabled:opacity-50"
+          className="h-10 flex-1 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] disabled:opacity-50"
         />
         <button
           type="submit"
@@ -150,7 +150,7 @@ export function PreviewStep() {
       {previewMessages.length > 0 && (
         <button
           onClick={clearPreviewMessages}
-          className="mt-2 text-xs text-zinc-500 hover:text-zinc-400"
+          className="mt-2 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]"
         >
           Clear conversation
         </button>

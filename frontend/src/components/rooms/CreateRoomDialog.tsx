@@ -5,7 +5,6 @@ import { createRoom } from '../../api/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import { cn } from '../../lib/utils'
 
 interface CreateRoomDialogProps {
   onClose: () => void
@@ -64,118 +63,99 @@ export function CreateRoomDialog({ onClose }: CreateRoomDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-md rounded-xl border border-zinc-300 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="dialog__backdrop">
+      <div className="dialog__panel dialog__panel--sm">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-300 px-4 py-3 dark:border-zinc-800">
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <div className="dialog__header">
+          <h3 className="room-panel__title" style={{ fontSize: '1rem' }}>
             Create Room
           </h3>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-          >
-            <X className="h-4 w-4" />
+          <button onClick={onClose} className="btn-close">
+            <X size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="space-y-4 p-4">
+        <div className="room-settings__section">
           {/* Title */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Title
-            </label>
+          <div className="form-field">
+            <label className="form-field__label">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Room name"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+              className="input"
             />
           </div>
 
           {/* Description */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Description (optional)
-            </label>
+          <div className="form-field">
+            <label className="form-field__label">Description (optional)</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What's this room for?"
-              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-accent-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+              className="input"
             />
           </div>
 
           {/* Bot selection */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Select Bots (2-4)
-            </label>
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-zinc-300 p-2 dark:border-zinc-700">
+          <div className="form-field">
+            <label className="form-field__label">Select Bots (2-4)</label>
+            <div className="room-create__bot-list">
               {bots.map((bot) => {
                 const selected = selectedBotIds.includes(bot.id)
                 return (
                   <button
                     key={bot.id}
                     onClick={() => toggleBot(bot.id)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors',
-                      selected
-                        ? 'bg-accent-600/20 text-accent-600 dark:text-accent-400'
-                        : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
-                    )}
+                    className={`room-create__bot-option${selected ? ' room-create__bot-option--selected' : ''}`}
                   >
                     <div
-                      className="flex h-6 w-6 items-center justify-center rounded"
+                      className="room-create__bot-icon"
                       style={{ backgroundColor: (bot.color || '#666') + '20' }}
                     >
                       <BotIconRenderer icon={bot.icon} size={14} />
                     </div>
-                    <span className="flex-1">{bot.name}</span>
+                    <span style={{ flex: 1 }}>{bot.name}</span>
                     {selected ? (
-                      <Minus className="h-3.5 w-3.5 text-red-400" />
+                      <Minus size={14} style={{ color: 'var(--color-danger-text)' }} />
                     ) : selectedBotIds.length < 4 ? (
-                      <Plus className="h-3.5 w-3.5 text-zinc-400" />
+                      <Plus size={14} style={{ color: 'var(--color-text-tertiary)' }} />
                     ) : null}
                   </button>
                 )
               })}
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="room-create__bot-count">
               {selectedBotIds.length}/4 bots selected
             </p>
           </div>
 
           {/* Settings */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                Cooldown (seconds)
-              </label>
+          <div className="room-create__setting-row">
+            <div style={{ flex: 1 }}>
+              <label className="form-field__label">Cooldown (seconds)</label>
               <input
                 type="number"
                 value={cooldown}
                 onChange={(e) => setCooldown(Number(e.target.value))}
                 min={1}
                 max={30}
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-100"
+                className="input"
               />
             </div>
-            <div className="flex items-center gap-2 pt-4">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem' }}>
               <input
                 id="auto-relevance"
                 type="checkbox"
                 checked={autoRelevance}
                 onChange={(e) => setAutoRelevance(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300 text-accent-600"
+                className="consent__checkbox"
               />
-              <label
-                htmlFor="auto-relevance"
-                className="text-xs text-zinc-600 dark:text-zinc-400"
-              >
+              <label htmlFor="auto-relevance" className="form-field__help">
                 Auto-respond
               </label>
             </div>
@@ -183,17 +163,14 @@ export function CreateRoomDialog({ onClose }: CreateRoomDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-zinc-300 px-4 py-3 dark:border-zinc-800">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-          >
+        <div className="dialog__footer">
+          <button onClick={onClose} className="btn btn--ghost btn--sm">
             Cancel
           </button>
           <button
             onClick={handleCreate}
             disabled={creating || selectedBotIds.length < 2 || !title.trim()}
-            className="rounded-lg bg-accent-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-500 disabled:opacity-50"
+            className="btn btn--primary btn--sm"
           >
             {creating ? 'Creating...' : 'Create Room'}
           </button>

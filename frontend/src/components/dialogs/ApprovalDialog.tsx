@@ -27,7 +27,7 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-zinc-900">
+      <div className="w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-[var(--color-bg-primary)]">
         {/* Header */}
         <div
           className={cn(
@@ -49,7 +49,7 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
           </div>
           <div>
             <h2 className="font-semibold">Approval Required</h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-[var(--color-text-tertiary)] dark:text-[var(--color-text-secondary)]">
               {action}
             </p>
           </div>
@@ -59,13 +59,13 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
         <div className="max-h-[60vh] overflow-y-auto p-6">
           {/* Tool info */}
           <div className="mb-4">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Tool</p>
+            <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Tool</p>
             <p className="font-medium">{tool}</p>
           </div>
 
           {/* Risk level */}
           <div className="mb-4">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Risk Level</p>
+            <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Risk Level</p>
             <span
               className={cn(
                 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-sm font-medium',
@@ -89,7 +89,7 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
           {/* Risk reasons */}
           {reasons.length > 0 && (
             <div className="mb-4">
-              <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mb-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                 Risk Factors
               </p>
               <ul className="space-y-1">
@@ -109,11 +109,11 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
           {/* Code preview */}
           {code && (
             <div>
-              <div className="mb-2 flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+              <div className="mb-2 flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                 <Code className="h-4 w-4" />
                 Code to Execute
               </div>
-              <pre className="max-h-48 overflow-auto rounded-lg bg-zinc-900 p-4 text-sm text-zinc-100">
+              <pre className="max-h-48 overflow-auto rounded-lg bg-[var(--color-bg-primary)] p-4 text-sm text-[var(--color-text-primary)]">
                 <code>{code}</code>
               </pre>
             </div>
@@ -121,7 +121,7 @@ export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
+        <div className="flex justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
           <Button
             variant="secondary"
             onClick={() => onApprove(id, false)}

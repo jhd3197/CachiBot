@@ -1,0 +1,72 @@
+// =============================================================================
+// Title Bar — layout/title-bar.less
+// Electron window title bar (Windows/Linux)
+// =============================================================================
+
+.title-bar {
+  display: flex;
+  height: @title-bar-height;
+  flex-shrink: 0;
+  user-select: none;
+  align-items: center;
+  background: @zinc-100;
+  border-bottom: 1px solid @zinc-200;
+
+  .dark & {
+    background: @zinc-950;
+    border-bottom-color: @zinc-800;
+  }
+
+  &__brand {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: @sp-2;
+    padding: 0 @sp-3;
+  }
+
+  &__brand-icon {
+    height: 1.125rem;
+    width: 1.125rem;
+    border-radius: @radius-full;
+    object-fit: cover;
+  }
+
+  &__brand-text {
+    font-size: 11px;
+    font-weight: @font-medium;
+    color: @zinc-500;
+  }
+
+  &__controls {
+    display: flex;
+    height: 100%;
+  }
+
+  &__btn {
+    .flex-center();
+    width: 46px;
+    height: 100%;
+    color: @zinc-500;
+    .transition-colors();
+
+    &:hover {
+      background: @zinc-200;
+      color: @zinc-800;
+    }
+
+    .dark & {
+      color: @zinc-400;
+
+      &:hover {
+        background: @zinc-800;
+        color: @zinc-200;
+      }
+    }
+
+    &--close:hover {
+      background: @red-600;
+      color: white;
+    }
+  }
+}

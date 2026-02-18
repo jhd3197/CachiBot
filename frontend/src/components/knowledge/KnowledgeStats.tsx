@@ -14,12 +14,12 @@ interface KnowledgeStatsProps {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 animate-pulse">
+    <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 animate-pulse">
       <div className="flex items-center gap-2 mb-3">
-        <div className="h-5 w-5 rounded bg-zinc-700" />
-        <div className="h-3 w-16 rounded bg-zinc-700" />
+        <div className="h-5 w-5 rounded bg-[var(--color-hover-bg)]" />
+        <div className="h-3 w-16 rounded bg-[var(--color-hover-bg)]" />
       </div>
-      <div className="h-6 w-10 rounded bg-zinc-700" />
+      <div className="h-6 w-10 rounded bg-[var(--color-hover-bg)]" />
     </div>
   )
 }
@@ -36,13 +36,13 @@ function StatCard({
   subtitle?: string
 }) {
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 p-4">
+    <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="h-5 w-5 text-zinc-400" />
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wide">{label}</span>
+        <Icon className="h-5 w-5 text-[var(--color-text-secondary)]" />
+        <span className="text-xs font-medium text-[var(--color-text-secondary)] uppercase tracking-wide">{label}</span>
       </div>
-      <div className="text-2xl font-semibold text-zinc-100">{value}</div>
-      {subtitle && <p className="mt-1 text-xs text-zinc-500">{subtitle}</p>}
+      <div className="text-2xl font-semibold text-[var(--color-text-primary)]">{value}</div>
+      {subtitle && <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{subtitle}</p>}
     </div>
   )
 }
@@ -98,13 +98,13 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-300">Knowledge Base</h3>
+        <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Knowledge Base</h3>
         <div className="flex items-center gap-1">
           {botStats.total_documents > 0 && !confirmReindex && (
             <button
               onClick={() => setConfirmReindex(true)}
               disabled={reindexing}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
               title="Re-index all documents"
             >
               <RotateCcw className={`h-3.5 w-3.5 ${reindexing ? 'animate-spin' : ''}`} />
@@ -113,7 +113,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
           )}
           {confirmReindex && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-zinc-400">Re-index all?</span>
+              <span className="text-xs text-[var(--color-text-secondary)]">Re-index all?</span>
               <button
                 onClick={handleReindex}
                 className="px-2 py-0.5 text-xs rounded bg-cachi-600 text-white hover:bg-cachi-500"
@@ -122,7 +122,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
               </button>
               <button
                 onClick={() => setConfirmReindex(false)}
-                className="px-2 py-0.5 text-xs rounded border border-zinc-600 text-zinc-300 hover:bg-zinc-700"
+                className="px-2 py-0.5 text-xs rounded border border-[var(--color-border-secondary)] text-[var(--color-text-primary)] hover:bg-[var(--color-hover-bg)]"
               >
                 No
               </button>
@@ -131,7 +131,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
           <button
             onClick={() => loadStats(botId)}
             disabled={isLoading}
-            className="p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+            className="p-1 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
             title="Refresh stats"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -168,7 +168,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
                 Active
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-zinc-700/50 px-2.5 py-0.5 text-sm font-medium text-zinc-500">
+              <span className="inline-flex items-center rounded-full bg-[var(--color-bg-inset)] px-2.5 py-0.5 text-sm font-medium text-[var(--color-text-secondary)]">
                 Not set
               </span>
             )

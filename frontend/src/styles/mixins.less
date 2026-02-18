@@ -1,0 +1,420 @@
+// =============================================================================
+// Mixins — mixins.less
+// Reusable parametric mixins. No CSS output until called.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Layout
+// -----------------------------------------------------------------------------
+.flex-center() {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-col() {
+  display: flex;
+  flex-direction: column;
+}
+
+// -----------------------------------------------------------------------------
+// Text
+// -----------------------------------------------------------------------------
+.truncate() {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp(@lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: @lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// -----------------------------------------------------------------------------
+// Scroll
+// -----------------------------------------------------------------------------
+.scrollbar-none() {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.scrollbar-thin() {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Interaction
+// -----------------------------------------------------------------------------
+.transition-colors() {
+  transition: @transition-colors;
+}
+
+.transition-all() {
+  transition: all @transition-fast;
+}
+
+.focus-ring() {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+.focus-ring-inset() {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-500);
+}
+
+// -----------------------------------------------------------------------------
+// Responsive
+// -----------------------------------------------------------------------------
+.screen-sm(@rules) {
+  @media (min-width: @screen-sm) {
+    @rules();
+  }
+}
+
+.screen-md(@rules) {
+  @media (min-width: @screen-md) {
+    @rules();
+  }
+}
+
+.screen-lg(@rules) {
+  @media (min-width: @screen-lg) {
+    @rules();
+  }
+}
+
+.screen-xl(@rules) {
+  @media (min-width: @screen-xl) {
+    @rules();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Component — Button
+// -----------------------------------------------------------------------------
+.button-base() {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: @sp-2;
+  border: none;
+  border-radius: @radius-lg;
+  font-family: @font-sans;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &:focus-visible {
+    .focus-ring();
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.button-variant(@variant) when (@variant = primary) {
+  background: var(--accent-600);
+  color: white;
+  &:hover { background: var(--accent-700); }
+}
+
+.button-variant(@variant) when (@variant = secondary) {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
+  &:hover { background: var(--btn-secondary-hover); }
+}
+
+.button-variant(@variant) when (@variant = ghost) {
+  background: transparent;
+  color: var(--btn-ghost-text);
+  &:hover {
+    background: var(--btn-ghost-hover);
+    color: var(--btn-ghost-text-hover);
+  }
+}
+
+.button-variant(@variant) when (@variant = danger) {
+  background: @red-600;
+  color: white;
+  &:hover { background: @red-700; }
+}
+
+.button-variant(@variant) when (@variant = icon) {
+  background: transparent;
+  color: var(--btn-ghost-text);
+  padding: 0;
+  &:hover {
+    background: var(--btn-ghost-hover);
+    color: var(--btn-ghost-text-hover);
+  }
+}
+
+.button-size(@size) when (@size = sm) {
+  height: @height-sm;
+  padding: 0 @sp-3;
+  font-size: @text-sm;
+}
+
+.button-size(@size) when (@size = md) {
+  height: @height-md;
+  padding: 0 @sp-4;
+  font-size: @text-sm;
+}
+
+.button-size(@size) when (@size = lg) {
+  height: @height-lg;
+  padding: 0 @sp-6;
+  font-size: @text-base;
+}
+
+// -----------------------------------------------------------------------------
+// Component — Input
+// -----------------------------------------------------------------------------
+.input-base() {
+  width: 100%;
+  background: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--input-border);
+  border-radius: @radius-lg;
+  padding: @sp-2 @sp-3;
+  font-size: @text-sm;
+  font-family: @font-sans;
+  .transition-colors();
+
+  &::placeholder {
+    color: var(--input-placeholder);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--accent-500);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Component — Card
+// -----------------------------------------------------------------------------
+.card-base() {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: @radius-xl;
+  box-shadow: var(--card-shadow);
+}
+
+// -----------------------------------------------------------------------------
+// Component — Badge
+// -----------------------------------------------------------------------------
+.badge-base() {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1;
+  padding: @sp-0\.5 @sp-2;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  border-radius: @radius-sm;
+  line-height: @leading-normal;
+}
+
+// -----------------------------------------------------------------------------
+// Component — Dialog
+// -----------------------------------------------------------------------------
+.dialog-backdrop() {
+  position: fixed;
+  inset: 0;
+  z-index: @z-modal;
+  .flex-center();
+  background: var(--color-bg-overlay);
+  backdrop-filter: blur(4px);
+  animation: dialog-fade-in 150ms ease;
+}
+
+.dialog-panel(@size: md) {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: @radius-xl;
+  box-shadow: @shadow-xl;
+  width: 100%;
+  animation: dialog-zoom-in 150ms ease;
+
+  & when (@size = sm) { max-width: @dialog-sm; }
+  & when (@size = md) { max-width: @dialog-md; }
+  & when (@size = lg) { max-width: @dialog-lg; }
+  & when (@size = xl) { max-width: @dialog-xl; }
+  & when (@size = full) { max-width: @dialog-full; }
+}
+
+.dialog-header() {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.dialog-body() {
+  padding: @sp-4 @sp-6;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.dialog-footer() {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-top: 1px solid var(--color-border-primary);
+  gap: @sp-3;
+  justify-content: flex-end;
+}
+
+// -----------------------------------------------------------------------------
+// Component — Sidebar
+// -----------------------------------------------------------------------------
+.sidebar-item() {
+  display: flex;
+  align-items: center;
+  gap: @sp-3;
+  padding: @sp-2 @sp-3;
+  border-radius: @radius-lg;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+    color: var(--color-text-primary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Component — Page Layout
+// -----------------------------------------------------------------------------
+.page-container() {
+  .flex-col();
+  height: 100%;
+  overflow: hidden;
+}
+
+.page-header() {
+  .flex-between();
+  padding: @sp-4 @sp-6;
+  border-bottom: 1px solid var(--color-border-primary);
+  flex-shrink: 0;
+}
+
+.page-content() {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-6;
+  .scrollbar-thin();
+}
+
+// -----------------------------------------------------------------------------
+// Component — Table
+// -----------------------------------------------------------------------------
+.table-base() {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-header-cell() {
+  padding: @sp-3 @sp-4;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.table-cell() {
+  padding: @sp-3 @sp-4;
+  font-size: @text-sm;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.table-row-hover() {
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Component — Context Menu
+// -----------------------------------------------------------------------------
+.context-menu() {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: @radius-lg;
+  box-shadow: @shadow-lg;
+  padding: @sp-1;
+  z-index: @z-dropdown;
+  min-width: 10rem;
+}
+
+.context-menu-item() {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-2 @sp-3;
+  font-size: @text-sm;
+  color: var(--color-text-primary);
+  border-radius: @radius-md;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Component — Tooltip
+// -----------------------------------------------------------------------------
+.tooltip() {
+  position: absolute;
+  z-index: @z-tooltip;
+  padding: @sp-1\.5 @sp-2\.5;
+  font-size: @text-xs;
+  color: white;
+  background: @zinc-900;
+  border-radius: @radius-md;
+  white-space: nowrap;
+  pointer-events: none;
+
+  .dark & {
+    background: @zinc-700;
+  }
+}

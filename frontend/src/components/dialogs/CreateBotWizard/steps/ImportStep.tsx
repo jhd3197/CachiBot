@@ -184,7 +184,7 @@ export function ImportStep() {
               ? 'border-green-500/50 bg-green-500/5'
               : validation && !validation.valid
                 ? 'border-red-500/50 bg-red-500/5'
-                : 'border-zinc-700 hover:border-zinc-600'
+                : 'border-[var(--color-border-secondary)] hover:border-[var(--color-border-secondary)]'
         )}
       >
         <input
@@ -201,7 +201,7 @@ export function ImportStep() {
               <Check className="h-7 w-7 text-green-400" />
             </div>
             <p className="mt-4 font-medium text-green-400">File validated successfully</p>
-            <p className="mt-1 text-sm text-zinc-500">{fileName}</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{fileName}</p>
           </>
         ) : validation && !validation.valid ? (
           <>
@@ -209,17 +209,17 @@ export function ImportStep() {
               <AlertCircle className="h-7 w-7 text-red-400" />
             </div>
             <p className="mt-4 font-medium text-red-400">Invalid file</p>
-            <p className="mt-1 text-sm text-zinc-500">{fileName}</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{fileName}</p>
           </>
         ) : (
           <>
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800">
-              <Upload className="h-7 w-7 text-zinc-500" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-bg-secondary)]">
+              <Upload className="h-7 w-7 text-[var(--color-text-secondary)]" />
             </div>
-            <p className="mt-4 font-medium text-zinc-300">
+            <p className="mt-4 font-medium text-[var(--color-text-primary)]">
               Drop a bot file here or click to browse
             </p>
-            <p className="mt-1 text-sm text-zinc-500">Supports .json export files</p>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Supports .json export files</p>
           </>
         )}
       </div>
@@ -263,24 +263,24 @@ export function ImportStep() {
 
       {/* Bot preview */}
       {validation?.valid && validation.bot && (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-          <h4 className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <FileJson className="h-4 w-4 text-zinc-500" />
+        <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4">
+          <h4 className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
+            <FileJson className="h-4 w-4 text-[var(--color-text-secondary)]" />
             Imported Bot Preview
           </h4>
           <div className="mt-3 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-zinc-500">Name:</span>
-              <span className="text-sm text-zinc-200">{validation.bot.name}</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">Name:</span>
+              <span className="text-sm text-[var(--color-text-primary)]">{validation.bot.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-zinc-500">Model:</span>
-              <span className="font-mono text-xs text-zinc-200">{validation.bot.model}</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">Model:</span>
+              <span className="font-mono text-xs text-[var(--color-text-primary)]">{validation.bot.model}</span>
             </div>
             {validation.bot.tools && validation.bot.tools.length > 0 && (
               <div className="flex justify-between">
-                <span className="text-sm text-zinc-500">Tools:</span>
-                <span className="text-sm text-zinc-200">{validation.bot.tools.length}</span>
+                <span className="text-sm text-[var(--color-text-secondary)]">Tools:</span>
+                <span className="text-sm text-[var(--color-text-primary)]">{validation.bot.tools.length}</span>
               </div>
             )}
           </div>
@@ -291,7 +291,7 @@ export function ImportStep() {
       {validation && (
         <button
           onClick={clearImport}
-          className="text-sm text-zinc-500 hover:text-zinc-400"
+          className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]"
         >
           Clear and try again
         </button>

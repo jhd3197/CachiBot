@@ -59,16 +59,16 @@ export function DashboardView() {
   })
 
   return (
-    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-[var(--color-bg-app)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
         <div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Dashboard</h1>
-          <p className="text-sm text-zinc-500">Overview of your bots and activity</p>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Dashboard</h1>
+          <p className="text-sm text-[var(--color-text-secondary)]">Overview of your bots and activity</p>
         </div>
 
         {/* Time range selector */}
-        <div className="flex items-center gap-1 rounded-lg bg-zinc-200 dark:bg-zinc-900 p-1">
+        <div className="flex items-center gap-1 rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-primary)] p-1">
           {(['24h', '7d', '30d', 'all'] as TimeRange[]).map((range) => (
             <button
               key={range}
@@ -77,7 +77,7 @@ export function DashboardView() {
                 'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 timeRange === range
                   ? 'bg-cachi-600 text-white'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               )}
             >
               {range === 'all' ? 'All Time' : range}
@@ -152,8 +152,8 @@ export function DashboardView() {
 
           {/* Bot Cards */}
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-zinc-200">
-              <Bot className="h-5 w-5 text-zinc-400" />
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)]">
+              <Bot className="h-5 w-5 text-[var(--color-text-secondary)]" />
               Bot Performance
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -175,11 +175,11 @@ export function DashboardView() {
 
           {/* Usage Chart */}
           <section>
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-zinc-200">
-              <BarChart3 className="h-5 w-5 text-zinc-400" />
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)]">
+              <BarChart3 className="h-5 w-5 text-[var(--color-text-secondary)]" />
               Usage Over Time
             </h2>
-            <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-6">
+            <div className="rounded-xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)]/50 p-6">
               {stats.daily.length > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-end gap-1" style={{ height: 120 }}>
@@ -195,24 +195,24 @@ export function DashboardView() {
                             className="absolute bottom-0 left-0 right-0 rounded-t bg-green-600 transition-all hover:bg-green-500"
                             style={{ height: heightPx }}
                           />
-                          <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100">
+                          <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[var(--color-bg-secondary)] px-2 py-1 text-xs text-[var(--color-text-primary)] opacity-0 transition-opacity group-hover:opacity-100">
                             {formatNumber(day.tokens)} tokens
                           </div>
                         </div>
                       )
                     })}
                   </div>
-                  <div className="flex justify-between text-xs text-zinc-600">
+                  <div className="flex justify-between text-xs text-[var(--color-text-tertiary)]">
                     <span>{stats.daily[Math.max(0, stats.daily.length - 14)]?.date}</span>
                     <span>{stats.daily[stats.daily.length - 1]?.date}</span>
                   </div>
                 </div>
               ) : (
-                <div className="flex h-32 items-center justify-center text-zinc-500">
+                <div className="flex h-32 items-center justify-center text-[var(--color-text-secondary)]">
                   <div className="text-center">
-                    <BarChart3 className="mx-auto mb-2 h-8 w-8 text-zinc-600" />
+                    <BarChart3 className="mx-auto mb-2 h-8 w-8 text-[var(--color-text-tertiary)]" />
                     <p>No usage data yet</p>
-                    <p className="text-xs text-zinc-600">Start chatting to see analytics</p>
+                    <p className="text-xs text-[var(--color-text-tertiary)]">Start chatting to see analytics</p>
                   </div>
                 </div>
               )}
@@ -222,12 +222,12 @@ export function DashboardView() {
           {/* Model Usage */}
           {Object.keys(stats.byModel).length > 0 && (
             <section>
-              <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-zinc-200">
-                <Cpu className="h-5 w-5 text-zinc-400" />
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)]">
+                <Cpu className="h-5 w-5 text-[var(--color-text-secondary)]" />
                 Model Usage
               </h2>
-              <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50">
-                <div className="divide-y divide-zinc-800">
+              <div className="rounded-xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)]/50">
+                <div className="divide-y divide-[var(--color-border-primary)]">
                   {Object.entries(stats.byModel)
                     .sort((a, b) => b[1].tokens - a[1].tokens)
                     .map(([model, usage]) => (
@@ -236,14 +236,14 @@ export function DashboardView() {
                         className="flex items-center justify-between px-5 py-3"
                       >
                         <div>
-                          <h4 className="font-medium text-zinc-200">{model}</h4>
-                          <p className="text-xs text-zinc-500">{usage.messages} messages</p>
+                          <h4 className="font-medium text-[var(--color-text-primary)]">{model}</h4>
+                          <p className="text-xs text-[var(--color-text-secondary)]">{usage.messages} messages</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-sm text-zinc-200">
+                          <p className="font-mono text-sm text-[var(--color-text-primary)]">
                             {formatNumber(usage.tokens)}
                           </p>
-                          <p className="text-xs text-zinc-500">${usage.cost.toFixed(4)}</p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">${usage.cost.toFixed(4)}</p>
                         </div>
                       </div>
                     ))}
@@ -294,7 +294,7 @@ function StatCard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50',
+        'rounded-xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)]/50',
         small ? 'p-4' : 'p-5'
       )}
     >
@@ -323,18 +323,18 @@ function StatCard({
         )}
       </div>
       <div className={small ? 'mt-3' : 'mt-4'}>
-        <h3 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-secondary)]">
           {label}
         </h3>
         <p
           className={cn(
-            'font-bold text-zinc-100',
+            'font-bold text-[var(--color-text-primary)]',
             small ? 'mt-0.5 text-xl' : 'mt-1 text-2xl'
           )}
         >
           {value}
         </p>
-        {subValue && <p className="mt-0.5 text-xs text-zinc-500">{subValue}</p>}
+        {subValue && <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{subValue}</p>}
       </div>
     </div>
   )
@@ -362,7 +362,7 @@ function BotCard({
   connections,
 }: BotCardProps) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)]/50 p-4">
       <div className="flex items-center gap-3">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-xl"
@@ -371,8 +371,8 @@ function BotCard({
           <BotIconRenderer icon={bot.icon} size={22} color={bot.color} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="truncate font-semibold text-zinc-100">{bot.name}</h3>
-          <p className="truncate text-xs text-zinc-500">{bot.model}</p>
+          <h3 className="truncate font-semibold text-[var(--color-text-primary)]">{bot.name}</h3>
+          <p className="truncate text-xs text-[var(--color-text-secondary)]">{bot.model}</p>
         </div>
       </div>
 
@@ -383,15 +383,15 @@ function BotCard({
         <MiniStat icon={Target} value={completedTasks} label="completed" />
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3">
-        <div className="flex items-center gap-3 text-xs text-zinc-500">
+      <div className="mt-3 flex items-center justify-between border-t border-[var(--color-border-primary)] pt-3">
+        <div className="flex items-center gap-3 text-xs text-[var(--color-text-secondary)]">
           <span>{chats} chats</span>
           <span className="flex items-center gap-1">
             <Plug className="h-3 w-3" />
             {connections}
           </span>
         </div>
-        <div className="text-xs font-medium text-zinc-400">
+        <div className="text-xs font-medium text-[var(--color-text-secondary)]">
           ${cost.toFixed(4)}
         </div>
       </div>
@@ -410,10 +410,10 @@ function MiniStat({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-zinc-600" />
+      <Icon className="h-3.5 w-3.5 text-[var(--color-text-tertiary)]" />
       <div>
-        <span className="font-medium text-zinc-200">{value}</span>
-        <span className="ml-1 text-xs text-zinc-600">{label}</span>
+        <span className="font-medium text-[var(--color-text-primary)]">{value}</span>
+        <span className="ml-1 text-xs text-[var(--color-text-tertiary)]">{label}</span>
       </div>
     </div>
   )

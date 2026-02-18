@@ -78,7 +78,7 @@ function SourceBadge({ source }: { source: NoteResponse['source'] }) {
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-zinc-600/40 text-zinc-400">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]">
       <User className="h-3 w-3" />
       user
     </span>
@@ -152,7 +152,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
   if (isLoading && botNotes.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <RefreshCw className="h-5 w-5 animate-spin text-zinc-500" />
+        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
@@ -162,13 +162,13 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
       {/* Header: search + new note button */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search notes..."
-            className="w-full pl-9 pr-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-cachi-500 transition-colors"
+            className="w-full pl-9 pr-3 py-2 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg text-sm text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:outline-none focus:border-[var(--color-border-focus)] transition-colors"
           />
         </div>
         <button
@@ -183,7 +183,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
       {/* Tag filter bar */}
       {botTags.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <Tag className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+          <Tag className="h-3.5 w-3.5 text-[var(--color-text-secondary)] flex-shrink-0" />
           {botTags.map((tag) => (
             <button
               key={tag}
@@ -192,7 +192,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
                 'px-2 py-0.5 text-xs rounded-full border transition-colors',
                 selectedTags.has(tag)
                   ? 'bg-cachi-500/20 text-cachi-400 border-cachi-500/40'
-                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'
+                  : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border-[var(--color-border-secondary)] hover:border-[var(--color-border-primary)]'
               )}
             >
               {tag}
@@ -201,7 +201,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
           {selectedTags.size > 0 && (
             <button
               onClick={() => setSelectedTags(new Set())}
-              className="px-2 py-0.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="px-2 py-0.5 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
             >
               Clear
             </button>
@@ -211,7 +211,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
 
       {/* Notes list */}
       {filteredNotes.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">
+        <div className="text-center py-12 text-[var(--color-text-secondary)]">
           <StickyNote className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">
             {searchQuery || selectedTags.size > 0
@@ -232,27 +232,27 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
           {filteredNotes.map((note) => (
             <div
               key={note.id}
-              className="group p-3 bg-zinc-800/50 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors"
+              className="group p-3 bg-[var(--card-bg)] rounded-lg border border-[var(--card-border)] hover:border-[var(--color-border-secondary)] transition-colors"
             >
               {/* Title row */}
               <div className="flex items-start justify-between gap-2">
                 <button
                   onClick={() => onEditNote(note.id)}
-                  className="text-sm font-medium text-zinc-200 hover:text-cachi-400 text-left transition-colors truncate flex-1"
+                  className="text-sm font-medium text-[var(--color-text-primary)] hover:text-cachi-400 text-left transition-colors truncate flex-1"
                 >
                   {note.title}
                 </button>
                 <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => onEditNote(note.id)}
-                    className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-cachi-400 transition-colors"
+                    className="p-1 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-cachi-400 transition-colors"
                     title="Edit note"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   {confirmingDelete === note.id ? (
                     <div className="flex items-center gap-1 text-xs">
-                      <span className="text-zinc-400">Are you sure?</span>
+                      <span className="text-[var(--color-text-secondary)]">Are you sure?</span>
                       <button
                         onClick={() => handleDelete(note.id)}
                         className="px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white transition-colors"
@@ -261,7 +261,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
                       </button>
                       <button
                         onClick={() => setConfirmingDelete(null)}
-                        className="px-1.5 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+                        className="px-1.5 py-0.5 rounded bg-[var(--color-hover-bg)] hover:bg-[var(--color-active-bg)] text-[var(--color-text-primary)] transition-colors"
                       >
                         Cancel
                       </button>
@@ -269,7 +269,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
                   ) : (
                     <button
                       onClick={() => setConfirmingDelete(note.id)}
-                      className="p-1 rounded hover:bg-zinc-700 text-zinc-400 hover:text-red-400 transition-colors"
+                      className="p-1 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-red-400 transition-colors"
                       title="Delete note"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
               </div>
 
               {/* Content preview */}
-              <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
+              <p className="mt-1 text-xs text-[var(--color-text-secondary)] leading-relaxed">
                 {truncateContent(note.content)}
               </p>
 
@@ -300,7 +300,7 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <SourceBadge source={note.source} />
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-[10px] text-[var(--color-text-secondary)]">
                     {formatRelativeTime(note.updated_at)}
                   </span>
                 </div>

@@ -1,0 +1,87 @@
+// =============================================================================
+// App Shell — layout/app-shell.less
+// Top-level 3-panel flex layout, title bar
+// =============================================================================
+
+.app-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  .flex-col();
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
+
+.app-shell__body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-shell__main {
+  .flex-col();
+  flex: 1;
+  overflow: hidden;
+}
+
+// Mobile overlay backdrop
+.app-shell__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: @z-sticky;
+  background: rgba(0, 0, 0, 0.5);
+
+  .screen-lg({
+    display: none;
+  });
+}
+
+// Rail/Sidebar container — mobile slide-in
+.app-shell__rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: @z-modal;
+  transform: translateX(-100%);
+  transition: transform @transition-slow;
+
+  .screen-lg({
+    position: static;
+    transform: none;
+  });
+
+  &--open {
+    transform: translateX(0);
+  }
+}
+
+.app-shell__sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 72px;
+  z-index: @z-modal;
+  transform: translateX(calc(-100% - 72px));
+  transition: transform @transition-slow;
+
+  .screen-lg({
+    position: static;
+    transform: none;
+  });
+
+  &--open {
+    transform: translateX(0);
+  }
+}
+
+// Mobile header
+.app-shell__mobile-header {
+  .flex-between();
+  height: @header-height;
+  padding: 0 @sp-3;
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+
+  .screen-lg({
+    display: none;
+  });
+}

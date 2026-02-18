@@ -23,7 +23,7 @@ export function AppearanceStep() {
       {/* Name and Description */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             Bot Name
           </label>
           <input
@@ -31,11 +31,11 @@ export function AppearanceStep() {
             value={form.name}
             onChange={(e) => updateForm({ name: e.target.value })}
             placeholder="My Awesome Bot"
-            className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+            className="h-10 w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             Description
           </label>
           <input
@@ -43,7 +43,7 @@ export function AppearanceStep() {
             value={form.description}
             onChange={(e) => updateForm({ description: e.target.value })}
             placeholder="What does this bot do?"
-            className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+            className="h-10 w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
           />
         </div>
       </div>
@@ -51,7 +51,7 @@ export function AppearanceStep() {
       {/* Icon and Color */}
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             Icon
           </label>
           <div className="flex flex-wrap gap-2">
@@ -64,7 +64,7 @@ export function AppearanceStep() {
                   'flex h-10 w-10 items-center justify-center rounded-lg border transition-all',
                   form.icon === option.id
                     ? 'border-cachi-500 bg-cachi-500/20'
-                    : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600'
+                    : 'border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-border-secondary)]'
                 )}
               >
                 <BotIconRenderer icon={option.id} size={20} />
@@ -73,7 +73,7 @@ export function AppearanceStep() {
           </div>
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             Color
           </label>
           <div className="flex flex-wrap gap-2">
@@ -96,7 +96,7 @@ export function AppearanceStep() {
 
       {/* Model Selection */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
+        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
           AI Model
         </label>
         <ModelSelect
@@ -109,7 +109,7 @@ export function AppearanceStep() {
       {/* System Prompt (for blank/import methods or quick edit) */}
       {(form.method === 'blank' || !form.generatedPrompt) && (
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
             System Prompt
           </label>
           <textarea
@@ -117,13 +117,13 @@ export function AppearanceStep() {
             onChange={(e) => updateForm({ systemPrompt: e.target.value })}
             placeholder="Define the bot's personality and behavior..."
             rows={4}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+            className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
           />
         </div>
       )}
 
       {/* Preview */}
-      <div className="flex items-center gap-4 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="flex items-center gap-4 rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-4">
         <div
           className="flex h-14 w-14 items-center justify-center rounded-xl"
           style={{ backgroundColor: form.color + '20' }}
@@ -131,10 +131,10 @@ export function AppearanceStep() {
           <BotIconRenderer icon={form.icon} size={28} color={form.color} />
         </div>
         <div>
-          <h3 className="font-semibold text-zinc-100">
+          <h3 className="font-semibold text-[var(--color-text-primary)]">
             {form.name || 'Bot Name'}
           </h3>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             {form.description || 'Bot description'}
           </p>
         </div>

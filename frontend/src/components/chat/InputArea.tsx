@@ -44,7 +44,7 @@ export function InputArea({ onSend, onCancel, isLoading, disabled }: InputAreaPr
   }
 
   return (
-    <div className="relative">
+    <div className="chat-input-wrap">
       <textarea
         ref={textareaRef}
         value={input}
@@ -54,15 +54,12 @@ export function InputArea({ onSend, onCancel, isLoading, disabled }: InputAreaPr
         disabled={disabled || isLoading}
         rows={1}
         className={cn(
-          'w-full resize-none rounded-xl border border-zinc-200 bg-white px-4 py-3 pr-24 text-sm',
-          'placeholder:text-zinc-400',
-          'focus:border-cachi-500 focus:outline-none focus:ring-2 focus:ring-cachi-500/20',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          'dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100'
+          'chat-input',
+          'disabled:cursor-not-allowed disabled:opacity-50'
         )}
       />
 
-      <div className="absolute bottom-2 right-2 flex items-center gap-1">
+      <div className="chat-input-actions">
         {isLoading ? (
           <Button
             variant="danger"
@@ -85,9 +82,9 @@ export function InputArea({ onSend, onCancel, isLoading, disabled }: InputAreaPr
         )}
       </div>
 
-      <p className="mt-2 text-center text-xs text-zinc-400">
-        Press <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">Enter</kbd> to send,{' '}
-        <kbd className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-zinc-800">Shift+Enter</kbd> for new line
+      <p className="chat-input-help">
+        Press <kbd className="chat-input-kbd">Enter</kbd> to send,{' '}
+        <kbd className="chat-input-kbd">Shift+Enter</kbd> for new line
       </p>
     </div>
   )

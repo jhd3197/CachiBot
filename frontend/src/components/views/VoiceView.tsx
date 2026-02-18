@@ -37,7 +37,7 @@ const STATE_LABELS: Record<VoiceState, string> = {
 }
 
 const STATE_COLORS: Record<VoiceState, string> = {
-  disconnected: 'text-zinc-500',
+  disconnected: 'text-[var(--color-text-secondary)]',
   connecting: 'text-yellow-400',
   idle: 'text-green-400',
   listening: 'text-blue-400',
@@ -177,7 +177,7 @@ export function VoiceView() {
 
   if (!activeBot) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
         No bot selected
       </div>
     )
@@ -187,9 +187,9 @@ export function VoiceView() {
   const isBotSpeaking = voiceState === 'speaking'
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-50 dark:bg-[var(--color-bg-app)]">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
+      <div className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
         <div
           className="flex h-10 w-10 items-center justify-center rounded-xl"
           style={{ backgroundColor: activeBot.color + '20' }}
@@ -197,7 +197,7 @@ export function VoiceView() {
           <BotIconRenderer icon={activeBot.icon} size={22} />
         </div>
         <div className="flex-1">
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">
             {activeBot.name}
           </h2>
           <div className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export function VoiceView() {
         {transcripts.length > 0 && isConnected && (
           <button
             onClick={clearTranscripts}
-            className="rounded-lg px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="rounded-lg px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-[var(--color-hover-bg)] dark:hover:text-[var(--color-text-primary)]"
           >
             Clear
           </button>
@@ -220,7 +220,7 @@ export function VoiceView() {
       {/* Transcript area */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {transcripts.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-[var(--color-text-secondary)]">
             {isConnected ? (
               <>
                 <Mic className="h-8 w-8 opacity-50" />
@@ -250,7 +250,7 @@ export function VoiceView() {
                     'max-w-[80%] rounded-2xl px-4 py-2.5',
                     entry.role === 'user'
                       ? 'bg-accent-600 text-white'
-                      : 'bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100',
+                      : 'bg-zinc-200 text-zinc-900 dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-primary)]',
                   )}
                 >
                   <p className="text-sm leading-relaxed">{entry.text}</p>
@@ -273,7 +273,7 @@ export function VoiceView() {
 
             {/* Thinking indicator */}
             {currentThinking && (
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 <span className="italic">Thinking...</span>
               </div>
@@ -293,13 +293,13 @@ export function VoiceView() {
       )}
 
       {/* Waveform visualizer */}
-      <div className="mx-6 h-16 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900/50">
+      <div className="mx-6 h-16 overflow-hidden rounded-xl bg-zinc-100 dark:bg-[var(--color-bg-primary)]/50">
         <canvas ref={canvasRef} className="h-full w-full" />
       </div>
 
       {/* PTT indicator */}
       {pushToTalkMode && isConnected && (
-        <div className="py-2 text-center text-xs text-zinc-500">
+        <div className="py-2 text-center text-xs text-[var(--color-text-secondary)]">
           {isHoldingPTT ? (
             <span className="font-medium text-blue-400">Recording...</span>
           ) : (
@@ -309,7 +309,7 @@ export function VoiceView() {
       )}
 
       {/* Controls bar */}
-      <div className="flex items-center justify-center gap-3 border-t border-zinc-200 px-6 py-5 dark:border-zinc-800">
+      <div className="flex items-center justify-center gap-3 border-t border-zinc-200 px-6 py-5 dark:border-[var(--color-border-primary)]">
         {/* Mute button */}
         {isConnected && (
           <button
@@ -318,7 +318,7 @@ export function VoiceView() {
               'flex h-12 w-12 items-center justify-center rounded-full transition-all',
               isMuted
                 ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700',
+                : 'bg-zinc-200 text-[var(--color-text-tertiary)] hover:bg-zinc-300 dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)]',
             )}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
@@ -353,7 +353,7 @@ export function VoiceView() {
             onClick={togglePTTMode}
             className={cn(
               'flex h-12 w-12 items-center justify-center rounded-full transition-all',
-              'bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700',
+              'bg-zinc-200 text-[var(--color-text-tertiary)] hover:bg-zinc-300 dark:bg-[var(--color-bg-secondary)] dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)]',
             )}
             title={pushToTalkMode ? 'Switch to auto-detect (VAD)' : 'Switch to push-to-talk'}
           >

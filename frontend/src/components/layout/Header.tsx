@@ -28,8 +28,8 @@ export function Header({ isConnected }: HeaderProps) {
   const modelInfo = allModels.find((m) => m.id === defaultModel)
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-zinc-200 bg-white px-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center gap-3">
+    <header className="header">
+      <div className="header__left">
         <Button
           variant="ghost"
           size="sm"
@@ -47,14 +47,12 @@ export function Header({ isConnected }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="header__right">
         {/* Connection status */}
         <div
           className={cn(
-            'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            isConnected
-              ? 'bg-cachi-100 text-cachi-700 dark:bg-cachi-900/30 dark:text-cachi-400'
-              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            'header__status',
+            isConnected ? 'header__status--connected' : 'header__status--disconnected'
           )}
         >
           {isConnected ? (
@@ -72,7 +70,7 @@ export function Header({ isConnected }: HeaderProps) {
 
         {/* Model indicator */}
         {defaultModel && (
-          <div className="hidden items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 sm:flex font-mono">
+          <div className="header__model">
             {modelInfo?.id || defaultModel}
           </div>
         )}
@@ -97,22 +95,22 @@ export function Header({ isConnected }: HeaderProps) {
 
         {/* User menu */}
         {user && (
-          <div className="relative">
+          <div className="header__user-menu">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-1.5"
             >
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-700">
+              <div className="header__user-avatar">
                 {user.role === 'admin' ? (
                   <Shield className="h-3.5 w-3.5 text-purple-400" />
                 ) : (
-                  <User className="h-3.5 w-3.5 text-zinc-400" />
+                  <User className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
                 )}
               </div>
               <span className="hidden text-sm sm:inline">{user.username}</span>
-              <ChevronDown className="h-4 w-4 text-zinc-400" />
+              <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
             </Button>
 
             {userMenuOpen && (
@@ -121,11 +119,11 @@ export function Header({ isConnected }: HeaderProps) {
                   className="fixed inset-0 z-10"
                   onClick={() => setUserMenuOpen(false)}
                 />
-                <div className="absolute right-0 top-full mt-1 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg py-1 z-20">
-                  <div className="px-3 py-2 border-b border-zinc-700">
-                    <div className="text-sm font-medium text-white">{user.username}</div>
-                    <div className="text-xs text-zinc-400">{user.email}</div>
-                    <div className="text-xs text-zinc-500 mt-0.5 capitalize">{user.role}</div>
+                <div className="header__user-dropdown">
+                  <div className="header__user-dropdown-header">
+                    <div className="name">{user.username}</div>
+                    <div className="email">{user.email}</div>
+                    <div className="role">{user.role}</div>
                   </div>
                   {user.role === 'admin' && (
                     <button
@@ -133,9 +131,9 @@ export function Header({ isConnected }: HeaderProps) {
                         setUserMenuOpen(false)
                         navigate('/users')
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-zinc-700 transition-colors"
+                      className="header__user-dropdown-item"
                     >
-                      <Users className="h-4 w-4 text-zinc-400" />
+                      <Users className="h-4 w-4 text-[var(--color-text-secondary)]" />
                       Manage Users
                     </button>
                   )}
@@ -144,7 +142,7 @@ export function Header({ isConnected }: HeaderProps) {
                       setUserMenuOpen(false)
                       handleLogout()
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-400 hover:bg-zinc-700 transition-colors"
+                    className="header__user-dropdown-item header__user-dropdown-item--danger"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out

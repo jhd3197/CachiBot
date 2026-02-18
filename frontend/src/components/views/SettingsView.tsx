@@ -118,10 +118,10 @@ export function SettingsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div className="flex h-full flex-col bg-zinc-100 dark:bg-[var(--color-bg-app)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-6 py-3">
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-3">
+        <h1 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">
           {sectionTitles[settingsSection]}
         </h1>
         {settingsSection !== 'danger' && settingsSection !== 'environment' && (
@@ -187,19 +187,19 @@ export function SettingsView() {
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)] p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-red-400">
               <AlertTriangle className="h-6 w-6" />
               <h2 className="text-lg font-bold">Delete Bot</h2>
             </div>
-            <p className="mb-6 text-zinc-500 dark:text-zinc-400">
-              Are you sure you want to delete <strong className="text-zinc-800 dark:text-zinc-200">{activeBot.name}</strong>?
+            <p className="mb-6 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+              Are you sure you want to delete <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">{activeBot.name}</strong>?
               This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
               >
                 Cancel
               </button>
@@ -264,7 +264,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       <div className="flex justify-end">
         <button
           onClick={() => setShowResetConfirm(true)}
-          className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 transition-colors hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-300"
+          className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] transition-colors hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]"
         >
           <RotateCcw className="h-3 w-3" />
           Reset to Default
@@ -274,20 +274,20 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       {/* Reset confirmation modal */}
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white dark:border-[var(--color-border-primary)] dark:bg-[var(--color-bg-primary)] p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3 text-amber-400">
               <RotateCcw className="h-6 w-6" />
               <h2 className="text-lg font-bold">Reset General Settings</h2>
             </div>
-            <p className="mb-6 text-zinc-500 dark:text-zinc-400">
+            <p className="mb-6 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
               This will reset the bot's name, description, icon, color, model, and system prompt to their default values.
               <br /><br />
-              <strong className="text-zinc-800 dark:text-zinc-200">Connections will not be affected.</strong>
+              <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">Connections will not be affected.</strong>
             </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="rounded-lg px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="rounded-lg px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
               >
                 Cancel
               </button>
@@ -307,36 +307,36 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
       <div className="space-y-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Name</label>
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Name</label>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="h-10 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-4 text-zinc-900 dark:text-zinc-100 outline-none focus:border-cachi-500"
+            className="h-10 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</label>
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Description</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={2}
-            className="w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-4 py-2 text-zinc-900 dark:text-zinc-100 outline-none focus:border-cachi-500"
+            className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
           />
         </div>
       </div>
 
       {/* Models */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-          <Cpu className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
+          <Cpu className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
           Models
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              <Layers className="h-3.5 w-3.5 text-zinc-500" />
+            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <Layers className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
               Default Model
             </label>
             <ModelSelect
@@ -349,7 +349,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
               className="w-full"
               filter={(m) => !m.supports_image_generation && !m.supports_audio}
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               Main conversational model. Leave empty to use the system default.
             </p>
           </div>
@@ -366,8 +366,8 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
               />
               {!!activeBot?.capabilities?.imageGeneration && (
                 <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30">
-                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                    <Image className="h-3 w-3 text-zinc-500" />
+                  <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                    <Image className="h-3 w-3 text-[var(--color-text-secondary)]" />
                     Image Model
                   </label>
                   <ModelSelect
@@ -380,7 +380,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                     className="w-full"
                     groups={imageGroups}
                   />
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                     e.g. openai/dall-e-3, google/imagen-3, stability/sd3-large
                   </p>
                 </div>
@@ -402,8 +402,8 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                 <div className="mt-2 ml-7 pl-3 border-l-2 border-cachi-500/30 space-y-4">
                   {/* Audio Model */}
                   <div>
-                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                      <AudioLines className="h-3 w-3 text-zinc-500" />
+                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                      <AudioLines className="h-3 w-3 text-[var(--color-text-secondary)]" />
                       Audio Model
                     </label>
                     <ModelSelect
@@ -416,15 +416,15 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                       className="w-full"
                       groups={audioGroups}
                     />
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                       e.g. openai/tts-1, openai/whisper-1, elevenlabs/eleven_multilingual_v2
                     </p>
                   </div>
 
                   {/* TTS Voice */}
                   <div>
-                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                      <Mic className="h-3 w-3 text-zinc-500" />
+                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                      <Mic className="h-3 w-3 text-[var(--color-text-secondary)]" />
                       TTS Voice
                     </label>
                     <div className="flex flex-wrap gap-1.5">
@@ -436,7 +436,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                             'rounded-md border px-2.5 py-1 text-xs capitalize transition-all',
                             voiceSettings.ttsVoice === voice
                               ? 'border-cachi-500 bg-cachi-500/20 text-cachi-300'
-                              : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600',
+                              : 'border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]',
                           )}
                         >
                           {voice}
@@ -448,13 +448,13 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                       placeholder="Custom voice ID (ElevenLabs)"
                       value={voiceSettings.ttsVoice}
                       onChange={(e) => updateVoiceSettings({ ttsVoice: e.target.value })}
-                      className="mt-1.5 h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+                      className="mt-1.5 h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-xs text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
                     />
                   </div>
 
                   {/* Speech Speed */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                       Speech Speed
                     </label>
                     <div className="flex items-center gap-3">
@@ -467,19 +467,19 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                         onChange={(e) => updateVoiceSettings({ ttsSpeed: parseFloat(e.target.value) })}
                         className="flex-1"
                       />
-                      <span className="w-10 text-center text-xs text-zinc-500 dark:text-zinc-400">{voiceSettings.ttsSpeed}x</span>
+                      <span className="w-10 text-center text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{voiceSettings.ttsSpeed}x</span>
                     </div>
                   </div>
 
                   {/* STT Language */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    <label className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                       Speech Recognition Language
                     </label>
                     <select
                       value={voiceSettings.sttLanguage || ''}
                       onChange={(e) => updateVoiceSettings({ sttLanguage: e.target.value || null })}
-                      className="h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-2 text-xs text-zinc-900 dark:text-zinc-100 outline-none focus:border-cachi-500"
+                      className="h-8 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-2 text-xs text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
                     >
                       {STT_LANGUAGES.map((lang) => (
                         <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -491,12 +491,12 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   <div className="space-y-2">
                     <label className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Enable Interruption</p>
-                        <p className="text-[11px] text-zinc-500">Allow interrupting the bot while it speaks</p>
+                        <p className="text-xs font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Enable Interruption</p>
+                        <p className="text-[11px] text-[var(--color-text-secondary)]">Allow interrupting the bot while it speaks</p>
                       </div>
                       <button
                         onClick={() => updateVoiceSettings({ enableInterruption: !voiceSettings.enableInterruption })}
-                        className="text-zinc-500 dark:text-zinc-400"
+                        className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
                       >
                         {voiceSettings.enableInterruption
                           ? <ToggleRight className="h-5 w-5 text-cachi-500" />
@@ -506,12 +506,12 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
                     <label className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Save Transcripts</p>
-                        <p className="text-[11px] text-zinc-500">Save voice conversations to chat history</p>
+                        <p className="text-xs font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Save Transcripts</p>
+                        <p className="text-[11px] text-[var(--color-text-secondary)]">Save voice conversations to chat history</p>
                       </div>
                       <button
                         onClick={() => updateVoiceSettings({ saveTranscripts: !voiceSettings.saveTranscripts })}
-                        className="text-zinc-500 dark:text-zinc-400"
+                        className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]"
                       >
                         {voiceSettings.saveTranscripts
                           ? <ToggleRight className="h-5 w-5 text-cachi-500" />
@@ -527,14 +527,14 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       </div>
 
       {/* Appearance */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-          <Palette className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
+          <Palette className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
           Appearance
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="mb-2 block text-xs text-zinc-500">Icon</label>
+            <label className="mb-2 block text-xs text-[var(--color-text-secondary)]">Icon</label>
             <div className="flex flex-wrap gap-2">
               {BOT_ICON_OPTIONS.map((option) => (
                 <button
@@ -545,7 +545,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                     'flex h-10 w-10 items-center justify-center rounded-lg border transition-all',
                     form.icon === option.id
                       ? 'border-cachi-500 bg-cachi-500/20'
-                      : 'border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                      : 'border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]'
                   )}
                 >
                   <BotIconRenderer icon={option.id} size={20} />
@@ -554,7 +554,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-xs text-zinc-500">Color</label>
+            <label className="mb-2 block text-xs text-[var(--color-text-secondary)]">Color</label>
             <div className="flex flex-wrap gap-2">
               {COLOR_OPTIONS.map((color) => (
                 <button
@@ -575,9 +575,9 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
       </div>
 
       {/* System Prompt */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-          <Brain className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
+          <Brain className="h-4 w-4 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]" />
           System Prompt
         </h3>
         <textarea
@@ -585,7 +585,7 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
           onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
           rows={6}
           placeholder="Define the bot's personality and behavior..."
-          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-4 py-3 font-mono text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-600 outline-none focus:border-cachi-500"
+          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-4 py-3 font-mono text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
         />
       </div>
     </div>
@@ -618,9 +618,9 @@ function KnowledgeSection({ botId }: { botId: string }) {
       <KnowledgeStatsComponent botId={botId} />
 
       {/* Notes section (main feature) */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">Notes & Memory</h3>
-        <p className="mb-4 text-xs text-zinc-500">
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Notes & Memory</h3>
+        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
           Save notes for your bot to remember. The bot can also create notes during conversations.
         </p>
         <NotesManager
@@ -631,18 +631,18 @@ function KnowledgeSection({ botId }: { botId: string }) {
       </div>
 
       {/* Search tester */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">Search Knowledge</h3>
-        <p className="mb-4 text-xs text-zinc-500">
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Search Knowledge</h3>
+        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
           Test search across documents and notes.
         </p>
         <KnowledgeSearch botId={botId} />
       </div>
 
       {/* Documents section */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">Documents</h3>
-        <p className="mb-4 text-xs text-zinc-500">
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
+        <h3 className="mb-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">Documents</h3>
+        <p className="mb-4 text-xs text-[var(--color-text-secondary)]">
           Upload documents to give your bot specialized knowledge.
         </p>
         <DocumentUploader botId={botId} />
@@ -655,7 +655,7 @@ function KnowledgeSection({ botId }: { botId: string }) {
       </div>
 
       {/* Instructions editor */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
+      <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] pt-6">
         <InstructionsEditor botId={botId} />
       </div>
 
@@ -792,7 +792,7 @@ function SkillsSection({ botId }: { botId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-zinc-500">Loading skills...</div>
+        <div className="text-sm text-[var(--color-text-secondary)]">Loading skills...</div>
       </div>
     )
   }
@@ -809,14 +809,14 @@ function SkillsSection({ botId }: { botId: string }) {
 
       {/* Header with actions */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
           Activate skills to give your bot specialized behaviors and capabilities.
         </p>
         <div className="flex gap-2">
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)] disabled:opacity-50"
             title="Rescan skill directories"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
@@ -834,13 +834,13 @@ function SkillsSection({ botId }: { botId: string }) {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search skills..."
-          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 py-2 pl-9 pr-3 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:border-cachi-500 focus:outline-none"
+          className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] py-2 pl-9 pr-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--input-placeholder)] focus:border-[var(--color-border-focus)] focus:outline-none"
         />
       </div>
 
@@ -859,17 +859,17 @@ function SkillsSection({ botId }: { botId: string }) {
           ))}
         </div>
       ) : searchQuery ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center">
-          <p className="text-sm text-zinc-500">No skills match your search.</p>
+        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-8 text-center">
+          <p className="text-sm text-[var(--color-text-secondary)]">No skills match your search.</p>
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800">
-            <Sparkles className="h-6 w-6 text-zinc-500" />
+        <div className="rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] p-8 text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
+            <Sparkles className="h-6 w-6 text-[var(--color-text-secondary)]" />
           </div>
-          <h3 className="mb-2 font-medium text-zinc-700 dark:text-zinc-300">No skills available</h3>
-          <p className="mb-4 text-sm text-zinc-500">
-            Create SKILL.md files in <code className="text-zinc-500 dark:text-zinc-400">~/.claude/skills/</code>
+          <h3 className="mb-2 font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">No skills available</h3>
+          <p className="mb-4 text-sm text-[var(--color-text-secondary)]">
+            Create SKILL.md files in <code className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">~/.claude/skills/</code>
             {' '}or install from a URL.
           </p>
           <div className="flex justify-center gap-3">
@@ -884,7 +884,7 @@ function SkillsSection({ botId }: { botId: string }) {
               href="https://skills.sh"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
             >
               <ExternalLink className="h-4 w-4" />
               Browse skills.sh
@@ -895,7 +895,7 @@ function SkillsSection({ botId }: { botId: string }) {
 
       {/* Active skills count */}
       {activeSkillIds.size > 0 && (
-        <div className="text-center text-xs text-zinc-500">
+        <div className="text-center text-xs text-[var(--color-text-secondary)]">
           {activeSkillIds.size} skill{activeSkillIds.size !== 1 ? 's' : ''} active
         </div>
       )}
@@ -927,21 +927,21 @@ function CapabilityToggle({ icon, label, description, enabled, onToggle }: Capab
         'flex items-center justify-between rounded-lg border p-3 transition-colors',
         enabled
           ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30'
+          : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--card-bg)]'
       )}
     >
       <div className="flex items-center gap-3">
-        <div className={cn('text-zinc-500 dark:text-zinc-400', enabled && 'text-cachi-500')}>
+        <div className={cn('text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]', enabled && 'text-cachi-500')}>
           {icon}
         </div>
         <div>
-          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{label}</div>
-          <div className="text-xs text-zinc-500">{description}</div>
+          <div className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{label}</div>
+          <div className="text-xs text-[var(--color-text-secondary)]">{description}</div>
         </div>
       </div>
       <button
         onClick={() => onToggle(!enabled)}
-        className={enabled ? 'text-cachi-500' : 'text-zinc-600'}
+        className={enabled ? 'text-cachi-500' : 'text-[var(--color-text-tertiary)]'}
       >
         {enabled ? <ToggleRight className="h-7 w-7" /> : <ToggleLeft className="h-7 w-7" />}
       </button>
@@ -965,29 +965,29 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
         'rounded-lg border p-4 transition-colors',
         isActive
           ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30'
+          : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--card-bg)]'
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-zinc-800 dark:text-zinc-200">{skill.name}</h3>
+            <h3 className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{skill.name}</h3>
             {skill.version && (
-              <span className="rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
                 v{skill.version}
               </span>
             )}
-            <span className="rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-500">
+            <span className="rounded bg-zinc-200 dark:bg-[var(--color-hover-bg)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
               {skill.source}
             </span>
           </div>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{skill.description}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{skill.description}</p>
           {skill.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {skill.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500"
+                  className="rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]"
                 >
                   {tag}
                 </span>
@@ -995,7 +995,7 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
             </div>
           )}
           {skill.requiresTools.length > 0 && (
-            <div className="mt-2 text-xs text-zinc-500">
+            <div className="mt-2 text-xs text-[var(--color-text-secondary)]">
               Requires: {skill.requiresTools.join(', ')}
             </div>
           )}
@@ -1004,7 +1004,7 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
           {showDelete && (
             <button
               onClick={() => onDelete(skill.id)}
-              className="rounded p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-red-400"
+              className="rounded p-1 text-[var(--color-text-secondary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
               title="Delete skill"
             >
               <X className="h-4 w-4" />
@@ -1012,7 +1012,7 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
           )}
           <button
             onClick={() => onToggle(skill.id, !isActive)}
-            className={isActive ? 'text-cachi-500' : 'text-zinc-600'}
+            className={isActive ? 'text-cachi-500' : 'text-[var(--color-text-tertiary)]'}
           >
             {isActive ? <ToggleRight className="h-8 w-8" /> : <ToggleLeft className="h-8 w-8" />}
           </button>
@@ -1049,12 +1049,12 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white dark:bg-zinc-900 shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 p-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Install Skill</h2>
+      <div className="w-full max-w-md rounded-xl bg-white dark:bg-[var(--color-bg-primary)] shadow-xl">
+        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Install Skill</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+            className="rounded-lg p-2 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -1066,7 +1066,7 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
             </div>
           )}
           <div>
-            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
               Skill URL or skills.sh identifier
             </label>
             <input
@@ -1074,17 +1074,17 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://... or skills.sh/skill-name"
-              className="w-full rounded-lg border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:border-cachi-500 focus:outline-none"
+              className="w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder:text-[var(--input-placeholder)] focus:border-[var(--color-border-focus)] focus:outline-none"
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
               Enter a URL to a skill markdown file or a skills.sh identifier.
             </p>
           </div>
         </div>
-        <div className="flex justify-end gap-3 border-t border-zinc-200 dark:border-zinc-800 p-4">
+        <div className="flex justify-end gap-3 border-t border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
           <button
             onClick={onClose}
-            className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
           >
             Cancel
           </button>
@@ -1115,7 +1115,7 @@ function ConnectionsSection({ botId }: { botId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mb-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
           Connect your bot to messaging platforms to send and receive messages.
         </p>
         <BotConnectionsPanel botId={botId} />
@@ -1166,9 +1166,9 @@ function DangerSection({
   return (
     <div className="space-y-6">
       {/* Export section */}
-      <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-6">
-        <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Export Bot</h3>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+      <div className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-6">
+        <h3 className="text-lg font-semibold text-zinc-800 dark:text-[var(--color-text-primary)]">Export Bot</h3>
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
           Download this bot's configuration as a JSON file. You can import it later to recreate the bot.
         </p>
         {exportError && (
@@ -1177,7 +1177,7 @@ function DangerSection({
         <button
           onClick={handleExport}
           disabled={isExporting}
-          className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+          className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
           {isExporting ? 'Exporting...' : 'Export Configuration'}
@@ -1186,17 +1186,17 @@ function DangerSection({
 
       {/* Delete section */}
       {isDefault ? (
-        <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-6">
-          <h3 className="text-lg font-semibold text-zinc-500 dark:text-zinc-400">Delete this bot</h3>
-          <p className="mt-2 text-sm text-zinc-500">
+        <div className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-6">
+          <h3 className="text-lg font-semibold text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Delete this bot</h3>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
             The default bot cannot be deleted.
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
           <h3 className="text-lg font-semibold text-red-400">Delete this bot</h3>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Once you delete <strong className="text-zinc-800 dark:text-zinc-200">{botName}</strong>, there is no going back.
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+            Once you delete <strong className="text-zinc-800 dark:text-[var(--color-text-primary)]">{botName}</strong>, there is no going back.
             All chats, jobs, and tasks will be permanently deleted.
           </p>
           <button

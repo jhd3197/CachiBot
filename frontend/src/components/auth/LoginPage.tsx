@@ -84,8 +84,8 @@ export function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
+      <div className="layout-auth">
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-500)' }} />
       </div>
     )
   }
@@ -93,29 +93,29 @@ export function LoginPage() {
   // Cloud mode: show redirect to website
   if (authMode?.mode === 'cloud' && authMode.login_url) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
-              <Shield className="h-8 w-8 text-white" />
+      <div className="layout-auth">
+        <div className="login">
+          <div className="login__logo">
+            <div className="login__logo-icon">
+              <Shield size={32} style={{ color: 'white' }} />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">CachiBot</h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-1">Sign in to continue</p>
+            <h1 className="login__title">CachiBot</h1>
+            <p className="login__subtitle">Sign in to continue</p>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm text-center">
-            <p className="text-zinc-600 dark:text-zinc-300 text-sm mb-4">
+          <div className="login__card" style={{ textAlign: 'center' }}>
+            <p className="login__cloud-text">
               This platform uses cachibot.ai for authentication.
             </p>
             <a href={authMode.login_url}>
-              <Button className="w-full justify-center">
-                <ExternalLink className="h-4 w-4 mr-2" />
+              <Button className="login__submit">
+                <ExternalLink size={16} style={{ marginRight: '0.5rem' }} />
                 Sign in via cachibot.ai
               </Button>
             </a>
           </div>
 
-          <p className="text-center text-zinc-500 text-sm mt-6">
+          <p className="login__footer">
             The Armored AI Agent
           </p>
         </div>
@@ -125,22 +125,22 @@ export function LoginPage() {
 
   // Selfhosted mode: standard login form
   return (
-    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
-      <div className="w-full max-w-md">
+    <div className="layout-auth">
+      <div className="login">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 mb-4">
-            <Shield className="h-8 w-8 text-white" />
+        <div className="login__logo">
+          <div className="login__logo-icon">
+            <Shield size={32} style={{ color: 'white' }} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">CachiBot</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Sign in to continue</p>
+          <h1 className="login__title">CachiBot</h1>
+          <p className="login__subtitle">Sign in to continue</p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+        <div className="login__card">
+          <form onSubmit={handleLogin} className="login__form">
+            <div className="login__field">
+              <label htmlFor="identifier" className="login__label">
                 Email or Username
               </label>
               <input
@@ -149,44 +149,45 @@ export function LoginPage() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Enter your email or username"
-                className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                className="login__input"
                 required
                 autoFocus
               />
             </div>
 
-            <div>
-              <label htmlFor="loginPassword" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+            <div className="login__field">
+              <label htmlFor="loginPassword" className="login__label">
                 Password
               </label>
-              <div className="relative">
+              <div className="login__password-wrap">
                 <input
                   id="loginPassword"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-3 py-2 pr-10 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                  className="login__input"
+                  style={{ paddingRight: '2.5rem' }}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                  className="login__password-toggle"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full justify-center"
+              className="login__submit"
               disabled={submitting}
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem' }} />
                   Signing in...
                 </>
               ) : (
@@ -197,7 +198,7 @@ export function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-zinc-500 text-sm mt-6">
+        <p className="login__footer">
           The Armored AI Agent
         </p>
       </div>

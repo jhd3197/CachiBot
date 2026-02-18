@@ -11,7 +11,7 @@ export function ConfirmStep() {
   return (
     <div className="space-y-6">
       {/* Bot preview card */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+      <div className="rounded-xl border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/50 p-6">
         <div className="flex items-start gap-4">
           <div
             className="flex h-16 w-16 items-center justify-center rounded-xl"
@@ -20,18 +20,18 @@ export function ConfirmStep() {
             <BotIconRenderer icon={form.icon} size={32} color={form.color} />
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-zinc-100">{form.name || 'New Bot'}</h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <h2 className="text-xl font-bold text-[var(--color-text-primary)]">{form.name || 'New Bot'}</h2>
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               {form.description || 'A new AI assistant'}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {form.model && (
-                <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
+                <span className="rounded-full bg-[var(--color-bg-secondary)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)]">
                   {form.model}
                 </span>
               )}
               {form.tools.length > 0 && (
-                <span className="flex items-center gap-1 rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
+                <span className="flex items-center gap-1 rounded-full bg-[var(--color-bg-secondary)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)]">
                   <Wrench className="h-3 w-3" />
                   {form.tools.length} tools
                 </span>
@@ -44,21 +44,21 @@ export function ConfirmStep() {
       {/* Configuration summary */}
       {form.method === 'ai-assisted' && (
         <div className="space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+          <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
             <Sparkles className="h-4 w-4 text-cachi-400" />
             AI-Generated Configuration
           </h3>
           <div className="grid grid-cols-2 gap-3">
             {categoryLabel && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3">
-                <span className="text-xs text-zinc-500">Purpose</span>
-                <p className="mt-0.5 text-sm text-zinc-200">{categoryLabel}</p>
+              <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/30 p-3">
+                <span className="text-xs text-[var(--color-text-secondary)]">Purpose</span>
+                <p className="mt-0.5 text-sm text-[var(--color-text-primary)]">{categoryLabel}</p>
               </div>
             )}
             {styleLabel && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3">
-                <span className="text-xs text-zinc-500">Style</span>
-                <p className="mt-0.5 text-sm text-zinc-200">{styleLabel}</p>
+              <div className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/30 p-3">
+                <span className="text-xs text-[var(--color-text-secondary)]">Style</span>
+                <p className="mt-0.5 text-sm text-[var(--color-text-primary)]">{styleLabel}</p>
               </div>
             )}
           </div>
@@ -67,12 +67,12 @@ export function ConfirmStep() {
 
       {/* System prompt preview */}
       <div className="space-y-2">
-        <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-          <MessageSquare className="h-4 w-4 text-zinc-500" />
+        <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
+          <MessageSquare className="h-4 w-4 text-[var(--color-text-secondary)]" />
           System Prompt
         </h3>
-        <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-          <p className="whitespace-pre-wrap text-sm text-zinc-400">
+        <div className="max-h-40 overflow-y-auto rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)]/30 p-4">
+          <p className="whitespace-pre-wrap text-sm text-[var(--color-text-secondary)]">
             {form.systemPrompt || '(No system prompt configured)'}
           </p>
         </div>
@@ -81,15 +81,15 @@ export function ConfirmStep() {
       {/* Tools list */}
       {form.tools.length > 0 && (
         <div className="space-y-2">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Wrench className="h-4 w-4 text-zinc-500" />
+          <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
+            <Wrench className="h-4 w-4 text-[var(--color-text-secondary)]" />
             Enabled Tools
           </h3>
           <div className="flex flex-wrap gap-2">
             {form.tools.map((tool) => (
               <span
                 key={tool}
-                className="flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300"
+                className="flex items-center gap-1.5 rounded-full bg-[var(--color-bg-secondary)] px-3 py-1 text-xs text-[var(--color-text-primary)]"
               >
                 <Check className="h-3 w-3 text-cachi-400" />
                 {tool.replace(/_/g, ' ')}

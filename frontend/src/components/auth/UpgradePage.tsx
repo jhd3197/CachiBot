@@ -38,7 +38,7 @@ export function UpgradePage() {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 px-4">
+    <div className="flex-1 min-h-0 flex items-center justify-center bg-zinc-100 dark:bg-[var(--color-bg-app)] px-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -46,13 +46,13 @@ export function UpgradePage() {
             <AlertTriangle className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Database Upgrade</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] mt-1">
             An older version of the database was detected
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-[var(--color-bg-primary)] rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] p-6 shadow-sm space-y-4">
           <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
             <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-amber-300">
@@ -62,7 +62,7 @@ export function UpgradePage() {
             </p>
           </div>
 
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-[var(--color-text-tertiary)] dark:text-[var(--color-text-secondary)]">
             We recommend starting fresh with a clean database. Your old database will be
             safely backed up before any changes are made.
           </p>
@@ -88,18 +88,18 @@ export function UpgradePage() {
           <button
             onClick={handleKeep}
             disabled={submitting}
-            className="w-full text-center text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+            className="w-full text-center text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-700 dark:hover:text-[var(--color-text-primary)] transition-colors"
           >
             Continue with existing database
           </button>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-500 text-center">
+          <p className="text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] text-center">
             Your old database will be safely backed up before any changes.
           </p>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-zinc-500 text-sm mt-6">
+        <p className="text-center text-[var(--color-text-secondary)] text-sm mt-6">
           The Armored AI Agent
         </p>
       </div>

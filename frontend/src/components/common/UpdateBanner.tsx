@@ -9,24 +9,21 @@ export function UpdateBanner() {
   const latestVersion = checkResult.latest_stable || checkResult.latest_prerelease
 
   return (
-    <div className="flex items-center justify-between gap-3 bg-accent-600/10 border-b border-accent-600/20 px-4 py-2 text-sm">
-      <div className="flex items-center gap-2 text-accent-400">
+    <div className="update-banner">
+      <div className="update-banner__info">
         <ArrowUpCircle className="h-4 w-4 shrink-0" />
         <span>
           CachiBot <strong>v{latestVersion}</strong> is available{' '}
-          <span className="text-zinc-400">(current: v{checkResult.current_version})</span>
+          <span className="text-caption">(current: v{checkResult.current_version})</span>
         </span>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={openDialog}
-          className="rounded-md bg-accent-600 px-3 py-1 text-xs font-medium text-white hover:bg-accent-500 transition-colors"
-        >
+      <div className="update-banner__actions">
+        <button onClick={openDialog} className="btn btn--primary btn--sm">
           View update
         </button>
         <button
           onClick={dismissBanner}
-          className="rounded-md p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+          className="update-banner__dismiss"
           aria-label="Dismiss"
         >
           <X className="h-3.5 w-3.5" />

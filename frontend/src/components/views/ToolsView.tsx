@@ -207,15 +207,15 @@ export function ToolsView() {
   }
 
   return (
-    <div className="flex h-full bg-white dark:bg-zinc-950">
+    <div className="flex h-full bg-white dark:bg-[var(--color-bg-app)]">
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
+        <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Tools</h1>
-              <p className="text-sm text-zinc-500">
+              <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Tools</h1>
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 {enabledCount} tools enabled for {activeBot.name}
               </p>
             </div>
@@ -239,30 +239,30 @@ export function ToolsView() {
                       'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors',
                       allEnabled
                         ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                        : 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400'
+                        : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-secondary)]'
                     )}
                   >
                     <RiskIcon className="h-3.5 w-3.5" />
                     <span className="capitalize">{level}</span>
                     <span className={cn(
                       'rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
-                      allEnabled ? 'bg-white/10' : 'bg-zinc-300 dark:bg-zinc-700'
+                      allEnabled ? 'bg-white/10' : 'bg-zinc-300 dark:bg-[var(--color-hover-bg)]'
                     )}>
                       {enabledAtLevel}/{totalAtLevel}
                     </span>
                   </button>
                 )
               })}
-              <div className="mx-1 h-5 w-px bg-zinc-300 dark:bg-zinc-700" />
+              <div className="mx-1 h-5 w-px bg-zinc-300 dark:bg-[var(--color-hover-bg)]" />
               <button
                 onClick={handleEnableAll}
-                className="rounded-lg px-2 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+                className="rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
               >
                 All on
               </button>
               <button
                 onClick={handleDisableAll}
-                className="rounded-lg px-2 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+                className="rounded-lg px-2 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
               >
                 All off
               </button>
@@ -272,24 +272,24 @@ export function ToolsView() {
           {/* Search and filters */}
           <div className="mt-4 flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
               <input
                 type="text"
                 placeholder="Search tools..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
+                className="h-9 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] pl-10 pr-4 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
               />
             </div>
 
-            <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-1">
+            <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-1">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={cn(
                   'rounded-md px-3 py-1 text-xs font-medium transition-colors',
                   selectedCategory === 'all'
-                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                    ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
+                    : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
                 )}
               >
                 All
@@ -303,8 +303,8 @@ export function ToolsView() {
                     className={cn(
                       'rounded-md px-3 py-1 text-xs font-medium transition-colors',
                       selectedCategory === key
-                        ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                        ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
+                        : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
                     )}
                   >
                     {config.label}
@@ -317,7 +317,7 @@ export function ToolsView() {
         {/* Content */}
         <div className="p-6">
           {loading && (
-            <div className="flex items-center justify-center py-12 text-zinc-500">
+            <div className="flex items-center justify-center py-12 text-[var(--color-text-secondary)]">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Loading plugins...
             </div>
@@ -331,7 +331,7 @@ export function ToolsView() {
           )}
 
           {!loading && !error && filteredGroups.length === 0 && (
-            <div className="py-12 text-center text-zinc-500">No tools match your search</div>
+            <div className="py-12 text-center text-[var(--color-text-secondary)]">No tools match your search</div>
           )}
 
           {!loading &&
@@ -343,13 +343,13 @@ export function ToolsView() {
               return (
                 <div key={plugin.name} className="mb-8">
                   <div className="mb-3 flex items-center gap-2">
-                    <PluginIcon className="h-5 w-5 text-zinc-500" />
-                    <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{pluginDisplayName}</h2>
-                    <span className="rounded-full bg-zinc-200 dark:bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                    <PluginIcon className="h-5 w-5 text-[var(--color-text-secondary)]" />
+                    <h2 className="text-sm font-semibold text-zinc-700 dark:text-[var(--color-text-primary)]">{pluginDisplayName}</h2>
+                    <span className="rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)]">
                       {tools.length}
                     </span>
                     {plugin.capability && (
-                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-800/50 px-2 py-0.5 text-xs text-zinc-600">
+                      <span className="rounded-full bg-zinc-100 dark:bg-[var(--card-bg)] px-2 py-0.5 text-xs text-[var(--color-text-tertiary)]">
                         {plugin.capability}
                       </span>
                     )}
@@ -431,17 +431,17 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
         'group relative rounded-xl border p-4 transition-all',
         enabled
           ? 'border-cachi-500/50 bg-cachi-500/5'
-          : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30 hover:border-zinc-300 dark:hover:border-zinc-700'
+          : 'border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/30 hover:border-zinc-300 dark:hover:border-[var(--color-border-secondary)]'
       )}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
-            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
+            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-5 w-5 text-zinc-700 dark:text-[var(--color-text-primary)]" />
           </div>
           <div>
-            <h3 className="font-medium text-zinc-800 dark:text-zinc-200">{tool.name}</h3>
+            <h3 className="font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{tool.name}</h3>
             <div className={cn('flex items-center gap-1 text-xs', config.color)}>
               <RiskIcon className="h-3 w-3" />
               {tool.riskLevel}
@@ -455,20 +455,20 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
             e.stopPropagation()
             onToggle()
           }}
-          className={cn('transition-colors', enabled ? 'text-cachi-500' : 'text-zinc-600')}
+          className={cn('transition-colors', enabled ? 'text-cachi-500' : 'text-[var(--color-text-tertiary)]')}
         >
           {enabled ? <ToggleRight className="h-6 w-6" /> : <ToggleLeft className="h-6 w-6" />}
         </button>
       </div>
 
       {/* Description */}
-      <p className="mt-3 text-sm text-zinc-500 line-clamp-2">{tool.description}</p>
+      <p className="mt-3 text-sm text-[var(--color-text-secondary)] line-clamp-2">{tool.description}</p>
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
         <button
           onClick={onSelect}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
         >
           <Info className="h-3 w-3" />
           Details
@@ -479,7 +479,7 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
               e.stopPropagation()
               onConfigure()
             }}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
           >
             <Settings className="h-3 w-3" />
             Configure
@@ -533,13 +533,13 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
   const RiskIcon = config.icon
 
   return (
-    <div className="w-96 flex-shrink-0 border-l border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+    <div className="w-96 flex-shrink-0 border-l border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
-        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Tool Details</h2>
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-4 py-3">
+        <h2 className="font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Tool Details</h2>
         <button
           onClick={onClose}
-          className="rounded p-1 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-200"
+          className="rounded p-1 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
         >
           x
         </button>
@@ -548,12 +548,12 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
       <div className="p-4">
         {/* Tool info */}
         <div className="mb-6 flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-800">
-            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-7 w-7 text-zinc-700 dark:text-zinc-300" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
+            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-7 w-7 text-zinc-700 dark:text-[var(--color-text-primary)]" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{tool.name}</h3>
-            <p className="text-sm text-zinc-500">
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">{tool.name}</h3>
+            <p className="text-sm text-[var(--color-text-secondary)]">
               {categoryConfig[tool.category]?.label || tool.category}
             </p>
           </div>
@@ -565,7 +565,7 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
             <RiskIcon className="h-5 w-5" />
             <span className="font-medium capitalize">{tool.riskLevel} Risk</span>
           </div>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
             {tool.riskLevel === 'safe' &&
               'This tool is safe to use and cannot modify system resources.'}
             {tool.riskLevel === 'moderate' &&
@@ -579,20 +579,20 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
 
         {/* Description */}
         <div className="mb-6">
-          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Description</h4>
-          <p className="text-sm text-zinc-500">{tool.description}</p>
+          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Description</h4>
+          <p className="text-sm text-[var(--color-text-secondary)]">{tool.description}</p>
         </div>
 
         {/* Parameters */}
         {tool.parameters && tool.parameters.length > 0 && (
           <div className="mb-6">
-            <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Parameters</h4>
+            <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Parameters</h4>
             <div className="space-y-2">
               {tool.parameters.map((param) => (
-                <div key={param.name} className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
+                <div key={param.name} className="rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] bg-white dark:bg-[var(--color-bg-primary)] p-3">
                   <div className="flex items-center gap-2">
                     <code className="font-mono text-sm text-cachi-400">{param.name}</code>
-                    <span className="rounded bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-500">
+                    <span className="rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
                       {param.type}
                     </span>
                     {param.required && (
@@ -601,7 +601,7 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">{param.description}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{param.description}</p>
                 </div>
               ))}
             </div>
@@ -631,7 +631,7 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
               </>
             )}
           </button>
-          <button className="flex items-center justify-center gap-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700">
+          <button className="flex items-center justify-center gap-2 rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)]">
             <Play className="h-4 w-4" />
             Test
           </button>

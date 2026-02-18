@@ -90,10 +90,10 @@ export function SetupStep() {
           </div>
         </div>
         <div className="text-center">
-          <p className="text-lg font-medium text-zinc-200">
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">
             Analyzing your answers...
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
             Extracting what {form.name} should know about you
           </p>
         </div>
@@ -106,7 +106,7 @@ export function SetupStep() {
     <div className="space-y-6">
       {/* User Context Section */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+        <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
           <UserCircle className="h-4 w-4 text-cachi-400" />
           What {form.name} knows about you
         </div>
@@ -115,9 +115,9 @@ export function SetupStep() {
           onChange={(e) => updateForm({ userContext: e.target.value })}
           rows={5}
           placeholder="Information about you that the bot should always remember..."
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors focus:border-cachi-500"
+          className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none transition-colors focus:border-[var(--color-border-focus)]"
         />
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-[var(--color-text-tertiary)]">
           This will be saved as Custom Instructions — your bot will always have
           this context.
         </p>
@@ -126,7 +126,7 @@ export function SetupStep() {
       {/* Suggested Todos */}
       {form.suggestedTodos.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+          <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
             <ListChecks className="h-4 w-4 text-cachi-400" />
             Suggested todos
           </div>
@@ -136,13 +136,13 @@ export function SetupStep() {
                 key={index}
                 type="button"
                 onClick={() => toggleTodo(index)}
-                className="flex w-full items-start gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 text-left transition-colors hover:border-zinc-600"
+                className="flex w-full items-start gap-3 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--card-bg)] p-3 text-left transition-colors hover:border-[var(--color-border-secondary)]"
               >
                 <div
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
                     todo.enabled
                       ? 'border-cachi-500 bg-cachi-500 text-white'
-                      : 'border-zinc-600 bg-zinc-800'
+                      : 'border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)]'
                   }`}
                 >
                   {todo.enabled && <Check className="h-3 w-3" />}
@@ -150,19 +150,19 @@ export function SetupStep() {
                 <div className="min-w-0 flex-1">
                   <p
                     className={`text-sm font-medium ${
-                      todo.enabled ? 'text-zinc-200' : 'text-zinc-500 line-through'
+                      todo.enabled ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] line-through'
                     }`}
                   >
                     {todo.title}
                   </p>
                   {todo.notes && (
-                    <p className="mt-0.5 text-xs text-zinc-500">{todo.notes}</p>
+                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{todo.notes}</p>
                   )}
                 </div>
               </button>
             ))}
           </div>
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-[var(--color-text-tertiary)]">
             Checked items will be created as todos for your bot.
           </p>
         </div>
@@ -171,7 +171,7 @@ export function SetupStep() {
       {/* Suggested Schedules */}
       {form.suggestedSchedules.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+          <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
             <CalendarClock className="h-4 w-4 text-cachi-400" />
             Suggested recurring tasks
           </div>
@@ -182,13 +182,13 @@ export function SetupStep() {
                   key={index}
                   type="button"
                   onClick={() => toggleSchedule(index)}
-                  className="flex w-full items-start gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 text-left transition-colors hover:border-zinc-600"
+                  className="flex w-full items-start gap-3 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--card-bg)] p-3 text-left transition-colors hover:border-[var(--color-border-secondary)]"
                 >
                   <div
                     className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
                       schedule.enabled
                         ? 'border-cachi-500 bg-cachi-500 text-white'
-                        : 'border-zinc-600 bg-zinc-800'
+                        : 'border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)]'
                     }`}
                   >
                     {schedule.enabled && <Check className="h-3 w-3" />}
@@ -197,14 +197,14 @@ export function SetupStep() {
                     <p
                       className={`text-sm font-medium ${
                         schedule.enabled
-                          ? 'text-zinc-200'
-                          : 'text-zinc-500 line-through'
+                          ? 'text-[var(--color-text-primary)]'
+                          : 'text-[var(--color-text-secondary)] line-through'
                       }`}
                     >
                       {schedule.name}
                     </p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500">
-                      <span className="rounded bg-zinc-700/50 px-1.5 py-0.5">
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                      <span className="rounded bg-[var(--color-bg-inset)] px-1.5 py-0.5">
                         {schedule.frequency}
                       </span>
                       {schedule.description && (
@@ -216,7 +216,7 @@ export function SetupStep() {
               )
             )}
           </div>
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-[var(--color-text-tertiary)]">
             Checked items will be created as scheduled tasks.
           </p>
         </div>
@@ -226,8 +226,8 @@ export function SetupStep() {
       {!form.userContext &&
         form.suggestedTodos.length === 0 &&
         form.suggestedSchedules.length === 0 && (
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
-            <p className="text-sm text-zinc-400">
+          <div className="rounded-lg border border-[var(--color-border-secondary)] bg-[var(--card-bg)] p-6 text-center">
+            <p className="text-sm text-[var(--color-text-secondary)]">
               No additional context was extracted. You can add custom
               instructions manually after creating the bot.
             </p>

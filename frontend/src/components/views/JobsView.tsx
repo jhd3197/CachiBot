@@ -42,13 +42,13 @@ export function JobsView() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-zinc-950">
+    <div className="flex h-full flex-col bg-white dark:bg-[var(--color-bg-app)]">
       {/* Header */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 px-6 py-4">
+      <div className="border-b border-zinc-200 dark:border-[var(--color-border-primary)] px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Jobs</h1>
-            <p className="text-sm text-zinc-500">Background tasks and executions</p>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">Jobs</h1>
+            <p className="text-sm text-[var(--color-text-secondary)]">Background tasks and executions</p>
           </div>
 
           {/* Stats */}
@@ -63,17 +63,17 @@ export function JobsView() {
         {/* Filters */}
         <div className="mt-4 flex items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
             <input
               type="text"
               placeholder="Search jobs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 pl-10 pr-4 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 outline-none focus:border-cachi-500"
+              className="h-9 w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] pl-10 pr-4 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
             />
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 p-1">
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-100 dark:bg-[var(--card-bg)] p-1">
             {(['all', 'running', 'pending', 'completed', 'failed'] as const).map((status) => (
               <button
                 key={status}
@@ -81,8 +81,8 @@ export function JobsView() {
                 className={cn(
                   'rounded-md px-3 py-1 text-xs font-medium transition-colors',
                   statusFilter === status
-                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                    ? 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-zinc-900 dark:text-[var(--color-text-primary)]'
+                    : 'text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]'
                 )}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -95,11 +95,11 @@ export function JobsView() {
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Job list */}
-        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 p-4">
+        <div className="w-96 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
           {jobs.length === 0 ? (
             <div className="py-12 text-center">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-              <p className="text-sm text-zinc-500">
+              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-[var(--color-text-tertiary)]" />
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 {search || statusFilter !== 'all' ? 'No jobs match your filters' : 'No jobs yet'}
               </p>
             </div>
@@ -128,7 +128,7 @@ export function JobsView() {
             />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <p className="text-zinc-500">Select a job to view details</p>
+              <p className="text-[var(--color-text-secondary)]">Select a job to view details</p>
             </div>
           )}
         </div>
@@ -156,7 +156,7 @@ function Stat({
     blue: 'bg-blue-500/20 text-blue-400',
     green: 'bg-green-500/20 text-green-400',
     red: 'bg-red-500/20 text-red-400',
-    zinc: 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
+    zinc: 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]',
   }
 
   return (
@@ -170,7 +170,7 @@ function Stat({
       >
         {value}
       </div>
-      <span className="text-xs text-zinc-500">{label}</span>
+      <span className="text-xs text-[var(--color-text-secondary)]">{label}</span>
     </div>
   )
 }
@@ -185,11 +185,11 @@ function JobCard({
   onClick: () => void
 }) {
   const statusConfig: Record<Job['status'], { icon: typeof Clock; color: string; bg: string; spin?: boolean }> = {
-    pending: { icon: Clock, color: 'text-zinc-400', bg: 'bg-zinc-500' },
+    pending: { icon: Clock, color: 'text-[var(--color-text-secondary)]', bg: 'bg-zinc-500' },
     running: { icon: Loader2, color: 'text-blue-400', bg: 'bg-blue-500', spin: true },
     completed: { icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500' },
     failed: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500' },
-    cancelled: { icon: AlertCircle, color: 'text-zinc-500', bg: 'bg-zinc-600' },
+    cancelled: { icon: AlertCircle, color: 'text-[var(--color-text-secondary)]', bg: 'bg-zinc-600' },
   }
 
   const config = statusConfig[job.status]
@@ -202,7 +202,7 @@ function JobCard({
         'w-full rounded-xl border p-4 text-left transition-all',
         selected
           ? 'border-cachi-500 bg-cachi-500/10'
-          : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hover:border-zinc-400 dark:hover:border-zinc-700'
+          : 'border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)]'
       )}
     >
       <div className="flex items-start gap-3">
@@ -211,31 +211,31 @@ function JobCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-medium text-zinc-800 dark:text-zinc-200">{job.title}</span>
+            <span className="truncate font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">{job.title}</span>
             <span
               className={cn(
                 'rounded-full px-2 py-0.5 text-xs font-medium',
                 job.priority === 'urgent' && 'bg-red-500/20 text-red-400',
                 job.priority === 'high' && 'bg-orange-500/20 text-orange-400',
-                job.priority === 'normal' && 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400',
-                job.priority === 'low' && 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500'
+                job.priority === 'normal' && 'bg-zinc-200 dark:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]',
+                job.priority === 'low' && 'bg-zinc-200 dark:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]'
               )}
             >
               {job.priority}
             </span>
           </div>
           {job.description && (
-            <p className="mt-1 truncate text-sm text-zinc-500">{job.description}</p>
+            <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">{job.description}</p>
           )}
 
           {/* Progress bar */}
           {job.status === 'running' && (
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-zinc-500">
+              <div className="flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
                 <span>Progress</span>
                 <span>{job.progress}%</span>
               </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
                 <div
                   className="h-full rounded-full bg-blue-500 transition-all duration-300"
                   style={{ width: `${job.progress}%` }}
@@ -245,7 +245,7 @@ function JobCard({
           )}
 
           {/* Timestamp */}
-          <div className="mt-2 text-xs text-zinc-600">
+          <div className="mt-2 text-xs text-[var(--color-text-tertiary)]">
             {job.completedAt
               ? `Completed ${formatTime(job.completedAt)}`
               : job.startedAt
@@ -276,14 +276,14 @@ function JobDetails({
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{job.title}</h2>
-          {job.description && <p className="mt-1 text-zinc-500 dark:text-zinc-400">{job.description}</p>}
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-[var(--color-text-primary)]">{job.title}</h2>
+          {job.description && <p className="mt-1 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{job.description}</p>}
         </div>
         <div className="flex items-center gap-2">
           {job.status === 'running' && (
             <button
               onClick={onCancel}
-              className="flex items-center gap-2 rounded-lg bg-zinc-200 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="flex items-center gap-2 rounded-lg bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)]"
             >
               <Pause className="h-4 w-4" />
               Cancel
@@ -327,10 +327,10 @@ function JobDetails({
       {job.status === 'running' && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-zinc-500 dark:text-zinc-400">Progress</span>
-            <span className="font-mono text-zinc-700 dark:text-zinc-300">{job.progress}%</span>
+            <span className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Progress</span>
+            <span className="font-mono text-zinc-700 dark:text-[var(--color-text-primary)]">{job.progress}%</span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+          <div className="h-3 overflow-hidden rounded-full bg-zinc-200 dark:bg-[var(--color-bg-secondary)]">
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cachi-500 transition-all duration-300"
               style={{ width: `${job.progress}%` }}
@@ -365,25 +365,25 @@ function JobDetails({
 
       {/* Logs */}
       {job.logs && job.logs.length > 0 && (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+        <div className="rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50">
           <button
             onClick={() => setShowLogs(!showLogs)}
             className="flex w-full items-center justify-between px-4 py-3"
           >
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">Logs ({job.logs.length})</span>
+            <span className="font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">Logs ({job.logs.length})</span>
             <ChevronDown
               className={cn(
-                'h-5 w-5 text-zinc-500 transition-transform',
+                'h-5 w-5 text-[var(--color-text-secondary)] transition-transform',
                 showLogs && 'rotate-180'
               )}
             />
           </button>
           {showLogs && (
-            <div className="border-t border-zinc-200 dark:border-zinc-800 p-4">
+            <div className="border-t border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
               <div className="max-h-80 space-y-1 overflow-y-auto font-mono text-xs">
                 {job.logs.map((log, i) => (
                   <div key={i} className="flex gap-3">
-                    <span className="flex-shrink-0 text-zinc-600">
+                    <span className="flex-shrink-0 text-[var(--color-text-tertiary)]">
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                     <span
@@ -392,12 +392,12 @@ function JobDetails({
                         log.level === 'error' && 'text-red-400',
                         log.level === 'warn' && 'text-yellow-400',
                         log.level === 'info' && 'text-blue-400',
-                        log.level === 'debug' && 'text-zinc-500'
+                        log.level === 'debug' && 'text-[var(--color-text-secondary)]'
                       )}
                     >
                       {log.level}
                     </span>
-                    <span className="text-zinc-700 dark:text-zinc-300">{log.message}</span>
+                    <span className="text-zinc-700 dark:text-[var(--color-text-primary)]">{log.message}</span>
                   </div>
                 ))}
               </div>
@@ -411,9 +411,9 @@ function JobDetails({
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-3">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 font-medium capitalize text-zinc-800 dark:text-zinc-200">{value}</div>
+    <div className="rounded-xl border border-zinc-200 dark:border-[var(--color-border-primary)] bg-zinc-50 dark:bg-[var(--color-bg-primary)]/50 p-3">
+      <div className="text-xs text-[var(--color-text-secondary)]">{label}</div>
+      <div className="mt-1 font-medium capitalize text-zinc-800 dark:text-[var(--color-text-primary)]">{value}</div>
     </div>
   )
 }
