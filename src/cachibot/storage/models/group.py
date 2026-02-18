@@ -99,9 +99,7 @@ class BotGroupAccess(Base):
         ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
     )
-    access_level: Mapped[str] = mapped_column(
-        String, nullable=False, server_default="viewer"
-    )
+    access_level: Mapped[str] = mapped_column(String, nullable=False, server_default="viewer")
     granted_by: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="SET NULL"),

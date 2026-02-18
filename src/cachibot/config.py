@@ -536,9 +536,13 @@ class Config:
         try:
             import tomli_w
         except ImportError:
-            self._save_section_manual(user_config, "database", {
-                "url": self.database.url,
-            })
+            self._save_section_manual(
+                user_config,
+                "database",
+                {
+                    "url": self.database.url,
+                },
+            )
             return
 
         data: dict[str, Any] = {}
@@ -564,14 +568,18 @@ class Config:
         try:
             import tomli_w
         except ImportError:
-            self._save_section_manual(user_config, "smtp", {
-                "host": self.smtp.host,
-                "port": self.smtp.port,
-                "username": self.smtp.username,
-                "password": self.smtp.password,
-                "from_address": self.smtp.from_address,
-                "use_tls": self.smtp.use_tls,
-            })
+            self._save_section_manual(
+                user_config,
+                "smtp",
+                {
+                    "host": self.smtp.host,
+                    "port": self.smtp.port,
+                    "username": self.smtp.username,
+                    "password": self.smtp.password,
+                    "from_address": self.smtp.from_address,
+                    "use_tls": self.smtp.use_tls,
+                },
+            )
             return
 
         data: dict[str, Any] = {}

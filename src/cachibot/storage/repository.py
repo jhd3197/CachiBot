@@ -1519,9 +1519,7 @@ class PlatformToolConfigRepository:
         """Return the global tool config, creating the default row if missing."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                select(PlatformToolConfigModel).where(
-                    PlatformToolConfigModel.id == self._ROW_ID
-                )
+                select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)
             )
             row = result.scalar_one_or_none()
 
@@ -1590,9 +1588,7 @@ class PlatformToolConfigRepository:
         async with db.ensure_initialized()() as session:
             # Check again inside the session to avoid races
             result = await session.execute(
-                select(PlatformToolConfigModel).where(
-                    PlatformToolConfigModel.id == self._ROW_ID
-                )
+                select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)
             )
             existing = result.scalar_one_or_none()
             if existing:

@@ -62,19 +62,13 @@ async def list_bots(
     """
     if user.role == UserRole.ADMIN:
         bots = await repo.get_all_bots()
-        return [
-            {**BotResponse.from_bot(b).model_dump(), "access_level": "admin"}
-            for b in bots
-        ]
+        return [{**BotResponse.from_bot(b).model_dump(), "access_level": "admin"} for b in bots]
 
     # Owned bots
     owned_ids = set(await ownership_repo.get_user_bots(user.id))
-    owned_bots = [
-        b for b in [await repo.get_bot(bid) for bid in owned_ids] if b is not None
-    ]
+    owned_bots = [b for b in [await repo.get_bot(bid) for bid in owned_ids] if b is not None]
     results = [
-        {**BotResponse.from_bot(b).model_dump(), "access_level": "owner"}
-        for b in owned_bots
+        {**BotResponse.from_bot(b).model_dump(), "access_level": "owner"} for b in owned_bots
     ]
 
     # Shared bots via groups
@@ -84,9 +78,7 @@ async def list_bots(
             continue  # Already in owned list
         bot = await repo.get_bot(bot_id)
         if bot is not None:
-            results.append(
-                {**BotResponse.from_bot(bot).model_dump(), "access_level": level.value}
-            )
+            results.append({**BotResponse.from_bot(bot).model_dump(), "access_level": level.value})
 
     return results
 
@@ -501,9 +493,7 @@ async def share_bot_with_group(
             granted_by=user.id,
         )
     except Exception:
-        raise HTTPException(
-            status_code=409, detail="Bot is already shared with this group"
-        )
+        raise HTTPException(status_code=409, detail="Bot is already shared with this group")
 
     return BotAccessRecord(
         id=record.id,
