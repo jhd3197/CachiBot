@@ -244,9 +244,7 @@ async def get_bot_available_models(
         from prompture.infra.provider_env import ProviderEnvironment
 
         # Map provider env_key to ProviderEnvironment field names
-        provider_to_env_field = {
-            name: info["env_key"].lower() for name, info in PROVIDERS.items()
-        }
+        provider_to_env_field = {name: info["env_key"].lower() for name, info in PROVIDERS.items()}
 
         env_kwargs: dict[str, str] = {}
         for provider, key_value in resolved.provider_keys.items():

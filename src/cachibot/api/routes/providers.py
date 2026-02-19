@@ -57,6 +57,7 @@ PROVIDERS = {
     },
 }
 
+
 def _get_env_path() -> Path:
     """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
     ws = os.environ.get("CACHIBOT_WORKSPACE")
