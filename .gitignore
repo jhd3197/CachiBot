@@ -28,6 +28,7 @@ wheels/
 # PyInstaller
 *.manifest
 *.spec
+!cachibot-server.spec
 
 # Installer logs
 pip-log.txt
