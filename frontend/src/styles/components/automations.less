@@ -8,16 +8,20 @@
 // -----------------------------------------------------------------------------
 
 .automation-card {
-  border-radius: @radius-lg;
+  border-radius: @radius-2xl;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
   padding: @sp-4;
   cursor: pointer;
-  .transition-all();
+  .card-hover-lift();
 
   &:hover {
     border-color: var(--color-border-secondary);
-    box-shadow: @shadow-sm;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+
+    .dark & {
+      box-shadow: none;
+    }
   }
 
   &__header {
@@ -36,9 +40,9 @@
     .flex-center();
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: @radius-lg;
-    background: var(--color-bg-secondary);
-    color: var(--color-text-secondary);
+    border-radius: @radius-xl;
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    color: var(--accent-500);
   }
 
   &__name {
@@ -56,26 +60,24 @@
 
   &__status {
     border-radius: @radius-full;
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0\.5 @sp-2\.5;
     font-size: @text-xs;
     font-weight: @font-medium;
     // Default/fallback
-    background: rgba(@zinc-500, 0.1);
+    background: color-mix(in srgb, @zinc-500 12%, transparent);
     color: @zinc-400;
 
     &--active, &--enabled {
-      background: rgba(@green-500, 0.1);
-      color: @green-500;
+      .tag-neon(@green-500);
     }
 
     &--draft, &--disabled {
-      background: rgba(@zinc-500, 0.1);
+      background: color-mix(in srgb, @zinc-500 12%, transparent);
       color: @zinc-400;
     }
 
     &--error {
-      background: rgba(@red-500, 0.1);
-      color: @red-500;
+      .tag-neon(@red-400);
     }
   }
 
@@ -96,7 +98,13 @@
     padding: 0;
     .transition-colors();
 
-    &--on { color: var(--accent-500); }
+    &--on {
+      color: var(--accent-500);
+
+      .dark & {
+        filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent-500) 40%, transparent));
+      }
+    }
     &--off { color: var(--color-text-tertiary); }
 
     &:hover {
@@ -568,21 +576,17 @@
   display: flex;
   align-items: center;
   gap: @sp-1;
-  border-radius: @radius-lg;
-  border: 1px solid var(--color-border-secondary);
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
   background: var(--color-bg-secondary);
   padding: @sp-1;
-
-  .dark & {
-    background: var(--card-bg);
-  }
 }
 
 .automation-tab {
   display: flex;
   align-items: center;
   gap: @sp-2;
-  border-radius: @radius-md;
+  border-radius: @radius-lg;
   padding: @sp-1 @sp-3;
   font-size: @text-xs;
   font-weight: @font-medium;
@@ -592,12 +596,9 @@
   .transition-colors();
 
   &--active {
-    background: var(--color-active-bg);
+    background: var(--color-bg-primary);
     color: var(--color-text-primary);
-
-    .dark & {
-      background: var(--color-hover-bg);
-    }
+    box-shadow: @shadow-sm;
   }
 
   &--inactive {
