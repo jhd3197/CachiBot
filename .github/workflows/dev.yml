@@ -4,22 +4,21 @@ on:
   push:
     branches: [ dev ]
 
+concurrency:
+  group: dev-release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 jobs:
   dev-pre-release:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
-
-      - name: Ignore bot
-        if: github.actor == 'github-actions[bot]'
-        run: |
-          echo "Commit made by GitHub Actions. Exiting."
-          exit 0
 
       - name: Fetch tags
         run: |
@@ -69,16 +68,19 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend
         working-directory: frontend
         run: |
-          npm ci || npm install
+          npm ci
           npm run build
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with: { python-version: '3.x' }
 
       - name: Install build deps
@@ -86,11 +88,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install setuptools_scm build twine
 
-      - name: Set version in pyproject.toml and VERSION file
+      - name: Set version in VERSION file
         run: |
-          sed -i 's/^version = ".*"/version = "${{ steps.ver.outputs.new }}"/' pyproject.toml
           echo "${{ steps.ver.outputs.new }}" > VERSION
-          grep '^version' pyproject.toml
+          echo "Version: $(cat VERSION)"
 
       - name: Build (dev)
         run: |

@@ -48,7 +48,7 @@ class VectorType(sa.types.TypeDecorator):
             return None
         if dialect.name != "postgresql":
             # SQLite: serialize to JSON string
-            if isinstance(value, (list, tuple)):
+            if isinstance(value, list | tuple):
                 return json.dumps(list(value))
             return value
         # PostgreSQL: pgvector handles list[float] natively

@@ -38,8 +38,12 @@ interface ElectronAPI {
   installUpdate: () => void
   onUpdateAvailable: (callback: (info: UpdateCheckResult) => void) => () => void
   onUpdateProgress: (callback: (progress: UpdateDownloadProgress) => void) => () => void
+  onUpdateError: (callback: (error: { message: string }) => void) => () => void
   // Cache management
   clearCache: () => Promise<{ success: boolean; error?: string }>
+  // Settings
+  getSetting: (key: string, defaultValue?: unknown) => Promise<unknown>
+  setSetting: (key: string, value: unknown) => Promise<{ success: boolean }>
 }
 
 interface Window {

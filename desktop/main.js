@@ -25,6 +25,20 @@ const BACKEND_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
 // In dev mode, load from Vite dev server for hot reload when available
 const DEV_FRONTEND_URL = process.env.ELECTRON_DEV_URL || null;
 
+function isAllowedOrigin(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === BACKEND_HOST && parsed.port === String(BACKEND_PORT)) return true;
+    if (isDev && DEV_FRONTEND_URL) {
+      const devParsed = new URL(DEV_FRONTEND_URL);
+      if (parsed.hostname === devParsed.hostname && parsed.port === devParsed.port) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Backend lifecycle
 // ---------------------------------------------------------------------------
@@ -53,6 +67,7 @@ function startBackend() {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: isDev, // Use shell in dev to resolve PATH
+    detached: process.platform !== 'win32',
   });
 
   backendProcess.stdout.on('data', (d) => console.log('[backend]', d.toString().trim()));
@@ -95,7 +110,13 @@ function stopBackend() {
       backendProcess.kill();
     }
   } else {
-    backendProcess.kill();
+    // Kill the entire process group (backend + uvicorn workers)
+    try {
+      process.kill(-backendProcess.pid);
+    } catch (err) {
+      console.error('[electron] process group kill failed:', err.message);
+      backendProcess.kill();
+    }
   }
   backendProcess = null;
 }
@@ -153,6 +174,17 @@ function waitForPort(port, retries = 60, delay = 500) {
   });
 }
 
+function isPortInUse(port) {
+  return new Promise((resolve) => {
+    const sock = new net.Socket();
+    sock.setTimeout(500);
+    sock.once('connect', () => { sock.destroy(); resolve(true); });
+    sock.once('error', () => { sock.destroy(); resolve(false); });
+    sock.once('timeout', () => { sock.destroy(); resolve(false); });
+    sock.connect(port, BACKEND_HOST);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Window creation
 // ---------------------------------------------------------------------------
@@ -169,6 +201,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      additionalArguments: [`--app-version=${app.getVersion()}`],
     },
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     titleBarOverlay: false,
@@ -179,11 +213,16 @@ function createWindow() {
 
   // Open external links in the system browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http') && !url.includes(BACKEND_HOST)) {
-      shell.openExternal(url);
-      return { action: 'deny' };
+    if (isAllowedOrigin(url)) return { action: 'allow' };
+    if (url.startsWith('http')) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedOrigin(url)) {
+      event.preventDefault();
+      if (url.startsWith('http')) shell.openExternal(url);
     }
-    return { action: 'allow' };
   });
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
@@ -298,19 +337,7 @@ function createTray() {
     {
       label: 'Clear Cache & Restart',
       click: async () => {
-        await session.defaultSession.clearCache();
-        await session.defaultSession.clearStorageData({
-          storages: [
-            'cachestorage',
-            'serviceworkers',
-            'localstorage',
-            'shadercache',
-            'websql',
-            'indexdb',
-          ],
-        });
-        const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
-        try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
+        await clearAllCaches();
         // Remove version marker so next launch also clears
         try { fs.unlinkSync(VERSION_FILE); } catch {}
         stopBackend();
@@ -355,6 +382,29 @@ function createTray() {
 
 const VERSION_FILE = path.join(app.getPath('userData'), '.cachibot-version');
 
+// ---------------------------------------------------------------------------
+// Persistent settings (plain JSON, no dependencies)
+// ---------------------------------------------------------------------------
+
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+
+function loadSettings() {
+  try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); }
+  catch { return {}; }
+}
+
+function saveSetting(key, value) {
+  const settings = loadSettings();
+  settings[key] = value;
+  try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8'); }
+  catch (err) { console.error('[electron] Failed to save settings:', err.message); }
+}
+
+function getSetting(key, defaultValue) {
+  const settings = loadSettings();
+  return settings[key] !== undefined ? settings[key] : defaultValue;
+}
+
 function checkVersionChange() {
   const current = app.getVersion();
   let previous = null;
@@ -366,12 +416,27 @@ function checkVersionChange() {
   return needsClear;
 }
 
+async function clearAllCaches() {
+  await session.defaultSession.clearCache();
+  await session.defaultSession.clearStorageData({
+    storages: [
+      'cachestorage', 'serviceworkers', 'localstorage',
+      'shadercache', 'websql', 'indexdb',
+    ],
+  });
+  const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
+  try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
+}
+
 // ---------------------------------------------------------------------------
 // Auto-updater
 // ---------------------------------------------------------------------------
 
 function setupAutoUpdater() {
   if (isDev || !autoUpdater) return;
+
+  const channel = getSetting('updateChannel', 'stable');
+  autoUpdater.allowPrerelease = channel === 'beta';
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -404,25 +469,30 @@ function setupAutoUpdater() {
 
   autoUpdater.on('error', (err) => {
     console.error('[updater] Error:', err.message);
+    if (mainWindow) {
+      mainWindow.webContents.send('update:error', {
+        message: err.message,
+      });
+    }
   });
 
-  // Initial check on startup
-  autoUpdater.checkForUpdates().catch(() => {});
-
-  // Periodic check every 6 hours
-  setInterval(() => {
-    console.log('[updater] Periodic update check');
+  // Initial check on startup (respects toggle)
+  if (getSetting('autoUpdateEnabled', true)) {
     autoUpdater.checkForUpdates().catch(() => {});
+  }
+
+  // Periodic check every 6 hours (respects toggle)
+  setInterval(() => {
+    if (getSetting('autoUpdateEnabled', true)) {
+      console.log('[updater] Periodic update check');
+      autoUpdater.checkForUpdates().catch(() => {});
+    }
   }, 6 * 60 * 60 * 1000);
 }
 
 // ---------------------------------------------------------------------------
 // Window control IPC handlers (custom title bar)
 // ---------------------------------------------------------------------------
-
-ipcMain.on('app:getVersion', (event) => {
-  event.returnValue = app.getVersion();
-});
 
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:maximize', () => {
@@ -438,6 +508,12 @@ ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false);
 // ---------------------------------------------------------------------------
 // Update & cache IPC handlers
 // ---------------------------------------------------------------------------
+
+ipcMain.handle('settings:get', (_event, key, defaultValue) => getSetting(key, defaultValue));
+ipcMain.handle('settings:set', (_event, key, value) => {
+  saveSetting(key, value);
+  return { success: true };
+});
 
 ipcMain.handle('update:check', async () => {
   if (!autoUpdater) return { available: false };
@@ -473,25 +549,28 @@ ipcMain.on('update:install', () => {
 
 ipcMain.handle('cache:clear', async () => {
   try {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
-      storages: [
-        'cachestorage',
-        'serviceworkers',
-        'localstorage',
-        'shadercache',
-        'websql',
-        'indexdb',
-      ],
-    });
-    // Delete V8 Code Cache directory
-    const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
-    try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
+    await clearAllCaches();
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }
 });
+
+// ---------------------------------------------------------------------------
+// Single instance lock — prevent duplicate windows / port conflicts
+// ---------------------------------------------------------------------------
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // App lifecycle
@@ -501,21 +580,39 @@ app.whenReady().then(async () => {
   // Clear Chromium cache when app version changes (e.g. after reinstall)
   if (checkVersionChange()) {
     console.log('[electron] Version changed, clearing all Chromium caches');
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
-      storages: [
-        'cachestorage',
-        'serviceworkers',
-        'localstorage',
-        'shadercache',
-        'websql',
-        'indexdb',
-      ],
-    });
-    // Delete V8 Code Cache directory — compiled JS from the old UI
-    const codeCacheDir = path.join(app.getPath('userData'), 'Code Cache');
-    try { fs.rmSync(codeCacheDir, { recursive: true, force: true }); } catch {}
+    await clearAllCaches();
   }
+
+  // Content-Security-Policy
+  const cspSources = [
+    `http://${BACKEND_HOST}:${BACKEND_PORT}`,
+    `ws://${BACKEND_HOST}:${BACKEND_PORT}`,
+  ];
+  if (isDev && DEV_FRONTEND_URL) cspSources.push(DEV_FRONTEND_URL, DEV_FRONTEND_URL.replace('http', 'ws'));
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          [
+            "default-src 'self'",
+            `connect-src 'self' ${cspSources.join(' ')}`,
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "object-src 'none'",
+            "base-uri 'self'",
+          ].join('; '),
+        ],
+      },
+    });
+  });
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
 
   const splash = createSplashWindow();
 
@@ -525,6 +622,19 @@ app.whenReady().then(async () => {
     // Dev mode: skip backend startup/wait, Vite proxy handles API calls
     console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
   } else {
+    const portInUse = await isPortInUse(BACKEND_PORT);
+    if (portInUse) {
+      splash.close();
+      dialog.showErrorBox(
+        'Port Conflict',
+        `Port ${BACKEND_PORT} is already in use by another process.\n\n` +
+        'This usually means another instance of CachiBot (or its backend) is already running.\n\n' +
+        'Please close the other instance and try again.'
+      );
+      app.quit();
+      return;
+    }
+
     startBackend();
     try {
       await waitForPort(BACKEND_PORT);

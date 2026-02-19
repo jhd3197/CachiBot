@@ -229,6 +229,16 @@ def _load_good_version() -> str | None:
         return None
 
 
+def mark_current_version_good() -> None:
+    """Mark the currently running version as known-good. Call at healthy startup."""
+    _save_good_version(__version__)
+
+
+def get_last_good_version() -> str | None:
+    """Return the last-known-good version string, or None."""
+    return _load_good_version()
+
+
 # ---------------------------------------------------------------------------
 # PyPI helpers  (unchanged)
 # ---------------------------------------------------------------------------

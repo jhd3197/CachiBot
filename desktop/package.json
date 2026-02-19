@@ -61,16 +61,21 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg" },
-        { "target": "zip" }
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "zip", "arch": ["arm64"] }
       ],
       "icon": "../assets/icon.png",
-      "artifactName": "CachiBot-${version}-mac.${ext}"
+      "artifactName": "CachiBot-${version}-mac.${ext}",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "entitlements": "../build/entitlements.mac.plist",
+      "entitlementsInherit": "../build/entitlements.mac.plist"
     },
     "linux": {
       "target": [
         { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        { "target": "deb", "arch": ["x64"] },
+        { "target": "rpm", "arch": ["x64"] }
       ],
       "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-linux.${ext}",
@@ -79,7 +84,7 @@
     "publish": {
       "provider": "github",
       "owner": "jhd3197",
-      "repo": "cachibot",
+      "repo": "CachiBot",
       "releaseType": "release"
     }
   }
