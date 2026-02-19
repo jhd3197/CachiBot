@@ -38,6 +38,7 @@ async def _extract_with_retry(
                 max_retries,
                 e,
             )
+    logger.error("Bot creation failed after all retries", exc_info=True)
     raise last_error  # type: ignore[misc]
 
 

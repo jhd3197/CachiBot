@@ -1521,7 +1521,7 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
                     <MarkdownRenderer content={resultStr} />
                   </div>
                 ) : (
-                  <pre className="chat-msg-tool-call__code" style={{ maxHeight: '8rem', overflow: 'auto' }}>
+                  <pre className="chat-msg-tool-call__code max-h-32 overflow-auto">
                     {resultStr}
                   </pre>
                 )}
@@ -1563,7 +1563,7 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
   // Auto-expand when media result arrives
   useEffect(() => {
     if (hasMedia && !expanded) setExpanded(true)
-  }, [hasMedia])
+  }, [hasMedia, expanded])
 
   return (
     <div className="chat-tool-call">

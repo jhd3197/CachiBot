@@ -291,7 +291,8 @@ export interface Job {
   description?: string
   status: JobStatus
   priority: JobPriority
-  progress: number // 0-100
+  /** 0-100 (converted from backend 0.0-1.0 on receive) */
+  progress: number
   createdAt: string
   startedAt?: string
   completedAt?: string
@@ -810,7 +811,8 @@ export interface Work {
   // Status
   status: WorkStatus
   priority: Priority
-  progress: number  // 0-100
+  /** 0-100 (converted from backend 0.0-1.0 on receive) */
+  progress: number
 
   // Timing
   createdAt: string
@@ -881,7 +883,8 @@ export interface WorkJob {
   // Status
   status: WorkJobStatus
   attempt: number
-  progress: number  // 0-100
+  /** 0-100 (converted from backend 0.0-1.0 on receive) */
+  progress: number
 
   // Timing
   createdAt: string

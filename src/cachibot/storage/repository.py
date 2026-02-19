@@ -5,6 +5,7 @@ Provides async CRUD operations using SQLAlchemy ORM with AsyncSession.
 Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -51,6 +52,13 @@ from cachibot.storage.models.message import Message as MessageModel
 from cachibot.storage.models.platform_config import PlatformToolConfig as PlatformToolConfigModel
 from cachibot.storage.models.skill import BotSkill as BotSkillModel
 from cachibot.storage.models.skill import Skill as SkillModel
+
+logger = logging.getLogger("cachibot.storage.repository")
+
+
+def _escape_like(value: str) -> str:
+    """Escape special characters for LIKE patterns."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class MessageRepository:
@@ -752,13 +760,16 @@ class NotesRepository:
                 from sqlalchemy import cast
 
                 tag_conditions = [
-                    cast(BotNoteModel.tags, SAString).like(f'%"{tag}"%') for tag in tags_filter
+                    cast(BotNoteModel.tags, SAString).like(f'%"{_escape_like(tag)}"%', escape="\\")
+                    for tag in tags_filter
                 ]
                 stmt = stmt.where(or_(*tag_conditions))
 
         if search:
+            escaped = _escape_like(search)
             stmt = stmt.where(
-                BotNoteModel.title.ilike(f"%{search}%") | BotNoteModel.content.ilike(f"%{search}%")
+                BotNoteModel.title.ilike(f"%{escaped}%", escape="\\")
+                | BotNoteModel.content.ilike(f"%{escaped}%", escape="\\")
             )
 
         stmt = stmt.order_by(BotNoteModel.updated_at.desc()).limit(limit).offset(offset)
@@ -820,13 +831,14 @@ class NotesRepository:
 
     async def search_notes(self, bot_id: str, query: str, limit: int = 10) -> list[BotNote]:
         """Simple text search on title + content."""
+        escaped = _escape_like(query)
         async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(BotNoteModel)
                 .where(
                     BotNoteModel.bot_id == bot_id,
-                    BotNoteModel.title.ilike(f"%{query}%")
-                    | BotNoteModel.content.ilike(f"%{query}%"),
+                    BotNoteModel.title.ilike(f"%{escaped}%", escape="\\")
+                    | BotNoteModel.content.ilike(f"%{escaped}%", escape="\\"),
                 )
                 .order_by(BotNoteModel.updated_at.desc())
                 .limit(limit)
@@ -1024,18 +1036,25 @@ class ConnectionRepository:
 
     async def increment_message_count(self, connection_id: str) -> None:
         """Increment message count and update last_activity."""
-        now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotConnectionModel)
-                .where(BotConnectionModel.id == connection_id)
-                .values(
-                    message_count=BotConnectionModel.message_count + 1,
-                    last_activity=now,
-                    updated_at=now,
+        try:
+            now = datetime.now(timezone.utc)
+            async with db.ensure_initialized()() as session:
+                await session.execute(
+                    update(BotConnectionModel)
+                    .where(BotConnectionModel.id == connection_id)
+                    .values(
+                        message_count=BotConnectionModel.message_count + 1,
+                        last_activity=now,
+                        updated_at=now,
+                    )
                 )
+                await session.commit()
+        except Exception:
+            logger.warning(
+                "Failed to increment message count for chat %s",
+                connection_id,
+                exc_info=True,
             )
-            await session.commit()
 
     async def delete_connection(self, connection_id: str) -> bool:
         """Delete a connection by ID. Returns True if deleted, False if not found."""
@@ -1237,21 +1256,33 @@ class ChatRepository:
                     return None
                 return chat
 
-        # Create new chat
-        now = datetime.now(timezone.utc)
-        chat = Chat(
-            id=str(uuid.uuid4()),
-            bot_id=bot_id,
-            title=title or f"{platform.title()} Chat",
-            platform=platform,
-            platform_chat_id=platform_chat_id,
-            pinned=False,
-            archived=False,
-            created_at=now,
-            updated_at=now,
-        )
-        await self.create_chat(chat)
-        return chat
+            # Create new chat inside the same session to avoid race condition
+            now = datetime.now(timezone.utc)
+            chat = Chat(
+                id=str(uuid.uuid4()),
+                bot_id=bot_id,
+                title=title or f"{platform.title()} Chat",
+                platform=platform,
+                platform_chat_id=platform_chat_id,
+                pinned=False,
+                archived=False,
+                created_at=now,
+                updated_at=now,
+            )
+            obj = ChatModel(
+                id=chat.id,
+                bot_id=chat.bot_id,
+                title=chat.title,
+                platform=chat.platform,
+                platform_chat_id=chat.platform_chat_id,
+                pinned=chat.pinned,
+                archived=chat.archived,
+                created_at=chat.created_at,
+                updated_at=chat.updated_at,
+            )
+            session.add(obj)
+            await session.commit()
+            return chat
 
     async def get_chats_by_bot(self, bot_id: str, include_archived: bool = False) -> list[Chat]:
         """Get all chats for a bot. Excludes archived by default."""

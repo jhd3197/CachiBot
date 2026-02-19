@@ -156,31 +156,24 @@ class ScriptRepository:
             await session.commit()
 
     async def increment_run_count(self, script_id: str, success: bool) -> None:
-        """Increment run count and update success rate."""
+        """Increment run count and update success rate atomically."""
         now = datetime.now(timezone.utc)
+        success_val = 1 if success else 0
         async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ScriptORM.run_count, ScriptORM.success_rate).where(ScriptORM.id == script_id)
-            )
-            row = result.one_or_none()
-            if row:
-                old_count, old_rate = row[0], row[1]
-                new_count = old_count + 1
-                old_successes = old_count * old_rate
-                new_successes = old_successes + (1 if success else 0)
-                new_rate = new_successes / new_count
-
-                await session.execute(
-                    update(ScriptORM)
-                    .where(ScriptORM.id == script_id)
-                    .values(
-                        run_count=new_count,
-                        success_rate=new_rate,
-                        last_run_at=now,
-                        updated_at=now,
-                    )
+            await session.execute(
+                update(ScriptORM)
+                .where(ScriptORM.id == script_id)
+                .values(
+                    success_rate=(
+                        (ScriptORM.run_count * ScriptORM.success_rate + success_val)
+                        / (ScriptORM.run_count + 1)
+                    ),
+                    run_count=ScriptORM.run_count + 1,
+                    last_run_at=now,
+                    updated_at=now,
                 )
-                await session.commit()
+            )
+            await session.commit()
 
     def _row_to_script(self, row: ScriptORM) -> ScriptModel:
         """Convert database row to Script pydantic model."""

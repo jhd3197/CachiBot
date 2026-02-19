@@ -446,7 +446,12 @@ async def import_bot(
             if skill:
                 await skills_repo.activate_skill(new_id, skill_id)
         except Exception:
-            pass  # Skip invalid skills
+            logger.warning(
+                "Failed to activate skill %s for bot %s during import",
+                skill_id,
+                new_id,
+                exc_info=True,
+            )
 
     return BotImportResponse(
         id=new_id,

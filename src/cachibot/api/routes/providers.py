@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import logging
 import os
-import re
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
-from cachibot.api.env import get_env_path
+from cachibot.api.env_utils import read_env_file, remove_env_value, set_env_value
 from cachibot.models.auth import User
 
 logger = logging.getLogger("cachibot.api.providers")
@@ -68,43 +66,11 @@ def _mask_value(value: str, provider_type: str) -> str:
     return "*" * (len(value) - 4) + value[-4:]
 
 
-def _read_env_file() -> str:
-    """Read the .env file contents, return empty string if missing."""
-    env_path = get_env_path()
-    if env_path.exists():
-        return env_path.read_text(encoding="utf-8")
-    return ""
-
-
-def _write_env_file(content: str) -> None:
-    """Write content to the .env file."""
-    get_env_path().write_text(content, encoding="utf-8")
-
-
-def _set_env_value(key: str, value: str) -> None:
-    """Set a key=value in the .env file, preserving comments and formatting."""
-    content = _read_env_file()
-    pattern = re.compile(rf"^#?\s*{re.escape(key)}\s*=.*$", re.MULTILINE)
-    replacement = f"{key}={value}"
-
-    if pattern.search(content):
-        content = pattern.sub(replacement, content, count=1)
-    else:
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += f"{replacement}\n"
-
-    _write_env_file(content)
-    os.environ[key] = value
-
-
-def _remove_env_value(key: str) -> None:
-    """Comment out a key in the .env file and remove from os.environ."""
-    content = _read_env_file()
-    pattern = re.compile(rf"^{re.escape(key)}\s*=.*$", re.MULTILINE)
-    content = pattern.sub(f"# {key}=", content)
-    _write_env_file(content)
-    os.environ.pop(key, None)
+# _read_env_file, _write_env_file, _set_env_value, _remove_env_value
+# moved to cachibot.api.env_utils — kept as local aliases for internal use.
+_read_env_file = read_env_file
+_set_env_value = set_env_value
+_remove_env_value = remove_env_value
 
 
 class ProviderUpdate(BaseModel):
@@ -145,7 +111,7 @@ async def list_providers(user: User = Depends(get_current_user)):
     return {"providers": result}
 
 
-@router.put("/providers/{name}")
+@router.put("/providers/{name}", response_model=dict)
 async def update_provider(
     name: str,
     body: ProviderUpdate,
@@ -178,11 +144,11 @@ async def update_provider(
     )
 
 
-@router.delete("/providers/{name}")
+@router.delete("/providers/{name}", status_code=204)
 async def delete_provider(
     name: str,
     user: User = Depends(get_current_user),
-):
+) -> None:
     """Remove a provider's API key or endpoint.
 
     Deprecated: use DELETE /api/bots/{bot_id}/environment/{key} or
@@ -194,7 +160,4 @@ async def delete_provider(
 
     info = PROVIDERS[name]
     _remove_env_value(info["env_key"])
-    return JSONResponse(
-        content={"ok": True},
-        headers={"Deprecation": "true", "Link": "</api/bots/{bot_id}/environment>; rel=successor"},
-    )
+    return None

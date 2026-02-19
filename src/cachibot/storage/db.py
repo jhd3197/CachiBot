@@ -231,7 +231,9 @@ def _reconcile_schema(connection) -> None:  # type: ignore[no-untyped-def]
                     default_val = default_val.text
                 default = f" DEFAULT {default_val}"
 
-            ddl = f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type} {nullable}{default}"
+            ddl = (
+                f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type} {nullable}{default}'
+            )
             logger.info("Auto-migrating: %s", ddl)
             connection.execute(text(ddl))
 
