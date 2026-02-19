@@ -159,6 +159,7 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
 // CREATE SCHEDULE SECTION
 // =============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CreateScheduleSection({ botId: _botId }: { botId: string }) {
   const { setScheduleSection } = useUIStore()
   const [formData, setFormData] = useState({

@@ -364,6 +364,9 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
   const [downloaded, setDownloaded] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true)
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable')
 
   const currentVersion = healthInfo?.version || '...'
 
@@ -391,10 +394,35 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
     return cleanup
   }, [])
 
+  // Listen for update errors
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api?.onUpdateError) return
+    const cleanup = api.onUpdateError((error) => {
+      setUpdateError(error.message)
+    })
+    return cleanup
+  }, [])
+
+  // Load auto-update toggle setting
+  useEffect(() => {
+    window.electronAPI?.getSetting?.('autoUpdateEnabled', true).then((val) => {
+      setAutoUpdateEnabled(val as boolean)
+    })
+  }, [])
+
+  // Load update channel setting
+  useEffect(() => {
+    window.electronAPI?.getSetting?.('updateChannel', 'stable').then((val) => {
+      setUpdateChannel(val as 'stable' | 'beta')
+    })
+  }, [])
+
   const handleCheck = async () => {
     const api = window.electronAPI
     if (!api) return
     setChecking(true)
+    setUpdateError(null)
     try {
       const result = await api.checkForUpdate()
       setUpdateInfo(result)
@@ -417,6 +445,18 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
 
   const handleInstall = () => {
     window.electronAPI?.installUpdate()
+  }
+
+  const handleToggleAutoUpdate = async () => {
+    const newValue = !autoUpdateEnabled
+    await window.electronAPI?.setSetting?.('autoUpdateEnabled', newValue)
+    setAutoUpdateEnabled(newValue)
+  }
+
+  const handleToggleChannel = async () => {
+    const newChannel = updateChannel === 'stable' ? 'beta' : 'stable'
+    await window.electronAPI?.setSetting?.('updateChannel', newChannel)
+    setUpdateChannel(newChannel)
   }
 
   // Normalize release notes — electron-updater may return a string or an array
@@ -449,6 +489,26 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
     <Section icon={Download} title="Updates">
       <div className="space-y-4">
         <div className="settings-info-row">
+          <span className="settings-info-row__label">Automatic Update Checks</span>
+          <button
+            onClick={handleToggleAutoUpdate}
+            className={cn('settings-btn-secondary text-sm', autoUpdateEnabled ? 'text-green-400' : 'text-zinc-400')}
+          >
+            {autoUpdateEnabled ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+
+        <div className="settings-info-row">
+          <span className="settings-info-row__label">Update Channel</span>
+          <button
+            onClick={handleToggleChannel}
+            className={cn('settings-btn-secondary text-sm', updateChannel === 'beta' ? 'text-yellow-400' : 'text-zinc-400')}
+          >
+            {updateChannel === 'beta' ? 'Beta' : 'Stable'}
+          </button>
+        </div>
+
+        <div className="settings-info-row">
           <span className="settings-info-row__label">Current Version</span>
           <span className="settings-info-row__value">
             {currentVersion}
@@ -467,6 +527,13 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
           <div className="settings-info-row">
             <span className="settings-info-row__label">Status</span>
             <span className="text-green-400">Up to date</span>
+          </div>
+        )}
+
+        {updateError && (
+          <div className="settings-info-row">
+            <span className="settings-info-row__label">Last Error</span>
+            <span className="text-red-400 text-sm">{updateError}</span>
           </div>
         )}
 

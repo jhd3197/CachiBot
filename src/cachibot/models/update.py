@@ -54,3 +54,4 @@ class UpdateDiagnosticsResponse(BaseModel):
     python_executable: str = ""
     platform: str = ""
     is_venv: bool = False
+    last_good_version: str | None = None

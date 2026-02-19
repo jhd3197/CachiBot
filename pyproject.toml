@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cachibot"
-version = "0.2.0"
+dynamic = ["version"]
 description = "The Armored AI Agent. Cross-platform, secure, yours."
 readme = "README.md"
 license = "MIT"
@@ -91,6 +91,10 @@ Homepage = "https://cachibot.ai"
 Documentation = "https://cachibot.ai/docs"
 Repository = "https://github.com/jhd3197/cachibot"
 Issues = "https://github.com/jhd3197/cachibot/issues"
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = "(?P<version>.+)"
 
 [tool.hatch.build.targets.sdist.force-include]
 "frontend/dist" = "frontend/dist"

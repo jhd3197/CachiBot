@@ -110,6 +110,11 @@ async def lifespan(app: FastAPI):
         startup_logger.error("Check your DATABASE_URL or remove it to use SQLite (default).")
         raise
 
+    # Mark this version as last-known-good after successful startup
+    from cachibot.services.update_service import mark_current_version_good
+
+    mark_current_version_good()
+
     # Set up message processor for platform connections
     platform_manager = get_platform_manager()
     message_processor = get_message_processor()
