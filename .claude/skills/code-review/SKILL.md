@@ -15,7 +15,7 @@ line numbers. Results are compiled into a single dated report.
 2. Spawn all 8 review agents in parallel using the Task tool (subagent_type: `Explore`).
    Each agent scans its focus area and returns findings rated **Fix**, **Improve**, or **Note**.
 3. After all agents complete, compile their findings into a single report file at
-   `reviews/YYYY-MM-DD-review.md` (create the `reviews/` directory if it doesn't exist).
+   `.reviews/YYYY-MM-DD-review.md` (create the `.reviews/` directory if it doesn't exist).
 4. Print a summary to the user with totals per severity.
 
 ## Agent Definitions
@@ -157,7 +157,7 @@ line numbers. Results are compiled into a single dated report.
 
 ## Report Format
 
-After all agents finish, write `reviews/YYYY-MM-DD-review.md` with this structure:
+After all agents finish, write `.reviews/YYYY-MM-DD-review.md` with this structure:
 
 ```markdown
 # CachiBot Code Review — YYYY-MM-DD
@@ -192,7 +192,7 @@ After all agents finish, write `reviews/YYYY-MM-DD-review.md` with this structur
 
 ## Previous Reviews
 
-(Link to or diff against the last review file in reviews/ if one exists,
+(Link to or diff against the last review file in .reviews/ if one exists,
 noting which prior findings were fixed and which are still open.)
 ```
 
