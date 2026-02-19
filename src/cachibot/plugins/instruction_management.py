@@ -5,6 +5,8 @@ Gives bots the ability to create, edit, list, read, and test
 their own LLM-powered instructions at runtime.
 """
 
+from typing import Any
+
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
@@ -34,7 +36,7 @@ class InstructionManagementPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="instruction_create",
             description=(
                 "Create a new custom instruction (LLM-powered tool). "
@@ -59,7 +61,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             temperature: float = 0.7,
             max_tokens: int = 1000,
             input_variables: list[str] | None = None,
-            few_shot_examples: list[dict] | None = None,
+            few_shot_examples: list[dict[str, Any]] | None = None,
             category: str = "custom",
             tags: list[str] | None = None,
         ) -> str:
@@ -135,7 +137,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating instruction: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="instruction_edit",
             description=(
                 "Edit an existing custom instruction. "
@@ -194,7 +196,7 @@ class InstructionManagementPlugin(CachibotPlugin):
                 if not record:
                     return f"Error: Instruction '{instruction_id_or_name}' not found"
 
-                changes = {}
+                changes: dict[str, Any] = {}
                 if new_prompt:
                     changes["prompt"] = new_prompt
                 if new_description:
@@ -235,7 +237,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error editing instruction: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="instruction_read",
             description="Read the full details of a custom instruction including its template.",
             category="instructions",
@@ -297,7 +299,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error reading instruction: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="instruction_list",
             description="List all instructions available to this bot (both built-in and custom).",
             category="instructions",
@@ -348,7 +350,7 @@ class InstructionManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing instructions: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="instruction_test",
             description=(
                 "Test a custom instruction with sample input. "

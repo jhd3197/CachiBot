@@ -95,3 +95,4 @@ settings.json
 /feedback_connection
 /desktop/node_modules
 pr.md
+/.mypy_cache

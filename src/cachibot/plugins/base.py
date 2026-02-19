@@ -5,6 +5,7 @@ Built on Tukuy's TransformerPlugin, adapted for CachiBot's
 workspace-scoped, capability-gated tool architecture.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,10 +29,10 @@ class PluginContext:
     bot_id: str | None = None
     chat_id: str | None = None
     tool_configs: dict[str, Any] = field(default_factory=dict)
-    bot_models: dict | None = None
+    bot_models: dict[str, Any] | None = None
 
 
-class CachibotPlugin(TransformerPlugin):
+class CachibotPlugin(TransformerPlugin):  # type: ignore[misc]
     """Base class for CachiBot plugins.
 
     Subclasses expose skills (tool functions) but no transformers,
@@ -43,6 +44,6 @@ class CachibotPlugin(TransformerPlugin):
         self.ctx = ctx
 
     @property
-    def transformers(self) -> dict[str, callable]:
+    def transformers(self) -> dict[str, Callable[..., Any]]:
         """CachiBot plugins don't provide transformers."""
         return {}

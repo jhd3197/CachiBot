@@ -194,7 +194,7 @@ async def invite_member(
     room_id: str,
     data: InviteMemberRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, str]:
     """Invite a user to the room by username (creator only)."""
     room = await room_repo.get_room(room_id)
     if room is None:
@@ -260,7 +260,7 @@ async def add_bot(
     room_id: str,
     data: AddBotRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, str]:
     """Add a bot to the room (enforces max 4)."""
     room = await room_repo.get_room(room_id)
     if room is None:

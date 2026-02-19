@@ -43,7 +43,7 @@ class JobToolsPlugin(CachibotPlugin):
         get_bot_id = self._get_bot_id
         get_chat_id = self._get_chat_id
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="job_create",
             description="Create a background job (work item with tasks) that runs asynchronously. "
             "Use this for long-running or multi-step tasks that should not block the conversation.",
@@ -138,7 +138,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating job: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="job_status",
             description="Check the status of a background job (work item) and its tasks.",
             category="work",
@@ -215,7 +215,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error checking job status: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="job_cancel",
             description="Cancel a running background job.",
             category="work",
@@ -269,7 +269,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error cancelling job: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="job_list",
             description="List background jobs for this bot.",
             category="work",

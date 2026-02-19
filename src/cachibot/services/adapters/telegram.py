@@ -44,7 +44,7 @@ class TelegramAdapter(BasePlatformAdapter):
         super().__init__(connection, on_message, on_status_change)
         self._bot: Any = None
         self._dispatcher: Any = None
-        self._polling_task: asyncio.Task | None = None
+        self._polling_task: asyncio.Task[None] | None = None
 
     @property
     def max_message_length(self) -> int:
@@ -69,7 +69,7 @@ class TelegramAdapter(BasePlatformAdapter):
 
             # Register a single message handler for all messages (including commands)
             # Commands are now handled by the CommandProcessor in PlatformManager
-            @self._dispatcher.message()
+            @self._dispatcher.message()  # type: ignore[untyped-decorator]
             async def handle_message(message: Message) -> None:
                 """Handle all incoming messages including commands."""
                 if not self.on_message:

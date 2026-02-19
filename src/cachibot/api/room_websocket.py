@@ -39,11 +39,11 @@ router = APIRouter()
 class RoomConnectionManager:
     """Manages WebSocket connections for rooms."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # room_id -> {user_id -> WebSocket}
         self.rooms: dict[str, dict[str, WebSocket]] = {}
         # room_id -> {bot_id -> asyncio.Task}
-        self.bot_tasks: dict[str, dict[str, asyncio.Task]] = {}
+        self.bot_tasks: dict[str, dict[str, asyncio.Task[None]]] = {}
 
     async def connect(self, room_id: str, user_id: str, websocket: WebSocket) -> None:
         """Accept and register a WebSocket connection for a room."""
@@ -112,7 +112,7 @@ async def room_websocket_endpoint(
     websocket: WebSocket,
     token: str | None = Query(default=None),
     room_id: str | None = Query(default=None),
-):
+) -> None:
     """WebSocket endpoint for room communication.
 
     Connect with: /ws/room?token=<jwt>&room_id=<room_id>
@@ -265,9 +265,9 @@ async def room_websocket_endpoint(
             elif msg_type == RoomWSMessageType.ROOM_CANCEL:
                 target_bot_id = payload.get("botId")
                 if target_bot_id and room_id in room_manager.bot_tasks:
-                    task = room_manager.bot_tasks[room_id].get(target_bot_id)
-                    if task and not task.done():
-                        task.cancel()
+                    cancel_task = room_manager.bot_tasks[room_id].get(target_bot_id)
+                    if cancel_task and not cancel_task.done():
+                        cancel_task.cancel()
 
     except WebSocketDisconnect:
         pass

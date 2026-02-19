@@ -11,7 +11,7 @@ Job model (global job queue for CLI/single-agent mode).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, func
@@ -46,7 +46,7 @@ class Job(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     progress: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.0")
 

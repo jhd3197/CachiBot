@@ -13,13 +13,15 @@ from __future__ import annotations
 
 import warnings
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from cachibot.storage import db
 from cachibot.storage.db import close_db, init_db
 
 __all__ = ["init_db", "close_db", "get_db"]
 
 
-async def get_db():
+async def get_db() -> AsyncSession:
     """Legacy compatibility shim.
 
     Returns an async session for callers that still use `get_db()`.

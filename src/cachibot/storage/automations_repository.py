@@ -9,6 +9,7 @@ import csv
 import io
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select, update
 
@@ -142,7 +143,7 @@ class ScriptRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(ScriptORM).where(ScriptORM.id == script_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def update_status(self, script_id: str, status: ScriptStatus) -> None:
         """Update script status."""
@@ -378,7 +379,7 @@ class ExecutionLogRepository:
         log_id: str,
         level: str,
         content: str,
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Append a log line to an execution."""
         async with db.ensure_initialized()() as session:
@@ -388,7 +389,7 @@ class ExecutionLogRepository:
                     ExecutionLogLineORM.execution_log_id == log_id
                 )
             )
-            next_seq = result.scalar() + 1
+            next_seq = (result.scalar() or 0) + 1
 
             obj = ExecutionLogLineORM(
                 id=str(uuid.uuid4()),
@@ -493,7 +494,7 @@ class ExecutionLogRepository:
             rows = result.scalars().all()
         return [self._row_to_log(row) for row in rows]
 
-    async def get_stats(self, bot_id: str | None = None, period: str = "24h") -> dict:
+    async def get_stats(self, bot_id: str | None = None, period: str = "24h") -> dict[str, Any]:
         """Get execution stats for a period."""
         now = datetime.now(timezone.utc)
         if period == "24h":
@@ -535,7 +536,7 @@ class ExecutionLogRepository:
             "avg_duration_ms": int(row.avg_duration_ms),
         }
 
-    async def get_error_spotlight(self, days: int = 7) -> list[dict]:
+    async def get_error_spotlight(self, days: int = 7) -> list[dict[str, Any]]:
         """Get error analysis grouped by error type."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
         async with db.ensure_initialized()() as session:
@@ -573,7 +574,7 @@ class ExecutionLogRepository:
             for row in rows
         ]
 
-    async def get_cost_analysis(self, days: int = 30, limit: int = 20) -> list[dict]:
+    async def get_cost_analysis(self, days: int = 30, limit: int = 20) -> list[dict[str, Any]]:
         """Get cost analysis ranked by credits consumed."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
         async with db.ensure_initialized()() as session:
@@ -627,7 +628,7 @@ class ExecutionLogRepository:
                 .values(status="cancelled", finished_at=now)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def export_csv(
         self,
@@ -731,7 +732,7 @@ class ExecutionLogLineRepository:
         log_id: str,
         level: str,
         content: str,
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Append a log line."""
         async with db.ensure_initialized()() as session:
@@ -740,7 +741,7 @@ class ExecutionLogLineRepository:
                     ExecutionLogLineORM.execution_log_id == log_id
                 )
             )
-            next_seq = result.scalar() + 1
+            next_seq = (result.scalar() or 0) + 1
 
             obj = ExecutionLogLineORM(
                 id=str(uuid.uuid4()),
@@ -790,7 +791,7 @@ class ExecutionLogLineRepository:
                 delete(ExecutionLogLineORM).where(ExecutionLogLineORM.execution_log_id == log_id)
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
 
 class TimelineEventRepository:

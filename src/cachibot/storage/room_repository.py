@@ -6,6 +6,7 @@ Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select, update
 
@@ -84,7 +85,7 @@ class RoomRepository:
     ) -> Room | None:
         """Update room details."""
         now = datetime.now(timezone.utc)
-        values: dict = {"updated_at": now}
+        values: dict[str, Any] = {"updated_at": now}
 
         if title is not None:
             values["title"] = title
@@ -99,7 +100,7 @@ class RoomRepository:
             )
             await session.commit()
 
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             return None
         return await self.get_room(room_id)
 
@@ -108,7 +109,7 @@ class RoomRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(RoomModel).where(RoomModel.id == room_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_room(self, row: RoomModel) -> Room:
         """Convert a database row to a Room."""
@@ -150,7 +151,7 @@ class RoomMemberRepository:
                 )
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_members(self, room_id: str) -> list[RoomMember]:
         """Get all members of a room."""
@@ -229,7 +230,7 @@ class RoomBotRepository:
                 )
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_bots(self, room_id: str) -> list[RoomBot]:
         """Get all bots in a room."""
@@ -325,7 +326,7 @@ class RoomMessageRepository:
                 delete(RoomMessageModel).where(RoomMessageModel.room_id == room_id)
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     def _row_to_message(self, row: RoomMessageModel) -> RoomMessage:
         """Convert a database row to a RoomMessage."""

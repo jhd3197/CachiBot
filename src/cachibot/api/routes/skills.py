@@ -109,7 +109,7 @@ async def create_skill(
 
     # Parse and validate
     try:
-        skill = service.parse_skill_file(filepath, SkillSource.LOCAL)
+        skill = await service.parse_skill_file(filepath, SkillSource.LOCAL)
     except SkillParseError as e:
         # Clean up invalid file
         filepath.unlink(missing_ok=True)

@@ -8,12 +8,13 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 from urllib.parse import urlencode
 
 logger = logging.getLogger(__name__)
 
 
-async def send_telemetry(payload: dict) -> bool:
+async def send_telemetry(payload: dict[str, Any]) -> bool:
     """Format and send telemetry payload to Matomo.
 
     Uses Matomo's HTTP Tracking API with bulk tracking format.
@@ -84,7 +85,7 @@ async def send_telemetry(payload: dict) -> bool:
         return False
 
 
-def _build_custom_vars(payload: dict) -> str:
+def _build_custom_vars(payload: dict[str, Any]) -> str:
     """Build Matomo custom variables JSON string from payload counts."""
     import json
 

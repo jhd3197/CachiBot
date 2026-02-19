@@ -314,7 +314,7 @@ class TeamsAdapter(BasePlatformAdapter):
                 errors.append(f"Microsoft Teams {key} is required")
         return errors
 
-    async def process_activity(self, body: dict, auth_header: str) -> None:
+    async def process_activity(self, body: dict[str, Any], auth_header: str) -> None:
         """Process a Bot Framework activity from an external webhook.
 
         This method allows the FastAPI webhook route to forward activities

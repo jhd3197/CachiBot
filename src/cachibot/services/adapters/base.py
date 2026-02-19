@@ -14,7 +14,7 @@ from cachibot.models.platform import PlatformResponse
 from cachibot.utils.markdown import strip_markdown
 
 # Type for message handler callback
-MessageHandler = Callable[[str, str, str, dict], Awaitable[PlatformResponse]]
+MessageHandler = Callable[[str, str, str, dict[str, Any]], Awaitable[PlatformResponse]]
 # Args: connection_id, chat_id, user_message, metadata
 # Returns: PlatformResponse with text and optional media
 

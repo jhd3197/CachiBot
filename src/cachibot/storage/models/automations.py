@@ -6,6 +6,7 @@ TimelineEvent, ExecutionDailySummary.
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -65,7 +66,7 @@ class Script(Base):
     current_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
 
     # Metadata
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -79,7 +80,7 @@ class Script(Base):
     # Execution config
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="300")
     max_memory_mb: Mapped[int] = mapped_column(Integer, nullable=False, server_default="256")
-    allowed_imports: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    allowed_imports: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Stats
     run_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -211,7 +212,9 @@ class ExecutionLog(Base):
     )
 
     # Flexible metadata
-    metadata_json: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
 
     # Soft-delete for retention
     retained: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
@@ -246,7 +249,7 @@ class ExecutionLogLine(Base):
         String, nullable=False, server_default="info"
     )  # "debug", "info", "warn", "error", "stdout", "stderr"
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    data: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    data: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
 
     # Relationships
     execution_log: Mapped[ExecutionLog] = relationship("ExecutionLog", back_populates="log_lines")
@@ -305,7 +308,9 @@ class TimelineEvent(Base):
     version_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     commit_message: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    metadata_json: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
 
 
 class ExecutionDailySummary(Base):
@@ -343,7 +348,9 @@ class ExecutionDailySummary(Base):
     total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     # Top errors
-    error_types: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    error_types: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

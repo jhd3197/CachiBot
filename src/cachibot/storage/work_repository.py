@@ -6,6 +6,7 @@ Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, select, update
 
@@ -119,7 +120,7 @@ class FunctionRepository:
                 delete(FunctionModel).where(FunctionModel.id == function_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def increment_run_count(self, function_id: str, success: bool) -> None:
         """Increment run count and update success rate."""
@@ -337,7 +338,7 @@ class ScheduleRepository:
                 delete(ScheduleModel).where(ScheduleModel.id == schedule_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_schedule(self, row: ScheduleModel) -> Schedule:
         """Convert database row to Schedule."""
@@ -428,7 +429,7 @@ class WorkRepository:
     ) -> None:
         """Update work status."""
         now = datetime.now(timezone.utc)
-        values: dict = {"status": status.value}
+        values: dict[str, Any] = {"status": status.value}
 
         if status == WorkStatus.IN_PROGRESS:
             values["started_at"] = now
@@ -513,7 +514,7 @@ class WorkRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(WorkModel).where(WorkModel.id == work_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_work(self, row: WorkModel) -> Work:
         """Convert database row to Work."""
@@ -634,11 +635,11 @@ class TaskRepository:
         task_id: str,
         status: TaskStatus,
         error: str | None = None,
-        result: any = None,
+        result: Any = None,
     ) -> None:
         """Update task status."""
         now = datetime.now(timezone.utc)
-        values: dict = {"status": status.value}
+        values: dict[str, Any] = {"status": status.value}
 
         if status == TaskStatus.IN_PROGRESS:
             values["started_at"] = now
@@ -725,7 +726,7 @@ class TaskRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(TaskModel).where(TaskModel.id == task_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_task(self, row: TaskModel) -> Task:
         """Convert database row to Task."""
@@ -800,11 +801,11 @@ class WorkJobRepository:
         job_id: str,
         status: JobStatus,
         error: str | None = None,
-        result: any = None,
+        result: Any = None,
     ) -> None:
         """Update job status."""
         now = datetime.now(timezone.utc)
-        values: dict = {"status": status.value}
+        values: dict[str, Any] = {"status": status.value}
 
         if status == JobStatus.RUNNING:
             values["started_at"] = now
@@ -832,7 +833,7 @@ class WorkJobRepository:
         job_id: str,
         level: str,
         message: str,
-        data: any = None,
+        data: Any = None,
     ) -> None:
         """Append a log entry to a job."""
         async with db.ensure_initialized()() as session:
@@ -916,7 +917,7 @@ class WorkJobRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(WorkJobModel).where(WorkJobModel.id == job_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_job(self, row: WorkJobModel) -> Job:
         """Convert database row to Job."""
@@ -985,7 +986,7 @@ class TodoRepository:
     async def update_status(self, todo_id: str, status: TodoStatus) -> None:
         """Update todo status."""
         now = datetime.now(timezone.utc)
-        values: dict = {"status": status.value}
+        values: dict[str, Any] = {"status": status.value}
 
         if status == TodoStatus.DONE:
             values["completed_at"] = now
@@ -1066,7 +1067,7 @@ class TodoRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(TodoModel).where(TodoModel.id == todo_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_todo(self, row: TodoModel) -> Todo:
         """Convert database row to Todo."""

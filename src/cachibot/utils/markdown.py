@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import logging
 import re
+from typing import Any
 
 from cachibot.models.platform import MediaItem
 
@@ -121,7 +122,7 @@ def extract_media_from_text(text: str) -> tuple[str, list[MediaItem]]:
     media_items: list[MediaItem] = []
     counter = 0
 
-    def _replace(match: re.Match) -> str:
+    def _replace(match: re.Match[str]) -> str:
         nonlocal counter
         alt_text = match.group(1).strip()
         mime_type = match.group(2).strip()
@@ -165,7 +166,7 @@ def extract_media_from_text(text: str) -> tuple[str, list[MediaItem]]:
     return cleaned, media_items
 
 
-def extract_media_from_steps(steps: list) -> list[MediaItem]:
+def extract_media_from_steps(steps: list[Any]) -> list[MediaItem]:
     """
     Extract media from AgentResult steps.
 
