@@ -271,6 +271,7 @@ cd desktop && npm install && cd ..
 # Run everything
 bash dev.sh              # or .\dev.ps1 on Windows
 bash dev.sh desktop      # with Electron
+bash dev.sh watch-lint   # lint watcher (ruff + ESLint on save)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for all dev script modes, project structure, testing, and code style guidelines.

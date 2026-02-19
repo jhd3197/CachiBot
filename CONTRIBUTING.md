@@ -80,6 +80,7 @@ Use the dev script to start everything with a single command:
 .\dev.ps1 frontend         # frontend only (Vite dev server)
 .\dev.ps1 desktop          # backend + frontend + Electron
 .\dev.ps1 all              # backend + frontend + Electron
+.\dev.ps1 watch-lint       # watch Python + TS files, lint on changes
 ```
 
 ### macOS / Linux
@@ -90,6 +91,7 @@ bash dev.sh backend        # backend only
 bash dev.sh frontend       # frontend only (Vite dev server)
 bash dev.sh desktop        # backend + frontend + Electron
 bash dev.sh all            # backend + frontend + Electron
+bash dev.sh watch-lint     # watch Python + TS files, lint on changes
 ```
 
 ### Running services individually
@@ -116,6 +118,7 @@ cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
 | `frontend` | | x | | UI-only work (needs backend running separately) |
 | `desktop` | x | x | x | Electron shell work with hot reload |
 | `all` | x | x | x | Full stack with browser + Electron |
+| `watch-lint` | | | | Watches Python + TypeScript files, runs ruff + ESLint on changes |
 
 ## Project Structure
 
