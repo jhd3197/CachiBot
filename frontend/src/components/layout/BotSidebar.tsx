@@ -328,7 +328,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                               await clearChatMessages(botId, chat.id)
                               clearMessages(chat.id)
                               toast.success('Messages cleared')
-                            } catch (err) {
+                            } catch {
                               toast.error('Failed to clear messages')
                             }
                           }}
@@ -343,7 +343,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                             try {
                               await archiveChat(botId, chat.id)
                               toast.success('Chat archived')
-                            } catch (err) {
+                            } catch {
                               toast.error('Failed to archive chat')
                             }
                           }}

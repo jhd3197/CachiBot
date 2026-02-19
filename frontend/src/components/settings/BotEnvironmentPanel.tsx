@@ -23,7 +23,6 @@ import {
 } from 'lucide-react'
 import * as botEnvApi from '../../api/bot-env'
 import type { EnvVar, ResolvedEnv } from '../../api/bot-env'
-import { useAuthStore } from '../../stores/auth'
 
 // Well-known provider env key names (matches backend PROVIDERS dict)
 const PROVIDER_KEYS = [
@@ -72,8 +71,6 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
   // Sections collapsed state
   const [providerKeysOpen, setProviderKeysOpen] = useState(true)
   const [customKeysOpen, setCustomKeysOpen] = useState(true)
-
-  const { user: _user } = useAuthStore()
 
   const loadData = useCallback(async () => {
     setLoading(true)
