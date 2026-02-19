@@ -165,7 +165,7 @@ async def list_bot_env_vars(
     return EnvVarListResponse(variables=variables)
 
 
-@router.put("/{key}")
+@router.put("/{key}", response_model=dict)
 async def set_bot_env_var(
     bot_id: str,
     key: str,
@@ -226,13 +226,13 @@ async def set_bot_env_var(
     return {"ok": True, "action": action}
 
 
-@router.delete("/{key}")
+@router.delete("/{key}", status_code=204)
 async def delete_bot_env_var(
     bot_id: str,
     key: str,
     request: Request,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> None:
     """Delete a per-bot environment variable override (falls back to inherited)."""
     async with db.ensure_initialized()() as session:
         result = await session.execute(
@@ -256,7 +256,7 @@ async def delete_bot_env_var(
         ip_address=_client_ip(request),
     )
 
-    return {"ok": True}
+    return None
 
 
 @router.get("/resolved")
@@ -394,7 +394,7 @@ async def list_platform_env_vars(
     return EnvVarListResponse(variables=variables)
 
 
-@platform_router.put("/{key}")
+@platform_router.put("/{key}", response_model=dict)
 async def set_platform_env_var(
     platform: str,
     key: str,
@@ -452,13 +452,13 @@ async def set_platform_env_var(
     return {"ok": True, "action": action}
 
 
-@platform_router.delete("/{key}")
+@platform_router.delete("/{key}", status_code=204)
 async def delete_platform_env_var(
     platform: str,
     key: str,
     request: Request,
     user: User = Depends(get_admin_user),
-) -> dict:
+) -> None:
     """Delete a platform environment variable default (admin only)."""
     async with db.ensure_initialized()() as session:
         result = await session.execute(
@@ -482,7 +482,7 @@ async def delete_platform_env_var(
         details={"platform": platform},
     )
 
-    return {"ok": True}
+    return None
 
 
 # ---------------------------------------------------------------------------

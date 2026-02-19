@@ -67,8 +67,9 @@ async def suggest_names(
             exclude=request.exclude if request.exclude else None,
         )
         return NameSuggestionsResponse(names=names)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate names: {str(e)}")
+    except Exception:
+        logger.exception("Failed to generate names")
+        raise HTTPException(status_code=500, detail="Failed to generate names")
 
 
 class NameWithMeaningModel(BaseModel):
@@ -114,8 +115,9 @@ async def suggest_names_with_meanings(
         return NamesWithMeaningsResponse(
             names=[NameWithMeaningModel(name=n.name, meaning=n.meaning) for n in names]
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate names: {str(e)}")
+    except Exception:
+        logger.exception("Failed to generate names with meanings")
+        raise HTTPException(status_code=500, detail="Failed to generate names")
 
 
 class FollowUpQuestionModel(BaseModel):
@@ -262,8 +264,9 @@ async def get_follow_up_questions(
                 for q in questions
             ]
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
+    except Exception:
+        logger.exception("Failed to generate follow-up questions")
+        raise HTTPException(status_code=500, detail="Failed to generate questions")
 
 
 # =============================================================================
@@ -327,8 +330,9 @@ async def generate_full_prompt(
             suggested_name=result.suggested_name,
             suggested_description=result.suggested_description,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate prompt: {str(e)}")
+    except Exception:
+        logger.exception("Failed to generate full prompt")
+        raise HTTPException(status_code=500, detail="Failed to generate prompt")
 
 
 class SuggestPromptRequest(BaseModel):
@@ -373,8 +377,9 @@ async def suggest_prompt(
             suggested_name=result.suggested_name,
             suggested_description=result.suggested_description,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate prompt: {str(e)}")
+    except Exception:
+        logger.exception("Failed to suggest prompt")
+        raise HTTPException(status_code=500, detail="Failed to generate prompt")
 
 
 class RefinePromptRequest(BaseModel):
@@ -412,8 +417,9 @@ async def refine_prompt(
             system_prompt=result.system_prompt,
             changes_made=result.changes_made,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to refine prompt: {str(e)}")
+    except Exception:
+        logger.exception("Failed to refine prompt")
+        raise HTTPException(status_code=500, detail="Failed to refine prompt")
 
 
 class PreviewBotRequest(BaseModel):
@@ -447,8 +453,9 @@ async def preview_bot(
             model=request.model,
         )
         return PreviewBotResponse(response=result.response)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate preview: {str(e)}")
+    except Exception:
+        logger.exception("Failed to generate bot preview")
+        raise HTTPException(status_code=500, detail="Failed to generate preview")
 
 
 # =============================================================================
@@ -524,5 +531,6 @@ async def analyze_context(
                 for s in result.suggested_schedules
             ],
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to analyze context: {str(e)}")
+    except Exception:
+        logger.exception("Failed to analyze creation context")
+        raise HTTPException(status_code=500, detail="Failed to analyze context")

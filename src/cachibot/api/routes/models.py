@@ -4,23 +4,16 @@ from __future__ import annotations
 
 import logging
 import os
-import re
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.env_utils import set_env_value
 from cachibot.models.auth import User
 
 logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
-
-
-def _get_env_path() -> Path:
-    """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
-    ws = os.environ.get("CACHIBOT_WORKSPACE")
-    return Path(ws) / ".env" if ws else Path.cwd() / ".env"
 
 
 # Default model if none configured
@@ -286,7 +279,7 @@ async def get_default_model(user: User = Depends(get_current_user)) -> DefaultMo
     return DefaultModelResponse(model=model)
 
 
-@router.put("/models/default")
+@router.put("/models/default", response_model=dict)
 async def set_default_model(
     body: DefaultModelUpdate,
     user: User = Depends(get_current_user),
@@ -304,26 +297,7 @@ async def set_default_model(
     if any(c in value for c in ("\n", "\r", "\0")):
         raise HTTPException(status_code=400, detail="Invalid model ID")
 
-    # Update .env file
-    env_path = _get_env_path()
-    content = ""
-    if env_path.exists():
-        content = env_path.read_text(encoding="utf-8")
-
-    pattern = re.compile(rf"^#?\s*{re.escape(key)}\s*=.*$", re.MULTILINE)
-    replacement = f"{key}={value}"
-
-    if pattern.search(content):
-        content = pattern.sub(replacement, content, count=1)
-    else:
-        if content and not content.endswith("\n"):
-            content += "\n"
-        content += f"{replacement}\n"
-
-    env_path.write_text(content, encoding="utf-8")
-
-    # Update environment variable immediately
-    os.environ[key] = value
+    set_env_value(key, value)
 
     return {"ok": True, "model": value}
 

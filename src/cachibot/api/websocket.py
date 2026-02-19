@@ -206,7 +206,12 @@ async def websocket_endpoint(
                             # Auto-fetch from bot's activated skills
                             enabled_skills = await skills_repo.get_bot_skill_definitions(bot_id)
                     except Exception as e:
-                        logger.warning(f"Failed to fetch skills: {e}")
+                        logger.warning(
+                            "Failed to fetch skills for bot %s chat %s: %s",
+                            bot_id,
+                            chat_id,
+                            e,
+                        )
 
                 # Enhance system prompt with knowledge context if bot_id provided
                 enhanced_prompt = system_prompt
@@ -229,7 +234,12 @@ async def websocket_endpoint(
                         )
                     except Exception as e:
                         # Log but don't fail - use base prompt if context building fails
-                        logger.warning(f"Context building failed: {e}")
+                        logger.warning(
+                            "Context building failed for bot %s chat %s: %s",
+                            bot_id,
+                            chat_id,
+                            e,
+                        )
                         enhanced_prompt = system_prompt
 
                 # Merge tool_configs

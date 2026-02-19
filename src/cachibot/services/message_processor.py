@@ -107,7 +107,7 @@ def _extract_pdf_text(pdf: IncomingMedia) -> str:
             text = text[:_MAX_PDF_TEXT] + "\n[... truncated ...]"
         return text
     except Exception as e:
-        logger.warning(f"Failed to extract PDF text: {e}")
+        logger.warning("Failed to extract PDF text from %s: %s", pdf.filename, e)
         return ""
 
 

@@ -64,9 +64,9 @@ async def get_history(
     return ChatHistory(messages=messages, total=total)
 
 
-@router.delete("/chat/history")
-async def clear_history(user: User = Depends(get_current_user)) -> dict:
+@router.delete("/chat/history", status_code=204)
+async def clear_history(user: User = Depends(get_current_user)) -> None:
     """Clear all chat history."""
     repo = MessageRepository()
     await repo.clear_messages()
-    return {"status": "cleared"}
+    return None

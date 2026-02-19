@@ -22,6 +22,9 @@ import type {
 } from '../types'
 import { syncBot, deleteBackendBot, getPlatformChats, getPlatformChatMessages, archivePlatformChat, unarchivePlatformChat } from '../api/client'
 
+// Guard to prevent concurrent syncPlatformChats calls for the same bot
+const syncingBotIds = new Set<string>()
+
 // =============================================================================
 // BOT STORE
 // =============================================================================
@@ -264,6 +267,8 @@ export const useChatStore = create<ChatState>()(
       },
 
       syncPlatformChats: async (botId) => {
+        if (syncingBotIds.has(botId)) return
+        syncingBotIds.add(botId)
         try {
           const platformChats = await getPlatformChats(botId)
           set((state) => {
@@ -303,6 +308,8 @@ export const useChatStore = create<ChatState>()(
           })
         } catch (err) {
           console.warn('Failed to sync platform chats:', err)
+        } finally {
+          syncingBotIds.delete(botId)
         }
       },
 

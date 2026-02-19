@@ -1,3 +1,8 @@
+---
+name: create-pr
+description: Generate a pull request title and description from the current branch's commits, following the project's PR style with imperative titles and grouped summary bullets.
+---
+
 # Create PR Description
 
 Generate a pull request title and description following the project's PR style.
