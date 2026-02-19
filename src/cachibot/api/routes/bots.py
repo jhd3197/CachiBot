@@ -249,14 +249,28 @@ async def get_bot_available_models(
         env_kwargs: dict[str, str] = {}
         for provider, key_value in resolved.provider_keys.items():
             field = provider_to_env_field.get(provider)
-            if field and hasattr(ProviderEnvironment, field):
+            if field is None:
+                logger.debug(
+                    "No ProviderEnvironment field mapping for provider '%s'; skipping",
+                    provider,
+                )
+                continue
+            if hasattr(ProviderEnvironment, field):
                 env_kwargs[field] = key_value
+            else:
+                logger.debug(
+                    "ProviderEnvironment has no field '%s' for provider '%s'; "
+                    "key will not be passed to Prompture",
+                    field,
+                    provider,
+                )
 
         provider_env = ProviderEnvironment(**env_kwargs) if env_kwargs else None
         all_models = get_available_models(
             env=provider_env, include_capabilities=False, force_refresh=True
         )
     except Exception:
+        logger.warning("Failed to get available models from Prompture", exc_info=True)
         all_models = []
 
     # Build a set of providers the bot has keys for

@@ -11,16 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.env import get_env_path
 from cachibot.models.auth import User
 
 logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
-
-
-def _get_env_path() -> Path:
-    """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
-    ws = os.environ.get("CACHIBOT_WORKSPACE")
-    return Path(ws) / ".env" if ws else Path.cwd() / ".env"
 
 
 # Default model if none configured
@@ -305,7 +300,7 @@ async def set_default_model(
         raise HTTPException(status_code=400, detail="Invalid model ID")
 
     # Update .env file
-    env_path = _get_env_path()
+    env_path = get_env_path()
     content = ""
     if env_path.exists():
         content = env_path.read_text(encoding="utf-8")
