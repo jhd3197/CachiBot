@@ -34,33 +34,43 @@ if ($Mode -eq "watch-lint") {
         Write-Host ""
 
         # --- Python: ruff check ---
-        Write-Host "  Python (ruff check)" -ForegroundColor Cyan
-        & ruff check $pyPath
+        Write-Host "  ruff check      " -ForegroundColor Cyan -NoNewline
+        $out = & ruff check $pyPath 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "    passed" -ForegroundColor Green
+            Write-Host "ok" -ForegroundColor Green
         } else {
-            Write-Host "    errors found" -ForegroundColor Red
+            Write-Host "fail" -ForegroundColor Red
+            $out | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
-        # --- Python: ruff format ---
-        Write-Host "  Python (ruff format)" -ForegroundColor Cyan
-        & ruff format --check $pyPath 2>$null
+        # --- Python: ruff format (auto-fix) ---
+        Write-Host "  ruff format     " -ForegroundColor Cyan -NoNewline
+        $out = & ruff format --check $pyPath 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "    formatted" -ForegroundColor Green
+            Write-Host "ok" -ForegroundColor Green
         } else {
-            Write-Host "    needs formatting (run 'ruff format src/cachibot')" -ForegroundColor Yellow
+            & ruff format $pyPath 2>&1 | Out-Null
+            $fixed = ($out | Select-String "^Would reformat:").Count
+            Write-Host "fixed $fixed files" -ForegroundColor Yellow
         }
 
         # --- Frontend: ESLint ---
-        Write-Host "  Frontend (eslint)" -ForegroundColor Cyan
+        Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"
-        & npm run lint 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "    passed" -ForegroundColor Green
-        } else {
-            Write-Host "    errors found" -ForegroundColor Red
-        }
+        $out = & npm run lint 2>&1
+        $exitCode = $LASTEXITCODE
         Pop-Location
+        if ($exitCode -eq 0) {
+            $warnCount = ($out | Select-String "warning").Count
+            if ($warnCount -gt 0) {
+                Write-Host "ok ($warnCount warnings)" -ForegroundColor Yellow
+            } else {
+                Write-Host "ok" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "fail" -ForegroundColor Red
+            $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
 
         Write-Host ""
     }

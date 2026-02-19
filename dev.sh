@@ -47,12 +47,13 @@ if [ "$MODE" = "watch-lint" ]; then
       echo -e "    ${RED}errors found${RESET}"
     fi
 
-    # --- Python: ruff format ---
+    # --- Python: ruff format (auto-fix) ---
     echo -e "  ${CYAN}Python (ruff format)${RESET}"
     if ruff format --check "$PY_PATH" 2>/dev/null; then
       echo -e "    ${GREEN}formatted${RESET}"
     else
-      echo -e "    ${YELLOW}needs formatting (run 'ruff format src/cachibot')${RESET}"
+      ruff format "$PY_PATH" 2>/dev/null
+      echo -e "    ${YELLOW}reformatted${RESET}"
     fi
 
     # --- Frontend: ESLint ---

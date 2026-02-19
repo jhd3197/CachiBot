@@ -16,10 +16,12 @@ from cachibot.models.auth import User
 logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
 
+
 def _get_env_path() -> Path:
     """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
     ws = os.environ.get("CACHIBOT_WORKSPACE")
     return Path(ws) / ".env" if ws else Path.cwd() / ".env"
+
 
 # Default model if none configured
 DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "moonshot/kimi-k2.5")
