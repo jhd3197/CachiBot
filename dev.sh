@@ -7,6 +7,7 @@
 #   bash dev.sh frontend       # frontend only (Vite dev server)
 #   bash dev.sh desktop        # backend + frontend + Electron
 #   bash dev.sh all            # backend + frontend + browser + Electron
+#   bash dev.sh watch-lint     # watch Python + TS files and lint on changes
 
 set -e
 
@@ -16,10 +17,86 @@ MODE="${1:-browser}"
 CYAN='\033[0;36m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+RED='\033[0;31m'
 DIM='\033[2m'
 RESET='\033[0m'
 
 PIDS=()
+
+# --- watch-lint mode ---
+if [ "$MODE" = "watch-lint" ]; then
+  PY_PATH="$ROOT_DIR/src/cachibot"
+  TS_PATH="$ROOT_DIR/frontend/src"
+  echo -e "${CYAN}[dev]${RESET} Watching for lint errors (Python + TypeScript)"
+  echo -e "${DIM}[dev]   Python  : $PY_PATH${RESET}"
+  echo -e "${DIM}[dev]   Frontend: $TS_PATH${RESET}"
+  echo -e "${DIM}[dev] Press Ctrl+C to stop.${RESET}"
+  echo ""
+
+  run_all_lint() {
+    local ts
+    ts=$(date +%H:%M:%S)
+    echo -e "${DIM}[$ts]${RESET} ${CYAN}Running linters...${RESET}"
+    echo ""
+
+    # --- Python: ruff check ---
+    echo -e "  ${CYAN}Python (ruff check)${RESET}"
+    if ruff check "$PY_PATH"; then
+      echo -e "    ${GREEN}passed${RESET}"
+    else
+      echo -e "    ${RED}errors found${RESET}"
+    fi
+
+    # --- Python: ruff format (auto-fix) ---
+    echo -e "  ${CYAN}Python (ruff format)${RESET}"
+    if ruff format --check "$PY_PATH" 2>/dev/null; then
+      echo -e "    ${GREEN}formatted${RESET}"
+    else
+      ruff format "$PY_PATH" 2>/dev/null
+      echo -e "    ${YELLOW}reformatted${RESET}"
+    fi
+
+    # --- Frontend: ESLint ---
+    echo -e "  ${CYAN}Frontend (eslint)${RESET}"
+    if (cd "$ROOT_DIR/frontend" && npm run lint 2>/dev/null); then
+      echo -e "    ${GREEN}passed${RESET}"
+    else
+      echo -e "    ${RED}errors found${RESET}"
+    fi
+
+    echo ""
+  }
+
+  run_all_lint
+
+  # Try inotifywait (Linux/WSL), then fswatch (macOS), then poll
+  if command -v inotifywait &>/dev/null; then
+    while inotifywait -r -e modify,create,delete \
+          --include '\.(py|ts|tsx)$' \
+          "$PY_PATH" "$TS_PATH" 2>/dev/null; do
+      sleep 0.5
+      run_all_lint
+    done
+  elif command -v fswatch &>/dev/null; then
+    fswatch -e ".*" -i "\\.py$" -i "\\.tsx?$" -r "$PY_PATH" "$TS_PATH" | while read -r _; do
+      sleep 0.5
+      run_all_lint
+    done
+  else
+    echo -e "${YELLOW}[dev] No watcher found. Install inotify-tools or fswatch for live updates.${RESET}"
+    echo -e "${YELLOW}[dev] Falling back to polling every 3s...${RESET}"
+    LAST_HASH=""
+    while true; do
+      HASH=$(find "$PY_PATH" "$TS_PATH" \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' \) -printf '%T@ %p\n' 2>/dev/null | md5sum | cut -d' ' -f1)
+      if [ "$HASH" != "$LAST_HASH" ] && [ -n "$LAST_HASH" ]; then
+        run_all_lint
+      fi
+      LAST_HASH="$HASH"
+      sleep 3
+    done
+  fi
+  exit 0
+fi
 
 cleanup() {
   echo ""

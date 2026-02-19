@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import * as botEnvApi from '../../api/bot-env'
 import type { EnvVar, ResolvedEnv } from '../../api/bot-env'
+import { useModelsStore } from '../../stores/models'
 
 // Well-known provider env key names (matches backend PROVIDERS dict)
 const PROVIDER_KEYS = [
@@ -102,6 +103,8 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
       setEditValue('')
       setShowValue(false)
       await loadData()
+      // Refresh global model list so the UI picks up newly available providers
+      useModelsStore.getState().refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save')
     } finally {
@@ -114,6 +117,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
     try {
       await botEnvApi.deleteBotEnvVar(botId, key)
       await loadData()
+      useModelsStore.getState().refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete')
     }
