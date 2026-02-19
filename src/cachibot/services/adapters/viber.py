@@ -91,7 +91,7 @@ class ViberAdapter(BasePlatformAdapter):
             if self._session:
                 await self._session.close()
                 self._session = None
-            if isinstance(e, (ValueError, RuntimeError)):
+            if isinstance(e, ValueError | RuntimeError):
                 raise
             raise RuntimeError(f"Failed to start Viber bot: {e}")
 

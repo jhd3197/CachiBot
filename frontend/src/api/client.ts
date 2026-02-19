@@ -71,6 +71,7 @@ export interface HealthInfo {
   python: string
   platform: string
   desktop: boolean
+  distribution: string
 }
 
 export async function checkHealth(): Promise<HealthInfo> {

@@ -64,7 +64,7 @@ export function useCommands() {
         return { handled: true }
 
       case 'list':
-      case 'bots':
+      case 'bots': {
         // Show the bot list by expanding sidebar and displaying bot info
         setSidebarCollapsed(false)
         const botList = bots.length > 0
@@ -72,6 +72,7 @@ export function useCommands() {
           : 'No bots yet. Use `/new` to create your first bot!'
         addSystemMessage(`**Your Bots:**\n\n${botList}`)
         return { handled: true }
+      }
 
       case 'help':
         addSystemMessage(

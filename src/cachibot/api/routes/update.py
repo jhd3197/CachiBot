@@ -1,5 +1,7 @@
 """Update check and apply endpoints."""
 
+import os
+
 from fastapi import APIRouter, Depends, Request
 
 from cachibot.api.auth import get_current_user
@@ -16,6 +18,7 @@ from cachibot.services.update_service import (
     _python_info,
     check_for_updates,
     detect_corruption,
+    get_last_good_version,
     perform_update,
     restart_server,
     verify_installation,
@@ -39,6 +42,15 @@ async def apply_update(
     user: User = Depends(get_current_user),
 ) -> UpdatePerformResponse:
     """Download and install an update via pip."""
+    if os.environ.get("CACHIBOT_DESKTOP", "").lower() == "true":
+        from cachibot import __version__
+
+        return UpdatePerformResponse(
+            success=False,
+            old_version=__version__,
+            new_version=__version__,
+            message="Updates are managed by the desktop app. Use Settings → Updates.",
+        )
     return await perform_update(
         target_version=body.target_version,
         include_prerelease=body.include_prerelease,
@@ -51,6 +63,11 @@ async def restart(
     user: User = Depends(get_current_user),
 ) -> UpdateRestartResponse:
     """Restart the server after an update."""
+    if os.environ.get("CACHIBOT_DESKTOP", "").lower() == "true":
+        return UpdateRestartResponse(
+            restarting=False,
+            message="Cannot restart in desktop mode. Use the app's restart function.",
+        )
     # Derive host/port from the current request
     host = request.headers.get("host", "127.0.0.1:6392")
     if ":" in host:
@@ -91,4 +108,5 @@ async def diagnostics(
         python_executable=py_info["executable"],
         platform=py_info["platform"],
         is_venv=_is_venv(),
+        last_good_version=get_last_good_version(),
     )

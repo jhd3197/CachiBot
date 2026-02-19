@@ -4,16 +4,30 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as pre-release (beta channel)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
   pull-requests: read
 
 jobs:
+  ci-gate:
+    uses: ./.github/workflows/ci.yml
+
   # =========================================================================
   # 1. Tag, create GitHub Release, publish to PyPI
   # =========================================================================
   release:
+    needs: ci-gate
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     outputs:
@@ -79,9 +93,10 @@ jobs:
             | Platform | Download | Size |
             |----------|----------|------|
             | **Windows** (x64) | [`CachiBot-Setup-${{ steps.bump_version.outputs.new_version }}-win.exe`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-Setup-${{ steps.bump_version.outputs.new_version }}-win.exe) | — |
-            | **macOS** (Universal) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg) | — |
+            | **macOS** (Apple Silicon) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-mac.dmg) | — |
             | **Linux** (x64 AppImage) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.AppImage`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.AppImage) | — |
             | **Linux** (x64 .deb) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb) | — |
+            | **Linux** (x64 .rpm) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.rpm`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.rpm) | — |
 
             > Desktop downloads become available once the build pipeline completes (~10 min after release).
 
@@ -100,7 +115,7 @@ jobs:
             ${{ steps.fetch_pr.outputs.result != 'null' && format('- PR: #{0} by @{1}', fromJSON(steps.fetch_pr.outputs.result).number, fromJSON(steps.fetch_pr.outputs.result).author) || '' }}
             ${{ steps.fetch_pr.outputs.result != 'null' && format('- PR URL: {0}', fromJSON(steps.fetch_pr.outputs.result).url) || '' }}
           draft: false
-          prerelease: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
 
       # --- Build & Publish to PyPI ---
 
@@ -109,13 +124,23 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend
         working-directory: frontend
         run: |
-          npm ci || npm install
+          npm ci
           npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -131,11 +156,8 @@ jobs:
       - name: Install build tools
         run: pip install --upgrade pip build twine
 
-      - name: Set version in pyproject.toml
-        run: |
-          VERSION="${{ steps.bump_version.outputs.new_version }}"
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-          echo "$VERSION" > VERSION
+      - name: Set version
+        run: echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
 
       - name: Fix README images for PyPI
         run: |
@@ -162,13 +184,10 @@ jobs:
         include:
           - os: ubuntu-latest
             artifact: backend-linux
-            data_sep: ':'
           - os: macos-latest
             artifact: backend-mac
-            data_sep: ':'
           - os: windows-latest
             artifact: backend-win
-            data_sep: ';'
 
     runs-on: ${{ matrix.os }}
 
@@ -177,14 +196,11 @@ jobs:
         with:
           ref: v${{ needs.release.outputs.new_version }}
 
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          npm ci || npm install
-          npm run build
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
 
       - uses: actions/setup-python@v5
         with:
@@ -194,47 +210,59 @@ jobs:
       - name: Install CachiBot + PyInstaller
         shell: bash
         run: |
-          VERSION="${{ needs.release.outputs.new_version }}"
-          echo "$VERSION" > VERSION
-          python -c "
-          import re, sys
-          v = sys.argv[1]
-          with open('pyproject.toml', 'r') as f:
-              content = f.read()
-          content = re.sub(r'^version = \".*\"', 'version = \"' + v + '\"', content, count=1, flags=re.MULTILINE)
-          with open('pyproject.toml', 'w') as f:
-              f.write(content)
-          " "$VERSION"
+          echo "${{ needs.release.outputs.new_version }}" > VERSION
           pip install -e .
           pip install pyinstaller
 
+      - name: Clean __pycache__
+        shell: bash
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
       - name: Build backend binary
-        run: >
-          pyinstaller
-          --onefile
-          --name cachibot-server
-          --hidden-import=uvicorn.logging
-          --hidden-import=uvicorn.loops.auto
-          --hidden-import=uvicorn.protocols.http.auto
-          --hidden-import=uvicorn.protocols.websockets.auto
-          --hidden-import=uvicorn.lifespan.on
-          --hidden-import=asyncpg
-          --hidden-import=aiosqlite
-          --hidden-import=sqlite_vec
-          --hidden-import=fastembed
-          --hidden-import=cachibot.api.routes
-          --hidden-import=cachibot.plugins
-          --hidden-import=cachibot.services
-          --hidden-import=cachibot.storage
-          --add-data "src/cachibot${{ matrix.data_sep }}cachibot"
-          --add-data "VERSION${{ matrix.data_sep }}cachibot"
-          --add-data "frontend/dist${{ matrix.data_sep }}cachibot/frontend_dist"
-          desktop/pyinstaller-server.py
+        run: pyinstaller cachibot-server.spec --clean
+
+      - name: Smoke test backend binary
+        shell: bash
+        timeout-minutes: 2
+        run: |
+          BINARY="./dist/cachibot-server/cachibot-server"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BINARY="./dist/cachibot-server/cachibot-server.exe"
+          fi
+
+          PORT=16392
+          "$BINARY" --port $PORT --host 127.0.0.1 &
+          SERVER_PID=$!
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null 2>&1; then
+              echo "Server healthy after ${i}s"
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server exited prematurely"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          HEALTH=$(curl -sf "http://127.0.0.1:$PORT/api/health")
+          echo "Health: $HEALTH"
+
+          if echo "$HEALTH" | grep -q '"version":"0.0.0-unknown"'; then
+            echo "ERROR: Version is 0.0.0-unknown"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+          echo "Smoke test passed"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/cachibot-server*
+          path: dist/cachibot-server/
 
   # =========================================================================
   # 3. Build Electron desktop app  (3 platforms)
@@ -271,7 +299,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: desktop
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Download backend binary
         uses: actions/download-artifact@v4
@@ -282,6 +310,10 @@ jobs:
       - name: Make backend executable
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
+
+      - name: Install RPM tools
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
 
       # Build and upload to the GitHub Release (unsigned)
       - name: Build Electron app

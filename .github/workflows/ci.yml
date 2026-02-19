@@ -5,6 +5,7 @@ on:
     branches: [dev]
   pull_request:
     branches: [dev]
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -17,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -37,6 +38,10 @@ jobs:
       - name: Bandit security scan
         run: bandit -r src/cachibot -c pyproject.toml
 
+      - name: Mypy type check
+        run: mypy src/cachibot
+        continue-on-error: true
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -46,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -59,3 +64,43 @@ jobs:
 
       - name: Run tests
         run: pytest -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  test-pdf-no-fonttools:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          mkdir -p frontend/dist && touch VERSION
+          pip install -e ".[dev]"
+      - name: Uninstall fontTools
+        run: pip uninstall -y fontTools
+      - name: Test PDF extraction without fontTools
+        run: pytest tests/test_pdf_extraction.py -v
