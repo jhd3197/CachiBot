@@ -9,6 +9,7 @@ Includes both CachiBot custom plugins and Tukuy's built-in plugins
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from prompture import ToolRegistry
 from tukuy.plugins.base import TransformerPlugin
@@ -72,7 +73,7 @@ ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin, KnowledgePlugin]
 def plugins_to_registry(
     plugins: list[CachibotPlugin | TransformerPlugin],
     *,
-    skill_config: dict | None = None,
+    skill_config: dict[str, Any] | None = None,
 ) -> ToolRegistry:
     """Bridge Tukuy skills and instructions to a Prompture ToolRegistry.
 
@@ -100,10 +101,10 @@ def plugins_to_registry(
 
 def build_registry(
     ctx: PluginContext,
-    capabilities: dict | None = None,
+    capabilities: dict[str, bool] | None = None,
     disabled_capabilities: set[str] | None = None,
     *,
-    skill_config: dict | None = None,
+    skill_config: dict[str, Any] | None = None,
 ) -> ToolRegistry:
     """Build a ToolRegistry from capabilities and plugin context.
 
@@ -127,7 +128,7 @@ def build_registry(
 
 def get_enabled_plugins(
     ctx: PluginContext,
-    capabilities: dict | None = None,
+    capabilities: dict[str, bool] | None = None,
     disabled_capabilities: set[str] | None = None,
 ) -> list[CachibotPlugin | TransformerPlugin]:
     """Get the list of instantiated plugins for given capabilities.
@@ -147,7 +148,7 @@ def get_enabled_plugins(
 
 def _instantiate_plugins(
     ctx: PluginContext,
-    capabilities: dict | None,
+    capabilities: dict[str, bool] | None,
     disabled_capabilities: set[str] | None = None,
 ) -> list[CachibotPlugin | TransformerPlugin]:
     """Instantiate the correct set of plugins based on capabilities."""
@@ -177,8 +178,8 @@ def _instantiate_plugins(
     result: list[CachibotPlugin | TransformerPlugin] = []
     for cls in unique:
         if issubclass(cls, CachibotPlugin):
-            result.append(cls(ctx))
+            result.append(cls(ctx))  # type: ignore[arg-type, call-arg]
         else:
             # Tukuy built-in plugin: no context needed, SecurityContext handles scoping
-            result.append(cls())
+            result.append(cls())  # type: ignore[call-arg]
     return result

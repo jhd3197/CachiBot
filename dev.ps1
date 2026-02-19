@@ -21,7 +21,7 @@ $procs = @()
 if ($Mode -eq "watch-lint") {
     $pyPath = "$Root\src\cachibot"
     $tsPath = "$Root\frontend\src"
-    Write-Host "[dev] Watching for lint errors (Python + TypeScript)" -ForegroundColor Cyan
+    Write-Host "[dev] Watching for lint + type + test errors (Python + TypeScript)" -ForegroundColor Cyan
     Write-Host "[dev]   Python  : $pyPath" -ForegroundColor DarkGray
     Write-Host "[dev]   Frontend: $tsPath" -ForegroundColor DarkGray
     Write-Host "[dev] Press Ctrl+C to stop." -ForegroundColor DarkGray
@@ -54,6 +54,22 @@ if ($Mode -eq "watch-lint") {
             Write-Host "fixed $fixed files" -ForegroundColor Yellow
         }
 
+        # --- Python: mypy type check ---
+        Write-Host "  mypy            " -ForegroundColor Cyan -NoNewline
+        $out = & mypy $pyPath 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            $errCount = ($out | Select-String "^Found \d+ error").Count
+            if ($errCount -gt 0) {
+                $summary = ($out | Select-String "^Found \d+ error").Line
+                Write-Host "fail ($summary)" -ForegroundColor Red
+            } else {
+                Write-Host "fail" -ForegroundColor Red
+            }
+            $out | Where-Object { $_ -match "error:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
         # --- Frontend: ESLint ---
         Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"
@@ -70,6 +86,26 @@ if ($Mode -eq "watch-lint") {
         } else {
             Write-Host "fail" -ForegroundColor Red
             $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
+        # --- Python: pytest ---
+        Write-Host "  pytest          " -ForegroundColor Cyan -NoNewline
+        $out = & pytest --tb=short -q 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $passLine = ($out | Select-String "passed").Line
+            if ($passLine) {
+                Write-Host "ok ($passLine)" -ForegroundColor Green
+            } else {
+                Write-Host "ok" -ForegroundColor Green
+            }
+        } else {
+            $failLine = ($out | Select-String "failed|error").Line | Select-Object -First 1
+            if ($failLine) {
+                Write-Host "fail ($failLine)" -ForegroundColor Red
+            } else {
+                Write-Host "fail" -ForegroundColor Red
+            }
+            $out | Where-Object { $_ -match "FAILED|ERROR" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
         Write-Host ""

@@ -232,7 +232,7 @@ class ViberAdapter(BasePlatformAdapter):
                 logger.error(f"Failed to set Viber webhook: {status_msg}")
             else:
                 logger.info(f"Viber webhook set to {url}")
-            return data
+            return data  # type: ignore[no-any-return]
 
     def _validate_signature(self, body: bytes, signature: str) -> bool:
         """Validate the Viber webhook signature.

@@ -25,16 +25,16 @@ class BotAccessLevel(str, Enum):
         """Numeric rank for comparison (higher = more access)."""
         return {"viewer": 1, "operator": 2, "editor": 3}[self.value]
 
-    def __ge__(self, other: "BotAccessLevel") -> bool:
+    def __ge__(self, other: "BotAccessLevel") -> bool:  # type: ignore[override]
         return self.rank >= other.rank
 
-    def __gt__(self, other: "BotAccessLevel") -> bool:
+    def __gt__(self, other: "BotAccessLevel") -> bool:  # type: ignore[override]
         return self.rank > other.rank
 
-    def __le__(self, other: "BotAccessLevel") -> bool:
+    def __le__(self, other: "BotAccessLevel") -> bool:  # type: ignore[override]
         return self.rank <= other.rank
 
-    def __lt__(self, other: "BotAccessLevel") -> bool:
+    def __lt__(self, other: "BotAccessLevel") -> bool:  # type: ignore[override]
         return self.rank < other.rank
 
 

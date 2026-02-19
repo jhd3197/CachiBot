@@ -86,8 +86,8 @@ class UsagePayload(BaseModel):
     tokens_per_second: float = Field(default=0.0)
     call_count: int = Field(default=0)
     errors: int = Field(default=0)
-    per_model: dict = Field(default_factory=dict)
-    latency_stats: dict = Field(default_factory=dict)
+    per_model: dict[str, Any] = Field(default_factory=dict)
+    latency_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 class ErrorPayload(BaseModel):
@@ -109,7 +109,7 @@ class WSMessage(BaseModel):
         return cls(type=WSMessageType.THINKING, payload={"content": content})
 
     @classmethod
-    def tool_start(cls, id: str, tool: str, args: dict) -> "WSMessage":
+    def tool_start(cls, id: str, tool: str, args: dict[str, Any]) -> "WSMessage":
         """Create a tool start message."""
         return cls(
             type=WSMessageType.TOOL_START,
@@ -147,7 +147,9 @@ class WSMessage(BaseModel):
         return cls(type=WSMessageType.MESSAGE, payload=payload)
 
     @classmethod
-    def approval_needed(cls, id: str, tool: str, action: str, details: dict) -> "WSMessage":
+    def approval_needed(
+        cls, id: str, tool: str, action: str, details: dict[str, Any]
+    ) -> "WSMessage":
         """Create an approval request message."""
         return cls(
             type=WSMessageType.APPROVAL_NEEDED,
@@ -166,8 +168,8 @@ class WSMessage(BaseModel):
         tokens_per_second: float = 0.0,
         call_count: int = 0,
         errors: int = 0,
-        per_model: dict | None = None,
-        latency_stats: dict | None = None,
+        per_model: dict[str, Any] | None = None,
+        latency_stats: dict[str, Any] | None = None,
     ) -> "WSMessage":
         """Create a usage message."""
         return cls(
@@ -209,10 +211,10 @@ class WSMessage(BaseModel):
         content: str,
         message_id: str,
         platform: str,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "WSMessage":
         """Create a platform message notification (for Telegram/Discord sync)."""
-        payload = {
+        payload: dict[str, Any] = {
             "botId": bot_id,
             "chatId": chat_id,
             "role": role,
@@ -370,7 +372,7 @@ class WSMessage(BaseModel):
         status: str = "",
         progress: float = 0.0,
         error: str | None = None,
-        logs: list[dict] | None = None,
+        logs: list[dict[str, Any]] | None = None,
     ) -> "WSMessage":
         """Create a job/work execution progress update."""
         payload: dict[str, Any] = {

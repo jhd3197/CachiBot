@@ -7,6 +7,7 @@ process_activity method.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/api/webhooks/teams", tags=["webhooks"])
 
 
 @router.post("/{connection_id}/messages")
-async def handle_teams_message(connection_id: str, request: Request) -> dict:
+async def handle_teams_message(connection_id: str, request: Request) -> dict[str, Any]:
     """Forward a Bot Framework activity to the Teams adapter.
 
     This endpoint receives incoming activities from the Bot Framework Service

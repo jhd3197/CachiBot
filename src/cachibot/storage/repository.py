@@ -8,6 +8,7 @@ Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select, update
 
@@ -311,7 +312,7 @@ class KnowledgeRepository:
                 delete(BotMessageModel).where(BotMessageModel.bot_id == bot_id)
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     async def delete_messages_for_chat(self, bot_id: str, chat_id: str) -> int:
         """Delete all messages for a specific chat. Returns number deleted."""
@@ -323,7 +324,7 @@ class KnowledgeRepository:
                 )
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     async def get_message_count_for_bot(self, bot_id: str) -> int:
         """Get the count of messages for a bot."""
@@ -396,7 +397,7 @@ class KnowledgeRepository:
                 delete(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     # ===== DOCUMENTS =====
 
@@ -462,7 +463,7 @@ class KnowledgeRepository:
     ) -> None:
         """Update document processing status."""
         now = datetime.now(timezone.utc)
-        values: dict = {"status": status.value, "processed_at": now}
+        values: dict[str, Any] = {"status": status.value, "processed_at": now}
         if chunk_count is not None:
             values["chunk_count"] = chunk_count
 
@@ -480,7 +481,7 @@ class KnowledgeRepository:
                 delete(BotDocumentModel).where(BotDocumentModel.id == document_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_document(self, row: BotDocumentModel) -> Document:
         """Convert a database row to Document."""
@@ -571,11 +572,11 @@ class KnowledgeRepository:
                 delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     # ===== KNOWLEDGE STATS =====
 
-    async def get_knowledge_stats(self, bot_id: str) -> dict:
+    async def get_knowledge_stats(self, bot_id: str) -> dict[str, Any]:
         """Get aggregated knowledge stats for a bot."""
         async with db.ensure_initialized()() as session:
             # Document counts by status
@@ -632,9 +633,9 @@ class KnowledgeRepository:
                 delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
-    async def get_chunks_by_document_light(self, document_id: str) -> list[dict]:
+    async def get_chunks_by_document_light(self, document_id: str) -> list[dict[str, Any]]:
         """Get chunks for a document without embedding BLOBs."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
@@ -659,7 +660,7 @@ class KnowledgeRepository:
             for row in rows
         ]
 
-    async def get_all_embeddings_by_bot(self, bot_id: str) -> list[dict]:
+    async def get_all_embeddings_by_bot(self, bot_id: str) -> list[dict[str, Any]]:
         """Get only embedding data for vector search (no content)."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
@@ -789,7 +790,7 @@ class NotesRepository:
     ) -> BotNote | None:
         """Partial update of a note."""
         now = datetime.now(timezone.utc)
-        values: dict = {"updated_at": now}
+        values: dict[str, Any] = {"updated_at": now}
 
         if title is not None:
             values["title"] = title
@@ -804,7 +805,7 @@ class NotesRepository:
             )
             await session.commit()
 
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             return None
         return await self.get_note(note_id)
 
@@ -813,7 +814,7 @@ class NotesRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(BotNoteModel).where(BotNoteModel.id == note_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_all_tags(self, bot_id: str) -> list[str]:
         """Get all unique tags across all notes for a bot."""
@@ -918,7 +919,7 @@ class ContactsRepository:
                 delete(BotContactModel).where(BotContactModel.id == contact_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_contact(self, row: BotContactModel) -> Contact:
         """Convert database row to Contact model."""
@@ -1063,7 +1064,7 @@ class ConnectionRepository:
                 delete(BotConnectionModel).where(BotConnectionModel.id == connection_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def bulk_reset_connected(self) -> int:
         """Reset all non-disconnected connections to disconnected in a single query."""
@@ -1083,7 +1084,7 @@ class ConnectionRepository:
                 .values(status=ConnectionStatus.disconnected.value, updated_at=now)
             )
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     async def get_auto_connect_connections(self) -> list[BotConnection]:
         """Get all connections marked for auto-connect."""
@@ -1182,7 +1183,7 @@ class BotRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(BotModel).where(BotModel.id == bot_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_bot(self, row: BotModel) -> Bot:
         """Convert database row to Bot model."""
@@ -1321,7 +1322,7 @@ class ChatRepository:
                 .values(archived=archived, updated_at=now)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def update_chat_timestamp(self, chat_id: str) -> None:
         """Update the chat's updated_at timestamp."""
@@ -1337,14 +1338,14 @@ class ChatRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(ChatModel).where(ChatModel.id == chat_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def delete_all_chats_for_bot(self, bot_id: str) -> int:
         """Delete all chats for a bot. Returns number of chats deleted."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(ChatModel).where(ChatModel.bot_id == bot_id))
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)  # type: ignore[attr-defined]
 
     def _row_to_chat(self, row: ChatModel) -> Chat:
         """Convert database row to Chat model."""
@@ -1432,7 +1433,7 @@ class SkillsRepository:
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(SkillModel).where(SkillModel.id == skill_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_skill(self, row: SkillModel) -> SkillDefinition:
         """Convert database row to SkillDefinition model."""
@@ -1507,7 +1508,7 @@ class SkillsRepository:
                 )
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def is_skill_activated(self, bot_id: str, skill_id: str) -> bool:
         """Check if a skill is activated for a bot."""

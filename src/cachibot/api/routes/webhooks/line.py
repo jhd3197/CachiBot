@@ -5,6 +5,7 @@ Handles incoming webhook events from the LINE Messaging API.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
@@ -21,7 +22,7 @@ async def line_webhook(
     connection_id: str,
     request: Request,
     x_line_signature: str = Header(..., alias="X-Line-Signature"),
-) -> dict:
+) -> dict[str, Any]:
     """Handle incoming LINE webhook events.
 
     LINE sends message events to this endpoint. The request is validated

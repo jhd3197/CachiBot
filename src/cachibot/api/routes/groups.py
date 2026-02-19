@@ -140,6 +140,8 @@ async def update_group(
     )
 
     updated = await group_repo.get_group_by_id(group_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Group not found")
     members_data = await group_repo.get_members(group_id)
 
     return GroupResponse(

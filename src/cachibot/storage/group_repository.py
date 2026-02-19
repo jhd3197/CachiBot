@@ -7,6 +7,7 @@ and bot-group access sharing.
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select, update
 
@@ -98,7 +99,7 @@ class GroupRepository:
         description: str | None = None,
     ) -> bool:
         """Update group fields. Returns True if group was found and updated."""
-        values: dict = {"updated_at": datetime.now(timezone.utc)}
+        values: dict[str, Any] = {"updated_at": datetime.now(timezone.utc)}
         if name is not None:
             values["name"] = name
         if description is not None:
@@ -109,14 +110,14 @@ class GroupRepository:
                 update(Group).where(Group.id == group_id).values(**values)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def delete_group(self, group_id: str) -> bool:
         """Delete a group. Returns True if group was found and deleted."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(delete(Group).where(Group.id == group_id))
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def add_member(
         self,
@@ -156,7 +157,7 @@ class GroupRepository:
                 )
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_members(self, group_id: str) -> list[tuple[GroupMember, UserModel]]:
         """Get all members of a group with user details."""
@@ -231,7 +232,7 @@ class BotAccessRepository:
                 )
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def update_access_level(
         self,
@@ -250,7 +251,7 @@ class BotAccessRepository:
                 .values(access_level=access_level.value)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_bot_shares(self, bot_id: str) -> list[tuple[BotGroupAccess, Group]]:
         """Get all group access records for a bot."""

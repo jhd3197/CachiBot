@@ -17,7 +17,7 @@ _CHECK_INTERVAL_SECONDS = 3600
 # Send interval: every 24 hours
 _SEND_INTERVAL_SECONDS = 86400
 
-_task: asyncio.Task | None = None
+_task: asyncio.Task[None] | None = None
 
 
 async def start_telemetry_scheduler() -> None:

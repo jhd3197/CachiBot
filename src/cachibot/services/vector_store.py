@@ -64,7 +64,7 @@ class VectorStore:
         Both pgvector and VectorType (SQLite) accept list[float].
         """
         if isinstance(embedding, np.ndarray):
-            return embedding.tolist()
+            return embedding.tolist()  # type: ignore[no-any-return]
         return list(embedding)
 
     def _embed_sync(self, texts: list[str]) -> list[np.ndarray]:
@@ -148,7 +148,7 @@ class VectorStore:
             .limit(limit)
         )
 
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(stmt)
             rows = result.all()
 
@@ -175,7 +175,7 @@ class VectorStore:
     ) -> list[SearchResult]:
         """Search using in-memory cosine similarity (SQLite fallback)."""
         # Load all embeddings for this bot
-        async with db.async_session_maker() as session:
+        async with db.ensure_initialized()() as session:
             result = await session.execute(
                 select(DocChunkORM).where(
                     DocChunkORM.bot_id == bot_id,

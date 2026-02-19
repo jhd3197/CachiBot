@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -22,7 +23,7 @@ from cachibot.models.auth import User
 logger = logging.getLogger("cachibot.api.providers")
 router = APIRouter()
 
-PROVIDERS = {
+PROVIDERS: dict[str, dict[str, Any]] = {
     "openai": {"env_key": "OPENAI_API_KEY", "type": "api_key"},
     "claude": {"env_key": "CLAUDE_API_KEY", "type": "api_key"},
     "google": {"env_key": "GOOGLE_API_KEY", "type": "api_key"},
@@ -78,7 +79,7 @@ class ProviderUpdate(BaseModel):
 
 
 @router.get("/providers")
-async def list_providers(user: User = Depends(get_current_user)):
+async def list_providers(user: User = Depends(get_current_user)) -> dict[str, Any]:
     """Return all known providers with configuration status."""
     env_file_values: dict[str, str] = {}
     content = _read_env_file()
@@ -116,7 +117,7 @@ async def update_provider(
     name: str,
     body: ProviderUpdate,
     user: User = Depends(get_current_user),
-):
+) -> JSONResponse:
     """Set a provider's API key or endpoint.
 
     Deprecated: use PUT /api/bots/{bot_id}/environment/{key} or

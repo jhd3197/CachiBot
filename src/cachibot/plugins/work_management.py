@@ -34,7 +34,7 @@ class WorkManagementPlugin(CachibotPlugin):
         get_bot_id = self._get_bot_id
         get_chat_id = self._get_chat_id
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="work_create",
             description="Create a new work item with optional tasks. "
             "Use this to create structured work that can be tracked and executed.",
@@ -156,7 +156,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating work: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="work_list",
             description="List work items for this bot.",
             category="work",
@@ -207,7 +207,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing work: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="work_update",
             description="Update a work item's status or progress.",
             category="work",
@@ -259,6 +259,8 @@ class WorkManagementPlugin(CachibotPlugin):
                     await work_repo.update_progress(work_id, float(progress))
 
                 updated_work = await work_repo.get(work_id)
+                if not updated_work:
+                    return json.dumps({"error": f"Work {work_id} not found after update"}, indent=2)
                 return json.dumps(
                     {
                         "id": updated_work.id,
@@ -271,7 +273,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error updating work: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="todo_create",
             description="Create a todo or timed reminder. "
             "Use this to capture ideas, reminders, or tasks for later. "
@@ -394,12 +396,12 @@ class WorkManagementPlugin(CachibotPlugin):
                     "remind_at": todo.remind_at.isoformat() if todo.remind_at else None,
                 }
                 if remind_datetime:
-                    result["reminder_scheduled"] = True
+                    result["reminder_scheduled"] = "true"
                 return json.dumps(result, indent=2)
             except Exception as e:
                 return f"Error creating todo: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="todo_list",
             description="List todos for this bot.",
             category="work",
@@ -449,7 +451,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing todos: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="todo_done",
             description="Mark a todo as done.",
             category="work",
@@ -482,7 +484,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error marking todo done: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="schedule_create",
             description="Schedule a one-time or recurring action. "
             "Use this to set reminders, schedule messages, or plan future tasks. "
@@ -656,7 +658,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating schedule: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="schedule_list",
             description="List scheduled actions for this bot.",
             category="work",
@@ -706,7 +708,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing schedules: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="schedule_delete",
             description="Delete a scheduled action.",
             category="work",

@@ -9,6 +9,7 @@ import platform
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 _start_time = time.monotonic()
 
 
-def collect_telemetry() -> dict:
+def collect_telemetry() -> dict[str, Any]:
     """Collect anonymous telemetry payload.
 
     Returns a dict with system metadata and aggregate usage counts.
@@ -72,13 +73,15 @@ def collect_telemetry() -> dict:
     return payload
 
 
-async def _collect_db_counts() -> dict:
+async def _collect_db_counts() -> dict[str, Any]:
     """Collect aggregate counts from the database."""
-    counts: dict = {}
+    counts: dict[str, Any] = {}
     try:
+        from contextlib import asynccontextmanager
+
         from cachibot.storage.db import get_session
 
-        async with get_session() as session:
+        async with asynccontextmanager(get_session)() as session:
             from sqlalchemy import text
 
             # Total bots

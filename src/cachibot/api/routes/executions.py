@@ -5,6 +5,7 @@ Per-bot endpoints for viewing execution history, logs, and stats.
 """
 
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -94,7 +95,7 @@ class LogLineResponse(BaseModel):
     timestamp: str
     level: str
     content: str
-    data: dict | None
+    data: dict[str, Any] | None
 
     @classmethod
     def from_line(cls, line: ExecutionLogLine) -> "LogLineResponse":
@@ -159,7 +160,7 @@ async def get_execution_stats(
     bot_id: str,
     period: str = "24h",
     user: User = Depends(require_bot_access),
-) -> dict:
+) -> dict[str, Any]:
     """Get execution stats for a bot (24h, 7d, 30d)."""
     if period not in ("24h", "7d", "30d"):
         raise HTTPException(status_code=422, detail="period must be 24h, 7d, or 30d")
@@ -182,6 +183,8 @@ async def get_execution(
 ) -> ExecutionLogResponse:
     """Get execution log detail."""
     log = await exec_log_repo.get(exec_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="Execution log not found")
     require_bot_ownership(log, bot_id, "Execution log")
     return ExecutionLogResponse.from_log(log)
 
@@ -191,9 +194,11 @@ async def get_execution_output(
     bot_id: str,
     exec_id: str,
     user: User = Depends(require_bot_access),
-) -> dict:
+) -> dict[str, Any]:
     """Get full output of an execution."""
     log = await exec_log_repo.get(exec_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="Execution log not found")
     require_bot_ownership(log, bot_id, "Execution log")
     return {
         "id": log.id,
@@ -213,6 +218,8 @@ async def get_execution_lines(
 ) -> list[LogLineResponse]:
     """Get paginated log lines for an execution."""
     log = await exec_log_repo.get(exec_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="Execution log not found")
     require_bot_ownership(log, bot_id, "Execution log")
 
     lines = await log_line_repo.get_lines(exec_id, limit=limit, offset=offset)
@@ -224,9 +231,11 @@ async def cancel_execution(
     bot_id: str,
     exec_id: str,
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
-) -> dict:
+) -> dict[str, Any]:
     """Cancel a running execution."""
     log = await exec_log_repo.get(exec_id)
+    if log is None:
+        raise HTTPException(status_code=404, detail="Execution log not found")
     require_bot_ownership(log, bot_id, "Execution log")
 
     cancelled = await exec_log_repo.cancel(exec_id)

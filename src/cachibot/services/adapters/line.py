@@ -243,7 +243,7 @@ class LineAdapter(BasePlatformAdapter):
             logger.error(f"Failed to reply LINE message: {e}")
             return False
 
-    async def process_webhook(self, body: dict, raw_body: bytes, signature: str) -> None:
+    async def process_webhook(self, body: dict[str, Any], raw_body: bytes, signature: str) -> None:
         """Process an incoming LINE webhook request.
 
         Validates the signature, parses events, and dispatches messages
@@ -269,7 +269,7 @@ class LineAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.error(f"Error handling LINE event: {e}")
 
-    async def _handle_event(self, event: dict) -> None:
+    async def _handle_event(self, event: dict[str, Any]) -> None:
         """Handle a single LINE webhook event.
 
         Args:

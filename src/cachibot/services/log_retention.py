@@ -9,6 +9,7 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from cachibot.services.tier_limits import get_tier_limits
 from cachibot.storage.automations_repository import (
@@ -27,7 +28,7 @@ class LogRetentionService:
     """Background service that cleans up old execution logs."""
 
     def __init__(self) -> None:
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._running = False
         self._exec_log_repo = ExecutionLogRepository()
         self._log_line_repo = ExecutionLogLineRepository()
@@ -132,7 +133,7 @@ class LogRetentionService:
             deleted,
         )
 
-    async def _aggregate_log(self, log) -> None:
+    async def _aggregate_log(self, log: Any) -> None:
         """Aggregate a single log into the daily summary."""
         from cachibot.models.automations import ExecutionDailySummary
 

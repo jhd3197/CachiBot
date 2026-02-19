@@ -10,6 +10,7 @@ import logging
 import re
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
@@ -32,7 +33,7 @@ router = APIRouter()
 class ConnectionManager:
     """Manages WebSocket connections."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.active_connections: dict[str, WebSocket] = {}
         self.pending_approvals: dict[str, asyncio.Event] = {}
         self.approval_results: dict[str, bool] = {}
@@ -71,8 +72,8 @@ async def _resolve_bot_env(
     bot_id: str,
     platform: str = "web",
     effective_model: str = "",
-    request_overrides: dict | None = None,
-) -> tuple:
+    request_overrides: dict[str, Any] | None = None,
+) -> tuple[Any, Any]:
     """Resolve per-bot environment and build a driver.
 
     Returns:
@@ -115,7 +116,7 @@ async def _resolve_bot_env(
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str | None = Query(default=None),
-):
+) -> None:
     """
     WebSocket endpoint for real-time agent communication.
 
@@ -145,7 +146,7 @@ async def websocket_endpoint(
 
     config = Config.load(workspace=workspace)
 
-    async def on_approval(tool_name: str, action: str, details: dict) -> bool:
+    async def on_approval(tool_name: str, action: str, details: dict[str, Any]) -> bool:
         """Handle approval request - sends to client and waits for response."""
         approval_id = str(uuid.uuid4())
         event = asyncio.Event()
@@ -164,7 +165,7 @@ async def websocket_endpoint(
             manager.pending_approvals.pop(approval_id, None)
 
     agent: CachibotAgent | None = None
-    current_task: asyncio.Task | None = None
+    current_task: asyncio.Task[None] | None = None
 
     try:
         while True:
@@ -293,7 +294,7 @@ async def websocket_endpoint(
                     chat_id=chat_id,
                     bot_models=bot_models,
                     tool_configs=merged_tool_configs,
-                    on_approval_needed=on_approval,
+                    on_approval_needed=on_approval,  # type: ignore[arg-type]
                     driver=per_bot_driver,
                     provider_environment=resolved_env,
                     disabled_capabilities=disabled_caps,

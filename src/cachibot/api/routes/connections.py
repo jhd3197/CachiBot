@@ -218,6 +218,8 @@ async def connect_platform(
         await manager.connect(connection_id)
         # Refresh connection from DB to get updated status
         connection = await repo.get_connection(connection_id)
+        if connection is None:
+            raise HTTPException(status_code=404, detail="Connection not found after connect")
         return ConnectionResponse.from_connection(connection)
     except Exception as e:
         logger.error(f"Failed to connect {connection_id}: {e}")
@@ -240,4 +242,6 @@ async def disconnect_platform(
 
     # Refresh connection from DB to get updated status
     connection = await repo.get_connection(connection_id)
+    if connection is None:
+        raise HTTPException(status_code=404, detail="Connection not found after disconnect")
     return ConnectionResponse.from_connection(connection)

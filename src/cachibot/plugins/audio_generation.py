@@ -9,6 +9,7 @@ built-in driver registry.
 import base64
 import logging
 from pathlib import Path
+from typing import Any
 
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
@@ -48,7 +49,7 @@ class AudioGenerationPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="generate_audio",
             description="Convert text to speech audio. "
             "Supports OpenAI TTS (tts-1, tts-1-hd) and ElevenLabs voices. "
@@ -168,7 +169,7 @@ class AudioGenerationPlugin(CachibotPlugin):
 
             # Build options based on provider
             is_elevenlabs = "elevenlabs" in model.lower()
-            options: dict = {}
+            options: dict[str, Any] = {}
 
             if is_elevenlabs:
                 # ElevenLabs uses voice_id (opaque ID like "21m00Tcm4TlvDq8ikWAM"),
@@ -212,7 +213,7 @@ class AudioGenerationPlugin(CachibotPlugin):
 
             return "\n".join(parts)
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="transcribe_audio",
             description="Transcribe audio to text using speech-to-text. "
             "Supports OpenAI Whisper and ElevenLabs Scribe. "
@@ -337,7 +338,7 @@ class AudioGenerationPlugin(CachibotPlugin):
             except Exception as exc:
                 return f"Error: Failed to initialize STT driver for '{model}': {exc}"
 
-            options: dict = {}
+            options: dict[str, Any] = {}
             if effective_language:
                 options["language"] = effective_language
 

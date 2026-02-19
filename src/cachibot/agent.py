@@ -7,7 +7,7 @@ Tools are provided by Tukuy-based plugins via the PluginManager.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -42,14 +42,14 @@ class CachibotAgent:
     config: Config
     registry: ToolRegistry = field(default_factory=ToolRegistry)
     sandbox: PythonSandbox | None = None
-    _agent: PromptureAgent | None = None
+    _agent: PromptureAgent[Any] | None = None
 
     # Callbacks for UI integration
     on_thinking: Callable[[str], None] | None = None
     on_tool_start: Callable[[str, dict[str, Any]], None] | None = None
     on_tool_end: Callable[[str, Any], None] | None = None
     on_message: Callable[[str], None] | None = None
-    on_approval_needed: Callable[[str, str, dict], bool] | None = None
+    on_approval_needed: Callable[[str, str, dict[str, Any]], bool] | None = None
 
     # Custom system prompt (overrides default CachiBot personality)
     system_prompt_override: str | None = None
@@ -59,10 +59,10 @@ class CachibotAgent:
     allowed_tools: set[str] | None = None
 
     # Optional per-tool configuration (timeouts, limits, etc.)
-    tool_configs: dict | None = None
+    tool_configs: dict[str, Any] | None = None
 
     # Capability toggles (None = legacy/CLI mode, all plugins enabled)
-    capabilities: dict | None = None
+    capabilities: dict[str, Any] | None = None
 
     # Bot identity (needed by work management and platform plugins)
     bot_id: str | None = None
@@ -71,7 +71,7 @@ class CachibotAgent:
     chat_id: str | None = None
 
     # Multi-model slot configuration (e.g., {"default": "...", "image": "..."})
-    bot_models: dict | None = None
+    bot_models: dict[str, Any] | None = None
 
     # Per-bot Prompture driver (bypasses global registry when provided)
     driver: Any | None = None
@@ -138,7 +138,7 @@ class CachibotAgent:
             skill_config=skill_config,
         )
 
-    def _build_skill_config(self) -> dict | None:
+    def _build_skill_config(self) -> dict[str, Any] | None:
         """Build the config dict injected into Tukuy SkillContext for instructions.
 
         Creates a TukuyLLMBackend from the bot's provider environment and model
@@ -192,7 +192,7 @@ class CachibotAgent:
             bot_id = self.bot_id
             chat_id = self.chat_id
 
-            def _on_complete(result: dict) -> None:
+            def _on_complete(result: dict[str, Any]) -> None:
                 """Fire-and-forget logging for instruction LLM calls."""
                 import asyncio
 
@@ -348,7 +348,7 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
             )
         return ""
 
-    def _handle_approval(self, tool_name: str, action: str, details: dict) -> bool:
+    def _handle_approval(self, tool_name: str, action: str, details: dict[str, Any]) -> bool:
         """Handle approval requests."""
         if self.on_approval_needed:
             return self.on_approval_needed(tool_name, action, details)
@@ -374,9 +374,13 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
         Returns:
             The AgentResult containing output_text, run_usage, steps, etc.
         """
+        if self._agent is None:
+            raise RuntimeError("Agent not initialized")
         return await self._agent.run(user_message, images=images)
 
-    async def run_stream(self, user_message: str, *, images: list[Any] | None = None):
+    async def run_stream(
+        self, user_message: str, *, images: list[Any] | None = None
+    ) -> AsyncIterator[Any]:
         """
         Process a user message with streaming output.
 
@@ -388,16 +392,22 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
             Stream events from the agent.
             The final event (StreamEventType.output) contains the complete AgentResult.
         """
+        if self._agent is None:
+            raise RuntimeError("Agent not initialized")
         async for event in self._agent.run_stream(user_message, images=images):
             yield event
 
     @property
-    def conversation(self):
+    def conversation(self) -> Any:
         """Access the underlying agent's conversation history."""
+        if self._agent is None:
+            raise RuntimeError("Agent not initialized")
         return self._agent.conversation
 
     def clear_history(self) -> None:
         """Clear the conversation history."""
+        if self._agent is None:
+            raise RuntimeError("Agent not initialized")
         self._agent.clear_history()
 
 
@@ -461,7 +471,7 @@ async def load_dynamic_instructions(agent: CachibotAgent) -> None:
 async def _log_instruction_completion(
     bot_id: str | None,
     chat_id: str | None,
-    result: dict,
+    result: dict[str, Any],
 ) -> None:
     """Log an instruction LLM completion to the execution log.
 

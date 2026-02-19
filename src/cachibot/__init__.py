@@ -28,7 +28,7 @@ def _get_version() -> str:
     ]
     # PyInstaller frozen binary: VERSION is bundled at _MEIPASS/cachibot/VERSION
     if getattr(sys, "_MEIPASS", None):
-        candidates.insert(0, Path(sys._MEIPASS) / "cachibot" / "VERSION")
+        candidates.insert(0, Path(sys._MEIPASS) / "cachibot" / "VERSION")  # type: ignore[attr-defined]
     for candidate in candidates:
         if candidate.exists():
             return candidate.read_text().strip()

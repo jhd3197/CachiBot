@@ -6,6 +6,8 @@ Respects the global PlatformToolConfig — plugins whose capability is
 globally disabled are omitted from the response.
 """
 
+from typing import Any
+
 from fastapi import APIRouter
 
 from cachibot.plugins import CACHIBOT_PLUGINS
@@ -19,7 +21,7 @@ _platform_repo = PlatformToolConfigRepository()
 
 
 @router.get("/api/plugins")
-async def list_plugins():
+async def list_plugins() -> dict[str, Any]:
     """List all available plugins with their skills and capability mapping."""
     disabled_caps = set(await _platform_repo.get_disabled_capabilities())
 
@@ -39,7 +41,7 @@ async def list_plugins():
         if cap and cap in disabled_caps:
             continue
 
-        plugin_data: dict = {
+        plugin_data: dict[str, Any] = {
             "name": name,
             "class": cls.__name__,
             "capability": cap,
@@ -67,7 +69,7 @@ async def list_plugins():
 
 
 @router.get("/api/plugins/{name}/skills")
-async def get_plugin_skills(name: str):
+async def get_plugin_skills(name: str) -> dict[str, Any]:
     """Get skill metadata for a specific plugin."""
     cls = CACHIBOT_PLUGINS.get(name)
     if not cls:
@@ -106,7 +108,7 @@ async def get_plugin_skills(name: str):
         return {"error": f"Failed to inspect plugin '{name}': {e}"}
 
 
-def _instantiate_for_introspection(cls: type):
+def _instantiate_for_introspection(cls: type) -> Any:
     """Instantiate a plugin for metadata introspection.
 
     CachiBot custom plugins need a PluginContext; Tukuy built-in plugins don't.
@@ -125,13 +127,13 @@ def _instantiate_for_introspection(cls: type):
             allowed_write_paths=[],
         )
         ctx = PluginContext(config=config, sandbox=sandbox)
-        return cls(ctx)
+        return cls(ctx)  # type: ignore[arg-type,call-arg]
     else:
         # Tukuy built-in plugin: no context needed
         return cls()
 
 
-def _get_plugin_skills_metadata(cls: type) -> list[dict]:
+def _get_plugin_skills_metadata(cls: type) -> list[dict[str, Any]]:
     """Get full skill metadata from a plugin class.
 
     Includes both skills and instructions (LLM-powered tools).
@@ -155,7 +157,7 @@ def _get_plugin_skills_metadata(cls: type) -> list[dict]:
         return []
 
 
-def _descriptor_to_dict(name: str, desc: object) -> dict:
+def _descriptor_to_dict(name: str, desc: Any) -> dict[str, Any]:
     """Convert a SkillDescriptor or InstructionDescriptor to a dict."""
     return {
         "name": name,

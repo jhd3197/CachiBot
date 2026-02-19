@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -35,7 +36,7 @@ class ModelInfo(BaseModel):
     supports_image_generation: bool = Field(default=False, description="Supports image generation")
     supports_audio: bool = Field(default=False, description="Supports audio (TTS/STT)")
     is_reasoning: bool = Field(default=False, description="Is a reasoning model")
-    pricing: dict | None = Field(default=None, description="Pricing per 1M tokens")
+    pricing: dict[str, Any] | None = Field(default=None, description="Pricing per 1M tokens")
 
 
 class ModelsResponse(BaseModel):
@@ -128,16 +129,17 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     """
     groups: dict[str, list[ModelInfo]] = {}
 
+    enriched_models: list[dict[str, Any]] = []
     try:
         from prompture import get_available_models
 
-        enriched = get_available_models(include_capabilities=True)
+        enriched_models = get_available_models(  # type: ignore[assignment]
+            include_capabilities=True
+        )
     except ImportError:
         logger.warning("Prompture not available, using fallback models")
-        enriched = []
     except Exception as exc:
         logger.warning("Model discovery failed: %s", exc)
-        enriched = []
 
     # Populate known image gen IDs from Prompture's image model discovery
     global _KNOWN_IMAGE_GEN_IDS
@@ -160,7 +162,7 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
         pass
 
     # Process discovered models
-    for entry in enriched:
+    for entry in enriched_models:
         provider = entry.get("provider", "unknown")
         raw_id = entry["model_id"]
 
@@ -283,7 +285,7 @@ async def get_default_model(user: User = Depends(get_current_user)) -> DefaultMo
 async def set_default_model(
     body: DefaultModelUpdate,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """
     Set the default model.
 

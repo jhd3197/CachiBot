@@ -18,7 +18,7 @@ from cachibot.storage.db import Base
 __all__ = ["BotInstruction", "BotDocument", "DocChunk", "BotNote", "VectorType"]
 
 
-class VectorType(sa.types.TypeDecorator):
+class VectorType(sa.types.TypeDecorator[list[float]]):
     """Vector type that uses pgvector on PostgreSQL and Text on SQLite.
 
     On PostgreSQL: delegates to pgvector's Vector(dim) for native similarity search.
@@ -152,7 +152,7 @@ class BotNote(Base):
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     source: Mapped[str] = mapped_column(String, nullable=False, server_default="user")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

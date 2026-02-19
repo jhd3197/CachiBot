@@ -23,10 +23,10 @@ class PlatformToolConfig(Base):
     __tablename__ = "platform_tool_config"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, server_default="default")
-    disabled_capabilities: Mapped[list] = mapped_column(
+    disabled_capabilities: Mapped[list[str]] = mapped_column(
         sa.JSON, nullable=False, server_default="[]"
     )
-    disabled_skills: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    disabled_skills: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
