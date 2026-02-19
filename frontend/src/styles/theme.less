@@ -1,167 +1,169 @@
 // =============================================================================
 // Theme — theme.less
 // CSS custom properties for light/dark mode.
-// Uses LESS variables from variables.less, outputs CSS custom properties.
+// "Layered Glass" design system — surfaces as translucent layers over a canvas.
 // =============================================================================
 
 :root {
-  // Backgrounds
-  --color-bg-app: @zinc-100;
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: @zinc-100;
-  --color-bg-tertiary: @zinc-50;
-  --color-bg-inset: @zinc-100;
-  --color-bg-overlay: rgba(0, 0, 0, 0.6);
+  // Backgrounds — warm light canvas with white glass layers
+  --color-bg-app: #F5F5F5;
+  --color-bg-primary: rgba(255, 255, 255, 0.90);
+  --color-bg-secondary: rgba(255, 255, 255, 0.70);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.50);
+  --color-bg-inset: #EFEFEF;
+  --color-bg-overlay: rgba(0, 0, 0, 0.5);
 
-  // Text
-  --color-text-primary: @zinc-900;
-  --color-text-secondary: @zinc-500;
-  --color-text-tertiary: @zinc-400;
+  // Text — warm dark, not pure black (avoids halation)
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #808080;
+  --color-text-tertiary: #AAAAAA;
   --color-text-inverted: white;
 
-  // Borders
-  --color-border-primary: @zinc-200;
-  --color-border-secondary: @zinc-300;
+  // Borders — subtle definition via low-opacity black
+  --color-border-primary: rgba(0, 0, 0, 0.08);
+  --color-border-secondary: rgba(0, 0, 0, 0.12);
   --color-border-focus: var(--accent-500);
 
   // Interactive states
-  --color-hover-bg: @zinc-100;
-  --color-active-bg: @zinc-200;
-  --color-selected-bg: @zinc-200;
+  --color-hover-bg: rgba(0, 0, 0, 0.04);
+  --color-active-bg: rgba(0, 0, 0, 0.07);
+  --color-selected-bg: rgba(0, 0, 0, 0.07);
 
   // Status — Success
-  --color-success-bg: @green-50;
-  --color-success-text: @green-700;
-  --color-success-border: @green-200;
+  --color-success-bg: rgba(76, 175, 80, 0.10);
+  --color-success-text: #2E7D32;
+  --color-success-border: rgba(76, 175, 80, 0.20);
 
   // Status — Warning
-  --color-warning-bg: @yellow-50;
-  --color-warning-text: @yellow-700;
-  --color-warning-border: @yellow-200;
+  --color-warning-bg: rgba(212, 160, 23, 0.10);
+  --color-warning-text: #F57F17;
+  --color-warning-border: rgba(212, 160, 23, 0.20);
 
   // Status — Danger
-  --color-danger-bg: @red-50;
-  --color-danger-text: @red-700;
-  --color-danger-border: @red-200;
+  --color-danger-bg: rgba(229, 115, 115, 0.10);
+  --color-danger-text: #C62828;
+  --color-danger-border: rgba(229, 115, 115, 0.20);
 
   // Status — Info
-  --color-info-bg: @blue-50;
-  --color-info-text: @blue-700;
-  --color-info-border: @blue-200;
+  --color-info-bg: rgba(100, 181, 246, 0.10);
+  --color-info-text: #1565C0;
+  --color-info-border: rgba(100, 181, 246, 0.20);
 
   // Component tokens — Buttons
-  --btn-secondary-bg: @zinc-100;
-  --btn-secondary-text: @zinc-700;
-  --btn-secondary-hover: @zinc-200;
-  --btn-secondary-border: @zinc-200;
-  --btn-ghost-hover: @zinc-100;
-  --btn-ghost-text: @zinc-600;
-  --btn-ghost-text-hover: @zinc-900;
+  --btn-secondary-bg: rgba(0, 0, 0, 0.05);
+  --btn-secondary-text: #555555;
+  --btn-secondary-hover: rgba(0, 0, 0, 0.08);
+  --btn-secondary-border: rgba(0, 0, 0, 0.10);
+  --btn-ghost-hover: rgba(0, 0, 0, 0.05);
+  --btn-ghost-text: #666666;
+  --btn-ghost-text-hover: #1A1A1A;
 
   // Component tokens — Inputs
-  --input-bg: #ffffff;
-  --input-border: @zinc-300;
-  --input-text: @zinc-900;
-  --input-placeholder: @zinc-400;
+  --input-bg: #FFFFFF;
+  --input-border: rgba(0, 0, 0, 0.12);
+  --input-text: #1A1A1A;
+  --input-placeholder: #AAAAAA;
 
   // Component tokens — Cards
-  --card-bg: #ffffff;
-  --card-border: @zinc-200;
+  --card-bg: #FFFFFF;
+  --card-border: rgba(0, 0, 0, 0.08);
   --card-shadow: @shadow-sm;
 
   // Component tokens — Labels
-  --label-text: @zinc-600;
+  --label-text: #666666;
 
   // Component tokens — Code
-  --code-bg: @zinc-100;
-  --code-text: @zinc-900;
+  --code-bg: rgba(0, 0, 0, 0.04);
+  --code-text: #1A1A1A;
 
   // Component tokens — Chat bubbles
-  --chat-bubble-bot-bg: #ffffff;
-  --chat-bubble-bot-text: @zinc-900;
+  --chat-bubble-bot-bg: rgba(0, 0, 0, 0.03);
+  --chat-bubble-bot-text: #1A1A1A;
+  --chat-bubble-bot-border: rgba(0, 0, 0, 0.06);
 
   // Component tokens — Scrollbar
-  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
 }
 
 .dark {
-  // Backgrounds
-  --color-bg-app: @zinc-950;
-  --color-bg-primary: @zinc-900;
-  --color-bg-secondary: @zinc-800;
-  --color-bg-tertiary: @zinc-800;
-  --color-bg-inset: @zinc-900;
+  // Backgrounds — near-black canvas with subtle white glass layers
+  --color-bg-app: #050505;
+  --color-bg-primary: rgba(255, 255, 255, 0.05);
+  --color-bg-secondary: rgba(255, 255, 255, 0.03);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.02);
+  --color-bg-inset: #0A0A0A;
   --color-bg-overlay: rgba(0, 0, 0, 0.7);
 
-  // Text
-  --color-text-primary: @zinc-100;
-  --color-text-secondary: @zinc-400;
-  --color-text-tertiary: @zinc-600;
+  // Text — soft white, not pure (avoids halation)
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #808080;
+  --color-text-tertiary: #555555;
   --color-text-inverted: white;
 
-  // Borders
-  --color-border-primary: @zinc-800;
-  --color-border-secondary: @zinc-700;
+  // Borders — subtle white edges
+  --color-border-primary: rgba(255, 255, 255, 0.08);
+  --color-border-secondary: rgba(255, 255, 255, 0.12);
   --color-border-focus: var(--accent-500);
 
   // Interactive states
-  --color-hover-bg: @zinc-800;
-  --color-active-bg: @zinc-700;
-  --color-selected-bg: @zinc-700;
+  --color-hover-bg: rgba(255, 255, 255, 0.05);
+  --color-active-bg: rgba(255, 255, 255, 0.08);
+  --color-selected-bg: rgba(255, 255, 255, 0.08);
 
-  // Status — Success
-  --color-success-bg: rgba(34, 197, 94, 0.1);
-  --color-success-text: @green-400;
-  --color-success-border: rgba(34, 197, 94, 0.2);
+  // Status — Success (muted neon)
+  --color-success-bg: rgba(76, 175, 80, 0.12);
+  --color-success-text: #4CAF50;
+  --color-success-border: rgba(76, 175, 80, 0.20);
 
-  // Status — Warning
-  --color-warning-bg: rgba(234, 179, 8, 0.1);
-  --color-warning-text: @yellow-400;
-  --color-warning-border: rgba(234, 179, 8, 0.2);
+  // Status — Warning (muted neon)
+  --color-warning-bg: rgba(212, 160, 23, 0.12);
+  --color-warning-text: #D4A017;
+  --color-warning-border: rgba(212, 160, 23, 0.20);
 
-  // Status — Danger
-  --color-danger-bg: rgba(239, 68, 68, 0.1);
-  --color-danger-text: @red-400;
-  --color-danger-border: rgba(239, 68, 68, 0.2);
+  // Status — Danger (muted neon)
+  --color-danger-bg: rgba(229, 115, 115, 0.12);
+  --color-danger-text: #E57373;
+  --color-danger-border: rgba(229, 115, 115, 0.20);
 
-  // Status — Info
-  --color-info-bg: rgba(59, 130, 246, 0.1);
-  --color-info-text: @blue-400;
-  --color-info-border: rgba(59, 130, 246, 0.2);
+  // Status — Info (muted neon)
+  --color-info-bg: rgba(100, 181, 246, 0.12);
+  --color-info-text: #64B5F6;
+  --color-info-border: rgba(100, 181, 246, 0.20);
 
   // Component tokens — Buttons
-  --btn-secondary-bg: @zinc-800;
-  --btn-secondary-text: @zinc-200;
-  --btn-secondary-hover: @zinc-700;
-  --btn-secondary-border: @zinc-700;
-  --btn-ghost-hover: @zinc-800;
-  --btn-ghost-text: @zinc-400;
-  --btn-ghost-text-hover: @zinc-100;
+  --btn-secondary-bg: rgba(255, 255, 255, 0.06);
+  --btn-secondary-text: #B0B0B0;
+  --btn-secondary-hover: rgba(255, 255, 255, 0.10);
+  --btn-secondary-border: rgba(255, 255, 255, 0.10);
+  --btn-ghost-hover: rgba(255, 255, 255, 0.06);
+  --btn-ghost-text: #808080;
+  --btn-ghost-text-hover: #E8E8E8;
 
   // Component tokens — Inputs
-  --input-bg: @zinc-900;
-  --input-border: @zinc-700;
-  --input-text: @zinc-100;
-  --input-placeholder: @zinc-500;
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.10);
+  --input-text: #E8E8E8;
+  --input-placeholder: #555555;
 
   // Component tokens — Cards
-  --card-bg: @zinc-900;
-  --card-border: @zinc-800;
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.08);
   --card-shadow: none;
 
   // Component tokens — Labels
-  --label-text: @zinc-400;
+  --label-text: #808080;
 
   // Component tokens — Code
-  --code-bg: @zinc-800;
-  --code-text: @zinc-100;
+  --code-bg: rgba(255, 255, 255, 0.06);
+  --code-text: #E8E8E8;
 
   // Component tokens — Chat bubbles
-  --chat-bubble-bot-bg: @zinc-800;
-  --chat-bubble-bot-text: @zinc-100;
+  --chat-bubble-bot-bg: rgba(255, 255, 255, 0.05);
+  --chat-bubble-bot-text: #E8E8E8;
+  --chat-bubble-bot-border: rgba(255, 255, 255, 0.08);
 
   // Component tokens — Scrollbar
-  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.20);
 }

@@ -20,7 +20,7 @@
 .chat-header {
   .flex-between();
   border-bottom: 1px solid var(--color-border-primary);
-  background: var(--color-bg-primary);
+  background: var(--color-bg-secondary);
   padding: @sp-3 @sp-4;
 
   &__bot-info {
@@ -43,8 +43,8 @@
   }
 
   &__model {
-    font-size: @text-xs;
-    color: var(--color-text-secondary);
+    .tag-neon(var(--accent-500));
+    font-size: 11px;
   }
 }
 
@@ -181,7 +181,7 @@
     display: flex;
     align-items: center;
     gap: @sp-3;
-    border-radius: @radius-xl;
+    border-radius: @radius-2xl;
     border: 1px solid var(--color-border-primary);
     background: var(--color-bg-primary);
     padding: @sp-3 @sp-4;
@@ -189,13 +189,12 @@
     font-size: @text-sm;
     color: var(--color-text-primary);
     cursor: pointer;
-    .transition-all();
+    .card-hover-lift();
 
     &:hover {
       border-color: var(--accent-500);
-      background: color-mix(in srgb, var(--accent-600) 5%, var(--color-bg-primary));
-      transform: translateY(-1px);
-      box-shadow: @shadow-sm;
+      background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-500) 10%, transparent);
     }
   }
 }
@@ -254,7 +253,7 @@
   }
 
   &__bubble {
-    border-radius: @radius-2xl;
+    border-radius: @radius-3xl;
     padding: @sp-3 @sp-4;
     min-width: 0;
     max-width: 100%;
@@ -262,14 +261,14 @@
 
     &--user {
       color: white;
-      border-radius: @radius-2xl @radius-2xl @radius-lg @radius-2xl;
+      border-radius: @radius-3xl @radius-3xl @radius-lg @radius-3xl;
     }
 
     &--bot {
       background: var(--chat-bubble-bot-bg);
       color: var(--chat-bubble-bot-text);
-      border-radius: @radius-2xl @radius-2xl @radius-2xl @radius-lg;
-      border-left: 2px solid var(--accent-500);
+      border: 1px solid var(--chat-bubble-bot-border);
+      border-radius: @radius-3xl @radius-3xl @radius-3xl @radius-lg;
     }
   }
 
@@ -291,14 +290,11 @@
   }
 
   &__inline-code {
-    border-radius: @radius-sm;
-    background: @zinc-200;
+    border-radius: @radius-md;
+    background: var(--code-bg);
     padding: 2px @sp-1\.5;
     font-size: @text-xs;
-
-    .dark & {
-      background: @zinc-700;
-    }
+    color: var(--code-text);
   }
 
   // Action bar — hover actions under each message
@@ -540,20 +536,14 @@
 
 .chat-input-container {
   position: relative;
-  border-radius: @radius-2xl;
+  border-radius: 1.5rem;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
-  box-shadow: @shadow-lg;
   .transition-colors();
-
-  .dark & {
-    border-color: var(--color-border-secondary);
-    background: var(--card-bg);
-  }
 
   &:focus-within {
     border-color: var(--accent-500);
-    box-shadow: 0 0 0 3px rgba(var(--accent-600-rgb, 22, 163, 74), 0.1), @shadow-lg;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-500) 12%, transparent);
   }
 }
 
@@ -619,14 +609,17 @@
   &--send {
     background: var(--accent-600);
     color: white;
+    transition: background-color @transition-fast, transform @transition-fast;
 
     &:hover {
       background: var(--accent-500);
+      transform: scale(1.05);
     }
 
     &:disabled {
       cursor: not-allowed;
       opacity: 0.5;
+      &:hover { transform: none; }
     }
   }
 
@@ -718,6 +711,17 @@
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
   min-width: 0;
+
+  // Status-colored border variants
+  &--running {
+    border-color: color-mix(in srgb, @blue-500 25%, transparent);
+  }
+  &--success {
+    border-color: color-mix(in srgb, @green-500 20%, transparent);
+  }
+  &--error {
+    border-color: color-mix(in srgb, @red-500 20%, transparent);
+  }
 
   &__header {
     display: flex;
@@ -1017,8 +1021,9 @@
 
   &__body {
     flex: 1;
-    border-radius: @radius-2xl;
-    background: var(--card-bg);
+    border-radius: @radius-3xl;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
     padding: @sp-3 @sp-4;
   }
 
@@ -1060,12 +1065,8 @@
 
 .chat-input-kbd {
   border-radius: @radius-sm;
-  background: @zinc-100;
+  background: var(--color-hover-bg);
   padding: 2px @sp-1\.5;
-
-  .dark & {
-    background: @zinc-800;
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1079,36 +1080,31 @@
 
   &__icon {
     .flex-center();
-    height: 2.25rem;
-    width: 2.25rem;
+    height: 2.5rem;
+    width: 2.5rem;
     flex-shrink: 0;
     border-radius: @radius-full;
-    background: @purple-100;
-    color: @purple-600;
+    background: color-mix(in srgb, @purple-500 12%, transparent);
+    color: @purple-500;
     animation: thinking 1.5s ease-in-out infinite;
 
     .dark & {
-      background: rgba(@purple-900, 0.3);
       color: @purple-400;
     }
   }
 
   &__body {
     flex: 1;
-    border-radius: @radius-2xl;
-    background: @purple-50;
+    border-radius: @radius-3xl;
+    background: color-mix(in srgb, @purple-500 6%, transparent);
     padding: @sp-3 @sp-4;
-
-    .dark & {
-      background: rgba(@purple-900, 0.2);
-    }
   }
 
   &__label {
     margin-bottom: @sp-1;
     font-size: @text-xs;
     font-weight: @font-medium;
-    color: @purple-700;
+    color: @purple-600;
 
     .dark & {
       color: @purple-400;
@@ -1118,7 +1114,7 @@
   &__content {
     font-size: @text-sm;
     font-style: italic;
-    color: @purple-600;
+    color: @purple-500;
 
     .dark & {
       color: @purple-300;
