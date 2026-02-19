@@ -15,6 +15,11 @@ def main():
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     args = parser.parse_args()
 
+    # Set workspace so .env is written to ~ even without Electron
+    import os
+
+    os.environ.setdefault("CACHIBOT_WORKSPACE", str(Path.home()))
+
     # Import here so PyInstaller can trace dependencies
     import uvicorn
 

@@ -238,11 +238,26 @@ async def get_bot_available_models(
 
     available: list[BotModelInfo] = []
 
-    # Try live model discovery from Prompture
+    # Try live model discovery from Prompture, passing bot-level keys
     try:
         from prompture import get_available_models
+        from prompture.infra.provider_env import ProviderEnvironment
 
-        all_models = get_available_models(include_capabilities=False)
+        # Map provider env_key to ProviderEnvironment field names
+        _PROVIDER_TO_ENV_FIELD = {
+            name: info["env_key"].lower() for name, info in PROVIDERS.items()
+        }
+
+        env_kwargs: dict[str, str] = {}
+        for provider, key_value in resolved.provider_keys.items():
+            field = _PROVIDER_TO_ENV_FIELD.get(provider)
+            if field and hasattr(ProviderEnvironment, field):
+                env_kwargs[field] = key_value
+
+        provider_env = ProviderEnvironment(**env_kwargs) if env_kwargs else None
+        all_models = get_available_models(
+            env=provider_env, include_capabilities=False, force_refresh=True
+        )
     except Exception:
         all_models = []
 
