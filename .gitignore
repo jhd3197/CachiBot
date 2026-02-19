@@ -90,6 +90,8 @@ error.log
 website/*
 settings.local.json
 .marketing/
+.reviews/
 settings.json
 /feedback_connection
 /desktop/node_modules
+pr.md

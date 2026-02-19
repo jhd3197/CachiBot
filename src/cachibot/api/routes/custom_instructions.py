@@ -5,10 +5,13 @@ CRUD endpoints for managing bot custom instructions (LLM-powered tools),
 including versioning, testing, and rollback.
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.instruction import (
@@ -18,6 +21,8 @@ from cachibot.models.instruction import (
     UpdateInstructionRequest,
 )
 from cachibot.storage.instruction_repository import InstructionRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/bots/{bot_id}/custom-instructions",
@@ -147,8 +152,7 @@ async def get_custom_instruction(
 ) -> InstructionResponse:
     """Get a custom instruction by ID."""
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
     return InstructionResponse.from_model(record)
 
 
@@ -161,8 +165,7 @@ async def update_custom_instruction(
 ) -> InstructionResponse:
     """Update a custom instruction. Creates a new version."""
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
 
     changes = {
         k: v for k, v in body.model_dump().items() if v is not None and k != "commit_message"
@@ -190,8 +193,7 @@ async def delete_custom_instruction(
 ) -> None:
     """Soft-delete a custom instruction."""
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
 
     await repo.delete(instruction_id)
 
@@ -213,8 +215,7 @@ async def test_custom_instruction(
     from tukuy.instruction import Instruction, InstructionDescriptor
 
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
 
     # Build the instruction
     descriptor = InstructionDescriptor(
@@ -239,10 +240,11 @@ async def test_custom_instruction(
         config = Config.load()
         model = record.model_hint or config.agent.model or "openai/gpt-4o"
         backend = create_tukuy_backend(model)
-    except Exception as e:
+    except Exception:
+        logger.exception("Could not create LLM backend for instruction test")
         raise HTTPException(
             status_code=500,
-            detail=f"Could not create LLM backend: {e}",
+            detail="Could not create LLM backend",
         )
 
     ctx = SkillContext(config={"llm_backend": backend})
@@ -274,8 +276,7 @@ async def list_versions(
 ) -> list[InstructionVersionResponse]:
     """List version history for an instruction."""
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
 
     versions = await repo.get_versions(instruction_id)
     return [
@@ -308,8 +309,7 @@ async def rollback_instruction(
 ) -> InstructionResponse:
     """Rollback an instruction to a previous version."""
     record = await repo.get(instruction_id)
-    if not record or record.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    require_bot_ownership(record, bot_id, "Instruction")
 
     updated = await repo.rollback(
         instruction_id,

@@ -62,16 +62,12 @@ async def update_instructions(
     )
 
 
-@router.delete("/")
+@router.delete("/", status_code=204)
 async def delete_instructions(
     bot_id: str,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> None:
     """Delete custom instructions for a bot."""
     repo = KnowledgeRepository()
-    deleted = await repo.delete_instructions(bot_id)
-
-    return {
-        "status": "deleted" if deleted else "not_found",
-        "bot_id": bot_id,
-    }
+    await repo.delete_instructions(bot_id)
+    return None

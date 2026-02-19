@@ -6,7 +6,7 @@ from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from cachibot.api.auth import get_current_user
+from cachibot.api.auth import get_current_user, get_current_user_optional
 from cachibot.models.auth import User
 from cachibot.models.setup import (
     DatabaseSetupRequest,
@@ -18,6 +18,7 @@ from cachibot.models.setup import (
     SmtpTestRequest,
     SmtpTestResponse,
 )
+from cachibot.storage.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -244,12 +245,22 @@ async def save_smtp(
 
 
 @router.post("/setup/upgrade/reset")
-async def reset_legacy_database() -> dict:
+async def reset_legacy_database(
+    user: User | None = Depends(get_current_user_optional),
+) -> dict:
     """Reset a legacy V1 database by backing it up and creating a fresh one.
 
-    Unauthenticated — only available when legacy_db_detected is True.
+    Requires authentication when users exist; unauthenticated only during
+    first-time setup (no users in the database).
     """
     import cachibot.storage.db as db_mod
+
+    user_repo = UserRepository()
+    if await user_repo.get_user_count() > 0 and user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authentication required",
+        )
 
     if not db_mod.legacy_db_detected:
         raise HTTPException(
@@ -262,12 +273,22 @@ async def reset_legacy_database() -> dict:
 
 
 @router.post("/setup/upgrade/keep")
-async def keep_legacy_database() -> dict:
+async def keep_legacy_database(
+    user: User | None = Depends(get_current_user_optional),
+) -> dict:
     """Keep the legacy V1 database and clear the detection flag for this session.
 
-    Unauthenticated — only available when legacy_db_detected is True.
+    Requires authentication when users exist; unauthenticated only during
+    first-time setup (no users in the database).
     """
     import cachibot.storage.db as db_mod
+
+    user_repo = UserRepository()
+    if await user_repo.get_user_count() > 0 and user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authentication required",
+        )
 
     if not db_mod.legacy_db_detected:
         raise HTTPException(

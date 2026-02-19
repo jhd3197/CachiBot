@@ -5,11 +5,14 @@ Handles find-or-create logic for users coming from the CachiBot website
 via the auth bridge (cloud deploy mode).
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from cachibot.models.auth import UserInDB, UserRole
 from cachibot.storage.user_repository import UserRepository
+
+logger = logging.getLogger(__name__)
 
 
 class UserProvisioningService:
