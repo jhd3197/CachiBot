@@ -112,6 +112,7 @@ async def lifespan(app: FastAPI):
 
     # Mark this version as last-known-good after successful startup
     from cachibot.services.update_service import mark_current_version_good
+
     mark_current_version_good()
 
     # Set up message processor for platform connections
