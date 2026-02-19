@@ -10,6 +10,8 @@ export interface DialogProps {
   className?: string
   closeOnBackdrop?: boolean
   closeOnEscape?: boolean
+  ariaLabel?: string
+  ariaLabelledBy?: string
 }
 
 export function Dialog({
@@ -20,6 +22,8 @@ export function Dialog({
   className,
   closeOnBackdrop = true,
   closeOnEscape = true,
+  ariaLabel,
+  ariaLabelledBy,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -49,6 +53,53 @@ export function Dialog({
     }
   }, [open])
 
+  // Focus trap: keep Tab navigation within the dialog
+  useEffect(() => {
+    if (!open) return
+
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+    // Focus the first focusable element when the dialog opens
+    const panel = dialogRef.current
+    if (panel) {
+      const firstFocusable = panel.querySelector<HTMLElement>(focusableSelector)
+      firstFocusable?.focus()
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+
+      const panel = dialogRef.current
+      if (!panel) return
+
+      const focusableElements = Array.from(
+        panel.querySelectorAll<HTMLElement>(focusableSelector)
+      )
+      if (focusableElements.length === 0) return
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+
+      if (e.shiftKey) {
+        // Shift+Tab: wrap from first to last
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement.focus()
+        }
+      } else {
+        // Tab: wrap from last to first
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open])
+
   if (!open) return null
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -64,6 +115,8 @@ export function Dialog({
         className={cn('dialog__panel', `dialog__panel--${size}`, className)}
         role="dialog"
         aria-modal="true"
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
       >
         {children}
       </div>

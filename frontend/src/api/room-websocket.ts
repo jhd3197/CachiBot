@@ -5,93 +5,39 @@
  */
 
 import type { RoomWSMessage, RoomWSMessageType } from '../types'
-import { useAuthStore } from '../stores/auth'
+import { BaseWebSocketClient } from './base-websocket'
 
-type MessageHandler = (message: RoomWSMessage) => void
-type ConnectionHandler = () => void
-
-export class RoomWebSocketClient {
-  private ws: WebSocket | null = null
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
-  private reconnectDelay = 1000
-  private isIntentionalClose = false
+export class RoomWebSocketClient extends BaseWebSocketClient<RoomWSMessage> {
   private roomId: string | null = null
 
-  private messageHandlers: MessageHandler[] = []
-  private connectHandlers: ConnectionHandler[] = []
-  private disconnectHandlers: ConnectionHandler[] = []
-
-  connect(roomId: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
-      return
-    }
-
-    const { accessToken } = useAuthStore.getState()
-    if (!accessToken) {
-      console.error('Cannot connect room WebSocket: not authenticated')
-      return
-    }
-
-    this.roomId = roomId
-    this.isIntentionalClose = false
-
+  protected buildUrl(token: string): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
-    const wsUrl = `${protocol}//${host}/ws/room?token=${encodeURIComponent(accessToken)}&room_id=${encodeURIComponent(roomId)}`
+    return `${protocol}//${host}/ws/room?token=${encodeURIComponent(token)}&room_id=${encodeURIComponent(this.roomId!)}`
+  }
 
-    this.ws = new WebSocket(wsUrl)
+  protected canReconnect(): boolean {
+    return this.roomId !== null
+  }
 
-    this.ws.onopen = () => {
-      this.reconnectAttempts = 0
-      this.connectHandlers.forEach((h) => h())
+  protected doReconnect(): void {
+    if (this.roomId) {
+      this.connect(this.roomId)
     }
+  }
 
-    this.ws.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data) as RoomWSMessage
-        this.messageHandlers.forEach((h) => h(message))
-      } catch (error) {
-        console.error('Failed to parse room WebSocket message:', error)
-      }
-    }
-
-    this.ws.onclose = () => {
-      this.disconnectHandlers.forEach((h) => h())
-      this.attemptReconnect()
-    }
-
-    this.ws.onerror = () => {
-      // Error handling done in onclose
-    }
+  connect(roomId: string): void {
+    this.roomId = roomId
+    this.connectWithToken()
   }
 
   disconnect(): void {
-    this.isIntentionalClose = true
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
+    super.disconnect()
     this.roomId = null
   }
 
-  private attemptReconnect(): void {
-    if (this.isIntentionalClose || !this.roomId) return
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) return
-
-    this.reconnectAttempts++
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-
-    setTimeout(() => {
-      if (!this.isIntentionalClose && this.roomId) {
-        this.connect(this.roomId)
-      }
-    }, delay)
-  }
-
   private send(type: RoomWSMessageType, payload: unknown = {}): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return
-    this.ws.send(JSON.stringify({ type, payload }))
+    this.sendRaw({ type, payload })
   }
 
   sendChat(message: string): void {
@@ -104,30 +50,5 @@ export class RoomWebSocketClient {
 
   sendCancel(botId: string): void {
     this.send('room_cancel', { botId })
-  }
-
-  onMessage(handler: MessageHandler): () => void {
-    this.messageHandlers.push(handler)
-    return () => {
-      this.messageHandlers = this.messageHandlers.filter((h) => h !== handler)
-    }
-  }
-
-  onConnect(handler: ConnectionHandler): () => void {
-    this.connectHandlers.push(handler)
-    return () => {
-      this.connectHandlers = this.connectHandlers.filter((h) => h !== handler)
-    }
-  }
-
-  onDisconnect(handler: ConnectionHandler): () => void {
-    this.disconnectHandlers.push(handler)
-    return () => {
-      this.disconnectHandlers = this.disconnectHandlers.filter((h) => h !== handler)
-    }
-  }
-
-  get isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN
   }
 }

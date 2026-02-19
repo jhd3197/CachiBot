@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import (
@@ -113,8 +114,7 @@ async def get_note(
     """Get a specific note."""
     repo = NotesRepository()
     note = await repo.get_note(note_id)
-    if note is None or note.bot_id != bot_id:
-        raise HTTPException(404, "Note not found")
+    require_bot_ownership(note, bot_id, "Note")
     return _note_to_response(note)
 
 
@@ -129,8 +129,7 @@ async def update_note(
     repo = NotesRepository()
     # Verify ownership
     existing = await repo.get_note(note_id)
-    if existing is None or existing.bot_id != bot_id:
-        raise HTTPException(404, "Note not found")
+    require_bot_ownership(existing, bot_id, "Note")
 
     updated = await repo.update_note(
         note_id,
@@ -143,21 +142,20 @@ async def update_note(
     return _note_to_response(updated)
 
 
-@router.delete("/notes/{note_id}")
+@router.delete("/notes/{note_id}", status_code=204)
 async def delete_note(
     bot_id: str,
     note_id: str,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> None:
     """Delete a note."""
     repo = NotesRepository()
     # Verify ownership
     existing = await repo.get_note(note_id)
-    if existing is None or existing.bot_id != bot_id:
-        raise HTTPException(404, "Note not found")
+    require_bot_ownership(existing, bot_id, "Note")
 
     await repo.delete_note(note_id)
-    return {"status": "deleted", "note_id": note_id}
+    return None
 
 
 # =============================================================================
@@ -282,8 +280,7 @@ async def retry_document(
     repo = KnowledgeRepository()
 
     doc = await repo.get_document(document_id)
-    if doc is None or doc.bot_id != bot_id:
-        raise HTTPException(404, "Document not found")
+    require_bot_ownership(doc, bot_id, "Document")
 
     if doc.status.value != "failed":
         raise HTTPException(400, "Only failed documents can be retried")
@@ -318,8 +315,7 @@ async def get_document_chunks(
     repo = KnowledgeRepository()
 
     doc = await repo.get_document(document_id)
-    if doc is None or doc.bot_id != bot_id:
-        raise HTTPException(404, "Document not found")
+    require_bot_ownership(doc, bot_id, "Document")
 
     chunks = await repo.get_chunks_by_document_light(document_id)
     return [

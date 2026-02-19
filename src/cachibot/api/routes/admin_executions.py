@@ -4,6 +4,7 @@ Admin Execution Log API Routes
 Global execution log endpoints for admin users.
 """
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +14,8 @@ from cachibot.api.auth import get_admin_user
 from cachibot.api.routes.executions import ExecutionLogResponse
 from cachibot.models.auth import User
 from cachibot.storage.automations_repository import ExecutionLogRepository
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin-executions"])
 
@@ -141,7 +144,12 @@ async def admin_cancel_execution(
             runner = get_job_runner()
             await runner.cancel_job(log.work_job_id)
         except Exception:
-            pass
+            logger.warning(
+                "Failed to cancel work job %s for execution %s",
+                log.work_job_id,
+                exec_id,
+                exc_info=True,
+            )
 
     return {"cancelled": True}
 
@@ -186,8 +194,17 @@ async def admin_cancel_all(
                         runner = get_job_runner()
                         await runner.cancel_job(log.work_job_id)
                     except Exception:
-                        pass
+                        logger.warning(
+                            "Failed to cancel work job %s for execution %s",
+                            log.work_job_id,
+                            log.id,
+                            exc_info=True,
+                        )
         except Exception:
-            pass
+            logger.warning(
+                "Failed to cancel execution %s during cancel-all",
+                log.id,
+                exc_info=True,
+            )
 
     return {"cancelledCount": cancelled_count}

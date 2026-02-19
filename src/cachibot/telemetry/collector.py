@@ -60,14 +60,14 @@ def collect_telemetry() -> dict:
         counts = asyncio.get_event_loop().run_until_complete(_collect_db_counts())
         payload.update(counts)
     except Exception:
-        # If we can't get DB counts (no running loop, etc.), that's fine
+        logger.debug("Could not collect DB counts via running event loop", exc_info=True)
         try:
             import asyncio
 
             counts = asyncio.run(_collect_db_counts())
             payload.update(counts)
         except Exception:
-            logger.debug("Could not collect DB counts for telemetry")
+            logger.debug("Could not collect DB counts for telemetry", exc_info=True)
 
     return payload
 
@@ -92,6 +92,7 @@ async def _collect_db_counts() -> dict:
                 row = result.scalar()
                 counts["message_count"] = row or 0
             except Exception:
+                logger.debug("Could not count messages for telemetry", exc_info=True)
                 counts["message_count"] = 0
 
             # Total users
@@ -100,6 +101,7 @@ async def _collect_db_counts() -> dict:
                 row = result.scalar()
                 counts["user_count"] = row or 0
             except Exception:
+                logger.debug("Could not count users for telemetry", exc_info=True)
                 counts["user_count"] = 0
 
             # Active connections count
@@ -110,9 +112,10 @@ async def _collect_db_counts() -> dict:
                 row = result.scalar()
                 counts["active_connections"] = row or 0
             except Exception:
+                logger.debug("Could not count active connections for telemetry", exc_info=True)
                 counts["active_connections"] = 0
 
     except Exception:
-        logger.debug("Could not query database for telemetry counts")
+        logger.debug("Could not query database for telemetry counts", exc_info=True)
 
     return counts

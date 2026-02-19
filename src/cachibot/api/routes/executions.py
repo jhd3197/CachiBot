@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership
 from cachibot.models.auth import User
 from cachibot.models.automations import ExecutionLog, ExecutionLogLine
 from cachibot.models.group import BotAccessLevel
@@ -181,8 +182,7 @@ async def get_execution(
 ) -> ExecutionLogResponse:
     """Get execution log detail."""
     log = await exec_log_repo.get(exec_id)
-    if not log or log.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    require_bot_ownership(log, bot_id, "Execution log")
     return ExecutionLogResponse.from_log(log)
 
 
@@ -194,8 +194,7 @@ async def get_execution_output(
 ) -> dict:
     """Get full output of an execution."""
     log = await exec_log_repo.get(exec_id)
-    if not log or log.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    require_bot_ownership(log, bot_id, "Execution log")
     return {
         "id": log.id,
         "output": log.output,
@@ -214,8 +213,7 @@ async def get_execution_lines(
 ) -> list[LogLineResponse]:
     """Get paginated log lines for an execution."""
     log = await exec_log_repo.get(exec_id)
-    if not log or log.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    require_bot_ownership(log, bot_id, "Execution log")
 
     lines = await log_line_repo.get_lines(exec_id, limit=limit, offset=offset)
     return [LogLineResponse.from_line(line) for line in lines]
@@ -229,8 +227,7 @@ async def cancel_execution(
 ) -> dict:
     """Cancel a running execution."""
     log = await exec_log_repo.get(exec_id)
-    if not log or log.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    require_bot_ownership(log, bot_id, "Execution log")
 
     cancelled = await exec_log_repo.cancel(exec_id)
     if not cancelled:

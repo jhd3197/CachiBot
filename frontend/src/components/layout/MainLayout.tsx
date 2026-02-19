@@ -321,6 +321,7 @@ export function MainLayout() {
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="btn btn--ghost btn--icon btn--sm"
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
