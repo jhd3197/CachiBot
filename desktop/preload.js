@@ -3,7 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
   isDesktop: true,
-  appVersion: ipcRenderer.sendSync('app:getVersion'),
+  appVersion: (() => {
+    const flag = process.argv.find(a => a.startsWith('--app-version='));
+    return flag ? flag.split('=')[1] : 'unknown';
+  })(),
   versions: {
     electron: process.versions.electron,
     node: process.versions.node,
@@ -33,6 +36,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update:download-progress', handler);
     return () => ipcRenderer.removeListener('update:download-progress', handler);
   },
+  onUpdateError: (callback) => {
+    const handler = (_event, error) => callback(error);
+    ipcRenderer.on('update:error', handler);
+    return () => ipcRenderer.removeListener('update:error', handler);
+  },
   // Cache management
   clearCache: () => ipcRenderer.invoke('cache:clear'),
+  // Settings
+  getSetting: (key, defaultValue) => ipcRenderer.invoke('settings:get', key, defaultValue),
+  setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
 });

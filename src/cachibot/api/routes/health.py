@@ -21,6 +21,15 @@ def _detect_build() -> str:
     return "release"
 
 
+def _detect_distribution() -> str:
+    """Detect distribution type."""
+    if os.environ.get("CACHIBOT_DESKTOP", "").lower() == "true":
+        return "desktop"
+    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
+        return "docker"
+    return "pip"
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -30,6 +39,7 @@ class HealthResponse(BaseModel):
     python: str = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     platform: str = platform.system().lower()
     desktop: bool = os.environ.get("CACHIBOT_DESKTOP", "").lower() == "true"
+    distribution: str = _detect_distribution()
 
 
 @router.get("/health", response_model=HealthResponse)
