@@ -271,6 +271,7 @@ cd desktop && npm install && cd ..
 # 运行所有服务
 bash dev.sh              # Windows 上使用 .\dev.ps1
 bash dev.sh desktop      # 包含 Electron
+bash dev.sh watch-lint   # lint 监视器（保存时运行 ruff + ESLint）
 ```
 
 请参阅 [CONTRIBUTING.md](../CONTRIBUTING.md) 了解所有开发脚本模式、项目结构、测试和代码风格指南。

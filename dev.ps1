@@ -6,15 +6,127 @@
 #   .\dev.ps1 frontend         # frontend only (Vite dev server)
 #   .\dev.ps1 desktop          # backend + frontend + Electron
 #   .\dev.ps1 all              # backend + frontend + browser + Electron
+#   .\dev.ps1 watch-lint       # watch Python + TS files and lint on changes
 
 param(
-    [ValidateSet("browser", "backend", "frontend", "desktop", "all")]
+    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "watch-lint")]
     [string]$Mode = "browser"
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $procs = @()
+
+# --- watch-lint mode ---
+if ($Mode -eq "watch-lint") {
+    $pyPath = "$Root\src\cachibot"
+    $tsPath = "$Root\frontend\src"
+    Write-Host "[dev] Watching for lint errors (Python + TypeScript)" -ForegroundColor Cyan
+    Write-Host "[dev]   Python  : $pyPath" -ForegroundColor DarkGray
+    Write-Host "[dev]   Frontend: $tsPath" -ForegroundColor DarkGray
+    Write-Host "[dev] Press Ctrl+C to stop." -ForegroundColor DarkGray
+    Write-Host ""
+
+    function Invoke-AllLint {
+        $ts = Get-Date -Format "HH:mm:ss"
+        Write-Host "[$ts] " -ForegroundColor DarkGray -NoNewline
+        Write-Host "Running linters..." -ForegroundColor Cyan
+        Write-Host ""
+
+        # --- Python: ruff check ---
+        Write-Host "  ruff check      " -ForegroundColor Cyan -NoNewline
+        $out = & ruff check $pyPath 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            Write-Host "fail" -ForegroundColor Red
+            $out | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
+        # --- Python: ruff format (auto-fix) ---
+        Write-Host "  ruff format     " -ForegroundColor Cyan -NoNewline
+        $out = & ruff format --check $pyPath 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            & ruff format $pyPath 2>&1 | Out-Null
+            $fixed = ($out | Select-String "^Would reformat:").Count
+            Write-Host "fixed $fixed files" -ForegroundColor Yellow
+        }
+
+        # --- Frontend: ESLint ---
+        Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
+        Push-Location "$Root\frontend"
+        $out = & npm run lint 2>&1
+        $exitCode = $LASTEXITCODE
+        Pop-Location
+        if ($exitCode -eq 0) {
+            $warnCount = ($out | Select-String "warning").Count
+            if ($warnCount -gt 0) {
+                Write-Host "ok ($warnCount warnings)" -ForegroundColor Yellow
+            } else {
+                Write-Host "ok" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "fail" -ForegroundColor Red
+            $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
+        Write-Host ""
+    }
+
+    Invoke-AllLint
+
+    # Watch both Python and TypeScript files
+    $pyWatcher = [System.IO.FileSystemWatcher]::new($pyPath, "*.py")
+    $pyWatcher.IncludeSubdirectories = $true
+    $pyWatcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor
+                              [System.IO.NotifyFilters]::FileName -bor
+                              [System.IO.NotifyFilters]::CreationTime
+    $pyWatcher.EnableRaisingEvents = $true
+
+    $tsWatcher = [System.IO.FileSystemWatcher]::new($tsPath)
+    $tsWatcher.IncludeSubdirectories = $true
+    $tsWatcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor
+                              [System.IO.NotifyFilters]::FileName -bor
+                              [System.IO.NotifyFilters]::CreationTime
+    $tsWatcher.EnableRaisingEvents = $true
+
+    # Shared state for debouncing
+    $lastRun = [datetime]::MinValue
+
+    $handler = {
+        $now = Get-Date
+        $script:lastChange = $now
+    }
+
+    $script:lastChange = [datetime]::MinValue
+
+    Register-ObjectEvent $pyWatcher Changed -Action $handler | Out-Null
+    Register-ObjectEvent $pyWatcher Created -Action $handler | Out-Null
+    Register-ObjectEvent $pyWatcher Renamed -Action $handler | Out-Null
+    Register-ObjectEvent $tsWatcher Changed -Action $handler | Out-Null
+    Register-ObjectEvent $tsWatcher Created -Action $handler | Out-Null
+    Register-ObjectEvent $tsWatcher Renamed -Action $handler | Out-Null
+
+    try {
+        while ($true) {
+            Start-Sleep -Milliseconds 500
+            if ($script:lastChange -ne [datetime]::MinValue -and
+                ((Get-Date) - $script:lastChange).TotalMilliseconds -gt 800 -and
+                $script:lastChange -ne $lastRun) {
+                $lastRun = $script:lastChange
+                Invoke-AllLint
+            }
+        }
+    } finally {
+        $pyWatcher.Dispose()
+        $tsWatcher.Dispose()
+        Get-EventSubscriber | Unregister-Event
+        Write-Host "[dev] Watcher stopped." -ForegroundColor Green
+    }
+    return
+}
 
 $startBackend = $Mode -in "backend", "browser", "desktop", "all"
 $startFrontend = $Mode -in "frontend", "browser", "desktop", "all"

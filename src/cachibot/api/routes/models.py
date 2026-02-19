@@ -16,7 +16,12 @@ from cachibot.models.auth import User
 logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
 
-ENV_PATH = Path.cwd() / ".env"
+
+def _get_env_path() -> Path:
+    """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
+    ws = os.environ.get("CACHIBOT_WORKSPACE")
+    return Path(ws) / ".env" if ws else Path.cwd() / ".env"
+
 
 # Default model if none configured
 DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "moonshot/kimi-k2.5")
@@ -300,9 +305,10 @@ async def set_default_model(
         raise HTTPException(status_code=400, detail="Invalid model ID")
 
     # Update .env file
+    env_path = _get_env_path()
     content = ""
-    if ENV_PATH.exists():
-        content = ENV_PATH.read_text(encoding="utf-8")
+    if env_path.exists():
+        content = env_path.read_text(encoding="utf-8")
 
     pattern = re.compile(rf"^#?\s*{re.escape(key)}\s*=.*$", re.MULTILINE)
     replacement = f"{key}={value}"
@@ -314,7 +320,7 @@ async def set_default_model(
             content += "\n"
         content += f"{replacement}\n"
 
-    ENV_PATH.write_text(content, encoding="utf-8")
+    env_path.write_text(content, encoding="utf-8")
 
     # Update environment variable immediately
     os.environ[key] = value
