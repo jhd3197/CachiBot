@@ -137,8 +137,13 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  // Redirect to consent page if terms not yet accepted
-  if (telemetryStatus && !telemetryStatus.terms_accepted) {
+  // Redirect to consent page if terms not yet accepted or version outdated
+  const needsConsent = telemetryStatus && (
+    !telemetryStatus.terms_accepted ||
+    (telemetryStatus.latest_terms_version &&
+     telemetryStatus.terms_version !== telemetryStatus.latest_terms_version)
+  )
+  if (needsConsent) {
     return <Navigate to="/consent" state={{ from: location }} replace />
   }
 

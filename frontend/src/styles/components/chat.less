@@ -148,13 +148,17 @@
     height: 5rem;
     width: 5rem;
     border-radius: @radius-2xl;
+    box-shadow: 0 0 40px rgba(var(--accent-600-rgb, 22, 163, 74), 0.15);
   }
 
   &__title {
     margin-bottom: @sp-2;
     font-size: @text-2xl;
     font-weight: @font-bold;
-    color: var(--color-text-primary);
+    background: linear-gradient(135deg, var(--accent-500), var(--accent-600));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   &__description {
@@ -185,11 +189,13 @@
     font-size: @text-sm;
     color: var(--color-text-primary);
     cursor: pointer;
-    .transition-colors();
+    .transition-all();
 
     &:hover {
-      border-color: var(--color-border-secondary);
-      background: var(--color-hover-bg);
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-600) 5%, var(--color-bg-primary));
+      transform: translateY(-1px);
+      box-shadow: @shadow-sm;
     }
   }
 }
@@ -216,6 +222,7 @@
     width: 2.25rem;
     flex-shrink: 0;
     border-radius: @radius-full;
+    box-shadow: 0 0 0 2px var(--color-bg-app);
 
     &--user {
       color: white;
@@ -233,6 +240,7 @@
   &__content {
     display: flex;
     max-width: 80%;
+    min-width: 0;
     flex-direction: column;
     gap: @sp-1;
 
@@ -248,14 +256,20 @@
   &__bubble {
     border-radius: @radius-2xl;
     padding: @sp-3 @sp-4;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 
     &--user {
       color: white;
+      border-radius: @radius-2xl @radius-2xl @radius-lg @radius-2xl;
     }
 
     &--bot {
       background: var(--chat-bubble-bot-bg);
       color: var(--chat-bubble-bot-text);
+      border-radius: @radius-2xl @radius-2xl @radius-2xl @radius-lg;
+      border-left: 2px solid var(--accent-500);
     }
   }
 
@@ -272,6 +286,8 @@
     padding: @sp-3;
     font-size: @text-xs;
     color: @zinc-100;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   &__inline-code {
@@ -291,10 +307,11 @@
     align-items: center;
     gap: @sp-2;
     opacity: 0;
-    .transition-colors();
+    transition: opacity 200ms ease 100ms;
 
     .chat-message:hover & {
       opacity: 1;
+      transition-delay: 0ms;
     }
   }
 
@@ -535,7 +552,8 @@
   }
 
   &:focus-within {
-    border-color: var(--color-border-focus);
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 3px rgba(var(--accent-600-rgb, 22, 163, 74), 0.1), @shadow-lg;
   }
 }
 
@@ -699,6 +717,7 @@
   border-radius: @radius-xl;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
+  min-width: 0;
 
   &__header {
     display: flex;
@@ -710,16 +729,20 @@
     background: none;
     border: none;
     cursor: pointer;
+    min-width: 0;
   }
 
   &__name {
     flex: 1;
+    min-width: 0;
+    .truncate();
     font-family: @font-mono;
     font-size: @text-sm;
     color: var(--color-text-primary);
   }
 
   &__model {
+    flex-shrink: 0;
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
     padding: @sp-0\.5 @sp-2;
@@ -732,6 +755,7 @@
     border-top: 1px solid var(--color-border-primary);
     background: color-mix(in srgb, var(--color-bg-app) 50%, transparent);
     padding: @sp-4;
+    min-width: 0;
   }
 
   &__code {
@@ -743,6 +767,8 @@
     font-family: @font-mono;
     font-size: @text-xs;
     color: var(--color-text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
@@ -754,6 +780,7 @@
   border-radius: @radius-lg;
   border: 1px solid var(--color-border-secondary);
   background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  min-width: 0;
 
   &__header {
     display: flex;
@@ -766,16 +793,19 @@
     background: none;
     border: none;
     cursor: pointer;
+    min-width: 0;
   }
 
   &__name {
     flex: 1;
+    min-width: 0;
     font-family: @font-mono;
     color: var(--color-text-primary);
     .truncate();
   }
 
   &__model {
+    flex-shrink: 0;
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
     padding: @sp-0\.5 @sp-1\.5;
@@ -788,6 +818,7 @@
   &__body {
     border-top: 1px solid var(--color-border-secondary);
     padding: @sp-2 @sp-3;
+    min-width: 0;
   }
 
   &__code {
@@ -799,6 +830,8 @@
     font-family: @font-mono;
     font-size: @text-xs;
     color: var(--color-text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 

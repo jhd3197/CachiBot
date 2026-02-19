@@ -159,6 +159,21 @@ function NavButton({ icon: Icon, label, active, onClick }: NavButtonProps) {
 }
 
 // =============================================================================
+// HELPERS
+// =============================================================================
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
+// =============================================================================
 // CHAT LIST
 // =============================================================================
 
@@ -184,12 +199,12 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
   // Get the appropriate icon for the chat
   const getChatIcon = (chat: Chat) => {
     if (chat.platform === 'telegram') {
-      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--telegram mt-0.5 h-4 w-4 flex-shrink-0" />
+      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--telegram" size={16} />
     }
     if (chat.platform === 'discord') {
-      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--discord mt-0.5 h-4 w-4 flex-shrink-0" />
+      return <MessageCircle className="sidebar-chat-item__icon sidebar-chat-item__icon--discord" size={16} />
     }
-    return <MessageSquare className="sidebar-chat-item__icon sidebar-chat-item__icon--default mt-0.5 h-4 w-4 flex-shrink-0" />
+    return <MessageSquare className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
   }
 
   const handleNewChat = () => {
@@ -237,7 +252,7 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
       {/* Search and new chat */}
       <div className="sidebar-search">
         <div className="sidebar-search__wrap">
-          <Search className="sidebar-search__icon h-4 w-4" />
+          <Search className="sidebar-search__icon" />
           <input
             type="text"
             placeholder="Search chats..."
@@ -273,19 +288,18 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                 >
                   {getChatIcon(chat)}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{chat.title}</span>
-                      {chat.pinned && (
-                        <Pin className="h-3 w-3 flex-shrink-0 text-cachi-500" />
-                      )}
+                    <div className="sidebar-chat-item__title-row">
+                      <span className="sidebar-chat-item__name">{chat.title}</span>
+                      {chat.pinned && <Pin className="sidebar-chat-item__pin" size={12} />}
                       {chat.platform && (
                         <span className="sidebar-chat-item__platform-badge">
                           {chat.platform}
                         </span>
                       )}
+                      <span className="sidebar-chat-item__time">{formatRelativeTime(chat.updatedAt)}</span>
                     </div>
                     {chat.lastMessage && (
-                      <p className="truncate text-xs text-[var(--color-text-secondary)]">{chat.lastMessage}</p>
+                      <p className="sidebar-chat-item__preview">{chat.lastMessage}</p>
                     )}
                   </div>
                 </button>
@@ -297,11 +311,11 @@ function ChatList({ botId, collapsed, onNavigate }: { botId: string; collapsed: 
                     setMenuOpen(menuOpen === chat.id ? null : chat.id)
                   }}
                   className={cn(
-                    'absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded text-[var(--color-text-secondary)] opacity-0 transition-opacity hover:bg-zinc-200 group-hover:opacity-100 dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-hover-bg)]',
-                    menuOpen === chat.id && 'opacity-100'
+                    'sidebar-chat-item__menu-btn',
+                    menuOpen === chat.id && 'sidebar-chat-item__menu-btn--open'
                   )}
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal size={14} />
                 </button>
 
                 {/* Context menu */}
@@ -447,7 +461,7 @@ function RoomList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
       {/* Search and new room */}
       <div className="sidebar-search">
         <div className="sidebar-search__wrap">
-          <Search className="sidebar-search__icon h-4 w-4" />
+          <Search className="sidebar-search__icon" />
           <input
             type="text"
             placeholder="Search rooms..."

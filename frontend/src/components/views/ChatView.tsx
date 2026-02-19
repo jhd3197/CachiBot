@@ -39,6 +39,15 @@ import type { ChatMessage, ToolCall, BotIcon, BotModels, Chat, Bot } from '../..
 // BOT CREATION HELPERS
 // =============================================================================
 
+/** Darken a hex color by a percentage (0-100). */
+function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent))
+  const g = Math.max(0, ((num >> 8) & 0x00ff) - Math.round(2.55 * percent))
+  const b = Math.max(0, (num & 0x0000ff) - Math.round(2.55 * percent))
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
+}
+
 const BOT_ICONS: BotIcon[] = ['bot', 'brain', 'zap', 'sparkles', 'rocket', 'star', 'gem', 'flame']
 const BOT_COLORS: string[] = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#06b6d4']
 
@@ -1185,7 +1194,7 @@ function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageB
             'chat-message__bubble',
             isUser ? 'chat-message__bubble--user' : 'chat-message__bubble--bot'
           )}
-          style={isUser ? { backgroundColor: userColor } : undefined}
+          style={isUser ? { background: `linear-gradient(135deg, ${userColor}, ${darkenColor(userColor, 15)})` } : undefined}
         >
           {isUser ? (
             <div className="whitespace-pre-wrap">{displayContent}</div>

@@ -7,12 +7,14 @@ import { useTelemetryStore } from '../../stores/telemetry'
 import { acceptConsent } from '../../api/telemetry'
 import { Button } from '../common/Button'
 
-const TERMS_VERSION = '1.0'
-
 export function ConsentPage() {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
   const { status, refresh } = useTelemetryStore()
+
+  const termsVersion = status?.latest_terms_version || '1.0'
+  const isUpdate = !!(status?.terms_accepted && status.latest_terms_version &&
+    status.terms_version !== status.latest_terms_version)
 
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [telemetryEnabled, setTelemetryEnabled] = useState(false)
@@ -29,12 +31,12 @@ export function ConsentPage() {
     refresh().then(() => setLoading(false)).catch(() => setLoading(false))
   }, [isAuthenticated, navigate, refresh])
 
-  // If terms already accepted, redirect to dashboard
+  // If terms already accepted and version matches, redirect to dashboard
   useEffect(() => {
-    if (status?.terms_accepted) {
+    if (status?.terms_accepted && !isUpdate) {
       navigate('/', { replace: true })
     }
-  }, [status, navigate])
+  }, [status, isUpdate, navigate])
 
   const handleContinue = async () => {
     if (!termsAccepted) {
@@ -46,11 +48,11 @@ export function ConsentPage() {
     try {
       await acceptConsent({
         terms_accepted: true,
-        terms_version: TERMS_VERSION,
+        terms_version: termsVersion,
         telemetry_enabled: telemetryEnabled,
       })
       await refresh()
-      toast.success('Welcome to CachiBot!')
+      toast.success(isUpdate ? 'Terms accepted — thank you!' : 'Welcome to CachiBot!')
       navigate('/', { replace: true })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save consent'
@@ -76,8 +78,8 @@ export function ConsentPage() {
           <div className="consent__logo-icon">
             <Shield size={32} style={{ color: 'white' }} />
           </div>
-          <h1 className="consent__title">Welcome to CachiBot</h1>
-          <p className="consent__subtitle">Just a few things before we get started</p>
+          <h1 className="consent__title">{isUpdate ? 'Updated Terms of Service' : 'Welcome to CachiBot'}</h1>
+          <p className="consent__subtitle">{isUpdate ? 'Our terms have been updated — please review and accept to continue' : 'Just a few things before we get started'}</p>
         </div>
 
         {/* Consent Card */}
