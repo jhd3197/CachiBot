@@ -6,6 +6,7 @@ Includes models for bot-scoped messages, custom instructions, documents, and chu
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +28,7 @@ class BotMessage(BaseModel):
     role: str  # 'user' | 'assistant' | 'system'
     content: str
     timestamp: datetime
-    metadata: dict = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     reply_to_id: str | None = None
 
 

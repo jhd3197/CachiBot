@@ -3,6 +3,7 @@
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -80,7 +81,7 @@ async def telemetry_status(
 @router.get("/telemetry/preview")
 async def telemetry_preview(
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """Preview the exact telemetry payload that would be sent."""
     from cachibot.telemetry.collector import collect_telemetry
 

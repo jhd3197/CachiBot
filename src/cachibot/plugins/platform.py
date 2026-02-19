@@ -66,7 +66,7 @@ class PlatformPlugin(CachibotPlugin):
             def _make_skill(
                 p_name: str, p_display: str, s_name: str, c_param: str, c_param_desc: str
             ) -> Skill:
-                @skill(
+                @skill(  # type: ignore[untyped-decorator]
                     name=s_name,
                     description=f"Send a message to a {p_display} chat. "
                     f"This tool sends a message through the bot's connected {p_display} account.",
@@ -99,9 +99,7 @@ class PlatformPlugin(CachibotPlugin):
                         annotation=str,
                     ),
                 ]
-                platform_send.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
-                    params, return_annotation=str
-                )
+                platform_send.__signature__ = inspect.Signature(params, return_annotation=str)
                 platform_send.__doc__ = (
                     f"Send a message to a {p_display} chat.\n\n"
                     f"Args:\n"
@@ -111,7 +109,7 @@ class PlatformPlugin(CachibotPlugin):
                     f"    Success or error message"
                 )
 
-                return platform_send.__skill__  # type: ignore[attr-defined]
+                return platform_send.__skill__
 
             skills[skill_name] = _make_skill(
                 platform_name, display, skill_name, chat_param, chat_param_desc

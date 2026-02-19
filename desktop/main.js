@@ -185,6 +185,24 @@ function isPortInUse(port) {
   });
 }
 
+function killProcessOnPort(port) {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      // Find PID listening on the port, then taskkill it
+      execFile('cmd', ['/c', `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port} ^| findstr LISTENING') do taskkill /F /PID %a`], { shell: true }, (err) => {
+        if (err) console.warn('[electron] Failed to kill process on port:', err.message);
+        resolve();
+      });
+    } else {
+      // Unix: use fuser or lsof
+      execFile('sh', ['-c', `lsof -ti :${port} | xargs kill -9 2>/dev/null || fuser -k ${port}/tcp 2>/dev/null`], (err) => {
+        if (err) console.warn('[electron] Failed to kill process on port:', err.message);
+        resolve();
+      });
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Window creation
 // ---------------------------------------------------------------------------
@@ -624,15 +642,10 @@ app.whenReady().then(async () => {
   } else {
     const portInUse = await isPortInUse(BACKEND_PORT);
     if (portInUse) {
-      splash.close();
-      dialog.showErrorBox(
-        'Port Conflict',
-        `Port ${BACKEND_PORT} is already in use by another process.\n\n` +
-        'This usually means another instance of CachiBot (or its backend) is already running.\n\n' +
-        'Please close the other instance and try again.'
-      );
-      app.quit();
-      return;
+      console.log(`[electron] Port ${BACKEND_PORT} in use, killing existing process...`);
+      await killProcessOnPort(BACKEND_PORT);
+      // Give the OS a moment to release the port
+      await new Promise((r) => setTimeout(r, 500));
     }
 
     startBackend();

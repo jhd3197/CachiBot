@@ -9,7 +9,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from cachibot.models.work import ScheduleType, TodoStatus
+from cachibot.models.work import Schedule, ScheduleType, TodoStatus
 from cachibot.storage.work_repository import ScheduleRepository, TodoRepository
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class SchedulerService:
     """Background service that fires due schedules and reminders."""
 
     def __init__(self) -> None:
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._running = False
         self._schedule_repo = ScheduleRepository()
         self._todo_repo = TodoRepository()
@@ -75,7 +75,7 @@ class SchedulerService:
             except Exception:
                 logger.exception("Error firing schedule %s", schedule.id)
 
-    async def _fire_schedule(self, schedule) -> None:
+    async def _fire_schedule(self, schedule: Schedule) -> None:
         """Execute a single due schedule."""
         params = schedule.function_params or {}
         message = params.get("message") or schedule.description or schedule.name

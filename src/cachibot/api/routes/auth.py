@@ -325,7 +325,7 @@ async def get_current_user_info(user: User = Depends(get_current_user)) -> User:
 async def change_password(
     request: ChangePasswordRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, str]:
     """Change the current user's password."""
     repo = UserRepository()
     auth_service = get_auth_service()
@@ -495,7 +495,7 @@ async def update_user(
 async def deactivate_user(
     user_id: str,
     admin: User = Depends(get_admin_user),
-) -> dict:
+) -> dict[str, str]:
     """Deactivate a user (admin only). Does not delete data."""
     repo = UserRepository()
 

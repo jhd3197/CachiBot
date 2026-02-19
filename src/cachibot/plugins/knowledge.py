@@ -33,7 +33,7 @@ class KnowledgePlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="kb_search",
             description="Search your knowledge base for relevant information. "
             "Searches both uploaded documents (via vector similarity) and saved notes "
@@ -106,7 +106,7 @@ class KnowledgePlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error searching knowledge base: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="kb_list",
             description="List all documents and notes in your knowledge base. "
             "Shows document names, statuses, note counts, and overall stats. "

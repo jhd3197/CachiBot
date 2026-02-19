@@ -20,7 +20,7 @@ class TaskPlugin(CachibotPlugin):
         return PluginManifest(name="task", display_name="Task", icon="check-circle", group="Core")
 
     def _build_skills(self) -> dict[str, Skill]:
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="task_complete",
             description="Signal that the current task is complete. "
             "Call this when you have finished helping the user with their request.",

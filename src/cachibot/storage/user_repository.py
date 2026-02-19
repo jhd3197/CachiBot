@@ -6,6 +6,7 @@ Migrated from raw aiosqlite queries to PostgreSQL via SQLAlchemy 2.0.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select, update
 
@@ -126,7 +127,7 @@ class UserRepository:
         is_active: bool | None = None,
     ) -> bool:
         """Update user fields. Returns True if user was found and updated."""
-        values: dict = {}
+        values: dict[str, Any] = {}
 
         if email is not None:
             values["email"] = email.lower()
@@ -145,7 +146,7 @@ class UserRepository:
                 update(UserModel).where(UserModel.id == user_id).values(**values)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def update_password(self, user_id: str, password_hash: str) -> bool:
         """Update user password. Returns True if user was found and updated."""
@@ -154,7 +155,7 @@ class UserRepository:
                 update(UserModel).where(UserModel.id == user_id).values(password_hash=password_hash)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def update_last_login(self, user_id: str) -> None:
         """Update user's last login timestamp."""
@@ -212,7 +213,7 @@ class UserRepository:
         credit_balance: float | None = None,
     ) -> bool:
         """Update website-synced fields. Returns True if user was found and updated."""
-        values: dict = {}
+        values: dict[str, Any] = {}
 
         if website_user_id is not None:
             values["website_user_id"] = website_user_id
@@ -229,7 +230,7 @@ class UserRepository:
                 update(UserModel).where(UserModel.id == user_id).values(**values)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     def _row_to_user(self, row: UserModel) -> UserInDB:
         """Convert a database row to UserInDB object."""
@@ -303,7 +304,7 @@ class OwnershipRepository:
                 .values(user_id=new_owner_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def delete_bot_ownership(self, bot_id: str) -> bool:
         """Delete ownership record for a bot. Returns True if record was found."""
@@ -312,7 +313,7 @@ class OwnershipRepository:
                 delete(BotOwnershipModel).where(BotOwnershipModel.bot_id == bot_id)
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_ownership(self, bot_id: str) -> BotOwnership | None:
         """Get the ownership record for a bot."""

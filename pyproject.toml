@@ -117,6 +117,21 @@ ignore = ["N815"]
 python_version = "3.10"
 strict = true
 
+[[tool.mypy.overrides]]
+module = [
+    "tukuy.*",
+    "botbuilder.*",
+    "pgvector.*",
+    "pymupdf",
+    "prompture.model_rates",
+    "prompture.skills",
+    "tomllib",
+    "croniter",
+    "yaml",
+    "aiofiles",
+]
+ignore_missing_imports = true
+
 [tool.bandit]
 targets = ["src/cachibot"]
 exclude_dirs = ["tests"]

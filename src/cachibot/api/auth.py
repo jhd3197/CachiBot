@@ -7,6 +7,9 @@ tokens via /auth/exchange. After that, all auth uses V2-native tokens only.
 The website's main JWT secret is never shared with V2.
 """
 
+from collections.abc import Callable
+from typing import Any
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -181,7 +184,7 @@ async def require_bot_access(
     )
 
 
-def require_bot_access_level(min_level: BotAccessLevel):
+def require_bot_access_level(min_level: BotAccessLevel) -> Callable[..., Any]:
     """Factory that returns a dependency checking the user has at least min_level access.
 
     Admin and bot owner always pass. Group members need effective level >= min_level.
@@ -214,7 +217,7 @@ def require_bot_access_level(min_level: BotAccessLevel):
     return _check
 
 
-def verify_token_from_query(token: str) -> dict | None:
+def verify_token_from_query(token: str) -> dict[str, Any] | None:
     """
     Verify a V2-native JWT token from query parameter (for WebSocket).
 

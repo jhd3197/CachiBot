@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _MAX_WS_TOOL_RESULT = 2000
 
 
-def _extract_tool_calls_from_steps(steps: list) -> list[dict[str, Any]]:
+def _extract_tool_calls_from_steps(steps: list[Any]) -> list[dict[str, Any]]:
     """Convert AgentResult steps into ToolCall dicts for the frontend.
 
     Pairs tool_call steps with their subsequent tool_result steps
@@ -85,7 +85,7 @@ async def _transcribe_audio(audio: IncomingMedia) -> str:
 
     stt = get_async_stt_driver_for_model("openai/whisper-1")
     result = await stt.transcribe(audio.data, {"filename": audio.filename})
-    return result.get("text", "")
+    return result.get("text", "")  # type: ignore[no-any-return]
 
 
 def _extract_pdf_text(pdf: IncomingMedia) -> str:
@@ -171,7 +171,7 @@ async def _process_attachments(
 class MessageProcessor:
     """Processes incoming platform messages through the bot's agent."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._bot_repo = BotRepository()
         self._chat_repo = ChatRepository()
         self._knowledge_repo = KnowledgeRepository()
@@ -185,7 +185,7 @@ class MessageProcessor:
         content: str,
         message_id: str,
         platform: str,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Broadcast a platform message to all connected WebSocket clients."""
         try:
@@ -212,7 +212,7 @@ class MessageProcessor:
         bot_id: str,
         platform_chat_id: str,
         message: str,
-        metadata: dict,
+        metadata: dict[str, Any],
     ) -> PlatformResponse:
         """
         Process an incoming message from a platform.
@@ -333,7 +333,7 @@ class MessageProcessor:
         # Resolve per-bot environment (keys, temperature, etc.)
         resolved_env = None
         per_bot_driver = None
-        merged_tool_configs: dict = {}
+        merged_tool_configs: dict[str, Any] = {}
         try:
             from cachibot.services.bot_environment import BotEnvironmentService
             from cachibot.services.driver_factory import build_driver_with_key
@@ -354,7 +354,7 @@ class MessageProcessor:
                 if provider_value:
                     from cachibot.api.routes.providers import PROVIDERS
 
-                    provider_info = PROVIDERS.get(provider, {})
+                    provider_info: dict[str, Any] = PROVIDERS.get(provider, {})
                     if provider_info.get("type") == "endpoint":
                         per_bot_driver = build_driver_with_key(
                             effective_model, endpoint=provider_value

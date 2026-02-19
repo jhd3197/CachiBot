@@ -7,6 +7,7 @@ via Prompture's built-in driver registry.
 """
 
 import logging
+from typing import Any
 
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
@@ -36,7 +37,7 @@ class ImageGenerationPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="generate_image",
             description="Generate an image from a text prompt. "
             "Supports OpenAI DALL-E 3, Google Imagen 3, Stability AI, and Grok/xAI Aurora. "
@@ -169,7 +170,7 @@ class ImageGenerationPlugin(CachibotPlugin):
                 return f"Error: Failed to initialize image driver for '{model}': {exc}"
 
             # Build options — each driver takes what it supports and ignores the rest
-            options: dict = {
+            options: dict[str, Any] = {
                 "size": effective_size,
                 "quality": effective_quality,
                 "style": effective_style,

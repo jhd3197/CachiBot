@@ -6,6 +6,7 @@ Global execution log endpoints for admin users.
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
@@ -60,7 +61,7 @@ async def admin_list_executions(
 async def admin_error_spotlight(
     days: int = 7,
     user: User = Depends(get_admin_user),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Error spotlight: errors grouped by type (admin only)."""
     rows = await exec_log_repo.get_error_spotlight(days=days)
     return [
@@ -79,7 +80,7 @@ async def admin_cost_analysis(
     days: int = 30,
     limit: int = 20,
     user: User = Depends(get_admin_user),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Cost analysis: ranked by credits consumed (admin only)."""
     rows = await exec_log_repo.get_cost_analysis(days=days, limit=limit)
     return [
@@ -98,7 +99,7 @@ async def admin_cost_analysis(
 async def admin_global_stats(
     period: str = "24h",
     user: User = Depends(get_admin_user),
-) -> dict:
+) -> dict[str, Any]:
     """Global execution stats (admin only)."""
     if period not in ("24h", "7d", "30d"):
         raise HTTPException(status_code=422, detail="period must be 24h, 7d, or 30d")
@@ -126,7 +127,7 @@ async def admin_running_executions(
 async def admin_cancel_execution(
     exec_id: str,
     user: User = Depends(get_admin_user),
-) -> dict:
+) -> dict[str, Any]:
     """Admin kill switch for a running execution."""
     log = await exec_log_repo.get(exec_id)
     if not log:
@@ -176,7 +177,7 @@ async def admin_export_csv(
 @router.post("/executions/cancel-all")
 async def admin_cancel_all(
     user: User = Depends(get_admin_user),
-) -> dict:
+) -> dict[str, Any]:
     """Emergency: cancel ALL running executions (admin only)."""
     running = await exec_log_repo.get_running()
     cancelled_count = 0

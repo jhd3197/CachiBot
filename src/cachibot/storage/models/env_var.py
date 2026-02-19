@@ -11,6 +11,7 @@ Four tables supporting the per-bot environment system:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
@@ -114,4 +115,4 @@ class EnvAuditLog(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     ip_address: Mapped[str | None] = mapped_column(String, nullable=True)
-    details: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    details: Mapped[dict[str, Any]] = mapped_column(sa.JSON, nullable=False, server_default="{}")

@@ -61,7 +61,7 @@ async def _audit_log(
     bot_id: str | None = None,
     user_id: str | None = None,
     ip_address: str | None = None,
-    details: dict | None = None,
+    details: dict[str, object] | None = None,
 ) -> None:
     """Write an entry to the env_audit_log table."""
     try:
@@ -125,7 +125,7 @@ class EnvVarSetRequest(BaseModel):
 
 
 class SkillConfigSetRequest(BaseModel):
-    config: dict
+    config: dict[str, object]
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ async def set_bot_env_var(
     body: EnvVarSetRequest,
     request: Request,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> dict[str, object]:
     """Set or update a per-bot environment variable."""
     enc = get_encryption_service()
     ct, nonce, salt = enc.encrypt_value(body.value, bot_id)
@@ -242,7 +242,7 @@ async def delete_bot_env_var(
             )
         )
         await session.commit()
-        deleted = result.rowcount > 0
+        deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Environment variable not found")
@@ -311,10 +311,10 @@ async def get_resolved_env(
 
     for row in skill_rows:
         try:
-            config = json.loads(row.config_json)
+            config = json.loads(row.config_json)  # type: ignore[attr-defined]
         except Exception:
             config = {}
-        skill_configs[row.skill_name] = {
+        skill_configs[row.skill_name] = {  # type: ignore[attr-defined]
             k: ResolvedVarResponse(value=v, source="bot") for k, v in config.items()
         }
 
@@ -331,7 +331,7 @@ async def reset_bot_env(
     bot_id: str,
     request: Request,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> dict[str, object]:
     """Delete ALL per-bot environment overrides (reset to defaults)."""
     async with db.ensure_initialized()() as session:
         # Delete all env vars
@@ -343,7 +343,7 @@ async def reset_bot_env(
             sa_delete(BotSkillConfig).where(BotSkillConfig.bot_id == bot_id)
         )
         await session.commit()
-        total = env_result.rowcount + skill_result.rowcount
+        total = env_result.rowcount + skill_result.rowcount  # type: ignore[attr-defined]
 
     await _audit_log(
         action="reset_all",
@@ -401,7 +401,7 @@ async def set_platform_env_var(
     body: EnvVarSetRequest,
     request: Request,
     user: User = Depends(get_admin_user),
-) -> dict:
+) -> dict[str, object]:
     """Set or update a platform environment variable default (admin only)."""
     enc = get_encryption_service()
     ct, nonce, salt = enc.encrypt_value(body.value)
@@ -468,7 +468,7 @@ async def delete_platform_env_var(
             )
         )
         await session.commit()
-        deleted = result.rowcount > 0
+        deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Platform env var not found")
@@ -495,7 +495,7 @@ async def get_skill_config(
     bot_id: str,
     skill_name: str,
     user: User = Depends(require_bot_access),
-) -> dict:
+) -> dict[str, object]:
     """Get skill configuration for a bot."""
     async with db.ensure_initialized()() as session:
         result = await session.execute(
@@ -524,7 +524,7 @@ async def set_skill_config(
     body: SkillConfigSetRequest,
     request: Request,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> dict[str, object]:
     """Set skill configuration for a bot."""
     config_json = json.dumps(body.config)
     now = datetime.now(timezone.utc)
@@ -574,7 +574,7 @@ async def delete_skill_config(
     skill_name: str,
     request: Request,
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
-) -> dict:
+) -> dict[str, object]:
     """Delete skill configuration for a bot (revert to defaults)."""
     async with db.ensure_initialized()() as session:
         result = await session.execute(
@@ -584,7 +584,7 @@ async def delete_skill_config(
             )
         )
         await session.commit()
-        deleted = result.rowcount > 0
+        deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Skill config not found")

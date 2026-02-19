@@ -26,7 +26,7 @@ class CreditGuard:
             from cachibot.storage.user_repository import UserRepository
 
             user_repo = UserRepository()
-            user = await user_repo.get(user_id)
+            user = await user_repo.get_user_by_id(user_id)
             if not user:
                 # If user not found, allow (self-hosted without user system)
                 return True
@@ -61,7 +61,7 @@ class CreditGuard:
             from cachibot.storage.user_repository import UserRepository
 
             user_repo = UserRepository()
-            user = await user_repo.get(user_id)
+            user = await user_repo.get_user_by_id(user_id)
             if not user:
                 return
 

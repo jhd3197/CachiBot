@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -146,12 +147,11 @@ async def _create_postgres_tables_raw(url: str) -> None:
     the migration script, making it suitable for the CLI.
     """
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     url = _fix_postgres_url(url)
     engine = create_async_engine(url, echo=False, pool_pre_ping=True)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Table DDL statements (matching the migration script)
     table_ddl = [
@@ -1432,11 +1432,10 @@ async def _run_migration(
     Returns list of (table_name, rows_migrated, error_or_none, elapsed).
     """
     import aiosqlite
-    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     engine = create_async_engine(postgres_url, echo=False, pool_size=5, max_overflow=10)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     results: list[tuple[str, int, str | None, float]] = []
 
@@ -1495,7 +1494,7 @@ async def _run_migration(
     return results
 
 
-async def _create_tables_in_session(session) -> None:
+async def _create_tables_in_session(session: Any) -> None:
     """Create all tables using the session (reuses _create_postgres_tables_raw logic)."""
     from sqlalchemy import text
 
@@ -1687,13 +1686,13 @@ async def _create_tables_in_session(session) -> None:
 
 
 async def _migrate_single_table(
-    sqlite_db,
-    async_session_factory,
+    sqlite_db: Any,
+    async_session_factory: Any,
     table_name: str,
     expected_columns: list[str],
     pk_columns: list[str],
-    progress,
-    task_id,
+    progress: Any,
+    task_id: Any,
 ) -> int:
     """Migrate a single table from SQLite to PostgreSQL with progress updates."""
     from sqlalchemy import text
@@ -1861,11 +1860,11 @@ def _show_postgres_status(database_url: str) -> None:
     console.print(tree)
 
 
-async def _get_sqlite_stats(sqlite_path: Path) -> dict:
+async def _get_sqlite_stats(sqlite_path: Path) -> dict[str, Any]:
     """Get statistics from a SQLite database."""
     import aiosqlite
 
-    stats: dict = {"table_count": 0, "key_stats": []}
+    stats: dict[str, Any] = {"table_count": 0, "key_stats": []}
 
     async with aiosqlite.connect(str(sqlite_path)) as db:
         # Count tables
@@ -1891,14 +1890,14 @@ async def _get_sqlite_stats(sqlite_path: Path) -> dict:
     return stats
 
 
-async def _get_postgres_stats(database_url: str) -> dict:
+async def _get_postgres_stats(database_url: str) -> dict[str, Any]:
     """Get statistics from a PostgreSQL database."""
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import create_async_engine
 
     engine = create_async_engine(database_url, echo=False, pool_pre_ping=True)
 
-    stats: dict = {
+    stats: dict[str, Any] = {
         "table_count": 0,
         "size": None,
         "pool_info": None,
@@ -1939,7 +1938,7 @@ async def _get_postgres_stats(database_url: str) -> dict:
             # Pool info
             pool = engine.pool
             stats["pool_info"] = (
-                f"{pool.checkedin()}/{pool.size()} "  # type: ignore[union-attr]
+                f"{pool.checkedin()}/{pool.size()} "  # type: ignore[attr-defined]
                 f"(available/pool_size)"
             )
     finally:

@@ -5,6 +5,7 @@ Work management models: Function, Schedule, Work, Task, WorkJob, Todo.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -41,9 +42,13 @@ class Function(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     version: Mapped[str] = mapped_column(String, nullable=False, server_default="1.0.0")
-    steps: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
-    parameters: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    steps: Mapped[list[dict[str, Any]]] = mapped_column(
+        sa.JSON, nullable=False, server_default="[]"
+    )
+    parameters: Mapped[list[dict[str, Any]]] = mapped_column(
+        sa.JSON, nullable=False, server_default="[]"
+    )
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -88,7 +93,9 @@ class Schedule(Base):
         ForeignKey("functions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    function_params: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    function_params: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
     schedule_type: Mapped[str] = mapped_column(String, nullable=False, server_default="cron")
     cron_expression: Mapped[str | None] = mapped_column(String, nullable=True)
     interval_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -159,10 +166,10 @@ class Work(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    context: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    context: Mapped[dict[str, Any]] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Script execution tracking (automation system)
     script_id: Mapped[str | None] = mapped_column(
@@ -221,7 +228,7 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     action: Mapped[str | None] = mapped_column(Text, nullable=True)
     task_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    depends_on: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    depends_on: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="pending")
     priority: Mapped[str] = mapped_column(String, nullable=False, server_default="normal")
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -232,7 +239,7 @@ class Task(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -284,9 +291,9 @@ class WorkJob(Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    result: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    logs: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    logs: Mapped[list[dict[str, Any]]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Relationships
     task: Mapped[Task] = relationship("Task", back_populates="work_jobs")
@@ -329,7 +336,7 @@ class Todo(Base):
         ForeignKey("tasks.id", ondelete="SET NULL"),
         nullable=True,
     )
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Relationships
     converted_to_work: Mapped[Work | None] = relationship("Work", back_populates="converted_todos")

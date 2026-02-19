@@ -27,7 +27,7 @@ class AdapterRegistry:
     _adapters: dict[str, type[BasePlatformAdapter]] = {}
 
     @classmethod
-    def register(cls, platform_name: str) -> Callable:
+    def register(cls, platform_name: str) -> Callable[..., Any]:
         """Decorator to register an adapter class for a platform.
 
         Usage:

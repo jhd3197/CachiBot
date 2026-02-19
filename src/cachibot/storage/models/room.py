@@ -5,7 +5,7 @@ Multi-agent room models: Room, RoomMember, RoomBot, RoomMessage.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
@@ -34,7 +34,7 @@ class Room(Base):
         nullable=False,
     )
     max_bots: Mapped[int] = mapped_column(Integer, nullable=False, server_default="4")
-    settings: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
+    settings: Mapped[dict[str, Any]] = mapped_column(sa.JSON, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -129,7 +129,9 @@ class RoomMessage(Base):
     sender_id: Mapped[str] = mapped_column(String, nullable=False)
     sender_name: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    meta: Mapped[dict] = mapped_column("metadata", sa.JSON, nullable=False, server_default="{}")
+    meta: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", sa.JSON, nullable=False, server_default="{}"
+    )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

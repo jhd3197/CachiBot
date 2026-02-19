@@ -4,6 +4,8 @@ Chats API Routes
 Endpoints for managing bot chats, including platform conversations.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -29,7 +31,7 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     timestamp: str
-    metadata: dict
+    metadata: dict[str, Any]
     replyToId: str | None = None
 
     @classmethod

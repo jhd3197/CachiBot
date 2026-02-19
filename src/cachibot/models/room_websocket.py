@@ -72,7 +72,7 @@ class RoomWSMessage(BaseModel):
         bot_name: str,
         tool_id: str,
         tool_name: str,
-        args: dict,
+        args: dict[str, Any],
     ) -> "RoomWSMessage":
         """Create a bot tool start message."""
         return cls(

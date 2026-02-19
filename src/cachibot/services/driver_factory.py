@@ -43,7 +43,7 @@ def build_driver_with_key(
     model_str: str,
     api_key: str | None = None,
     **extra: Any,
-):
+) -> Any:
     """Build an async Prompture driver, optionally injecting an explicit API key.
 
     Args:

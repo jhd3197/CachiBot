@@ -117,7 +117,7 @@ class DocumentProcessor:
         """Extract text from DOCX using python-docx."""
         import docx
 
-        doc = docx.Document(file_path)
+        doc = docx.Document(str(file_path))
         parts: list[str] = []
 
         # Extract text from paragraphs

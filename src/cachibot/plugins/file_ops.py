@@ -38,7 +38,7 @@ class FileOpsPlugin(CachibotPlugin):
         ctx = self.ctx
         resolve = self._resolve_path
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="file_read",
             description="Read the contents of a file.",
             category="file",
@@ -62,11 +62,11 @@ class FileOpsPlugin(CachibotPlugin):
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
             try:
-                return ctx.sandbox.read_file(str(full_path))
+                return ctx.sandbox.read_file(str(full_path))  # type: ignore[no-any-return]
             except Exception as e:
                 return f"Error reading file: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="file_write",
             description="Write content to a file. Creates the file if it doesn't exist.",
             category="file",
@@ -97,7 +97,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error writing file: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="file_list",
             description="List files in a directory.",
             category="file",
@@ -144,7 +144,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing files: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="file_edit",
             description="Edit a file by replacing a specific string with new content.",
             category="file",
@@ -180,7 +180,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error editing file: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="file_info",
             description="Get metadata about a file (size, modified time, type).",
             category="file",

@@ -180,6 +180,8 @@ async def get_document(
     """Get a specific document."""
     repo = KnowledgeRepository()
     doc = await repo.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     require_bot_ownership(doc, bot_id, "Document")
 
     return _doc_to_response(doc)
@@ -196,6 +198,8 @@ async def delete_document(
 
     # Verify document exists and belongs to this bot
     doc = await repo.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     require_bot_ownership(doc, bot_id, "Document")
 
     # Delete from database (chunks cascade)

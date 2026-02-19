@@ -40,7 +40,7 @@ class SlackAdapter(BasePlatformAdapter):
         super().__init__(connection, on_message, on_status_change)
         self._app: Any = None
         self._socket_handler: Any = None
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
 
     @property
     def max_message_length(self) -> int:
@@ -74,8 +74,8 @@ class SlackAdapter(BasePlatformAdapter):
             self._app = AsyncApp(token=bot_token, signing_secret=signing_secret)
             adapter = self  # Capture self for closures
 
-            @self._app.event("message")
-            async def handle_message(event: dict, say: Any, client: Any) -> None:
+            @self._app.event("message")  # type: ignore[untyped-decorator]
+            async def handle_message(event: dict[str, Any], say: Any, client: Any) -> None:
                 """Handle incoming Slack messages."""
                 if not adapter.on_message:
                     return

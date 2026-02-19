@@ -7,6 +7,7 @@ Manages platform adapter lifecycle and message routing.
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
 from cachibot.models.platform import PlatformResponse
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # Type for bot message processor
-BotMessageProcessor = Callable[[str, str, str, dict], Awaitable[PlatformResponse]]
+BotMessageProcessor = Callable[[str, str, str, dict[str, Any]], Awaitable[PlatformResponse]]
 # Args: bot_id, chat_id, message, metadata
 # Returns: PlatformResponse with text and optional media
 
@@ -32,13 +33,13 @@ class PlatformManager:
     and routes messages to the appropriate bots.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._adapters: dict[str, BasePlatformAdapter] = {}
         self._repo = ConnectionRepository()
         self._message_processor: BotMessageProcessor | None = None
         self._locks: dict[str, asyncio.Lock] = {}
         self._locks_lock = asyncio.Lock()
-        self._health_task: asyncio.Task | None = None
+        self._health_task: asyncio.Task[None] | None = None
 
     def set_message_processor(self, processor: BotMessageProcessor) -> None:
         """Set the callback for processing incoming messages."""
@@ -92,7 +93,7 @@ class PlatformManager:
         connection_id: str,
         chat_id: str,
         message: str,
-        metadata: dict,
+        metadata: dict[str, Any],
     ) -> PlatformResponse:
         """Handle an incoming message from any platform."""
         # Get connection to find bot_id

@@ -4,6 +4,7 @@ Repository for custom instructions — CRUD, versioning, and rollback.
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select, update
 
@@ -21,7 +22,7 @@ class InstructionRepository:
 
     async def create(
         self,
-        data: dict,
+        data: dict[str, Any],
         bot_id: str,
         author: str,
     ) -> InstructionModel:
@@ -118,7 +119,7 @@ class InstructionRepository:
     async def update(
         self,
         instruction_id: str,
-        changes: dict,
+        changes: dict[str, Any],
         author: str,
         commit_message: str | None = None,
     ) -> InstructionModel | None:
@@ -178,7 +179,7 @@ class InstructionRepository:
                 .values(is_active=False, updated_at=datetime.now(timezone.utc))
             )
             await session.commit()
-            return result.rowcount > 0
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     # ------------------------------------------------------------------
     # Versions
@@ -215,10 +216,10 @@ class InstructionRepository:
                 return None
 
             # Load current record
-            result = await session.execute(
+            result2 = await session.execute(
                 select(InstructionRecord).where(InstructionRecord.id == instruction_id)
             )
-            record = result.scalar_one_or_none()
+            record: InstructionRecord | None = result2.scalar_one_or_none()
             if not record:
                 return None
 

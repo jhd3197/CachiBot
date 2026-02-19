@@ -6,6 +6,7 @@ including versioning, testing, and rollback.
 """
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -51,7 +52,7 @@ class InstructionResponse(BaseModel):
     temperature: float | None
     maxTokens: int | None
     inputVariables: list[str]
-    fewShotExamples: list[dict] | None
+    fewShotExamples: list[dict[str, Any]] | None
     version: int
     isActive: bool
     category: str
@@ -98,7 +99,7 @@ class InstructionVersionResponse(BaseModel):
     temperature: float | None
     maxTokens: int | None
     inputVariables: list[str]
-    fewShotExamples: list[dict] | None
+    fewShotExamples: list[dict[str, Any]] | None
     author: str
     commitMessage: str | None
     createdAt: str
@@ -152,6 +153,8 @@ async def get_custom_instruction(
 ) -> InstructionResponse:
     """Get a custom instruction by ID."""
     record = await repo.get(instruction_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Instruction not found")
     require_bot_ownership(record, bot_id, "Instruction")
     return InstructionResponse.from_model(record)
 
@@ -209,12 +212,14 @@ async def test_custom_instruction(
     instruction_id: str,
     body: TestInstructionRequest,
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
-) -> dict:
+) -> dict[str, Any]:
     """Test a custom instruction with sample input."""
     from tukuy import SkillContext
     from tukuy.instruction import Instruction, InstructionDescriptor
 
     record = await repo.get(instruction_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Instruction not found")
     require_bot_ownership(record, bot_id, "Instruction")
 
     # Build the instruction
@@ -276,6 +281,8 @@ async def list_versions(
 ) -> list[InstructionVersionResponse]:
     """List version history for an instruction."""
     record = await repo.get(instruction_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Instruction not found")
     require_bot_ownership(record, bot_id, "Instruction")
 
     versions = await repo.get_versions(instruction_id)
