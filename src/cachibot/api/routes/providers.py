@@ -57,7 +57,10 @@ PROVIDERS = {
     },
 }
 
-ENV_PATH = Path.cwd() / ".env"
+def _get_env_path() -> Path:
+    """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
+    ws = os.environ.get("CACHIBOT_WORKSPACE")
+    return Path(ws) / ".env" if ws else Path.cwd() / ".env"
 
 
 def _mask_value(value: str, provider_type: str) -> str:
@@ -71,14 +74,15 @@ def _mask_value(value: str, provider_type: str) -> str:
 
 def _read_env_file() -> str:
     """Read the .env file contents, return empty string if missing."""
-    if ENV_PATH.exists():
-        return ENV_PATH.read_text(encoding="utf-8")
+    env_path = _get_env_path()
+    if env_path.exists():
+        return env_path.read_text(encoding="utf-8")
     return ""
 
 
 def _write_env_file(content: str) -> None:
     """Write content to the .env file."""
-    ENV_PATH.write_text(content, encoding="utf-8")
+    _get_env_path().write_text(content, encoding="utf-8")
 
 
 def _set_env_value(key: str, value: str) -> None:

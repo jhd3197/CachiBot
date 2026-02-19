@@ -346,13 +346,23 @@ class MessageProcessor:
                 env_service = BotEnvironmentService(session, encryption)
                 resolved_env = await env_service.resolve(bot_id, platform=platform)
 
-            # Build a per-bot driver if we have a key for the effective provider
+            # Build a per-bot driver if we have a key/endpoint for the effective provider
             effective_model = agent_config.agent.model
             if effective_model and "/" in effective_model:
                 provider = effective_model.split("/", 1)[0].lower()
-                api_key = resolved_env.provider_keys.get(provider)
-                if api_key:
-                    per_bot_driver = build_driver_with_key(effective_model, api_key=api_key)
+                provider_value = resolved_env.provider_keys.get(provider)
+                if provider_value:
+                    from cachibot.api.routes.providers import PROVIDERS
+
+                    provider_info = PROVIDERS.get(provider, {})
+                    if provider_info.get("type") == "endpoint":
+                        per_bot_driver = build_driver_with_key(
+                            effective_model, endpoint=provider_value
+                        )
+                    else:
+                        per_bot_driver = build_driver_with_key(
+                            effective_model, api_key=provider_value
+                        )
 
             # Merge skill configs from resolved environment
             if resolved_env.skill_configs:
@@ -439,7 +449,7 @@ class MessageProcessor:
             return PlatformResponse(text=response_text, media=media_items)
 
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
+            logger.error("Error processing message for bot %s: %s", bot_id, e, exc_info=True)
             return PlatformResponse(text="Sorry, I encountered an error processing your message.")
 
 
