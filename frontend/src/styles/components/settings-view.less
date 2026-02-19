@@ -83,7 +83,12 @@
 // Settings Section — repeated section blocks
 // -----------------------------------------------------------------------------
 
-.settings-section {
+// Scoped under .settings-view to avoid collision with app-settings.less
+// which defines .settings-section as a bordered card.
+.settings-view .settings-section {
+  border: none;
+  border-radius: 0;
+  background: none;
   border-top: 1px solid var(--color-border-primary);
   padding-top: @sp-6;
 
@@ -633,9 +638,11 @@
 
 // -----------------------------------------------------------------------------
 // Confirmation Modal (delete / reset)
+// Scoped under .settings-view to avoid collision with app-settings.less
+// which defines .settings-modal with different panel size and button styles.
 // -----------------------------------------------------------------------------
 
-.settings-modal {
+.settings-view .settings-modal {
   .dialog-backdrop();
 
   &__panel {

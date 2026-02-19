@@ -150,9 +150,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         startup_logger.debug("Telemetry scheduler start skipped: %s", exc)
 
+    # Start terms-version checker (polls cachibot.ai for ToS updates)
+    try:
+        from cachibot.services.terms_checker import start_terms_checker
+
+        await start_terms_checker()
+    except Exception as exc:
+        startup_logger.debug("Terms checker start skipped: %s", exc)
+
     yield
 
     # Shutdown
+    try:
+        from cachibot.services.terms_checker import stop_terms_checker
+
+        await stop_terms_checker()
+    except Exception:
+        pass
     try:
         from cachibot.telemetry.scheduler import stop_telemetry_scheduler
 

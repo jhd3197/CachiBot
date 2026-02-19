@@ -338,3 +338,76 @@
     color: var(--color-text-secondary);
   }
 }
+
+// =============================================================================
+// Onboarding Page
+// =============================================================================
+
+.onboarding {
+  width: 100%;
+  max-width: @dialog-lg;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: @sp-6;
+    gap: @sp-4;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+  }
+
+  &__icon {
+    .flex-center();
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: @radius-xl;
+    background: linear-gradient(135deg, var(--accent-500), var(--accent-600));
+    flex-shrink: 0;
+  }
+
+  &__title {
+    font-size: @text-xl;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__content {
+    .card-base();
+    padding: @sp-6;
+    overflow-y: auto;
+    max-height: 60vh;
+    .scrollbar-thin();
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: @sp-4;
+    padding-top: @sp-4;
+  }
+
+  &__skip {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    .transition-colors();
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+}
