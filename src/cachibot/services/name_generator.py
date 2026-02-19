@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+from typing import Any
 
 import httpx
 from prompture.aio import get_async_driver_for_model
@@ -41,11 +42,11 @@ def _resolve_utility_model() -> str:
         return "moonshot/kimi-k2.5"
 
 
-def _extract_json(text: str) -> dict:
+def _extract_json(text: str) -> dict[str, Any]:
     """Extract JSON object from model response text."""
     # Try the whole text first
     try:
-        return json.loads(text.strip())
+        return json.loads(text.strip())  # type: ignore[no-any-return]
     except (json.JSONDecodeError, ValueError):
         pass
 
@@ -53,7 +54,7 @@ def _extract_json(text: str) -> dict:
     code_block = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if code_block:
         try:
-            return json.loads(code_block.group(1).strip())
+            return json.loads(code_block.group(1).strip())  # type: ignore[no-any-return]
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -61,7 +62,7 @@ def _extract_json(text: str) -> dict:
     brace_match = re.search(r'\{[^{}]*"names"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
     if brace_match:
         try:
-            return json.loads(brace_match.group(0))
+            return json.loads(brace_match.group(0))  # type: ignore[no-any-return]
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -69,7 +70,7 @@ def _extract_json(text: str) -> dict:
     brace_match = re.search(r"\{.*\}", text, re.DOTALL)
     if brace_match:
         try:
-            return json.loads(brace_match.group(0))
+            return json.loads(brace_match.group(0))  # type: ignore[no-any-return]
         except (json.JSONDecodeError, ValueError):
             pass
 
@@ -95,7 +96,7 @@ async def _chat_completion(prompt: str, model_name: str) -> str:
         "Content-Type": "application/json",
     }
 
-    data: dict = {
+    data: dict[str, Any] = {
         "model": bare_model,
         "messages": [{"role": "user", "content": prompt}],
     }
@@ -170,7 +171,7 @@ Respond with ONLY a JSON object in this exact format, no other text:
     try:
         response = await _chat_completion(prompt, model)
         data = _extract_json(response)
-        names = data.get("names", [])
+        names: list[str] = data.get("names", [])
         if names:
             return names[:count]
         logger.warning("No names in response, using fallbacks")

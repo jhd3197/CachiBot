@@ -7,6 +7,7 @@ Beautiful command-line interface using Typer and Rich.
 import asyncio
 import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -76,7 +77,7 @@ def print_welcome(config: Config) -> None:
     )
 
 
-def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
+def format_approval_dialog(tool_name: str, action: str, details: dict[str, Any]) -> bool:
     """Show approval dialog for risky operations."""
     console.print()
     console.print(
@@ -107,7 +108,7 @@ def format_approval_dialog(tool_name: str, action: str, details: dict) -> bool:
     return Confirm.ask("  [bold]Approve this action?[/]", default=False)
 
 
-def print_usage(run_usage: dict, steps: int = 0) -> None:
+def print_usage(run_usage: dict[str, Any], steps: int = 0) -> None:
     """Print token usage and cost from AgentResult.run_usage."""
     total_tokens = run_usage.get("total_tokens", 0)
     if total_tokens > 0:
@@ -136,7 +137,7 @@ def create_agent_with_callbacks(config: Config) -> CachibotAgent:
                 text = text[:197] + "..."
             console.print(f"  [thinking]{text}[/]")
 
-    def on_tool_start(name: str, args: dict) -> None:
+    def on_tool_start(name: str, args: dict[str, Any]) -> None:
         # Show tool being called
         args_str = ", ".join(f"{k}={repr(v)[:30]}" for k, v in list(args.items())[:3])
         if len(args_str) > 60:
@@ -152,7 +153,7 @@ def create_agent_with_callbacks(config: Config) -> CachibotAgent:
                 preview += "..."
             console.print(f"  [success]OK[/] [dim]{preview}[/]")
 
-    def on_approval_needed(tool_name: str, action: str, details: dict) -> bool:
+    def on_approval_needed(tool_name: str, action: str, details: dict[str, Any]) -> bool:
         return format_approval_dialog(tool_name, action, details)
 
     agent = CachibotAgent(

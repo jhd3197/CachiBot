@@ -6,6 +6,7 @@ CRUD endpoints for syncing bot configuration from frontend.
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -44,9 +45,9 @@ class BotSyncRequest(BaseModel):
     icon: str | None = None
     color: str | None = None
     model: str
-    models: dict | None = None
+    models: dict[str, Any] | None = None
     systemPrompt: str
-    capabilities: dict = Field(default_factory=dict)
+    capabilities: dict[str, Any] = Field(default_factory=dict)
     createdAt: str
     updatedAt: str
 
@@ -54,7 +55,7 @@ class BotSyncRequest(BaseModel):
 @router.get("")
 async def list_bots(
     user: User = Depends(get_current_user),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get bots accessible to the current user.
 
     For non-admin users, includes both owned bots and bots shared via groups.
@@ -163,7 +164,7 @@ async def activate_bot_skill(
     bot_id: str,
     body: BotSkillRequest,
     user: User = Depends(require_bot_access),
-) -> dict:
+) -> dict[str, str]:
     """Activate a skill for a bot."""
     # Verify skill exists
     skill = await skills_repo.get_skill(body.skill_id)
@@ -237,6 +238,7 @@ async def get_bot_available_models(
     from cachibot.api.routes.providers import PROVIDERS
 
     available: list[BotModelInfo] = []
+    all_models: list[dict[str, Any]] = []
 
     # Try live model discovery from Prompture, passing bot-level keys
     try:
@@ -266,8 +268,8 @@ async def get_bot_available_models(
                 )
 
         provider_env = ProviderEnvironment(**env_kwargs) if env_kwargs else None
-        all_models = get_available_models(
-            env=provider_env, include_capabilities=False, force_refresh=True
+        all_models = get_available_models(  # type: ignore[assignment]
+            env=provider_env, include_capabilities=True, force_refresh=True
         )
     except Exception:
         logger.warning("Failed to get available models from Prompture", exc_info=True)
@@ -323,7 +325,7 @@ class BotExportFormat(BaseModel):
 
     version: str = "1.0"
     exportedAt: str
-    bot: dict
+    bot: dict[str, Any]
 
 
 class BotImportRequest(BaseModel):
@@ -331,7 +333,7 @@ class BotImportRequest(BaseModel):
 
     version: str
     exportedAt: str
-    bot: dict
+    bot: dict[str, Any]
 
 
 class BotImportResponse(BaseModel):
@@ -419,7 +421,7 @@ async def import_bot(
         description=bot_data.get("description"),
         icon=bot_data.get("icon", "bot"),
         color=bot_data.get("color", "#3b82f6"),
-        model=bot_data.get("model"),
+        model=bot_data.get("model", ""),
         models=bot_data.get("models"),
         systemPrompt=bot_data.get("systemPrompt", ""),
         capabilities=bot_data.get("capabilities", {}),
@@ -545,7 +547,7 @@ async def update_bot_access(
     group_id: str,
     body: UpdateAccessRequest,
     user: User = Depends(require_bot_access),
-) -> dict:
+) -> dict[str, str]:
     """Update access level for a bot-group pair. Bot owner or admin only."""
     await _require_bot_owner_or_admin(bot_id, user)
 

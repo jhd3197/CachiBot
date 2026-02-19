@@ -5,7 +5,7 @@ Bot and BotOwnership models.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
@@ -25,7 +25,7 @@ class Bot(Base):
 
     __tablename__ = "bots"
     # GIN indexes on JSONB columns are PostgreSQL-only; omitted for cross-dialect compat.
-    __table_args__: tuple = ()
+    __table_args__: tuple[Any, ...] = ()
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -34,8 +34,10 @@ class Bot(Base):
     color: Mapped[str | None] = mapped_column(String, nullable=True)
     model: Mapped[str] = mapped_column(String, nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
-    capabilities: Mapped[dict] = mapped_column(sa.JSON, nullable=False, server_default="{}")
-    models: Mapped[dict | None] = mapped_column(sa.JSON, nullable=True)
+    capabilities: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
+    models: Mapped[dict[str, Any] | None] = mapped_column(sa.JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

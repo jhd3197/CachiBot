@@ -8,6 +8,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
@@ -114,6 +115,8 @@ async def get_note(
     """Get a specific note."""
     repo = NotesRepository()
     note = await repo.get_note(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
     require_bot_ownership(note, bot_id, "Note")
     return _note_to_response(note)
 
@@ -236,7 +239,7 @@ async def reindex_documents(
     bot_id: str,
     background_tasks: BackgroundTasks,
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
-) -> dict:
+) -> dict[str, Any]:
     """Reprocess all documents for a bot: delete chunks and re-run pipeline."""
     repo = KnowledgeRepository()
     docs = await repo.get_documents_by_bot(bot_id)
@@ -275,11 +278,13 @@ async def retry_document(
     document_id: str,
     background_tasks: BackgroundTasks,
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
-) -> dict:
+) -> dict[str, str]:
     """Retry processing a failed document."""
     repo = KnowledgeRepository()
 
     doc = await repo.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     require_bot_ownership(doc, bot_id, "Document")
 
     if doc.status.value != "failed":
@@ -315,6 +320,8 @@ async def get_document_chunks(
     repo = KnowledgeRepository()
 
     doc = await repo.get_document(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
     require_bot_ownership(doc, bot_id, "Document")
 
     chunks = await repo.get_chunks_by_document_light(document_id)

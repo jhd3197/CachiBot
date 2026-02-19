@@ -879,6 +879,8 @@ async def toggle_schedule(
 
     await schedule_repo.toggle_enabled(schedule_id, not schedule.enabled)
     schedule = await schedule_repo.get(schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Schedule not found")
     return ScheduleResponse.from_schedule(schedule)
 
 
@@ -1063,6 +1065,8 @@ async def start_work(
 
     await work_repo.update_status(work_id, WorkStatus.IN_PROGRESS)
     work = await work_repo.get(work_id)
+    if work is None:
+        raise HTTPException(status_code=404, detail="Work not found")
 
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -1106,6 +1110,8 @@ async def fail_work(
 
     await work_repo.update_status(work_id, WorkStatus.FAILED, error)
     work = await work_repo.get(work_id)
+    if work is None:
+        raise HTTPException(status_code=404, detail="Work not found")
 
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -1133,6 +1139,8 @@ async def cancel_work(
         await work_repo.update_status(work_id, WorkStatus.CANCELLED)
 
     work = await work_repo.get(work_id)
+    if work is None:
+        raise HTTPException(status_code=404, detail="Work not found")
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
     return WorkResponse.from_work(work, len(tasks), completed)
@@ -1308,6 +1316,8 @@ async def start_task(
     await job_repo.save(job)
 
     task = await task_repo.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse.from_task(task)
 
 
@@ -1339,6 +1349,8 @@ async def complete_task(
         await work_repo.update_progress(work.id, progress)
 
     task = await task_repo.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse.from_task(task)
 
 
@@ -1367,6 +1379,8 @@ async def fail_task(
         await job_repo.update_status(latest_job.id, JobStatus.FAILED, error=error)
 
     task = await task_repo.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse.from_task(task)
 
 
@@ -1455,6 +1469,8 @@ async def append_job_log(
 
     await job_repo.append_log(job_id, request.level, request.message, request.data)
     job = await job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
     return JobResponse.from_job(job)
 
 
@@ -1472,6 +1488,8 @@ async def update_job_progress(
 
     await job_repo.update_progress(job_id, progress)
     job = await job_repo.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
     return JobResponse.from_job(job)
 
 
@@ -1584,6 +1602,8 @@ async def mark_todo_done(
 
     await todo_repo.update_status(todo_id, TodoStatus.DONE)
     todo = await todo_repo.get(todo_id)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="Todo not found")
     return TodoResponse.from_todo(todo)
 
 
@@ -1600,6 +1620,8 @@ async def dismiss_todo(
 
     await todo_repo.update_status(todo_id, TodoStatus.DISMISSED)
     todo = await todo_repo.get(todo_id)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="Todo not found")
     return TodoResponse.from_todo(todo)
 
 

@@ -9,6 +9,7 @@ import os
 import time
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -36,7 +37,7 @@ MARKETPLACE_URL = os.getenv("CACHIBOT_MARKETPLACE_URL", "")
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
 # In-memory cache for remote templates
-_remote_cache: dict[str, tuple[float, list | dict]] = {}
+_remote_cache: dict[str, tuple[float, list[Any] | dict[str, Any]]] = {}
 
 
 class TemplateResponse(BaseModel):
@@ -129,7 +130,7 @@ CATEGORY_INFO: dict[str, CategoryInfo] = {
 }
 
 
-def _get_cached(key: str) -> list | dict | None:
+def _get_cached(key: str) -> list[Any] | dict[str, Any] | None:
     """Get cached data if still valid."""
     if key in _remote_cache:
         timestamp, data = _remote_cache[key]
@@ -139,7 +140,7 @@ def _get_cached(key: str) -> list | dict | None:
     return None
 
 
-def _set_cache(key: str, data: list | dict) -> None:
+def _set_cache(key: str, data: list[Any] | dict[str, Any]) -> None:
     """Cache data with current timestamp."""
     _remote_cache[key] = (time.time(), data)
 
@@ -161,8 +162,8 @@ async def _fetch_remote_templates(
 
         cache_key = f"templates:{category or ''}:{search or ''}"
         cached = _get_cached(cache_key)
-        if cached:
-            templates = [TemplateResponse(**t) for t in cached]  # type: ignore
+        if cached and isinstance(cached, list):
+            templates = [TemplateResponse(**t) for t in cached]
             return TemplateListResponse(
                 templates=templates,
                 total=len(templates),
@@ -208,7 +209,7 @@ async def _fetch_remote_template(template_id: str) -> TemplateResponse | None:
         cache_key = f"template:{template_id}"
         cached = _get_cached(cache_key)
         if cached:
-            return TemplateResponse(**cached)  # type: ignore
+            return TemplateResponse(**cached)  # type: ignore[arg-type]
 
         url = f"{MARKETPLACE_URL.rstrip('/')}/api/v1/templates/{template_id}"
 
@@ -235,8 +236,8 @@ async def _fetch_remote_categories() -> list[CategoryInfo] | None:
 
         cache_key = "categories"
         cached = _get_cached(cache_key)
-        if cached:
-            return [CategoryInfo(**c) for c in cached]  # type: ignore
+        if cached and isinstance(cached, list):
+            return [CategoryInfo(**c) for c in cached]
 
         url = f"{MARKETPLACE_URL.rstrip('/')}/api/v1/categories"
 
@@ -315,7 +316,7 @@ async def install_template(
     Tries remote marketplace first, falls back to local templates.
     """
     # Try to get template from remote or local
-    template_data = None
+    template_data: dict[str, Any] | None = None
 
     # Check remote first
     remote_template = await _fetch_remote_template(template_id)
@@ -325,7 +326,7 @@ async def install_template(
         # Fall back to local
         local_template = get_template_by_id(template_id)
         if local_template:
-            template_data = local_template
+            template_data = local_template  # type: ignore[assignment]
 
     if template_data is None:
         raise HTTPException(status_code=404, detail="Template not found")

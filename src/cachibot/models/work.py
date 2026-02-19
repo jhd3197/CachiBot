@@ -292,7 +292,7 @@ class Job(BaseModel):
     error: str | None = Field(default=None)
 
     # Logs
-    logs: list[dict] = Field(default_factory=list, description="Execution logs")
+    logs: list[dict[str, Any]] = Field(default_factory=list, description="Execution logs")
 
 
 class JobLog(BaseModel):

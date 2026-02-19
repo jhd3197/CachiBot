@@ -11,6 +11,7 @@ import logging
 import os
 import secrets
 from pathlib import Path
+from typing import Any
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -115,7 +116,7 @@ class EncryptionService:
         plaintext = aesgcm.decrypt(nonce, ciphertext, aad)
         return plaintext.decode()
 
-    def encrypt_connection_config(self, config: dict, bot_id: str) -> dict:
+    def encrypt_connection_config(self, config: dict[str, Any], bot_id: str) -> dict[str, str]:
         """Encrypt a connection config dict for DB storage.
 
         Returns a dict with keys: _encrypted, _nonce, _salt.
@@ -124,7 +125,7 @@ class EncryptionService:
         ct, nonce, salt = self.encrypt_value(plaintext, bot_id)
         return {"_encrypted": ct, "_nonce": nonce, "_salt": salt}
 
-    def decrypt_connection_config(self, stored: dict, bot_id: str) -> dict:
+    def decrypt_connection_config(self, stored: dict[str, Any], bot_id: str) -> dict[str, Any]:
         """Decrypt a connection config dict from DB storage.
 
         Handles legacy plaintext configs gracefully — if the stored value
@@ -141,7 +142,8 @@ class EncryptionService:
                 stored["_salt"],
                 bot_id,
             )
-            return json.loads(plaintext)
+            result: dict[str, Any] = json.loads(plaintext)
+            return result
 
         # Legacy plaintext — return as-is (will be re-encrypted on next write)
         return stored

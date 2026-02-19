@@ -409,7 +409,7 @@ Generate exactly 3 questions that will help the bot KNOW the user personally."""
             model,
             instruction_template=instruction,
         )
-        return result.model.questions[:3]
+        return result.model.questions[:3]  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.exception("Follow-up question generation failed, using fallbacks")
         return fallback_questions
@@ -505,7 +505,7 @@ with specific tasks and questions in this area.
             model,
             instruction_template=instruction,
         )
-        return result.model
+        return result.model  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.warning("System prompt generation failed, using fallback")
         return GeneratedPrompt(
@@ -575,7 +575,7 @@ Also suggest a creative name (1-2 words) and a one-line description for this bot
             model,
             instruction_template=instruction,
         )
-        return result.model
+        return result.model  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.warning("System prompt generation failed, using fallback")
         return GeneratedPrompt(
@@ -627,7 +627,7 @@ async def refine_system_prompt(
             model,
             instruction_template=instruction,
         )
-        return result.model
+        return result.model  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.warning("Prompt refinement failed, returning original")
         return RefinedPrompt(
@@ -676,7 +676,7 @@ User: {test_message}"""
             model,
             instruction_template=instruction,
         )
-        return result.model
+        return result.model  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.warning("Preview generation failed, using fallback")
         return PreviewResponse(
@@ -810,7 +810,7 @@ Return an empty list if none were mentioned."""
             model,
             instruction_template=instruction,
         )
-        return result.model
+        return result.model  # type: ignore[attr-defined, no-any-return]
     except Exception:
         logger.exception("Creation context analysis failed")
         return CreationAnalysis(

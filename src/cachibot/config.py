@@ -17,9 +17,9 @@ try:
     import tomllib
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore
+        import tomli as tomllib
     except ImportError:
-        tomllib = None  # type: ignore
+        tomllib = None
 
 
 # Default safe imports for the sandbox

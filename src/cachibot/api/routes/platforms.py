@@ -5,6 +5,8 @@ Returns available platform adapter metadata from the AdapterRegistry.
 No authentication required -- this is static class metadata, not user data.
 """
 
+from typing import Any
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
@@ -24,7 +26,7 @@ async def list_platforms() -> JSONResponse:
 
 
 @router.get("/custom/spec")
-async def custom_platform_spec() -> dict:
+async def custom_platform_spec() -> dict[str, Any]:
     """Return the full API contract for the Custom platform adapter.
 
     Describes inbound webhook format, outbound endpoint specs, and example payloads

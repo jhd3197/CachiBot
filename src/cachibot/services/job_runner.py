@@ -10,6 +10,7 @@ import asyncio
 import copy
 import logging
 import uuid
+from typing import Any
 
 from cachibot.config import Config
 from cachibot.models.work import (
@@ -43,7 +44,7 @@ class JobRunnerService:
     """Background service that executes Work tasks as Jobs via CachibotAgent."""
 
     def __init__(self) -> None:
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._running = False
 
         # Repositories
@@ -55,7 +56,7 @@ class JobRunnerService:
         self._timeline_repo = TimelineEventRepository()
 
         # Track running asyncio.Tasks keyed by job_id for cancellation
-        self._running_jobs: dict[str, asyncio.Task] = {}
+        self._running_jobs: dict[str, asyncio.Task[None]] = {}
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -160,9 +161,9 @@ class JobRunnerService:
     # Job Execution
     # ------------------------------------------------------------------
 
-    async def _execute_job(self, job: Job, task, work: Work) -> None:
+    async def _execute_job(self, job: Job, task: Any, work: Work) -> None:
         """Execute a single job through CachibotAgent or ScriptSandbox."""
-        from cachibot.models.automations import ExecutionLog, TimelineEvent
+        from cachibot.models.automations import ExecutionLog, TimelineEvent, TriggerType
 
         # Create execution log entry
         exec_log_id = str(uuid.uuid4())
@@ -174,7 +175,7 @@ class JobRunnerService:
             source_name=work.title,
             bot_id=task.bot_id,
             chat_id=task.chat_id,
-            trigger="cron" if work.schedule_id else "manual",
+            trigger=TriggerType.CRON if work.schedule_id else TriggerType.MANUAL,
             work_id=work.id,
             work_job_id=job.id,
         )
@@ -324,7 +325,7 @@ class JobRunnerService:
         finally:
             self._running_jobs.pop(job.id, None)
 
-    async def _run_agent_for_task(self, job: Job, task) -> tuple[str, dict]:
+    async def _run_agent_for_task(self, job: Job, task: Any) -> tuple[str, dict[str, Any]]:
         """Create a CachibotAgent and run the task action through it.
 
         Returns:
@@ -353,20 +354,15 @@ class JobRunnerService:
         driver = None
         provider_environment = None
         try:
-            from cachibot.services.bot_environment import _resolve_bot_env
+            from cachibot.api.websocket import _resolve_bot_env
 
-            env = await _resolve_bot_env(bot.id)
-            if env:
-                provider_environment = env
-                # Build per-bot driver if we have an API key
-                if env.api_key:
-                    from cachibot.services.driver_factory import build_driver_with_key
-
-                    driver = build_driver_with_key(
-                        config.agent.model,
-                        env.api_key,
-                        provider=env.provider,
-                    )
+            resolved_env, resolved_driver = await _resolve_bot_env(
+                bot.id, effective_model=config.agent.model
+            )
+            if resolved_env:
+                provider_environment = resolved_env
+            if resolved_driver:
+                driver = resolved_driver
         except Exception:
             logger.debug("Could not resolve per-bot environment for bot %s", task.bot_id)
 
@@ -400,7 +396,7 @@ class JobRunnerService:
             result = await agent.run(action)
 
         # Extract usage data from the agent result
-        usage_data: dict = {}
+        usage_data: dict[str, Any] = {}
         if result.run_usage:
             usage = result.run_usage
             usage_data = {
@@ -413,7 +409,9 @@ class JobRunnerService:
 
         return result.output_text or "", usage_data
 
-    async def _run_script_for_task(self, job: Job, task, work: Work, function) -> tuple[str, dict]:
+    async def _run_script_for_task(
+        self, job: Job, task: Any, work: Work, function: Any
+    ) -> tuple[str, dict[str, Any]]:
         """Execute a script in the sandbox.
 
         Returns:
@@ -456,7 +454,7 @@ class JobRunnerService:
 
     async def _handle_task_failure(
         self,
-        task,
+        task: Any,
         work: Work,
         job_id: str,
         error_msg: str,
@@ -563,7 +561,7 @@ class JobRunnerService:
     # WebSocket Broadcasting
     # ------------------------------------------------------------------
 
-    async def _broadcast_execution_start(self, exec_log) -> None:
+    async def _broadcast_execution_start(self, exec_log: Any) -> None:
         """Broadcast an EXECUTION_START message."""
         try:
             from cachibot.api.websocket import get_ws_manager
@@ -587,7 +585,7 @@ class JobRunnerService:
         self,
         exec_log_id: str,
         status: str,
-        usage_data: dict | None = None,
+        usage_data: dict[str, Any] | None = None,
         error: str | None = None,
     ) -> None:
         """Broadcast an EXECUTION_END message."""
@@ -614,7 +612,7 @@ class JobRunnerService:
         status: str = "",
         progress: float = 0.0,
         error: str | None = None,
-        logs: list[dict] | None = None,
+        logs: list[dict[str, Any]] | None = None,
     ) -> None:
         """Broadcast a JOB_UPDATE message to all connected WebSocket clients."""
         try:

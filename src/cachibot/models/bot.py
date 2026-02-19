@@ -5,6 +5,7 @@ Bot data synced from frontend to enable platform message processing.
 """
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,9 +28,9 @@ class Bot(BaseModel):
     icon: str | None = None
     color: str | None = None
     model: str
-    models: dict | None = None  # Multi-model slots (BotModels shape)
+    models: dict[str, Any] | None = None  # Multi-model slots (BotModels shape)
     system_prompt: str = Field(alias="systemPrompt")
-    capabilities: dict = Field(default_factory=dict)
+    capabilities: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -46,9 +47,9 @@ class BotCreate(BaseModel):
     icon: str | None = None
     color: str | None = None
     model: str
-    models: dict | None = None
+    models: dict[str, Any] | None = None
     system_prompt: str = Field(alias="systemPrompt")
-    capabilities: dict = Field(default_factory=dict)
+    capabilities: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -65,9 +66,9 @@ class BotResponse(BaseModel):
     icon: str | None
     color: str | None
     model: str
-    models: dict | None = None
+    models: dict[str, Any] | None = None
     systemPrompt: str
-    capabilities: dict
+    capabilities: dict[str, Any]
     createdAt: str
     updatedAt: str
 

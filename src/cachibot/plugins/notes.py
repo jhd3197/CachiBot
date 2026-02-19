@@ -32,7 +32,7 @@ class NotesPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="note_save",
             description="Save a note to your persistent memory. "
             "Use this to remember important information, user preferences, "
@@ -97,7 +97,7 @@ class NotesPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error saving note: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="note_search",
             description="Search your saved notes by keyword or tags. "
             "Use this to recall information you previously saved.",
@@ -157,7 +157,7 @@ class NotesPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error searching notes: {e}"
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="note_list",
             description="List your saved notes, optionally filtered by tags.",
             category="knowledge",

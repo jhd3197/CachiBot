@@ -50,3 +50,4 @@ Thumbs.db
 
 # Website (static, not needed in backend)
 website/
+.mypy_cache

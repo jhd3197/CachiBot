@@ -35,7 +35,7 @@ class DiscordAdapter(BasePlatformAdapter):
     ):
         super().__init__(connection, on_message, on_status_change)
         self._client: Any = None
-        self._client_task: asyncio.Task | None = None
+        self._client_task: asyncio.Task[None] | None = None
         self._ready = asyncio.Event()
         self._intentional_disconnect = False
 
@@ -51,7 +51,7 @@ class DiscordAdapter(BasePlatformAdapter):
         """Register Discord event handlers on the current client."""
         adapter = self
 
-        @self._client.event
+        @self._client.event  # type: ignore[untyped-decorator]
         async def on_ready() -> None:
             """Called when the bot is ready."""
             adapter._running = True
@@ -61,7 +61,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 f"for connection {adapter.connection_id}"
             )
 
-        @self._client.event
+        @self._client.event  # type: ignore[untyped-decorator]
         async def on_message(message: Any) -> None:
             """Handle incoming messages."""
             # Guard against NoneType client/user during startup or shutdown

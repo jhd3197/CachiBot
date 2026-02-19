@@ -4,6 +4,7 @@ FastAPI Server for Cachibot
 Main application entry point with CORS and route registration.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -71,7 +72,7 @@ FRONTEND_DIST = _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _D
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     import logging
 
@@ -257,7 +258,7 @@ def create_app(
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
         @app.get("/")
-        async def serve_spa():
+        async def serve_spa() -> FileResponse:
             """Serve the frontend SPA."""
             return FileResponse(
                 FRONTEND_DIST / "index.html",
@@ -265,7 +266,7 @@ def create_app(
             )
 
         @app.get("/{path:path}")
-        async def serve_spa_routes(path: str):
+        async def serve_spa_routes(path: str) -> FileResponse:
             """Serve static files or fallback to index.html for SPA routing."""
             file_path = FRONTEND_DIST / path
             if file_path.exists() and file_path.is_file():
@@ -280,7 +281,7 @@ def create_app(
     else:
 
         @app.get("/")
-        async def root():
+        async def root() -> dict[str, str]:
             """Root endpoint with API info."""
             return {
                 "name": "Cachibot API",

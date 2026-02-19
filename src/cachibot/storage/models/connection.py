@@ -5,6 +5,7 @@ BotConnection model (platform integrations: Telegram, Discord, etc.).
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
@@ -31,7 +32,7 @@ class BotConnection(Base):
     platform: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="disconnected")
-    config_encrypted: Mapped[dict] = mapped_column(sa.JSON, nullable=False)
+    config_encrypted: Mapped[dict[str, Any]] = mapped_column(sa.JSON, nullable=False)
     message_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_activity: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

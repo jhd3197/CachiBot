@@ -224,7 +224,7 @@ def _reconcile_schema(connection) -> None:  # type: ignore[no-untyped-def]
             col_type = col.type.compile(dialect=connection.dialect)
             nullable = "NULL" if col.nullable else "NOT NULL"
             default = ""
-            if col.server_default is not None:
+            if col.server_default is not None and hasattr(col.server_default, "arg"):
                 default_val = col.server_default.arg
                 # server_default.arg can be a TextClause or plain string
                 if hasattr(default_val, "text"):

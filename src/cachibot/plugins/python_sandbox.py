@@ -31,7 +31,7 @@ class PythonSandboxPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="python_execute",
             description="Execute Python code safely in a sandbox. "
             "Use this to run Python scripts, calculations, data processing, "

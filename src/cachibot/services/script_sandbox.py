@@ -5,10 +5,16 @@ Provides stricter import restrictions and auto-deny for approval requests
 in unattended execution mode.
 """
 
+from __future__ import annotations
+
 import asyncio
 import io
 import logging
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cachibot.models.automations import ScriptValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +88,7 @@ class ScriptSandbox:
     async def execute(
         self,
         source_code: str,
-        context: dict | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ScriptExecutionResult:
         """Execute a script in the sandbox with automation restrictions."""
         import time
@@ -104,7 +110,7 @@ class ScriptSandbox:
             )
 
             # Pre-inject StringIO and context into globals
-            exec_globals: dict = {}
+            exec_globals: dict[str, Any] = {}
             exec_globals["StringIO"] = io.StringIO
             exec_globals["__context__"] = context or {}
             exec_globals["params"] = (context or {}).get("params", {})
@@ -159,7 +165,7 @@ class ScriptSandbox:
             )
 
 
-def validate_script_before_save(code: str) -> "ScriptValidationResult":  # noqa: F821
+def validate_script_before_save(code: str) -> ScriptValidationResult:
     """Validate a script before saving (static analysis).
 
     Uses Tukuy's analyze_python() for risk assessment and import checking.
@@ -201,7 +207,7 @@ def validate_script_before_save(code: str) -> "ScriptValidationResult":  # noqa:
         )
 
     # 3. Import check
-    warnings = []
+    warnings: list[str] = []
     features = getattr(analysis, "features", None)
     if features:
         for imp in getattr(features, "imports", []):

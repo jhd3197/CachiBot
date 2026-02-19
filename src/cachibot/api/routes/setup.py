@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import smtplib
+from typing import Any
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -148,10 +150,9 @@ def _test_smtp_sync(
     send_test_to: str,
 ) -> SmtpTestResponse:
     """Synchronous SMTP test (run in thread)."""
-    import smtplib
-
     try:
         # Port 465 = implicit SSL, others = STARTTLS
+        server: smtplib.SMTP | smtplib.SMTP_SSL
         if port == 465:
             server = smtplib.SMTP_SSL(host, port, timeout=15)
         else:
@@ -247,7 +248,7 @@ async def save_smtp(
 @router.post("/setup/upgrade/reset")
 async def reset_legacy_database(
     user: User | None = Depends(get_current_user_optional),
-) -> dict:
+) -> dict[str, Any]:
     """Reset a legacy V1 database by backing it up and creating a fresh one.
 
     Requires authentication when users exist; unauthenticated only during
@@ -275,7 +276,7 @@ async def reset_legacy_database(
 @router.post("/setup/upgrade/keep")
 async def keep_legacy_database(
     user: User | None = Depends(get_current_user_optional),
-) -> dict:
+) -> dict[str, str]:
     """Keep the legacy V1 database and clear the detection flag for this session.
 
     Requires authentication when users exist; unauthenticated only during

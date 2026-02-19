@@ -8,6 +8,7 @@ enabling bots to create and manage their own LLM-powered tools.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -65,10 +66,10 @@ class InstructionRecord(Base):
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Template variables (JSON list of variable names)
-    input_variables: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    input_variables: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Few-shot examples (JSON list of {input, output} dicts)
-    few_shot_examples: Mapped[list | None] = mapped_column(sa.JSON, nullable=True)
+    few_shot_examples: Mapped[list[dict[str, Any]] | None] = mapped_column(sa.JSON, nullable=True)
 
     # Authorship
     created_by: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -77,7 +78,7 @@ class InstructionRecord(Base):
 
     # Organisation
     category: Mapped[str] = mapped_column(String, nullable=False, server_default="custom")
-    tags: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    tags: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -122,8 +123,8 @@ class InstructionVersion(Base):
     model_hint: Mapped[str | None] = mapped_column(String, nullable=True)
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    input_variables: Mapped[list] = mapped_column(sa.JSON, nullable=False, server_default="[]")
-    few_shot_examples: Mapped[list | None] = mapped_column(sa.JSON, nullable=True)
+    input_variables: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
+    few_shot_examples: Mapped[list[dict[str, Any]] | None] = mapped_column(sa.JSON, nullable=True)
 
     # Authorship
     author: Mapped[str] = mapped_column(String, nullable=False)
