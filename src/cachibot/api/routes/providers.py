@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.env import get_env_path
 from cachibot.models.auth import User
 
 logger = logging.getLogger("cachibot.api.providers")
@@ -58,12 +59,6 @@ PROVIDERS = {
 }
 
 
-def _get_env_path() -> Path:
-    """Return the .env path, respecting CACHIBOT_WORKSPACE (set by Electron/PyInstaller)."""
-    ws = os.environ.get("CACHIBOT_WORKSPACE")
-    return Path(ws) / ".env" if ws else Path.cwd() / ".env"
-
-
 def _mask_value(value: str, provider_type: str) -> str:
     """Mask API keys (show last 4 chars), show full URL for endpoints."""
     if provider_type == "endpoint":
@@ -75,7 +70,7 @@ def _mask_value(value: str, provider_type: str) -> str:
 
 def _read_env_file() -> str:
     """Read the .env file contents, return empty string if missing."""
-    env_path = _get_env_path()
+    env_path = get_env_path()
     if env_path.exists():
         return env_path.read_text(encoding="utf-8")
     return ""
@@ -83,7 +78,7 @@ def _read_env_file() -> str:
 
 def _write_env_file(content: str) -> None:
     """Write content to the .env file."""
-    _get_env_path().write_text(content, encoding="utf-8")
+    get_env_path().write_text(content, encoding="utf-8")
 
 
 def _set_env_value(key: str, value: str) -> None:

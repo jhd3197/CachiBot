@@ -6,6 +6,7 @@ and to keep the binary focused on just the server functionality.
 """
 
 import argparse
+import os
 from pathlib import Path
 
 
@@ -16,8 +17,6 @@ def main():
     args = parser.parse_args()
 
     # Set workspace so .env is written to ~ even without Electron
-    import os
-
     os.environ.setdefault("CACHIBOT_WORKSPACE", str(Path.home()))
 
     # Import here so PyInstaller can trace dependencies
