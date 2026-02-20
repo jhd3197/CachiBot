@@ -314,6 +314,23 @@ async def remove_bot(
 # =============================================================================
 
 
+@router.post("/{room_id}/messages/_clear", status_code=200)
+async def clear_room_messages(
+    room_id: str,
+    user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    """Delete all messages in a room (members only)."""
+    room = await room_repo.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    deleted = await message_repo.delete_messages(room_id)
+    return {"deleted": deleted}
+
+
 @router.get("/{room_id}/messages")
 async def get_room_messages(
     room_id: str,

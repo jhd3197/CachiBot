@@ -25,6 +25,7 @@ interface RoomState {
   addMessage: (roomId: string, message: RoomMessage) => void
   appendMessageContent: (roomId: string, messageId: string, content: string) => void
   setMessages: (roomId: string, messages: RoomMessage[]) => void
+  clearMessages: (roomId: string) => void
 
   // Presence
   setOnlineUsers: (roomId: string, userIds: string[]) => void
@@ -37,6 +38,9 @@ interface RoomState {
   // Bot states
   setBotState: (roomId: string, botId: string, state: BotRoomState) => void
 
+  // Selectors
+  getRoomsForBot: (botId: string) => Room[]
+
   // Meta
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
@@ -44,7 +48,7 @@ interface RoomState {
 
 export const useRoomStore = create<RoomState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       rooms: [],
       activeRoomId: null,
       messages: {},
@@ -107,6 +111,9 @@ export const useRoomStore = create<RoomState>()(
       setMessages: (roomId, messages) =>
         set((state) => ({ messages: { ...state.messages, [roomId]: messages } })),
 
+      clearMessages: (roomId) =>
+        set((state) => ({ messages: { ...state.messages, [roomId]: [] } })),
+
       setOnlineUsers: (roomId, userIds) =>
         set((state) => ({ onlineUsers: { ...state.onlineUsers, [roomId]: userIds } })),
 
@@ -155,6 +162,9 @@ export const useRoomStore = create<RoomState>()(
             [roomId]: { ...(state.botStates[roomId] || {}), [botId]: botState },
           },
         })),
+
+      getRoomsForBot: (botId) =>
+        get().rooms.filter((room) => room.bots.some((b) => b.botId === botId)),
 
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),

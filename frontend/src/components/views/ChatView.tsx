@@ -26,7 +26,7 @@ import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
-import { cn } from '../../lib/utils'
+import { cn, darkenColor } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
@@ -38,15 +38,6 @@ import type { ChatMessage, ToolCall, BotIcon, BotModels, Chat, Bot } from '../..
 // =============================================================================
 // BOT CREATION HELPERS
 // =============================================================================
-
-/** Darken a hex color by a percentage (0-100). */
-function darkenColor(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent))
-  const g = Math.max(0, ((num >> 8) & 0x00ff) - Math.round(2.55 * percent))
-  const b = Math.max(0, (num & 0x0000ff) - Math.round(2.55 * percent))
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
-}
 
 const BOT_ICONS: BotIcon[] = ['bot', 'brain', 'zap', 'sparkles', 'rocket', 'star', 'gem', 'flame']
 const BOT_COLORS: string[] = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#06b6d4']
@@ -1028,9 +1019,9 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                     isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
                   )}
                 />
-                <span className="hidden xs:inline">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                <span className="chat-status-bar__label">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </span>
-              <span className="truncate max-w-[120px] sm:max-w-none">{activeBot?.model}</span>
+              <span className="chat-status-bar__model">{activeBot?.model}</span>
             </div>
             <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
           </div>

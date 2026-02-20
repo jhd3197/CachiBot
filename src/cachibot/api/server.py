@@ -4,6 +4,7 @@ FastAPI Server for Cachibot
 Main application entry point with CORS and route registration.
 """
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -103,6 +104,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         startup_logger.debug("Corruption check skipped: %s", exc)
 
+    # ---- Stale process guard (kill orphaned uvicorn children) ----
+    from cachibot.services.pid_guard import kill_stale_server, remove_pid_file, write_pid_file
+
+    kill_stale_server()
+    _pid_port = int(os.environ.get("_CACHIBOT_PORT", "6392"))
+    write_pid_file(port=_pid_port)
+
     # Startup — initialize database
     try:
         await init_db()
@@ -180,6 +188,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Disconnect all platform adapters
     await platform_manager.disconnect_all()
     await close_db()
+    remove_pid_file()
 
 
 def create_app(
@@ -322,6 +331,8 @@ def run_server(
         workspace: Workspace path
         reload: Enable auto-reload for development
     """
+    os.environ["_CACHIBOT_PORT"] = str(port)
+
     if reload:
         # Reload mode requires an import string, not an app object
         uvicorn.run(

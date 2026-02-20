@@ -29,7 +29,7 @@ import {
   Code2,
   X,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useBotStore, useChatStore, useTaskStore, useWorkStore, useScheduleStore } from '../../stores/bots'
@@ -47,6 +47,7 @@ type MinAccessLevel = 'viewer' | 'operator' | 'editor'
 
 const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
   { id: 'chats', label: 'Chats', icon: MessageSquare, minLevel: 'viewer' },
+  { id: 'rooms', label: 'Rooms', icon: DoorOpen, minLevel: 'viewer' },
   { id: 'tasks', label: 'Tasks', icon: CheckSquare, minLevel: 'viewer' },
   { id: 'work', label: 'Work', icon: FolderKanban, minLevel: 'operator' },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock, minLevel: 'operator' },
@@ -74,9 +75,9 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const { sidebarCollapsed } = useUIStore()
   const activeBot = getActiveBot()
   const { accessLevel } = useBotAccess(activeBotId)
-  const [openMenu, setOpenMenu] = useState<'gear' | 'add' | null>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [search, setSearch] = useState('')
+  const [openMenu, setOpenMenu] = useState<'gear' | null>(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [showCreatePicker, setShowCreatePicker] = useState(false)
   const [showCreateRoom, setShowCreateRoom] = useState(false)
 
   // Close any open dropdown on click outside
@@ -114,10 +115,9 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
     setActiveView('chats')
     navigate(`/${activeBotId}/chats/${newChat.id}`)
     onNavigate?.()
-    setOpenMenu(null)
   }
 
-  const toggleMenu = (menu: 'gear' | 'add') => (e: React.MouseEvent) => {
+  const toggleMenu = (menu: 'gear') => (e: React.MouseEvent) => {
     e.stopPropagation()
     setOpenMenu(openMenu === menu ? null : menu)
   }
@@ -140,22 +140,6 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
     </div>
   )
 
-  const addDropdown = (
-    <div className="bot-sidebar__add-menu">
-      <button onClick={handleNewChat} className="context-menu__item">
-        <MessageSquare className="h-4 w-4" />
-        <span style={{ flex: 1 }}>New Chat</span>
-      </button>
-      <button
-        onClick={() => { setShowCreateRoom(true); setOpenMenu(null) }}
-        className="context-menu__item"
-      >
-        <DoorOpen className="h-4 w-4" />
-        <span style={{ flex: 1 }}>New Room</span>
-      </button>
-    </div>
-  )
-
   return (
     <aside
       className={cn(
@@ -173,64 +157,67 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         </div>
         {!sidebarCollapsed && (
           <>
-            <div className="bot-sidebar__bot-info">
-              <h2 className="name">
-                {activeBot.name}
-              </h2>
-              <p className="model">{activeBot.model}</p>
+            <h2 className="bot-sidebar__bot-name">{activeBot.name}</h2>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              <button
+                onClick={() => setShowCreatePicker(true)}
+                title="New"
+                className="nav-btn"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowSearch(true)}
+                title="Search"
+                className="nav-btn"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={toggleMenu('gear')}
+                  title="More"
+                  className={cn('nav-btn', gearActive && 'nav-btn--active')}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+                {openMenu === 'gear' && gearDropdown}
+              </div>
             </div>
-            <div className="relative" style={{ marginLeft: 'auto' }}>
+          </>
+        )}
+        {sidebarCollapsed && (
+          <>
+            <button
+              onClick={() => setShowCreatePicker(true)}
+              title="New"
+              className="nav-btn"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setShowSearch(true)}
+              title="Search"
+              className="nav-btn"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <div className="relative">
               <button
                 onClick={toggleMenu('gear')}
-                title="Configuration"
+                title="More"
                 className={cn('nav-btn', gearActive && 'nav-btn--active')}
               >
-                <Settings className="h-4 w-4" />
+                <MoreHorizontal className="h-4 w-4" />
               </button>
               {openMenu === 'gear' && gearDropdown}
             </div>
           </>
         )}
-        {sidebarCollapsed && (
-          <div className="relative">
-            <button
-              onClick={toggleMenu('gear')}
-              title="Configuration"
-              className={cn('nav-btn', gearActive && 'nav-btn--active')}
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            {openMenu === 'gear' && gearDropdown}
-          </div>
-        )}
       </div>
 
-      {/* Navigation tabs — actions first, then view tabs */}
+      {/* Navigation tabs */}
       <nav className="bot-sidebar__nav">
-        {activeView === 'chats' && (
-          <>
-            <div className="relative">
-              <button
-                onClick={toggleMenu('add')}
-                title="New"
-                className={cn('nav-btn group', openMenu === 'add' && 'nav-btn--active')}
-              >
-                <Plus className="h-4 w-4" />
-                <span className="bot-sidebar__nav-tooltip">New</span>
-              </button>
-              {openMenu === 'add' && addDropdown}
-            </div>
-            <button
-              onClick={() => { if (searchOpen) setSearch(''); setSearchOpen(!searchOpen); setOpenMenu(null) }}
-              title={searchOpen ? 'Close search' : 'Search'}
-              className={cn('nav-btn group', searchOpen && 'nav-btn--active')}
-            >
-              {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-              <span className="bot-sidebar__nav-tooltip">{searchOpen ? 'Close' : 'Search'}</span>
-            </button>
-            <div className="bot-sidebar__nav-divider" />
-          </>
-        )}
         {visibleNavItems.map((item) => (
           <NavButton
             key={item.id}
@@ -242,26 +229,10 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         ))}
       </nav>
 
-      {/* Expandable search bar */}
-      {searchOpen && activeView === 'chats' && (
-        <div className="sidebar-search">
-          <div className="sidebar-search__wrap">
-            <Search className="sidebar-search__icon" />
-            <input
-              type="text"
-              autoFocus
-              placeholder="Search chats & rooms..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="sidebar-search__input"
-            />
-          </div>
-        </div>
-      )}
-
       {/* Content based on active view */}
       <div className="bot-sidebar__content">
-        {activeView === 'chats' && <ChatList botId={activeBot.id} search={search} onNavigate={onNavigate} />}
+        {activeView === 'chats' && <ChatList botId={activeBot.id} mode="chats" onNavigate={onNavigate} />}
+        {activeView === 'rooms' && <ChatList botId={activeBot.id} mode="rooms" onNavigate={onNavigate} />}
         {activeView === 'tasks' && <TaskList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'work' && <WorkSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
@@ -270,7 +241,21 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         {activeView === 'settings' && <SettingsList collapsed={sidebarCollapsed} />}
       </div>
 
+      {showCreatePicker && (
+        <CreatePickerDialog
+          onPickChat={() => { setShowCreatePicker(false); handleNewChat() }}
+          onPickRoom={() => { setShowCreatePicker(false); setShowCreateRoom(true) }}
+          onClose={() => setShowCreatePicker(false)}
+        />
+      )}
       {showCreateRoom && <CreateRoomDialogWrapper onClose={() => setShowCreateRoom(false)} />}
+      {showSearch && (
+        <GlobalSearchDialog
+          botId={activeBot.id}
+          onNavigate={(path) => { setShowSearch(false); navigate(path); onNavigate?.() }}
+          onClose={() => setShowSearch(false)}
+        />
+      )}
     </aside>
   )
 }
@@ -320,53 +305,26 @@ function formatRelativeTime(iso: string): string {
 // CHAT LIST
 // =============================================================================
 
-function ChatList({ botId, search, onNavigate }: { botId: string; search: string; onNavigate?: () => void }) {
+function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 'rooms'; onNavigate?: () => void }) {
   const navigate = useNavigate()
   const { activeBotId } = useBotStore()
   const { getChatsByBot, activeChatId, setActiveChat, updateChat, deleteChat, clearMessages, syncPlatformChats, loadPlatformChatMessages, archiveChat } = useChatStore()
-  const { rooms, setRooms, activeRoomId, setActiveRoom } = useRoomStore()
+  const { setRooms, activeRoomId, setActiveRoom, getRoomsForBot } = useRoomStore()
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
 
-  // Sync platform chats (Telegram, Discord) from backend
-  // Real-time updates now come via WebSocket, but keep polling as fallback
+  // Sync platform chats (Telegram, Discord) from backend — only in chats mode
   useEffect(() => {
+    if (mode !== 'chats') return
     syncPlatformChats(botId)
     const interval = setInterval(() => syncPlatformChats(botId), 60000)
     return () => clearInterval(interval)
-  }, [botId, syncPlatformChats])
+  }, [botId, mode, syncPlatformChats])
 
-  // Load rooms on mount
+  // Load rooms — only in rooms mode
   useEffect(() => {
+    if (mode !== 'rooms') return
     getRooms().then(setRooms).catch(() => {})
-  }, [setRooms])
-
-  const chats = getChatsByBot(botId)
-  const searchLower = search.toLowerCase()
-
-  // Build unified list: chats + rooms sorted by updatedAt descending
-  type UnifiedItem =
-    | { type: 'chat'; id: string; title: string; updatedAt: string; chat: Chat }
-    | { type: 'room'; id: string; title: string; updatedAt: string; botCount: number; messageCount: number }
-
-  const unifiedItems: UnifiedItem[] = [
-    ...chats.map((chat) => ({
-      type: 'chat' as const,
-      id: chat.id,
-      title: chat.title,
-      updatedAt: chat.updatedAt,
-      chat,
-    })),
-    ...rooms.map((room) => ({
-      type: 'room' as const,
-      id: room.id,
-      title: room.title,
-      updatedAt: room.updatedAt,
-      botCount: room.bots.length,
-      messageCount: room.messageCount ?? 0,
-    })),
-  ]
-    .filter((item) => !search || item.title.toLowerCase().includes(searchLower))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }, [mode, setRooms])
 
   // Get the appropriate icon for a chat
   const getChatIcon = (chat: Chat) => {
@@ -395,40 +353,43 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
     onNavigate?.()
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      {/* Unified chat + room list */}
-      <div className="sidebar-list">
-        {unifiedItems.length === 0 ? (
-          <div className="sidebar-list__empty">
-            {search ? 'No results found' : 'No chats yet'}
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {unifiedItems.map((item) =>
-              item.type === 'chat' ? (
-                <div key={`chat-${item.id}`} className="group relative">
+  // ── Chats mode ──
+  if (mode === 'chats') {
+    const chats = getChatsByBot(botId)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+    return (
+      <div className="flex h-full flex-col">
+        <div className="sidebar-list">
+          {chats.length === 0 ? (
+            <div className="sidebar-list__empty">
+              No chats yet
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {chats.map((chat) => (
+                <div key={chat.id} className="group relative">
                   <button
-                    onClick={() => handleChatClick(item.chat)}
+                    onClick={() => handleChatClick(chat)}
                     className={cn(
                       'sidebar-chat-item',
-                      activeChatId === item.id && 'sidebar-chat-item--active'
+                      activeChatId === chat.id && 'sidebar-chat-item--active'
                     )}
                   >
-                    {getChatIcon(item.chat)}
+                    {getChatIcon(chat)}
                     <div className="min-w-0 flex-1">
                       <div className="sidebar-chat-item__title-row">
-                        <span className="sidebar-chat-item__name">{item.chat.title}</span>
-                        {item.chat.pinned && <Pin className="sidebar-chat-item__pin" size={12} />}
-                        {item.chat.platform && (
+                        <span className="sidebar-chat-item__name">{chat.title}</span>
+                        {chat.pinned && <Pin className="sidebar-chat-item__pin" size={12} />}
+                        {chat.platform && (
                           <span className="sidebar-chat-item__platform-badge">
-                            {item.chat.platform}
+                            {chat.platform}
                           </span>
                         )}
-                        <span className="sidebar-chat-item__time">{formatRelativeTime(item.updatedAt)}</span>
+                        <span className="sidebar-chat-item__time">{formatRelativeTime(chat.updatedAt)}</span>
                       </div>
-                      {item.chat.lastMessage && (
-                        <p className="sidebar-chat-item__preview">{item.chat.lastMessage}</p>
+                      {chat.lastMessage && (
+                        <p className="sidebar-chat-item__preview">{chat.lastMessage}</p>
                       )}
                     </div>
                   </button>
@@ -437,38 +398,38 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      setMenuOpen(menuOpen === item.id ? null : item.id)
+                      setMenuOpen(menuOpen === chat.id ? null : chat.id)
                     }}
                     className={cn(
                       'sidebar-chat-item__menu-btn',
-                      menuOpen === item.id && 'sidebar-chat-item__menu-btn--open'
+                      menuOpen === chat.id && 'sidebar-chat-item__menu-btn--open'
                     )}
                   >
                     <MoreHorizontal size={14} />
                   </button>
 
                   {/* Context menu */}
-                  {menuOpen === item.id && (
+                  {menuOpen === chat.id && (
                     <div className="context-menu absolute right-0 top-8 z-10 w-48">
                       <button
                         onClick={() => {
-                          updateChat(item.id, { pinned: !item.chat.pinned })
+                          updateChat(chat.id, { pinned: !chat.pinned })
                           setMenuOpen(null)
                         }}
                         className="context-menu__item"
                       >
                         <Pin className="h-4 w-4" />
-                        {item.chat.pinned ? 'Unpin' : 'Pin'}
+                        {chat.pinned ? 'Unpin' : 'Pin'}
                       </button>
 
-                      {item.chat.platform ? (
+                      {chat.platform ? (
                         <>
                           <button
                             onClick={async () => {
                               setMenuOpen(null)
                               try {
-                                await clearChatMessages(botId, item.id)
-                                clearMessages(item.id)
+                                await clearChatMessages(botId, chat.id)
+                                clearMessages(chat.id)
                                 toast.success('Messages cleared')
                               } catch {
                                 toast.error('Failed to clear messages')
@@ -483,7 +444,7 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
                             onClick={async () => {
                               setMenuOpen(null)
                               try {
-                                await archiveChat(botId, item.id)
+                                await archiveChat(botId, chat.id)
                                 toast.success('Chat archived')
                               } catch {
                                 toast.error('Failed to archive chat')
@@ -499,7 +460,7 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
                         <>
                           <button
                             onClick={() => {
-                              updateChat(item.id, { archived: true })
+                              updateChat(chat.id, { archived: true })
                               setMenuOpen(null)
                             }}
                             className="context-menu__item"
@@ -510,7 +471,7 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
                           <div className="context-menu__divider" />
                           <button
                             onClick={() => {
-                              deleteChat(item.id)
+                              deleteChat(chat.id)
                               setMenuOpen(null)
                             }}
                             className="context-menu__item context-menu__item--danger"
@@ -523,33 +484,277 @@ function ChatList({ botId, search, onNavigate }: { botId: string; search: string
                     </div>
                   )}
                 </div>
-              ) : (
-                <button
-                  key={`room-${item.id}`}
-                  onClick={() => handleRoomClick(item.id)}
-                  className={cn(
-                    'sidebar-chat-item',
-                    activeRoomId === item.id && 'sidebar-chat-item--active'
-                  )}
-                >
-                  <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
-                  <div className="min-w-0 flex-1">
-                    <div className="sidebar-chat-item__title-row">
-                      <span className="sidebar-chat-item__name">{item.title}</span>
-                      <span className="sidebar-chat-item__platform-badge">Room</span>
-                      <span className="sidebar-chat-item__time">{formatRelativeTime(item.updatedAt)}</span>
-                    </div>
-                    <p className="sidebar-chat-item__preview">
-                      {item.botCount} bots · {item.messageCount} msgs
-                    </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Rooms mode ──
+  const botRooms = getRoomsForBot(botId)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="sidebar-list">
+        {botRooms.length === 0 ? (
+          <div className="sidebar-list__empty">
+            No rooms for this bot
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {botRooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => handleRoomClick(room.id)}
+                className={cn(
+                  'sidebar-chat-item',
+                  activeRoomId === room.id && 'sidebar-chat-item--active'
+                )}
+              >
+                <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
+                <div className="min-w-0 flex-1">
+                  <div className="sidebar-chat-item__title-row">
+                    <span className="sidebar-chat-item__name">{room.title}</span>
+                    <span className="sidebar-chat-item__time">{formatRelativeTime(room.updatedAt)}</span>
                   </div>
-                </button>
-              )
-            )}
+                  <p className="sidebar-chat-item__preview">
+                    {room.bots.length} bots · {room.messageCount ?? 0} msgs
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         )}
       </div>
+    </div>
+  )
+}
 
+// =============================================================================
+// GLOBAL SEARCH DIALOG
+// =============================================================================
+
+type SearchResult =
+  | { type: 'chat'; id: string; title: string; meta: string }
+  | { type: 'room'; id: string; title: string; meta: string }
+  | { type: 'task'; id: string; title: string; meta: string }
+
+function GlobalSearchDialog({
+  botId,
+  onNavigate,
+  onClose,
+}: {
+  botId: string
+  onNavigate: (path: string) => void
+  onClose: () => void
+}) {
+  const [query, setQuery] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { activeBotId } = useBotStore()
+  const { getChatsByBot } = useChatStore()
+  const { rooms } = useRoomStore()
+  const { getTasksByBot } = useTaskStore()
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const q = query.toLowerCase().trim()
+
+  const results = useMemo<SearchResult[]>(() => {
+    if (!q) return []
+    const out: SearchResult[] = []
+
+    // Chats
+    for (const chat of getChatsByBot(botId)) {
+      if (chat.title.toLowerCase().includes(q)) {
+        out.push({
+          type: 'chat',
+          id: chat.id,
+          title: chat.title,
+          meta: chat.platform ? `${chat.platform} chat` : formatRelativeTime(chat.updatedAt),
+        })
+      }
+    }
+
+    // Rooms (all rooms, not just bot-filtered — global search)
+    for (const room of rooms) {
+      if (room.title.toLowerCase().includes(q)) {
+        out.push({
+          type: 'room',
+          id: room.id,
+          title: room.title,
+          meta: `${room.bots.length} bots · ${room.messageCount ?? 0} msgs`,
+        })
+      }
+    }
+
+    // Tasks
+    for (const task of getTasksByBot(botId)) {
+      if (task.title.toLowerCase().includes(q)) {
+        out.push({
+          type: 'task',
+          id: task.id,
+          title: task.title,
+          meta: task.status,
+        })
+      }
+    }
+
+    return out
+  }, [q, botId, getChatsByBot, rooms, getTasksByBot])
+
+  const handleSelect = (result: SearchResult) => {
+    switch (result.type) {
+      case 'chat':
+        onNavigate(`/${activeBotId}/chats/${result.id}`)
+        break
+      case 'room':
+        onNavigate(`/${activeBotId}/rooms/${result.id}`)
+        break
+      case 'task':
+        onNavigate(`/${activeBotId}/tasks`)
+        break
+    }
+  }
+
+  const iconFor = (type: SearchResult['type']) => {
+    switch (type) {
+      case 'chat': return <MessageSquare className="h-4 w-4" />
+      case 'room': return <DoorOpen className="h-4 w-4" />
+      case 'task': return <CheckSquare className="h-4 w-4" />
+    }
+  }
+
+  // Group results by type
+  const grouped = useMemo(() => {
+    const groups: Record<string, SearchResult[]> = {}
+    for (const r of results) {
+      ;(groups[r.type] ??= []).push(r)
+    }
+    return groups
+  }, [results])
+
+  const groupLabel: Record<string, string> = { chat: 'Chats', room: 'Rooms', task: 'Tasks' }
+
+  return (
+    <div className="dialog__backdrop" onClick={onClose}>
+      <div
+        className="dialog__panel dialog__panel--sm"
+        onClick={(e) => e.stopPropagation()}
+        style={{ marginTop: '10vh' , alignSelf: 'flex-start' }}
+      >
+        {/* Search input */}
+        <div className="global-search__input-wrap">
+          <Search className="global-search__icon" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search chats, rooms, tasks..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="global-search__input"
+          />
+        </div>
+
+        {/* Results */}
+        <div className="global-search__body">
+          {!q && (
+            <div className="global-search__hint">
+              Type to search across all your conversations, rooms, and tasks.
+            </div>
+          )}
+          {q && results.length === 0 && (
+            <div className="global-search__empty">
+              No results for &ldquo;{query}&rdquo;
+            </div>
+          )}
+          {Object.entries(grouped).map(([type, items]) => (
+            <div key={type}>
+              <div className="global-search__group-label">{groupLabel[type] ?? type}</div>
+              {items.map((item) => (
+                <button
+                  key={`${item.type}-${item.id}`}
+                  className="global-search__item"
+                  onClick={() => handleSelect(item)}
+                >
+                  <div className={`global-search__item-icon global-search__item-icon--${item.type}`}>
+                    {iconFor(item.type)}
+                  </div>
+                  <div className="global-search__item-info">
+                    <span className="global-search__item-name">{item.title}</span>
+                    <span className="global-search__item-meta">{item.meta}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// CREATE PICKER DIALOG
+// =============================================================================
+
+function CreatePickerDialog({
+  onPickChat,
+  onPickRoom,
+  onClose,
+}: {
+  onPickChat: () => void
+  onPickRoom: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="dialog__backdrop" onClick={onClose}>
+      <div
+        className="dialog__panel dialog__panel--sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dialog__header">
+          <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Create New</h2>
+          <button onClick={onClose} className="nav-btn">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="dialog__body-base">
+          <div className="create-picker__grid">
+            <button className="create-picker__card" onClick={onPickChat}>
+              <div className="create-picker__icon create-picker__icon--chat">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <div className="create-picker__label">Chat</div>
+              <p className="create-picker__desc">
+                A private conversation between you and a single bot. Great for questions, brainstorming, or one-on-one tasks.
+              </p>
+            </button>
+            <button className="create-picker__card" onClick={onPickRoom}>
+              <div className="create-picker__icon create-picker__icon--room">
+                <DoorOpen className="h-6 w-6" />
+              </div>
+              <div className="create-picker__label">Room</div>
+              <p className="create-picker__desc">
+                A shared space where multiple bots and people can collaborate together in real time.
+              </p>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
