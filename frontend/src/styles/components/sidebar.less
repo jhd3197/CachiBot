@@ -35,8 +35,8 @@
 .nav-btn {
   position: relative;
   .flex-center();
-  height: 2rem;
-  width: 2rem;
+  height: 1.75rem;
+  width: 1.75rem;
   border-radius: @radius-lg;
   font-size: @text-sm;
   font-weight: @font-medium;
@@ -52,11 +52,12 @@
   }
 
   &--active {
-    background: rgba(var(--accent-600-rgb, 22, 163, 74), 0.2);
+    background: color-mix(in srgb, var(--accent-500) 15%, transparent);
     color: var(--accent-600);
 
     .dark & {
       color: var(--accent-400);
+      box-shadow: 0 0 6px color-mix(in srgb, var(--accent-500) 20%, transparent);
     }
   }
 }

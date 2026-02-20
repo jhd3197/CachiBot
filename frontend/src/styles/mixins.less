@@ -422,7 +422,7 @@
 // Component — Context Menu
 // -----------------------------------------------------------------------------
 .context-menu() {
-  background: var(--color-bg-primary);
+  background: var(--color-bg-dropdown);
   border: 1px solid var(--color-border-primary);
   border-radius: @radius-lg;
   box-shadow: @shadow-lg;
@@ -433,12 +433,16 @@
 
 .context-menu-item() {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: @sp-2;
   padding: @sp-2 @sp-3;
   font-size: @text-sm;
   color: var(--color-text-primary);
   border-radius: @radius-md;
+  border: none;
+  background: none;
+  text-align: left;
   cursor: pointer;
   .transition-colors();
 

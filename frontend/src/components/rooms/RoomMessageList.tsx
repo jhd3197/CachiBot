@@ -9,9 +9,13 @@ interface RoomMessageListProps {
 export function RoomMessageList({ messages }: RoomMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // Scroll on new messages AND on streaming content appends (same ID, growing content)
+  const lastMsg = messages[messages.length - 1]
+  const scrollKey = `${messages.length}-${lastMsg?.content.length ?? 0}`
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+  }, [scrollKey])
 
   if (messages.length === 0) {
     return (

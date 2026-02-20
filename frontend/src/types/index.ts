@@ -1080,6 +1080,7 @@ export type RoomWSMessageType =
   | 'room_bot_thinking'
   | 'room_bot_tool_start'
   | 'room_bot_tool_end'
+  | 'room_bot_instruction_delta'
   | 'room_bot_done'
   | 'room_typing_indicator'
   | 'room_presence'

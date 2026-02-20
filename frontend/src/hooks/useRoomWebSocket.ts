@@ -1,10 +1,16 @@
 /**
  * React hook that wires a RoomWebSocketClient to the room Zustand store.
+ *
+ * Provides optimistic rendering for user messages: the message is added to the
+ * local store immediately (with a frontend-generated ID) and sent to the
+ * backend in the same call. When the backend broadcasts the message back, the
+ * handler skips it (same ID already in store) to avoid duplicates.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { RoomWebSocketClient } from '../api/room-websocket'
 import { useRoomStore } from '../stores/rooms'
+import { useAuthStore } from '../stores/auth'
 import type { RoomMessage, RoomWSMessage } from '../types'
 
 export function useRoomWebSocket(roomId: string | null) {
@@ -43,10 +49,19 @@ export function useRoomWebSocket(roomId: string | null) {
 
       switch (msg.type) {
         case 'room_message': {
+          const messageId = (p.messageId as string) || crypto.randomUUID()
+          const senderType = p.senderType as RoomMessage['senderType']
+
+          // For user messages, skip if already in store (optimistic render)
+          if (senderType === 'user') {
+            const existing = useRoomStore.getState().messages[roomId] || []
+            if (existing.some((m) => m.id === messageId)) break
+          }
+
           const roomMsg: RoomMessage = {
-            id: (p.messageId as string) || crypto.randomUUID(),
+            id: messageId,
             roomId: p.roomId as string,
-            senderType: p.senderType as RoomMessage['senderType'],
+            senderType,
             senderId: p.senderId as string,
             senderName: p.senderName as string,
             content: p.content as string,
@@ -67,6 +82,10 @@ export function useRoomWebSocket(roomId: string | null) {
 
         case 'room_bot_tool_end':
           // Stay in responding state until done
+          break
+
+        case 'room_bot_instruction_delta':
+          // Instruction deltas stream during tool use — no store action needed yet
           break
 
         case 'room_bot_done':
@@ -116,8 +135,27 @@ export function useRoomWebSocket(roomId: string | null) {
   }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError])
 
   const sendMessage = useCallback((message: string) => {
-    clientRef.current?.sendChat(message)
-  }, [])
+    if (!roomId) return
+
+    // Generate a stable ID shared between local store and backend
+    const messageId = crypto.randomUUID()
+    const user = useAuthStore.getState().user
+
+    // Optimistically render the message immediately
+    addMessage(roomId, {
+      id: messageId,
+      roomId,
+      senderType: 'user',
+      senderId: user?.id || '',
+      senderName: user?.username || '',
+      content: message,
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    })
+
+    // Send via WebSocket (backend will use the same ID)
+    clientRef.current?.sendChat(message, messageId)
+  }, [roomId, addMessage])
 
   const sendTyping = useCallback((isTyping: boolean) => {
     clientRef.current?.sendTyping(isTyping)

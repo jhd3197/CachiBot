@@ -82,6 +82,7 @@ export function MainLayout() {
 
   const viewMap: Record<string, BotView> = {
     chats: 'chats',
+    rooms: 'rooms',
     tasks: 'tasks',
     work: 'work',
     schedules: 'schedules',
