@@ -73,6 +73,7 @@ class RoomWSMessage(BaseModel):
         tool_id: str,
         tool_name: str,
         args: dict[str, Any],
+        message_id: str = "",
     ) -> "RoomWSMessage":
         """Create a bot tool start message."""
         return cls(
@@ -84,6 +85,7 @@ class RoomWSMessage(BaseModel):
                 "toolId": tool_id,
                 "toolName": tool_name,
                 "args": args,
+                "messageId": message_id,
             },
         )
 
@@ -96,6 +98,7 @@ class RoomWSMessage(BaseModel):
         tool_id: str,
         result: Any,
         success: bool = True,
+        message_id: str = "",
     ) -> "RoomWSMessage":
         """Create a bot tool end message."""
         return cls(
@@ -107,6 +110,7 @@ class RoomWSMessage(BaseModel):
                 "toolId": tool_id,
                 "result": result,
                 "success": success,
+                "messageId": message_id,
             },
         )
 
@@ -180,8 +184,14 @@ class RoomWSMessage(BaseModel):
         cls,
         room_id: str,
         bot_id: str,
+        message_id: str = "",
         tokens: int = 0,
         cost: float = 0.0,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        elapsed_ms: float = 0.0,
+        tokens_per_second: float = 0.0,
+        model: str = "",
     ) -> "RoomWSMessage":
         """Create a usage stats message."""
         return cls(
@@ -189,7 +199,13 @@ class RoomWSMessage(BaseModel):
             payload={
                 "roomId": room_id,
                 "botId": bot_id,
+                "messageId": message_id,
                 "totalTokens": tokens,
                 "totalCost": cost,
+                "promptTokens": prompt_tokens,
+                "completionTokens": completion_tokens,
+                "elapsedMs": elapsed_ms,
+                "tokensPerSecond": tokens_per_second,
+                "model": model,
             },
         )

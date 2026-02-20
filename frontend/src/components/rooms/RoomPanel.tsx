@@ -3,8 +3,8 @@ import { Settings, Users, Bot, Loader2 } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useRoomWebSocket } from '../../hooks/useRoomWebSocket'
 import { getRoomMessages, getRoom } from '../../api/rooms'
-import { RoomMessageList } from './RoomMessageList'
-import { RoomInputArea } from './RoomInputArea'
+import { RoomMessageList } from '../chat/MessageList'
+import { InputArea } from '../chat/InputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { useAuthStore } from '../../stores/auth'
 import type { Room } from '../../types'
@@ -154,11 +154,11 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
       )}
 
       {/* Input */}
-      <RoomInputArea
+      <InputArea
         onSend={sendMessage}
         onTyping={sendTyping}
         bots={room.bots}
-        disabled={!isConnected}
+        isConnected={isConnected}
       />
 
       {/* Settings dialog */}

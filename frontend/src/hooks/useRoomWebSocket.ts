@@ -17,6 +17,9 @@ export function useRoomWebSocket(roomId: string | null) {
   const clientRef = useRef<RoomWebSocketClient | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
+  // Track current bot message ID per bot (botId → messageId)
+  const lastBotMessageIdRef = useRef<Record<string, string>>({})
+
   const {
     addMessage,
     setBotState,
@@ -24,6 +27,10 @@ export function useRoomWebSocket(roomId: string | null) {
     addOnlineUser,
     removeOnlineUser,
     setError,
+    addToolCall,
+    completeToolCall,
+    finalizeToolCalls,
+    updateMessageMetadata,
   } = useRoomStore()
 
   useEffect(() => {
@@ -34,6 +41,7 @@ export function useRoomWebSocket(roomId: string | null) {
         clientRef.current = null
       }
       setIsConnected(false)
+      lastBotMessageIdRef.current = {}
       return
     }
 
@@ -58,6 +66,11 @@ export function useRoomWebSocket(roomId: string | null) {
             if (existing.some((m) => m.id === messageId)) break
           }
 
+          // Track bot message IDs for tool call association
+          if (senderType === 'bot') {
+            lastBotMessageIdRef.current[p.senderId as string] = messageId
+          }
+
           const roomMsg: RoomMessage = {
             id: messageId,
             roomId: p.roomId as string,
@@ -76,21 +89,51 @@ export function useRoomWebSocket(roomId: string | null) {
           setBotState(roomId, p.botId as string, 'thinking')
           break
 
-        case 'room_bot_tool_start':
+        case 'room_bot_tool_start': {
           setBotState(roomId, p.botId as string, 'responding')
+          const botId = p.botId as string
+          // Use messageId from payload if available, otherwise fall back to tracked ID
+          const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
+          if (msgId) {
+            addToolCall(roomId, msgId, {
+              id: p.toolId as string,
+              tool: p.toolName as string,
+              args: (p.args as Record<string, unknown>) || {},
+              startTime: Date.now(),
+            })
+          }
           break
+        }
 
-        case 'room_bot_tool_end':
-          // Stay in responding state until done
+        case 'room_bot_tool_end': {
+          const botId = p.botId as string
+          const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
+          if (msgId) {
+            completeToolCall(
+              roomId,
+              msgId,
+              p.toolId as string,
+              p.result,
+              (p.success as boolean) ?? true
+            )
+          }
           break
+        }
 
         case 'room_bot_instruction_delta':
           // Instruction deltas stream during tool use — no store action needed yet
           break
 
-        case 'room_bot_done':
-          setBotState(roomId, p.botId as string, 'idle')
+        case 'room_bot_done': {
+          const botId = p.botId as string
+          const msgId = lastBotMessageIdRef.current[botId]
+          if (msgId) {
+            finalizeToolCalls(roomId, msgId)
+          }
+          setBotState(roomId, botId, 'idle')
+          delete lastBotMessageIdRef.current[botId]
           break
+        }
 
         case 'room_typing_indicator':
           setTyping(
@@ -119,9 +162,22 @@ export function useRoomWebSocket(roomId: string | null) {
           }
           break
 
-        case 'room_usage':
-          // Could be extended to track per-bot usage
+        case 'room_usage': {
+          const botId = p.botId as string
+          const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
+          if (msgId) {
+            updateMessageMetadata(roomId, msgId, {
+              model: p.model,
+              tokens: p.totalTokens ?? p.tokens,
+              cost: p.totalCost ?? p.cost,
+              promptTokens: p.promptTokens,
+              completionTokens: p.completionTokens,
+              elapsedMs: p.elapsedMs,
+              tokensPerSecond: p.tokensPerSecond,
+            })
+          }
           break
+        }
       }
     })
 
@@ -131,8 +187,9 @@ export function useRoomWebSocket(roomId: string | null) {
       client.disconnect()
       clientRef.current = null
       setIsConnected(false)
+      lastBotMessageIdRef.current = {}
     }
-  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError])
+  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata])
 
   const sendMessage = useCallback((message: string) => {
     if (!roomId) return

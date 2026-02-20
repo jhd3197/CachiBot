@@ -215,6 +215,41 @@
     flex-direction: row;
   }
 
+  &--system {
+    display: block;
+    padding: @sp-1 0;
+    text-align: center;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: @sp-2;
+  }
+
+  &__sender {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+
+    &--user {
+      color: @blue-600;
+
+      .dark & {
+        color: @blue-400;
+      }
+    }
+
+    &--bot {
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+
   &__avatar {
     .flex-center();
     height: 2.25rem;
@@ -535,6 +570,7 @@
 // -----------------------------------------------------------------------------
 
 .chat-input-container {
+  position: relative;
   display: flex;
   align-items: center;
   gap: @sp-2;
@@ -1115,6 +1151,45 @@
   border-radius: @radius-sm;
   background: var(--color-hover-bg);
   padding: 2px @sp-1-5;
+}
+
+// @mention autocomplete popup (rooms)
+.chat-input-mention-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: @z-dropdown;
+  margin-bottom: @sp-2;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-1 0;
+  box-shadow: @shadow-xl;
+
+  .dark & {
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+  }
+}
+
+.chat-input-mention-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-1-5 @sp-3;
+  text-align: left;
+  font-size: @text-sm;
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
+  }
 }
 
 // -----------------------------------------------------------------------------

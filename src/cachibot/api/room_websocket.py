@@ -213,8 +213,9 @@ async def room_websocket_endpoint(
                 )
                 await msg_repo.save_message(user_msg)
 
-                # Broadcast user message to all
-                await room_manager.send_to_room(
+                # Broadcast user message to other users (sender already has it
+                # via optimistic rendering — sending it back causes duplicates)
+                await room_manager.broadcast_to_room(
                     room_id,
                     RoomWSMessage.room_message(
                         room_id=room_id,
@@ -224,6 +225,7 @@ async def room_websocket_endpoint(
                         content=message_text,
                         message_id=user_msg.id,
                     ),
+                    exclude_user_id=user.id,
                 )
 
                 # Ask orchestrator which bots should respond
@@ -286,15 +288,24 @@ async def room_websocket_endpoint(
         room_manager.disconnect(room_id, user.id)
 
 
+MAX_CHAIN_DEPTH = 3
+"""Maximum bot-to-bot mention chain depth to prevent infinite loops."""
+
+
 async def run_room_bot(
     room_id: str,
     bot_id: str,
     message: str,
     config: Config,
+    chain_depth: int = 0,
 ) -> None:
     """Run a bot's response in a room.
 
     Streams the response and broadcasts to all room members.
+    When the bot's response contains @mentions, chains to those bots.
+
+    Args:
+        chain_depth: Current depth in a bot-to-bot mention chain (0 = user-triggered).
     """
     orchestrator = get_room_orchestrator(room_id)
     if orchestrator is None:
@@ -352,6 +363,7 @@ async def run_room_bot(
         # Stream response
         response_parts: list[str] = []
         response_msg_id = str(uuid.uuid4())
+        agent_result = None  # Captured from the final output event
 
         async for event in agent.run_stream(message):
             match event.event_type:
@@ -378,6 +390,7 @@ async def run_room_bot(
                             tool_id=event.data.get("id", ""),
                             tool_name=event.data["name"],
                             args=event.data.get("arguments", {}),
+                            message_id=response_msg_id,
                         ),
                     )
                 case StreamEventType.tool_result:
@@ -389,10 +402,11 @@ async def run_room_bot(
                             bot_name=bot.name,
                             tool_id=event.data.get("id", ""),
                             result=str(event.data.get("result", "")),
+                            message_id=response_msg_id,
                         ),
                     )
                 case StreamEventType.output:
-                    pass  # Final result captured via response_parts
+                    agent_result = event.data  # AgentResult
 
         # Save bot response
         full_response = "".join(response_parts)
@@ -408,11 +422,60 @@ async def run_room_bot(
             )
             await msg_repo.save_message(bot_msg)
 
+        # Send usage stats from AgentResult
+        if agent_result:
+            run_usage = agent_result.run_usage
+            await room_manager.send_to_room(
+                room_id,
+                RoomWSMessage.usage(
+                    room_id=room_id,
+                    bot_id=bot_id,
+                    message_id=response_msg_id,
+                    model=effective_model or "",
+                    tokens=run_usage.get("total_tokens", 0),
+                    cost=run_usage.get("cost", 0.0),
+                    prompt_tokens=run_usage.get("prompt_tokens", 0),
+                    completion_tokens=run_usage.get("completion_tokens", 0),
+                    elapsed_ms=run_usage.get("total_elapsed_ms", 0.0),
+                    tokens_per_second=run_usage.get("tokens_per_second", 0.0),
+                ),
+            )
+
         # Broadcast done
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.bot_done(room_id, bot_id, bot.name),
         )
+
+        # Bot-to-bot mention chaining: parse the bot's response for @mentions
+        if full_response and chain_depth < MAX_CHAIN_DEPTH:
+            chained = orchestrator.select_respondents(
+                full_response, "bot", exclude_bot_id=bot_id
+            )
+            for next_bot_id in chained:
+                next_bot = orchestrator.bot_configs.get(next_bot_id)
+                if not next_bot:
+                    continue
+
+                orchestrator.mark_responding(next_bot_id)
+
+                await room_manager.send_to_room(
+                    room_id,
+                    RoomWSMessage.bot_thinking(room_id, next_bot_id, next_bot.name),
+                )
+
+                task = asyncio.create_task(
+                    run_room_bot(
+                        room_id=room_id,
+                        bot_id=next_bot_id,
+                        message=full_response,
+                        config=config,
+                        chain_depth=chain_depth + 1,
+                    )
+                )
+                if room_id not in room_manager.bot_tasks:
+                    room_manager.bot_tasks[room_id] = {}
+                room_manager.bot_tasks[room_id][next_bot_id] = task
 
     except asyncio.CancelledError:
         await room_manager.send_to_room(
