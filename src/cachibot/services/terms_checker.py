@@ -7,6 +7,7 @@ so offline / air-gapped setups are unaffected.
 
 import asyncio
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ _TERMS_URL = "https://cachibot.ai/api/legal/terms"
 _TIMEOUT_SECONDS = 10
 
 _task: asyncio.Task[None] | None = None
-_latest_terms: dict | None = None
+_latest_terms: dict[str, Any] | None = None
 
 
 async def start_terms_checker() -> None:
@@ -46,7 +47,7 @@ async def stop_terms_checker() -> None:
 def get_latest_terms_version() -> str:
     """Return the latest known terms version, or empty string if unknown."""
     if _latest_terms and "version" in _latest_terms:
-        return _latest_terms["version"]
+        return str(_latest_terms["version"])
     return ""
 
 

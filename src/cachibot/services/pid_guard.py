@@ -108,7 +108,7 @@ def _kill_process(pid: int) -> None:
             if not _is_process_alive(pid):
                 return
         try:
-            os.kill(pid, signal.SIGKILL)
+            os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
         except OSError:
             pass
 
@@ -155,9 +155,7 @@ def write_pid_file(port: int) -> None:
     """Write the current process PID file."""
     try:
         PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PID_FILE.write_text(
-            json.dumps({"pid": os.getpid(), "exe": sys.executable, "port": port})
-        )
+        PID_FILE.write_text(json.dumps({"pid": os.getpid(), "exe": sys.executable, "port": port}))
     except Exception as exc:
         logger.warning("Failed to write PID file: %s", exc)
 
