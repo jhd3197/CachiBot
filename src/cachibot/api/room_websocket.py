@@ -449,9 +449,7 @@ async def run_room_bot(
 
         # Bot-to-bot mention chaining: parse the bot's response for @mentions
         if full_response and chain_depth < MAX_CHAIN_DEPTH:
-            chained = orchestrator.select_respondents(
-                full_response, "bot", exclude_bot_id=bot_id
-            )
+            chained = orchestrator.select_respondents(full_response, "bot", exclude_bot_id=bot_id)
             for next_bot_id in chained:
                 next_bot = orchestrator.bot_configs.get(next_bot_id)
                 if not next_bot:
