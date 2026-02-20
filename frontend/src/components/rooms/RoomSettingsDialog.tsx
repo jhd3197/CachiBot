@@ -9,11 +9,12 @@ import {
   addRoomBot,
   removeRoomBot,
   clearRoomMessages,
+  updateBotRole,
 } from '../../api/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import type { Room } from '../../types'
+import type { Room, RoomBotRole } from '../../types'
 
 interface RoomSettingsDialogProps {
   room: Room
@@ -29,7 +30,10 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   const [description, setDescription] = useState(room.description || '')
   const [cooldown, setCooldown] = useState(room.settings.cooldown_seconds)
   const [autoRelevance, setAutoRelevance] = useState(room.settings.auto_relevance)
-  const [responseMode, setResponseMode] = useState<'parallel' | 'sequential'>(room.settings.response_mode || 'parallel')
+  const [responseMode, setResponseMode] = useState<'parallel' | 'sequential' | 'chain' | 'router'>(room.settings.response_mode || 'parallel')
+  const [botRoles, setBotRoles] = useState<Record<string, RoomBotRole>>(
+    Object.fromEntries(room.bots.map((b) => [b.botId, b.role || 'default']))
+  )
   const [inviteUsername, setInviteUsername] = useState('')
   const [saving, setSaving] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -43,7 +47,19 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
         description: description.trim() || undefined,
         settings: { cooldown_seconds: cooldown, auto_relevance: autoRelevance, response_mode: responseMode },
       })
-      onUpdate(updated)
+
+      // Save changed bot roles
+      for (const bot of room.bots) {
+        const newRole = botRoles[bot.botId]
+        if (newRole && newRole !== (bot.role || 'default')) {
+          await updateBotRole(room.id, bot.botId, newRole)
+        }
+      }
+
+      // Refresh room data to get updated roles
+      const { getRoom } = await import('../../api/rooms')
+      const refreshed = await getRoom(room.id)
+      onUpdate(refreshed)
       toast.success('Room updated')
       onClose()
     } catch (err) {
@@ -194,14 +210,29 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
               {room.bots.map((rb) => (
                 <div key={rb.botId} className="room-settings__member-item">
                   <span className="room-settings__member-name">{rb.botName}</span>
-                  {room.bots.length > 2 && (
-                    <button
-                      onClick={() => handleRemoveBot(rb.botId)}
-                      className="room-settings__bot-remove"
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <select
+                      value={botRoles[rb.botId] || 'default'}
+                      onChange={(e) =>
+                        setBotRoles((prev) => ({ ...prev, [rb.botId]: e.target.value as RoomBotRole }))
+                      }
+                      className="room-settings__role-select"
                     >
-                      <Minus size={14} />
-                    </button>
-                  )}
+                      <option value="default">Default</option>
+                      <option value="lead">Lead</option>
+                      <option value="reviewer">Reviewer</option>
+                      <option value="observer">Observer</option>
+                      <option value="specialist">Specialist</option>
+                    </select>
+                    {room.bots.length > 2 && (
+                      <button
+                        onClick={() => handleRemoveBot(rb.botId)}
+                        className="room-settings__bot-remove"
+                      >
+                        <Minus size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {room.bots.length < 4 && availableBots.length > 0 && (
@@ -268,11 +299,29 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
               >
                 One by one
               </button>
+              <button
+                type="button"
+                onClick={() => setResponseMode('chain')}
+                className={`room-settings__mode-btn ${responseMode === 'chain' ? 'room-settings__mode-btn--active' : ''}`}
+              >
+                Chain
+              </button>
+              <button
+                type="button"
+                onClick={() => setResponseMode('router')}
+                className={`room-settings__mode-btn ${responseMode === 'router' ? 'room-settings__mode-btn--active' : ''}`}
+              >
+                Router
+              </button>
             </div>
             <p className="form-field__help">
               {responseMode === 'parallel'
                 ? 'All bots respond at the same time'
-                : 'Bots take turns responding one after another'}
+                : responseMode === 'sequential'
+                  ? 'Bots take turns responding one after another'
+                  : responseMode === 'chain'
+                    ? 'Bots respond in order, each building on previous outputs'
+                    : 'An AI picks the best bot for each message'}
             </p>
           </div>
         </div>

@@ -9,6 +9,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from cachibot.config import Config
 from cachibot.models.bot import Bot
 from cachibot.models.room import RoomMessage
 
@@ -32,7 +33,8 @@ class RoomOrchestrator:
     cooldowns: dict[str, BotCooldownState] = field(default_factory=dict)
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # "parallel" or "sequential"
+    response_mode: str = "parallel"  # "parallel", "sequential", "chain", or "router"
+    bot_roles: dict[str, str] = field(default_factory=dict)
 
     def register_bot(self, bot: Bot) -> None:
         """Register a bot in this room."""
@@ -44,6 +46,10 @@ class RoomOrchestrator:
         """Remove a bot from this room."""
         self.bot_configs.pop(bot_id, None)
         self.cooldowns.pop(bot_id, None)
+
+    def set_bot_role(self, bot_id: str, role: str) -> None:
+        """Set a bot's role in this room."""
+        self.bot_roles[bot_id] = role
 
     def parse_mentions(self, message: str) -> list[str]:
         """Extract @BotName mentions and match to registered bot IDs.
@@ -146,15 +152,24 @@ class RoomOrchestrator:
             logger.debug("Room %s: auto_relevance disabled, no respondents", self.room_id)
             return []
 
-        # Auto-select first available bot not on cooldown
+        # Auto-select: all bots not on cooldown (excluding observers)
+        available = []
         for bot_id in self.bot_configs:
             if bot_id == exclude_bot_id:
                 continue
+            if self.bot_roles.get(bot_id) == "observer":
+                continue
             if not self.is_on_cooldown(bot_id):
-                logger.debug(
-                    "Room %s: auto-selected respondent: %s", self.room_id, bot_id
-                )
-                return [bot_id]
+                available.append(bot_id)
+
+        # Sort: leads first for sequential/chain benefit
+        available.sort(key=lambda bid: (0 if self.bot_roles.get(bid) == "lead" else 1))
+
+        if available:
+            logger.debug(
+                "Room %s: auto-selected respondent: %s", self.room_id, available[0]
+            )
+            return [available[0]]
 
         logger.debug("Room %s: all bots on cooldown, no respondents", self.room_id)
         return []
@@ -178,6 +193,16 @@ class RoomOrchestrator:
 
         transcript = "\n".join(lines)
 
+        # Role-specific instructions
+        role = self.bot_roles.get(bot_id, "default")
+        role_instructions = {
+            "lead": "\nYou are the LEAD. Guide the conversation and synthesize conclusions.",
+            "reviewer": "\nYou are a REVIEWER. Critically evaluate and suggest improvements.",
+            "observer": "\nYou are an OBSERVER. Only respond when explicitly addressed.",
+            "specialist": "\nYou are a SPECIALIST. Focus on your area of expertise.",
+        }
+        role_line = role_instructions.get(role, "")
+
         return (
             f"\n\n--- ROOM CONTEXT ---\n"
             f"You are {bot.name} in a collaborative room.\n"
@@ -186,8 +211,42 @@ class RoomOrchestrator:
             f"You can mention other bots with @BotName to bring them into the conversation "
             f"(e.g. @{bot_names[0] if bot_names else 'BotName'}). "
             f"Use @all to address everyone.\n"
+            f"{role_line}\n"
             f"\nRecent conversation:\n{transcript}\n"
             f"--- END ROOM CONTEXT ---"
+        )
+
+    def build_chain_context(
+        self,
+        bot_id: str,
+        recent_messages: list[RoomMessage],
+        previous_outputs: list[tuple[str, str]],
+    ) -> str:
+        """Build context for chain mode including previous bots' outputs.
+
+        Args:
+            previous_outputs: List of (bot_name, response_text) from earlier chain steps.
+        """
+        base = self.build_room_context(bot_id, recent_messages)
+
+        if not previous_outputs:
+            return base
+
+        chain_lines = []
+        for name, output in previous_outputs:
+            # Truncate each output to ~2000 chars
+            truncated = output[:2000] + ("..." if len(output) > 2000 else "")
+            chain_lines.append(f"{name}:\n{truncated}")
+
+        chain_section = "\n\n".join(chain_lines)
+
+        return (
+            f"{base}\n\n"
+            f"--- CHAIN CONTEXT ---\n"
+            f"Previous bots in this chain have already responded:\n\n"
+            f"{chain_section}\n\n"
+            f"Build on their work. Do not repeat what they said.\n"
+            f"--- END CHAIN CONTEXT ---"
         )
 
 
@@ -223,3 +282,72 @@ def create_room_orchestrator(
 def remove_room_orchestrator(room_id: str) -> None:
     """Remove an orchestrator when a room is no longer active."""
     _active_orchestrators.pop(room_id, None)
+
+
+async def route_message(
+    orchestrator: RoomOrchestrator,
+    message: str,
+    config: Config,
+) -> tuple[str, str]:
+    """Use an LLM to pick the best bot for a message.
+
+    Returns:
+        (bot_id, reason) tuple.
+    """
+    from cachibot.services.name_generator import _chat_completion, _extract_json, _resolve_utility_model
+
+    # Build bot descriptions for the prompt
+    candidates = []
+    for bot_id, bot in orchestrator.bot_configs.items():
+        role = orchestrator.bot_roles.get(bot_id, "default")
+        if role == "observer":
+            continue
+        desc = bot.description or "General-purpose assistant"
+        candidates.append({"id": bot_id, "name": bot.name, "description": desc})
+
+    if not candidates:
+        # Fallback: first bot
+        first_id = next(iter(orchestrator.bot_configs))
+        return first_id, "No eligible bots for routing"
+
+    if len(candidates) == 1:
+        return candidates[0]["id"], "Only one eligible bot"
+
+    bot_list = "\n".join(
+        f'- id="{c["id"]}", name="{c["name"]}": {c["description"]}'
+        for c in candidates
+    )
+
+    prompt = (
+        f"You are a message router. Given a user message and a list of available bots, "
+        f"pick the single best bot to respond.\n\n"
+        f"Available bots:\n{bot_list}\n\n"
+        f"User message: {message[:500]}\n\n"
+        f'Respond with ONLY a JSON object: {{"bot_id": "...", "reason": "..."}}'
+    )
+
+    try:
+        model = _resolve_utility_model()
+        response = await _chat_completion(prompt, model)
+        data = _extract_json(response)
+        chosen_id = data.get("bot_id", "")
+        reason = data.get("reason", "Best match")
+
+        # Validate the chosen bot exists
+        valid_ids = {c["id"] for c in candidates}
+        if chosen_id in valid_ids:
+            return chosen_id, reason
+
+        # Fuzzy match by name
+        chosen_name = data.get("name", "").lower()
+        for c in candidates:
+            if c["name"].lower() == chosen_name:
+                return c["id"], reason
+
+        # Fallback to first candidate
+        logger.warning("Router picked unknown bot_id=%s, falling back", chosen_id)
+        return candidates[0]["id"], "Fallback: router picked unknown bot"
+
+    except Exception as e:
+        logger.warning("Router LLM failed: %s, falling back to first bot", e)
+        return candidates[0]["id"], f"Fallback: {e}"

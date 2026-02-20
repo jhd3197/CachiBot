@@ -130,6 +130,80 @@
     font-size: @text-sm;
     color: var(--color-text-secondary);
   }
+
+  &__chain-step {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    color: var(--accent-600);
+    background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+    border-bottom: 1px solid var(--color-border-primary);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+
+  &__route-decision {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px @sp-1;
+    border-radius: @radius-sm;
+    font-size: 10px;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+
+    &--lead {
+      background: rgba(@yellow-500, 0.2);
+      color: @yellow-600;
+
+      .dark & {
+        color: @yellow-400;
+      }
+    }
+
+    &--reviewer {
+      background: rgba(@blue-500, 0.2);
+      color: @blue-600;
+
+      .dark & {
+        color: @blue-400;
+      }
+    }
+
+    &--observer {
+      background: rgba(@gray-500, 0.2);
+      color: @gray-500;
+
+      .dark & {
+        color: @gray-400;
+      }
+    }
+
+    &--specialist {
+      background: rgba(@green-500, 0.2);
+      color: @green-600;
+
+      .dark & {
+        color: @green-400;
+      }
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -264,6 +338,22 @@
       .dark & {
         color: var(--accent-400);
       }
+    }
+  }
+
+  &__role-select {
+    padding: 2px @sp-1-5;
+    border-radius: @radius-md;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: @text-xs;
+    cursor: pointer;
+    .transition-colors();
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
     }
   }
 

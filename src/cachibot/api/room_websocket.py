@@ -22,6 +22,7 @@ from cachibot.services.room_orchestrator import (
     create_room_orchestrator,
     get_room_orchestrator,
     remove_room_orchestrator,
+    route_message,
 )
 from cachibot.storage.repository import BotRepository
 from cachibot.storage.room_repository import (
@@ -43,7 +44,7 @@ class RoomConnectionManager:
         # room_id -> {user_id -> WebSocket}
         self.rooms: dict[str, dict[str, WebSocket]] = {}
         # room_id -> {bot_id -> asyncio.Task}
-        self.bot_tasks: dict[str, dict[str, asyncio.Task[None]]] = {}
+        self.bot_tasks: dict[str, dict[str, asyncio.Task]] = {}  # type: ignore[type-arg]
 
     async def connect(self, room_id: str, user_id: str, websocket: WebSocket) -> None:
         """Accept and register a WebSocket connection for a room."""
@@ -166,6 +167,7 @@ async def room_websocket_endpoint(
         bot = await backend_bot_repo_ws.get_bot(rb.bot_id)
         if bot:
             orchestrator.register_bot(bot)
+            orchestrator.set_bot_role(rb.bot_id, rb.role)
         else:
             logger.warning(
                 "Room %s: bot %s (%s) not found in bots table — skipped",
@@ -255,7 +257,88 @@ async def room_websocket_endpoint(
                 # Ask orchestrator which bots should respond
                 respondents = orchestrator.select_respondents(message_text, "user")
 
-                if orchestrator.response_mode == "sequential" and len(respondents) > 1:
+                # Router mode: LLM picks the best bot (unless explicit @mentions)
+                mentioned_ids = orchestrator.parse_mentions(message_text)
+                if (
+                    orchestrator.response_mode == "router"
+                    and not mentioned_ids
+                    and len(orchestrator.bot_configs) > 1
+                ):
+                    try:
+                        chosen_id, reason = await route_message(
+                            orchestrator, message_text, config
+                        )
+                        chosen_bot = orchestrator.bot_configs.get(chosen_id)
+                        if chosen_bot:
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.route_decision(
+                                    room_id, chosen_id, chosen_bot.name, reason
+                                ),
+                            )
+                            respondents = [chosen_id]
+                    except Exception as route_err:
+                        logger.error(
+                            "Router failed in room %s: %s", room_id, route_err
+                        )
+                        # Fall through to normal respondent selection
+
+                if orchestrator.response_mode == "chain" and len(respondents) > 1:
+                    # Chain mode: sequential with state passing
+                    async def _run_chain(
+                        bots_to_run: list[str], msg: str, cfg: Config
+                    ) -> None:
+                        previous_outputs: list[tuple[str, str]] = []
+                        total = len(bots_to_run)
+                        for step_idx, bid in enumerate(bots_to_run):
+                            b = orchestrator.bot_configs.get(bid)
+                            if not b:
+                                continue
+                            try:
+                                # Send chain step indicator
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.chain_step(
+                                        room_id, step_idx + 1, total, bid, b.name
+                                    ),
+                                )
+                                orchestrator.mark_responding(bid)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(room_id, bid, b.name),
+                                )
+                                response_text = await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bid,
+                                    message=msg,
+                                    config=cfg,
+                                    chain_context=previous_outputs,
+                                )
+                                if response_text:
+                                    previous_outputs.append((b.name, response_text))
+                            except Exception as chain_err:
+                                logger.error(
+                                    "Chain bot %s failed in room %s: %s",
+                                    bid, room_id, chain_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"{b.name} failed: {chain_err}",
+                                        bot_id=bid,
+                                    ),
+                                )
+                                orchestrator.mark_done(bid)
+
+                    chain_task = asyncio.create_task(
+                        _run_chain(respondents, message_text, config)
+                    )
+                    if room_id not in room_manager.bot_tasks:
+                        room_manager.bot_tasks[room_id] = {}
+                    room_manager.bot_tasks[room_id]["_chain"] = chain_task
+
+                elif orchestrator.response_mode == "sequential" and len(respondents) > 1:
                     # Sequential: run bots one-by-one in a wrapper task
                     async def _run_sequential(
                         bots_to_run: list[str], msg: str, cfg: Config
@@ -385,7 +468,8 @@ async def run_room_bot(
     message: str,
     config: Config,
     chain_depth: int = 0,
-) -> None:
+    chain_context: list[tuple[str, str]] | None = None,
+) -> str:
     """Run a bot's response in a room.
 
     Streams the response and broadcasts to all room members.
@@ -393,21 +477,25 @@ async def run_room_bot(
 
     Args:
         chain_depth: Current depth in a bot-to-bot mention chain (0 = user-triggered).
+        chain_context: List of (bot_name, response_text) from earlier chain steps.
     """
     orchestrator = get_room_orchestrator(room_id)
     if orchestrator is None:
-        return
+        return ""
 
     bot = orchestrator.bot_configs.get(bot_id)
     if bot is None:
-        return
+        return ""
 
     msg_repo = RoomMessageRepository()
 
     try:
         # Get recent messages for context
         recent = await msg_repo.get_messages(room_id, limit=50)
-        room_context = orchestrator.build_room_context(bot_id, recent)
+        if chain_context is not None:
+            room_context = orchestrator.build_chain_context(bot_id, recent, chain_context)
+        else:
+            room_context = orchestrator.build_room_context(bot_id, recent)
 
         # Build enhanced system prompt
         enhanced_prompt = (bot.system_prompt or "") + room_context
@@ -582,11 +670,14 @@ async def run_room_bot(
                     room_manager.bot_tasks[room_id] = {}
                 room_manager.bot_tasks[room_id][next_bot_id] = task
 
+        return full_response
+
     except asyncio.CancelledError:
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(room_id, f"{bot.name} was cancelled", bot_id=bot_id),
         )
+        return ""
     except TimeoutError:
         logger.warning("Bot %s timed out in room %s after %ds", bot_id, room_id, BOT_TIMEOUT_SECONDS)
         await room_manager.send_to_room(
@@ -597,12 +688,14 @@ async def run_room_bot(
                 bot_id=bot_id,
             ),
         )
+        return ""
     except Exception as e:
         logger.error(f"Bot {bot_id} error in room {room_id}: {e}", exc_info=True)
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(room_id, f"{bot.name} encountered an error: {e}", bot_id=bot_id),
         )
+        return ""
     finally:
         if orchestrator:
             orchestrator.mark_done(bot_id)

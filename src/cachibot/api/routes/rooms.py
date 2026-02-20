@@ -16,10 +16,12 @@ from cachibot.models.room import (
     InviteMemberRequest,
     Room,
     RoomBot,
+    RoomBotRole,
     RoomMember,
     RoomMemberRole,
     RoomMessageResponse,
     RoomResponse,
+    UpdateBotRoleRequest,
     UpdateRoomRequest,
 )
 from cachibot.storage.repository import BotRepository
@@ -317,6 +319,37 @@ async def remove_bot(
         raise HTTPException(status_code=400, detail="Rooms must have at least 2 bots")
 
     await bot_repo.remove_bot(room_id, bot_id)
+
+
+@router.patch("/{room_id}/bots/{bot_id}/role")
+async def update_bot_role(
+    room_id: str,
+    bot_id: str,
+    data: UpdateBotRoleRequest,
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    """Update a bot's role in the room (creator only)."""
+    room = await room_repo.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    role = await member_repo.get_member_role(room_id, user.id)
+    if role != RoomMemberRole.CREATOR:
+        raise HTTPException(status_code=403, detail="Only the room creator can update bot roles")
+
+    # Validate role value
+    valid_roles = {r.value for r in RoomBotRole}
+    if data.role not in valid_roles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}",
+        )
+
+    updated = await bot_repo.update_bot_role(room_id, bot_id, data.role)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Bot not found in room")
+
+    return {"botId": bot_id, "role": data.role}
 
 
 # =============================================================================

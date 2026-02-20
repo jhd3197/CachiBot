@@ -241,6 +241,7 @@ class RoomBotRepository:
                     RoomBotModel.bot_id,
                     RoomBotModel.added_at,
                     BotModel.name,
+                    RoomBotModel.role,
                 )
                 .outerjoin(BotModel, RoomBotModel.bot_id == BotModel.id)
                 .where(RoomBotModel.room_id == room_id)
@@ -252,10 +253,25 @@ class RoomBotRepository:
                 room_id=row[0],
                 bot_id=row[1],
                 bot_name=row[3] or "",
+                role=row[4],
                 added_at=row[2],
             )
             for row in rows
         ]
+
+    async def update_bot_role(self, room_id: str, bot_id: str, role: str) -> bool:
+        """Update a bot's role in a room."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                update(RoomBotModel)
+                .where(
+                    RoomBotModel.room_id == room_id,
+                    RoomBotModel.bot_id == bot_id,
+                )
+                .values(role=role)
+            )
+            await session.commit()
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
     async def get_bot_count(self, room_id: str) -> int:
         """Get the number of bots in a room."""

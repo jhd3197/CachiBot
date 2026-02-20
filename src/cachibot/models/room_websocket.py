@@ -25,6 +25,8 @@ class RoomWSMessageType(str, Enum):
     ROOM_PRESENCE = "room_presence"
     ROOM_ERROR = "room_error"
     ROOM_USAGE = "room_usage"
+    ROOM_CHAIN_STEP = "room_chain_step"
+    ROOM_ROUTE_DECISION = "room_route_decision"
 
 
 class RoomWSMessage(BaseModel):
@@ -207,5 +209,45 @@ class RoomWSMessage(BaseModel):
                 "elapsedMs": elapsed_ms,
                 "tokensPerSecond": tokens_per_second,
                 "model": model,
+            },
+        )
+
+    @classmethod
+    def chain_step(
+        cls,
+        room_id: str,
+        step: int,
+        total_steps: int,
+        bot_id: str,
+        bot_name: str,
+    ) -> "RoomWSMessage":
+        """Create a chain step progress indicator."""
+        return cls(
+            type=RoomWSMessageType.ROOM_CHAIN_STEP,
+            payload={
+                "roomId": room_id,
+                "step": step,
+                "totalSteps": total_steps,
+                "botId": bot_id,
+                "botName": bot_name,
+            },
+        )
+
+    @classmethod
+    def route_decision(
+        cls,
+        room_id: str,
+        bot_id: str,
+        bot_name: str,
+        reason: str,
+    ) -> "RoomWSMessage":
+        """Create a route decision message."""
+        return cls(
+            type=RoomWSMessageType.ROOM_ROUTE_DECISION,
+            payload={
+                "roomId": room_id,
+                "botId": bot_id,
+                "botName": bot_name,
+                "reason": reason,
             },
         )

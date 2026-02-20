@@ -12,6 +12,8 @@ interface RoomState {
   typingUsers: Record<string, { userId: string; username: string }[]> // roomId -> typing users
   botStates: Record<string, Record<string, BotRoomState>> // roomId -> { botId -> state }
   activeToolCalls: Record<string, Record<string, ToolCall[]>> // roomId -> messageId -> ToolCall[]
+  chainStep: Record<string, { step: number; totalSteps: number; botName: string } | null>
+  routeDecision: Record<string, { botName: string; reason: string } | null>
   isLoading: boolean
   error: string | null
 
@@ -45,6 +47,10 @@ interface RoomState {
   finalizeToolCalls: (roomId: string, messageId: string) => void
   updateMessageMetadata: (roomId: string, messageId: string, metadata: Record<string, unknown>) => void
 
+  // Chain / Router
+  setChainStep: (roomId: string, step: { step: number; totalSteps: number; botName: string } | null) => void
+  setRouteDecision: (roomId: string, decision: { botName: string; reason: string } | null) => void
+
   // Selectors
   getRoomsForBot: (botId: string) => Room[]
 
@@ -63,6 +69,8 @@ export const useRoomStore = create<RoomState>()(
       typingUsers: {},
       botStates: {},
       activeToolCalls: {},
+      chainStep: {},
+      routeDecision: {},
       isLoading: false,
       error: null,
 
@@ -254,6 +262,16 @@ export const useRoomStore = create<RoomState>()(
           }
           return { messages: { ...state.messages, [roomId]: updated } }
         }),
+
+      setChainStep: (roomId, step) =>
+        set((state) => ({
+          chainStep: { ...state.chainStep, [roomId]: step },
+        })),
+
+      setRouteDecision: (roomId, decision) =>
+        set((state) => ({
+          routeDecision: { ...state.routeDecision, [roomId]: decision },
+        })),
 
       getRoomsForBot: (botId) =>
         get().rooms.filter((room) => room.bots.some((b) => b.botId === botId)),
