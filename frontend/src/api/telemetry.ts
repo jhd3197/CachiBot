@@ -48,6 +48,7 @@ export interface TelemetryStatus {
   terms_accepted: boolean
   terms_version: string
   terms_accepted_at: string
+  latest_terms_version: string
 }
 
 export interface TelemetrySettingsUpdate {

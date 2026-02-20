@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
+from cachibot.services.terms_checker import get_latest_terms_version
 
 router = APIRouter()
 
@@ -26,6 +27,7 @@ class TelemetryStatusResponse(BaseModel):
     terms_accepted: bool
     terms_version: str
     terms_accepted_at: str
+    latest_terms_version: str
 
 
 class TelemetrySettingsUpdate(BaseModel):
@@ -75,6 +77,7 @@ async def telemetry_status(
         terms_accepted=config.telemetry.terms_accepted,
         terms_version=config.telemetry.terms_version,
         terms_accepted_at=config.telemetry.terms_accepted_at,
+        latest_terms_version=get_latest_terms_version(),
     )
 
 
@@ -121,6 +124,7 @@ async def update_telemetry_settings(
         terms_accepted=config.telemetry.terms_accepted,
         terms_version=config.telemetry.terms_version,
         terms_accepted_at=config.telemetry.terms_accepted_at,
+        latest_terms_version=get_latest_terms_version(),
     )
 
 
@@ -167,4 +171,5 @@ async def accept_consent(
         terms_accepted=config.telemetry.terms_accepted,
         terms_version=config.telemetry.terms_version,
         terms_accepted_at=config.telemetry.terms_accepted_at,
+        latest_terms_version=get_latest_terms_version(),
     )

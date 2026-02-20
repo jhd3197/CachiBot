@@ -189,7 +189,7 @@ export function AutomationsView() {
         </div>
         <button
           onClick={() => navigate(`/${activeBotId}/automations/new`)}
-          className="flex items-center gap-2 rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700"
+          className="automations-view__new-btn"
         >
           <Plus className="h-4 w-4" />
           New Script
@@ -198,14 +198,16 @@ export function AutomationsView() {
 
       {/* Section tabs + search */}
       <div className="automations-view__toolbar">
-        <div className="flex items-center gap-1">
+        <div className="automation-tabs">
           {sectionTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setAutomationSection(tab.id)}
               className={cn(
                 'automation-tab',
-                automationSection === tab.id && 'automation-tab--active'
+                automationSection === tab.id
+                  ? 'automation-tab--active'
+                  : 'automation-tab--inactive'
               )}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -214,34 +216,32 @@ export function AutomationsView() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="automation-search__input"
-            />
-          </div>
+        <div className="automation-search">
+          <Search className="automation-search__icon" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="automation-search__input"
+          />
         </div>
       </div>
 
       {/* Content */}
       <div className="automations-view__content">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+          <div className="automations-view__loading">
+            <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="automations-view__empty">
             <Code className="mb-3 h-10 w-10" />
-            <p className="text-sm font-medium">No automations found</p>
-            <p className="mt-1 text-xs">Create a script or function to get started</p>
+            <p className="automations-view__empty-title">No automations found</p>
+            <p className="automations-view__empty-sub">Create a script or function to get started</p>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="automations-view__grid">
             {filtered.map((item) => (
               <AutomationCard
                 key={`${item.type}-${item.id}`}

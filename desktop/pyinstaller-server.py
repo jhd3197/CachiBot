@@ -19,6 +19,9 @@ def main():
     # Set workspace so .env is written to ~ even without Electron
     os.environ.setdefault("CACHIBOT_WORKSPACE", str(Path.home()))
 
+    # Tell lifespan which port to record in the PID file
+    os.environ["_CACHIBOT_PORT"] = str(args.port)
+
     # Import here so PyInstaller can trace dependencies
     import uvicorn
 

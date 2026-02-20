@@ -27,6 +27,15 @@ export function formatTime(date: Date | string): string {
   })
 }
 
+/** Darken a hex color by a percentage (0-100). */
+export function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent))
+  const g = Math.max(0, ((num >> 8) & 0x00ff) - Math.round(2.55 * percent))
+  const b = Math.max(0, (num & 0x0000ff) - Math.round(2.55 * percent))
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
+}
+
 /**
  * SHA-256 hash a password before sending it over the network.
  * Uses the Web Crypto API (available in all modern browsers).

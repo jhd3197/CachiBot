@@ -20,7 +20,7 @@
 .chat-header {
   .flex-between();
   border-bottom: 1px solid var(--color-border-primary);
-  background: var(--color-bg-primary);
+  background: var(--color-bg-secondary);
   padding: @sp-3 @sp-4;
 
   &__bot-info {
@@ -43,8 +43,8 @@
   }
 
   &__model {
-    font-size: @text-xs;
-    color: var(--color-text-secondary);
+    .tag-neon(var(--accent-500));
+    font-size: 11px;
   }
 }
 
@@ -148,13 +148,17 @@
     height: 5rem;
     width: 5rem;
     border-radius: @radius-2xl;
+    box-shadow: 0 0 40px rgba(var(--accent-600-rgb, 22, 163, 74), 0.15);
   }
 
   &__title {
     margin-bottom: @sp-2;
     font-size: @text-2xl;
     font-weight: @font-bold;
-    color: var(--color-text-primary);
+    background: linear-gradient(135deg, var(--accent-500), var(--accent-600));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   &__description {
@@ -177,7 +181,7 @@
     display: flex;
     align-items: center;
     gap: @sp-3;
-    border-radius: @radius-xl;
+    border-radius: @radius-2xl;
     border: 1px solid var(--color-border-primary);
     background: var(--color-bg-primary);
     padding: @sp-3 @sp-4;
@@ -185,11 +189,12 @@
     font-size: @text-sm;
     color: var(--color-text-primary);
     cursor: pointer;
-    .transition-colors();
+    .card-hover-lift();
 
     &:hover {
-      border-color: var(--color-border-secondary);
-      background: var(--color-hover-bg);
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-500) 10%, transparent);
     }
   }
 }
@@ -210,12 +215,48 @@
     flex-direction: row;
   }
 
+  &--system {
+    display: block;
+    padding: @sp-1 0;
+    text-align: center;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: @sp-2;
+  }
+
+  &__sender {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+
+    &--user {
+      color: @blue-600;
+
+      .dark & {
+        color: @blue-400;
+      }
+    }
+
+    &--bot {
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+
   &__avatar {
     .flex-center();
     height: 2.25rem;
     width: 2.25rem;
     flex-shrink: 0;
     border-radius: @radius-full;
+    box-shadow: 0 0 0 2px var(--color-bg-app);
 
     &--user {
       color: white;
@@ -233,6 +274,7 @@
   &__content {
     display: flex;
     max-width: 80%;
+    min-width: 0;
     flex-direction: column;
     gap: @sp-1;
 
@@ -246,16 +288,22 @@
   }
 
   &__bubble {
-    border-radius: @radius-2xl;
+    border-radius: @radius-3xl;
     padding: @sp-3 @sp-4;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 
     &--user {
       color: white;
+      border-radius: @radius-3xl @radius-3xl @radius-lg @radius-3xl;
     }
 
     &--bot {
       background: var(--chat-bubble-bot-bg);
       color: var(--chat-bubble-bot-text);
+      border: 1px solid var(--chat-bubble-bot-border);
+      border-radius: @radius-3xl @radius-3xl @radius-3xl @radius-lg;
     }
   }
 
@@ -272,17 +320,16 @@
     padding: @sp-3;
     font-size: @text-xs;
     color: @zinc-100;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   &__inline-code {
-    border-radius: @radius-sm;
-    background: @zinc-200;
-    padding: 2px @sp-1\.5;
+    border-radius: @radius-md;
+    background: var(--code-bg);
+    padding: 2px @sp-1-5;
     font-size: @text-xs;
-
-    .dark & {
-      background: @zinc-700;
-    }
+    color: var(--code-text);
   }
 
   // Action bar — hover actions under each message
@@ -291,10 +338,11 @@
     align-items: center;
     gap: @sp-2;
     opacity: 0;
-    .transition-colors();
+    transition: opacity 200ms ease 100ms;
 
     .chat-message:hover & {
       opacity: 1;
+      transition-delay: 0ms;
     }
   }
 
@@ -363,7 +411,7 @@
   border-radius: @radius-lg;
   border-left: 2px solid var(--accent-500);
   background: color-mix(in srgb, var(--color-bg-primary) 40%, transparent);
-  padding: @sp-1\.5 @sp-3;
+  padding: @sp-1-5 @sp-3;
   text-align: left;
   cursor: pointer;
   border-top: none;
@@ -376,7 +424,7 @@
   }
 
   &__icon {
-    margin-top: @sp-0\.5;
+    margin-top: @sp-0-5;
     height: 0.75rem;
     width: 0.75rem;
     flex-shrink: 0;
@@ -499,7 +547,7 @@
     width: 100%;
     align-items: center;
     gap: @sp-3;
-    padding: @sp-2\.5 @sp-3;
+    padding: @sp-2-5 @sp-3;
     text-align: left;
     color: var(--color-text-primary);
     background: none;
@@ -518,24 +566,24 @@
 }
 
 // -----------------------------------------------------------------------------
-// Input Container — rounded bordered textarea wrapper
+// Input Container — flex row: textarea grows, buttons stay right
 // -----------------------------------------------------------------------------
 
 .chat-input-container {
   position: relative;
-  border-radius: @radius-2xl;
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  min-height: 3.25rem;
+  border-radius: 1.5rem;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
-  box-shadow: @shadow-lg;
+  padding-right: @sp-2-5;
   .transition-colors();
 
-  .dark & {
-    border-color: var(--color-border-secondary);
-    background: var(--card-bg);
-  }
-
   &:focus-within {
-    border-color: var(--color-border-focus);
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-500) 12%, transparent);
   }
 }
 
@@ -544,12 +592,12 @@
 // -----------------------------------------------------------------------------
 
 .chat-textarea {
-  display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   resize: none;
   background: transparent;
-  padding: @sp-3 @sp-4;
-  padding-right: @sp-24;
+  padding: @sp-3 @sp-0 @sp-3 @sp-4;
+  line-height: @leading-normal;
   color: var(--color-text-primary);
   outline: none;
   font-family: @font-sans;
@@ -567,34 +615,41 @@
 }
 
 // -----------------------------------------------------------------------------
-// Input Buttons — action buttons container
+// Input Buttons — sits inside the flex row, right side
 // -----------------------------------------------------------------------------
 
 .chat-input-btns {
-  position: absolute;
-  bottom: @sp-2;
-  right: @sp-2;
   display: flex;
   align-items: center;
-  gap: @sp-1;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  padding-right: 0.375rem;
 }
 
 .chat-input-btn {
   .flex-center();
   height: 2rem;
   width: 2rem;
-  border-radius: @radius-lg;
+  border-radius: @radius-full;
   border: none;
   cursor: pointer;
-  .transition-colors();
+  flex-shrink: 0;
+  transition: background-color @transition-fast, color @transition-fast,
+              transform @transition-fast, box-shadow @transition-fast;
 
   &--attach {
     background: transparent;
-    color: var(--color-text-secondary);
+    color: var(--color-text-tertiary);
 
     &:hover {
-      background: var(--color-hover-bg);
       color: var(--color-text-primary);
+      background: var(--color-hover-bg);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.4;
+      &:hover { background: transparent; color: var(--color-text-tertiary); }
     }
   }
 
@@ -604,11 +659,17 @@
 
     &:hover {
       background: var(--accent-500);
+      transform: scale(1.06);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
 
     &:disabled {
       cursor: not-allowed;
-      opacity: 0.5;
+      opacity: 0.35;
+      &:hover { transform: none; }
     }
   }
 
@@ -618,6 +679,11 @@
 
     &:hover {
       background: @red-500;
+      transform: scale(1.06);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
   }
 }
@@ -645,23 +711,52 @@
   }
 
   &__indicator {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: @sp-1\.5;
+    gap: @sp-2;
+    border-radius: @radius-full;
+    padding: @sp-0-5 @sp-2-5 @sp-0-5 @sp-2;
+    background: var(--color-bg-secondary);
+
+    .dark & {
+      background: var(--card-bg);
+    }
   }
 
   &__dot {
-    height: @sp-2;
-    width: @sp-2;
+    height: 6px;
+    width: 6px;
     border-radius: @radius-full;
+    flex-shrink: 0;
 
     &--connected {
       background: @green-500;
+      box-shadow: 0 0 6px rgba(@green-500, 0.4);
     }
 
     &--disconnected {
       background: @red-500;
+      box-shadow: 0 0 6px rgba(@red-500, 0.4);
     }
+  }
+
+  &__label {
+    display: none;
+
+    .screen-sm({
+      display: inline;
+    });
+  }
+
+  &__model {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+
+    .screen-sm({
+      max-width: none;
+    });
   }
 
   &__hint {
@@ -685,7 +780,7 @@
   margin-top: @sp-2;
   border-radius: @radius-lg;
   background: color-mix(in srgb, var(--accent-900, @green-900) 30%, transparent);
-  padding: @sp-1\.5 @sp-3;
+  padding: @sp-1-5 @sp-3;
   font-size: @text-xs;
   color: var(--accent-400);
 }
@@ -699,6 +794,18 @@
   border-radius: @radius-xl;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
+  min-width: 0;
+
+  // Status-colored border variants
+  &--running {
+    border-color: color-mix(in srgb, @blue-500 25%, transparent);
+  }
+  &--success {
+    border-color: color-mix(in srgb, @green-500 20%, transparent);
+  }
+  &--error {
+    border-color: color-mix(in srgb, @red-500 20%, transparent);
+  }
 
   &__header {
     display: flex;
@@ -710,19 +817,23 @@
     background: none;
     border: none;
     cursor: pointer;
+    min-width: 0;
   }
 
   &__name {
     flex: 1;
+    min-width: 0;
+    .truncate();
     font-family: @font-mono;
     font-size: @text-sm;
     color: var(--color-text-primary);
   }
 
   &__model {
+    flex-shrink: 0;
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-family: @font-mono;
     font-size: @text-xs;
     color: var(--color-text-secondary);
@@ -732,6 +843,7 @@
     border-top: 1px solid var(--color-border-primary);
     background: color-mix(in srgb, var(--color-bg-app) 50%, transparent);
     padding: @sp-4;
+    min-width: 0;
   }
 
   &__code {
@@ -743,6 +855,8 @@
     font-family: @font-mono;
     font-size: @text-xs;
     color: var(--color-text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
@@ -754,31 +868,35 @@
   border-radius: @radius-lg;
   border: 1px solid var(--color-border-secondary);
   background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  min-width: 0;
 
   &__header {
     display: flex;
     width: 100%;
     align-items: center;
     gap: @sp-2;
-    padding: @sp-1\.5 @sp-3;
+    padding: @sp-1-5 @sp-3;
     text-align: left;
     font-size: @text-xs;
     background: none;
     border: none;
     cursor: pointer;
+    min-width: 0;
   }
 
   &__name {
     flex: 1;
+    min-width: 0;
     font-family: @font-mono;
     color: var(--color-text-primary);
     .truncate();
   }
 
   &__model {
+    flex-shrink: 0;
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-family: @font-mono;
     color: var(--color-text-secondary);
     .truncate();
@@ -788,6 +906,7 @@
   &__body {
     border-top: 1px solid var(--color-border-secondary);
     padding: @sp-2 @sp-3;
+    min-width: 0;
   }
 
   &__code {
@@ -795,10 +914,12 @@
     overflow-x: auto;
     border-radius: @radius-sm;
     background: var(--color-bg-app);
-    padding: @sp-1\.5;
+    padding: @sp-1-5;
     font-family: @font-mono;
     font-size: @text-xs;
     color: var(--color-text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
@@ -918,7 +1039,7 @@
   }
 
   &__caption {
-    margin-top: @sp-0\.5;
+    margin-top: @sp-0-5;
     .truncate();
     font-size: 0.625rem;
     color: var(--color-text-secondary);
@@ -984,8 +1105,9 @@
 
   &__body {
     flex: 1;
-    border-radius: @radius-2xl;
-    background: var(--card-bg);
+    border-radius: @radius-3xl;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
     padding: @sp-3 @sp-4;
   }
 
@@ -1027,11 +1149,46 @@
 
 .chat-input-kbd {
   border-radius: @radius-sm;
-  background: @zinc-100;
-  padding: 2px @sp-1\.5;
+  background: var(--color-hover-bg);
+  padding: 2px @sp-1-5;
+}
+
+// @mention autocomplete popup (rooms)
+.chat-input-mention-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: @z-dropdown;
+  margin-bottom: @sp-2;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-1 0;
+  box-shadow: @shadow-xl;
 
   .dark & {
-    background: @zinc-800;
+    border-color: var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+  }
+}
+
+.chat-input-mention-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-1-5 @sp-3;
+  text-align: left;
+  font-size: @text-sm;
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--color-hover-bg);
   }
 }
 
@@ -1046,36 +1203,31 @@
 
   &__icon {
     .flex-center();
-    height: 2.25rem;
-    width: 2.25rem;
+    height: 2.5rem;
+    width: 2.5rem;
     flex-shrink: 0;
     border-radius: @radius-full;
-    background: @purple-100;
-    color: @purple-600;
+    background: color-mix(in srgb, @purple-500 12%, transparent);
+    color: @purple-500;
     animation: thinking 1.5s ease-in-out infinite;
 
     .dark & {
-      background: rgba(@purple-900, 0.3);
       color: @purple-400;
     }
   }
 
   &__body {
     flex: 1;
-    border-radius: @radius-2xl;
-    background: @purple-50;
+    border-radius: @radius-3xl;
+    background: color-mix(in srgb, @purple-500 6%, transparent);
     padding: @sp-3 @sp-4;
-
-    .dark & {
-      background: rgba(@purple-900, 0.2);
-    }
   }
 
   &__label {
     margin-bottom: @sp-1;
     font-size: @text-xs;
     font-weight: @font-medium;
-    color: @purple-700;
+    color: @purple-600;
 
     .dark & {
       color: @purple-400;
@@ -1085,7 +1237,7 @@
   &__content {
     font-size: @text-sm;
     font-style: italic;
-    color: @purple-600;
+    color: @purple-500;
 
     .dark & {
       color: @purple-300;
@@ -1178,7 +1330,7 @@
   &__name {
     display: flex;
     align-items: center;
-    gap: @sp-1\.5;
+    gap: @sp-1-5;
     font-size: @text-sm;
     font-weight: @font-medium;
   }
@@ -1264,6 +1416,6 @@
   &__stat {
     display: flex;
     align-items: center;
-    gap: @sp-1\.5;
+    gap: @sp-1-5;
   }
 }

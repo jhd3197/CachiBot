@@ -83,7 +83,12 @@
 // Settings Section — repeated section blocks
 // -----------------------------------------------------------------------------
 
-.settings-section {
+// Scoped under .settings-view to avoid collision with app-settings.less
+// which defines .settings-section as a bordered card.
+.settings-view .settings-section {
+  border: none;
+  border-radius: 0;
+  background: none;
   border-top: 1px solid var(--color-border-primary);
   padding-top: @sp-6;
 
@@ -132,7 +137,7 @@
     display: flex;
     align-items: center;
     gap: @sp-2;
-    margin-bottom: @sp-1\.5;
+    margin-bottom: @sp-1-5;
     font-size: @text-xs;
     font-weight: @font-medium;
     color: var(--color-text-secondary);
@@ -202,18 +207,18 @@
 
 .capability-toggle {
   .flex-between();
-  border-radius: @radius-lg;
+  border-radius: @radius-xl;
   border: 1px solid;
   padding: @sp-3;
   .transition-colors();
 
   &--active {
-    border-color: color-mix(in srgb, var(--accent-500) 50%, transparent);
-    background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+    border-color: color-mix(in srgb, var(--accent-500) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-500) 6%, transparent);
   }
 
   &--inactive {
-    border-color: var(--color-border-secondary);
+    border-color: var(--color-border-primary);
     background: var(--color-bg-tertiary);
   }
 
@@ -294,7 +299,7 @@
 .settings-voice-chip {
   border-radius: @radius-md;
   border: 1px solid;
-  padding: @sp-1 @sp-2\.5;
+  padding: @sp-1 @sp-2-5;
   font-size: @text-xs;
   text-transform: capitalize;
   .transition-all();
@@ -424,18 +429,18 @@
 // -----------------------------------------------------------------------------
 
 .skill-card {
-  border-radius: @radius-lg;
+  border-radius: @radius-2xl;
   border: 1px solid;
   padding: @sp-4;
   .transition-colors();
 
   &--active {
-    border-color: color-mix(in srgb, var(--accent-500) 50%, transparent);
-    background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+    border-color: color-mix(in srgb, var(--accent-500) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-500) 6%, transparent);
   }
 
   &--inactive {
-    border-color: var(--color-border-secondary);
+    border-color: var(--color-border-primary);
     background: var(--color-bg-tertiary);
   }
 
@@ -448,7 +453,7 @@
     display: inline-block;
     border-radius: @radius-sm;
     background: var(--color-hover-bg);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
@@ -463,7 +468,7 @@
     display: inline-block;
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
@@ -553,9 +558,9 @@
 // -----------------------------------------------------------------------------
 
 .settings-error {
-  border-radius: @radius-lg;
-  border: 1px solid color-mix(in srgb, @red-500 50%, transparent);
-  background: color-mix(in srgb, @red-500 10%, transparent);
+  border-radius: @radius-xl;
+  border: 1px solid color-mix(in srgb, @red-500 30%, transparent);
+  background: color-mix(in srgb, @red-500 8%, transparent);
   padding: @sp-3;
   font-size: @text-sm;
   color: @red-400;
@@ -567,17 +572,21 @@
 
 .settings-danger {
   &__panel {
-    border-radius: @radius-lg;
+    border-radius: @radius-2xl;
     border: 1px solid var(--color-border-secondary);
-    background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+    background: var(--color-bg-primary);
     padding: @sp-6;
   }
 
   &__panel--delete {
-    border-radius: @radius-lg;
+    border-radius: @radius-2xl;
     border: 1px solid color-mix(in srgb, @red-500 30%, transparent);
     background: color-mix(in srgb, @red-500 5%, transparent);
     padding: @sp-6;
+
+    .dark & {
+      box-shadow: 0 0 16px color-mix(in srgb, @red-500 8%, transparent);
+    }
   }
 
   &__title {
@@ -633,15 +642,17 @@
 
 // -----------------------------------------------------------------------------
 // Confirmation Modal (delete / reset)
+// Scoped under .settings-view to avoid collision with app-settings.less
+// which defines .settings-modal with different panel size and button styles.
 // -----------------------------------------------------------------------------
 
-.settings-modal {
+.settings-view .settings-modal {
   .dialog-backdrop();
 
   &__panel {
     .dialog-panel(sm);
     padding: @sp-6;
-    border-radius: @radius-2xl;
+    border-radius: @radius-3xl;
     box-shadow: @shadow-2xl;
   }
 

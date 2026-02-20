@@ -325,10 +325,11 @@ function GeneralSettings({
 }
 
 function SetupWizardButton() {
-  const { open } = useOnboardingStore()
+  const navigate = useNavigate()
 
   const handleRunWizard = () => {
-    open()
+    useOnboardingStore.getState().resetStep()
+    navigate('/onboarding')
   }
 
   return (

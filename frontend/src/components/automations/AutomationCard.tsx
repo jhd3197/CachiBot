@@ -1,6 +1,7 @@
 import {
   Play,
-  Pause,
+  ToggleRight,
+  ToggleLeft,
   Clock,
   CheckCircle2,
   Code,
@@ -53,46 +54,45 @@ export function AutomationCard({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          {/* Status badge */}
-          <span className={`automation-card__status automation-card__status--${status}`}>
-            {status}
-          </span>
-
-          {/* Actions */}
-          <div className="automation-card__actions">
-            {onRun && status !== 'disabled' && (
+        <div className="automation-card__controls">
+          {onRun && status !== 'disabled' && (
+            <div className="automation-card__actions">
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onRun()
                 }}
                 className="automation-card__action-btn"
+                title="Run"
               >
                 <Play size={14} />
               </button>
-            )}
-            {onToggle && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggle()
-                }}
-                className="automation-card__action-btn"
-              >
-                {status === 'disabled' ? (
-                  <Play size={14} />
-                ) : (
-                  <Pause size={14} />
-                )}
-              </button>
-            )}
-          </div>
+            </div>
+          )}
+          {onToggle && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggle()
+              }}
+              className={`automation-card__toggle automation-card__toggle--${status === 'disabled' ? 'off' : 'on'}`}
+              title={status === 'disabled' ? 'Enable' : 'Disable'}
+            >
+              {status === 'disabled' ? (
+                <ToggleLeft size={20} />
+              ) : (
+                <ToggleRight size={20} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Footer stats */}
+      {/* Footer */}
       <div className="automation-card__footer">
+        <span className={`automation-card__status automation-card__status--${status}`}>
+          {status}
+        </span>
         <span className="automation-card__stat">
           <CheckCircle2 size={12} />
           {runCount} runs
