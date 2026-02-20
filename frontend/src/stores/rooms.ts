@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Room, RoomMessage } from '../types'
+import type { Room, RoomMessage, ToolCall } from '../types'
 
 export type BotRoomState = 'idle' | 'thinking' | 'responding'
 
@@ -11,6 +11,7 @@ interface RoomState {
   onlineUsers: Record<string, string[]> // roomId -> user IDs
   typingUsers: Record<string, { userId: string; username: string }[]> // roomId -> typing users
   botStates: Record<string, Record<string, BotRoomState>> // roomId -> { botId -> state }
+  activeToolCalls: Record<string, Record<string, ToolCall[]>> // roomId -> messageId -> ToolCall[]
   isLoading: boolean
   error: string | null
 
@@ -38,6 +39,12 @@ interface RoomState {
   // Bot states
   setBotState: (roomId: string, botId: string, state: BotRoomState) => void
 
+  // Tool call tracking (transient — not persisted)
+  addToolCall: (roomId: string, messageId: string, call: ToolCall) => void
+  completeToolCall: (roomId: string, messageId: string, toolId: string, result: unknown, success: boolean) => void
+  finalizeToolCalls: (roomId: string, messageId: string) => void
+  updateMessageMetadata: (roomId: string, messageId: string, metadata: Record<string, unknown>) => void
+
   // Selectors
   getRoomsForBot: (botId: string) => Room[]
 
@@ -55,6 +62,7 @@ export const useRoomStore = create<RoomState>()(
       onlineUsers: {},
       typingUsers: {},
       botStates: {},
+      activeToolCalls: {},
       isLoading: false,
       error: null,
 
@@ -84,16 +92,19 @@ export const useRoomStore = create<RoomState>()(
       addMessage: (roomId, message) =>
         set((state) => {
           const existing = state.messages[roomId] || []
-          // Check for existing message with same ID (streaming updates)
           const existingIdx = existing.findIndex((m) => m.id === message.id)
           if (existingIdx >= 0) {
-            // Append content to existing message
-            const updated = [...existing]
-            updated[existingIdx] = {
-              ...updated[existingIdx],
-              content: updated[existingIdx].content + message.content,
+            if (message.senderType === 'bot') {
+              // Append content for bot streaming deltas
+              const updated = [...existing]
+              updated[existingIdx] = {
+                ...updated[existingIdx],
+                content: updated[existingIdx].content + message.content,
+              }
+              return { messages: { ...state.messages, [roomId]: updated } }
             }
-            return { messages: { ...state.messages, [roomId]: updated } }
+            // User/system: already have it, skip
+            return state
           }
           return { messages: { ...state.messages, [roomId]: [...existing, message] } }
         }),
@@ -162,6 +173,73 @@ export const useRoomStore = create<RoomState>()(
             [roomId]: { ...(state.botStates[roomId] || {}), [botId]: botState },
           },
         })),
+
+      addToolCall: (roomId, messageId, call) =>
+        set((state) => {
+          const roomCalls = state.activeToolCalls[roomId] || {}
+          const msgCalls = roomCalls[messageId] || []
+          return {
+            activeToolCalls: {
+              ...state.activeToolCalls,
+              [roomId]: { ...roomCalls, [messageId]: [...msgCalls, call] },
+            },
+          }
+        }),
+
+      completeToolCall: (roomId, messageId, toolId, result, success) =>
+        set((state) => {
+          const roomCalls = state.activeToolCalls[roomId] || {}
+          const msgCalls = roomCalls[messageId] || []
+          return {
+            activeToolCalls: {
+              ...state.activeToolCalls,
+              [roomId]: {
+                ...roomCalls,
+                [messageId]: msgCalls.map((c) =>
+                  c.id === toolId ? { ...c, result, success, endTime: Date.now() } : c
+                ),
+              },
+            },
+          }
+        }),
+
+      finalizeToolCalls: (roomId, messageId) =>
+        set((state) => {
+          const roomCalls = state.activeToolCalls[roomId] || {}
+          const calls = roomCalls[messageId]
+          if (!calls || calls.length === 0) return state
+
+          // Copy tool calls into the message
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+
+          const updated = [...msgs]
+          updated[idx] = { ...updated[idx], toolCalls: calls }
+
+          // Clean up active tracking
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [messageId]: _removed, ...restCalls } = roomCalls
+
+          return {
+            messages: { ...state.messages, [roomId]: updated },
+            activeToolCalls: { ...state.activeToolCalls, [roomId]: restCalls },
+          }
+        }),
+
+      updateMessageMetadata: (roomId, messageId, metadata) =>
+        set((state) => {
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+
+          const updated = [...msgs]
+          updated[idx] = {
+            ...updated[idx],
+            metadata: { ...updated[idx].metadata, ...metadata },
+          }
+          return { messages: { ...state.messages, [roomId]: updated } }
+        }),
 
       getRoomsForBot: (botId) =>
         get().rooms.filter((room) => room.bots.some((b) => b.botId === botId)),

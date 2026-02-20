@@ -1,6 +1,14 @@
+import { useEffect, useRef } from 'react'
 import { User, Bot } from 'lucide-react'
-import type { ChatMessage } from '../../types'
+import { useBotStore } from '../../stores/bots'
+import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
+import { MessageBubble } from './MessageBubble'
+import type { ChatMessage, RoomMessage } from '../../types'
 import { cn, formatTime } from '../../lib/utils'
+
+// =============================================================================
+// Chat MessageList (1:1 chat)
+// =============================================================================
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -110,6 +118,71 @@ function MessageContent({ content }: MessageContentProps) {
           </p>
         )
       })}
+    </div>
+  )
+}
+
+// =============================================================================
+// Room MessageList (multi-bot rooms)
+// =============================================================================
+
+interface RoomMessageListProps {
+  messages: RoomMessage[]
+}
+
+export function RoomMessageList({ messages }: RoomMessageListProps) {
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const bots = useBotStore((s) => s.bots)
+  const { accentColor, customHex } = useUIStore()
+
+  const userColor = accentColor === 'custom'
+    ? generatePalette(customHex)[600]
+    : accentColors[accentColor].palette[600]
+
+  // Scroll on new messages AND on streaming content appends
+  const lastMsg = messages[messages.length - 1]
+  const scrollKey = `${messages.length}-${lastMsg?.content.length ?? 0}`
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [scrollKey])
+
+  if (messages.length === 0) {
+    return (
+      <div className="room-panel__empty" style={{ flex: 1 }}>
+        No messages yet. Start the conversation!
+      </div>
+    )
+  }
+
+  return (
+    <div className="room-panel__messages">
+      <div className="room-panel__messages-inner">
+        {messages.map((msg) => {
+          const bot = msg.senderType === 'bot' ? bots.find((b) => b.id === msg.senderId) : undefined
+
+          return (
+            <MessageBubble
+              key={`${msg.id}-${msg.content.length}`}
+              message={{
+                id: msg.id,
+                content: msg.content,
+                timestamp: msg.timestamp,
+                isUser: msg.senderType === 'user',
+                isSystem: msg.senderType === 'system',
+                senderName: msg.senderName,
+                toolCalls: msg.toolCalls,
+                metadata: msg.metadata,
+              }}
+              botIcon={bot?.icon}
+              botColor={bot?.color}
+              userColor={userColor}
+              showSenderName
+            />
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
     </div>
   )
 }

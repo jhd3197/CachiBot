@@ -48,21 +48,22 @@ class RoomOrchestrator:
         """Extract @BotName mentions and match to registered bot IDs.
 
         Case-insensitive matching against bot names.
+        Supports @all to target every bot in the room.
         """
-        # Find all @mentions in the message
-        mention_pattern = re.compile(r"@(\w+(?:\s+\w+)*)")
-        raw_mentions = mention_pattern.findall(message)
+        msg_lower = message.lower()
 
-        if not raw_mentions:
-            return []
+        # Check for @all — return all bots in the room
+        if re.search(r"@all\b", msg_lower):
+            return list(self.bot_configs.keys())
 
+        # Match against known bot names directly (handles multi-word names
+        # and avoids the greedy-regex problem where "@Bot rest of sentence"
+        # captured the whole tail instead of just the name).
         matched_bot_ids = []
-        for mention in raw_mentions:
-            mention_lower = mention.lower().strip()
-            for bot_id, bot in self.bot_configs.items():
-                if bot.name.lower() == mention_lower:
-                    matched_bot_ids.append(bot_id)
-                    break
+        for bot_id, bot in self.bot_configs.items():
+            pattern = re.compile(r"@" + re.escape(bot.name) + r"\b", re.IGNORECASE)
+            if pattern.search(message):
+                matched_bot_ids.append(bot_id)
 
         return matched_bot_ids
 
@@ -89,13 +90,21 @@ class RoomOrchestrator:
         self.cooldowns[bot_id].is_responding = False
         self.cooldowns[bot_id].last_response_time = time.time()
 
-    def select_respondents(self, message: str, sender_type: str) -> list[str]:
+    def select_respondents(
+        self,
+        message: str,
+        sender_type: str,
+        exclude_bot_id: str | None = None,
+    ) -> list[str]:
         """Select which bots should respond to a message.
 
         Rules:
         1. System messages -> no response
         2. @mentions found -> those bots respond (bypass cooldown)
         3. No mentions + auto_relevance -> first available bot not on cooldown
+
+        Args:
+            exclude_bot_id: Bot ID to exclude (prevents a bot from triggering itself).
         """
         if sender_type == "system":
             return []
@@ -103,14 +112,16 @@ class RoomOrchestrator:
         # Check for @mentions
         mentioned_ids = self.parse_mentions(message)
         if mentioned_ids:
-            # @mentioned bots respond regardless of cooldown
-            return mentioned_ids
+            # @mentioned bots respond regardless of cooldown, exclude sender
+            return [bid for bid in mentioned_ids if bid != exclude_bot_id]
 
         if not self.auto_relevance:
             return []
 
         # Auto-select first available bot not on cooldown
         for bot_id in self.bot_configs:
+            if bot_id == exclude_bot_id:
+                continue
             if not self.is_on_cooldown(bot_id):
                 return [bot_id]
 
@@ -140,6 +151,9 @@ class RoomOrchestrator:
             f"You are {bot.name} in a collaborative room.\n"
             f"Other bots in the room: {participants_str}\n"
             f"Respond naturally as yourself. Do not impersonate other participants.\n"
+            f"You can mention other bots with @BotName to bring them into the conversation "
+            f"(e.g. @{bot_names[0] if bot_names else 'BotName'}). "
+            f"Use @all to address everyone.\n"
             f"\nRecent conversation:\n{transcript}\n"
             f"--- END ROOM CONTEXT ---"
         )

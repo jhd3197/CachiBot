@@ -5,35 +5,30 @@ import {
   Square,
   Paperclip,
   Sparkles,
-  Copy,
-  RotateCcw,
   ChevronDown,
   Code,
   Zap,
   CheckCircle,
   XCircle,
   Loader2,
-  User,
-  Info,
   Reply,
   X,
-  Image,
-  Volume2,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
-import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
+import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
-import { cn, darkenColor } from '../../lib/utils'
+import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
-import type { ChatMessage, ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
+import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
+import type { ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -892,14 +887,23 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             </div>
           ) : (
             <div className="chat-messages__list">
-              {messages.map((message) => (
+              {messages.map((msg) => (
                 <MessageBubble
-                  key={message.id}
-                  message={message}
+                  key={msg.id}
+                  message={{
+                    id: msg.id,
+                    content: msg.content,
+                    timestamp: msg.timestamp,
+                    isUser: msg.role === 'user',
+                    isSystem: msg.role === 'system',
+                    toolCalls: msg.toolCalls,
+                    metadata: msg.metadata,
+                    replyToId: msg.replyToId,
+                  }}
                   botIcon={activeBot?.icon}
                   botColor={activeBot?.color}
-                  onReply={() => setReplyTo(message)}
                   chatId={activeChatId || ''}
+                  onReply={() => setReplyTo(msg)}
                 />
               ))}
             </div>
@@ -1047,489 +1051,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </form>
       </div>
 
-    </div>
-  )
-}
-
-// =============================================================================
-// MESSAGE BUBBLE
-// =============================================================================
-
-// Citation parsing utilities
-function parseCiteMarkers(content: string): string[] {
-  return [...content.matchAll(/\[cite:([a-f0-9-]+)\]/g)].map(m => m[1])
-}
-
-function stripCiteMarkers(content: string): string {
-  return content.replace(/\[cite:[a-f0-9-]+\]/g, '')
-}
-
-function scrollToMessage(messageId: string) {
-  const el = document.getElementById(`msg-${messageId}`)
-  if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  el.classList.add('reply-highlight')
-  setTimeout(() => el.classList.remove('reply-highlight'), 1500)
-}
-
-// Reply preview component
-function ReplyPreview({ message, onClick }: { message: ChatMessage; onClick?: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="chat-reply-preview"
-    >
-      <Reply className="chat-reply-preview__icon" />
-      <div className="min-w-0">
-        <span className="chat-reply-preview__author">
-          {message.role === 'user' ? 'You' : 'Assistant'}
-        </span>
-        <p className="chat-reply-preview__text">
-          {stripCiteMarkers(message.content).slice(0, 80)}{message.content.length > 80 ? '...' : ''}
-        </p>
-      </div>
-    </button>
-  )
-}
-
-interface MessageBubbleProps {
-  message: ChatMessage
-  botIcon?: BotIcon
-  botColor?: string
-  onReply?: () => void
-  chatId: string
-}
-
-function MessageBubble({ message, botIcon, botColor, onReply, chatId }: MessageBubbleProps) {
-  const isUser = message.role === 'user'
-  const [copied, setCopied] = useState(false)
-  const [showInfo, setShowInfo] = useState(false)
-  const [showToolCalls, setShowToolCalls] = useState(false)
-  const { accentColor, customHex } = useUIStore()
-  const userColor = accentColor === 'custom'
-    ? generatePalette(customHex)[600]
-    : accentColors[accentColor].palette[600]
-  const getMessageById = useChatStore((s) => s.getMessageById)
-
-  // Resolve reply-to message
-  const replyToMessage = message.replyToId ? getMessageById(chatId, message.replyToId) : undefined
-
-  // Parse inline citations from bot messages
-  const citedIds = !isUser ? parseCiteMarkers(message.content) : []
-  const displayContent = !isUser ? stripCiteMarkers(message.content) : message.content
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const hasMetadata = !isUser && message.metadata && (
-    message.metadata.tokens !== undefined ||
-    message.metadata.cost !== undefined ||
-    message.metadata.model !== undefined
-  )
-
-  return (
-    <div
-      id={`msg-${message.id}`}
-      className={cn(
-        'chat-message',
-        isUser ? 'chat-message--user' : 'chat-message--bot'
-      )}
-    >
-      {/* Avatar */}
-      <div
-        className={cn(
-          'chat-message__avatar',
-          isUser ? 'chat-message__avatar--user' : 'chat-message__avatar--bot'
-        )}
-        style={isUser ? { backgroundColor: userColor } : (botColor ? { backgroundColor: botColor + '30' } : undefined)}
-      >
-        {isUser ? (
-          <User className="h-5 w-5" />
-        ) : (
-          <BotIconRenderer icon={botIcon || 'shield'} size={20} />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className={cn(
-        'chat-message__content',
-        isUser ? 'chat-message__content--user' : 'chat-message__content--bot'
-      )}>
-        {/* Reply preview */}
-        {replyToMessage && (
-          <ReplyPreview
-            message={replyToMessage}
-            onClick={() => scrollToMessage(replyToMessage.id)}
-          />
-        )}
-
-        {/* Inline citation previews (from [cite:ID] markers) */}
-        {citedIds.length > 0 && !replyToMessage && citedIds.map((citeId) => {
-          const cited = getMessageById(chatId, citeId)
-          if (!cited) return null
-          return (
-            <ReplyPreview
-              key={citeId}
-              message={cited}
-              onClick={() => scrollToMessage(citeId)}
-            />
-          )
-        })}
-
-        <div
-          className={cn(
-            'chat-message__bubble',
-            isUser ? 'chat-message__bubble--user' : 'chat-message__bubble--bot'
-          )}
-          style={isUser ? { background: `linear-gradient(135deg, ${userColor}, ${darkenColor(userColor, 15)})` } : undefined}
-        >
-          {isUser ? (
-            <div className="whitespace-pre-wrap">{displayContent}</div>
-          ) : (
-            <MarkdownRenderer content={displayContent} />
-          )}
-
-          {/* Inline media previews from tool results */}
-          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-            <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
-          )}
-
-          {/* Tool calls collapsible section */}
-          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-            <div className="mt-3">
-              <button
-                onClick={() => setShowToolCalls(!showToolCalls)}
-                className="chat-tool-toggle"
-              >
-                <Zap className="h-3 w-3" />
-                <span>{message.toolCalls.length} tool action{message.toolCalls.length > 1 ? 's' : ''}</span>
-                <ChevronDown
-                  className={cn(
-                    'h-3 w-3 transition-transform',
-                    showToolCalls && 'rotate-180'
-                  )}
-                />
-              </button>
-              {showToolCalls && (
-                <div className="mt-2 space-y-1.5">
-                  {message.toolCalls.map((call) => (
-                    <MessageToolCallItem key={call.id} call={call} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Usage info popover */}
-          {showInfo && hasMetadata && (
-            <div className="chat-message__info-panel">
-              <div className="chat-message__info-grid">
-                {message.metadata?.model && (
-                  <>
-                    <span>Model:</span>
-                    <span className="chat-message__info-value">{String(message.metadata.model)}</span>
-                  </>
-                )}
-                {message.metadata?.tokens !== undefined && (
-                  <>
-                    <span>Tokens:</span>
-                    <span className="chat-message__info-value">
-                      {Number(message.metadata.tokens).toLocaleString()}
-                      {(message.metadata.promptTokens !== undefined || message.metadata.completionTokens !== undefined) && (
-                        <span className="text-[var(--color-text-secondary)] ml-1">
-                          ({Number(message.metadata.promptTokens || 0).toLocaleString()} in / {Number(message.metadata.completionTokens || 0).toLocaleString()} out)
-                        </span>
-                      )}
-                    </span>
-                  </>
-                )}
-                {message.metadata?.cost !== undefined && (
-                  <>
-                    <span>Cost:</span>
-                    <span className="chat-message__info-value">${Number(message.metadata.cost).toFixed(6)}</span>
-                  </>
-                )}
-                {message.metadata?.iterations !== undefined && Number(message.metadata.iterations) > 1 && (
-                  <>
-                    <span>Iterations:</span>
-                    <span className="chat-message__info-value">{Number(message.metadata.iterations)}</span>
-                  </>
-                )}
-                {message.metadata?.elapsedMs !== undefined && Number(message.metadata.elapsedMs) > 0 && (
-                  <>
-                    <span>Time:</span>
-                    <span className="chat-message__info-value">
-                      {Number(message.metadata.elapsedMs) < 1000
-                        ? `${Math.round(Number(message.metadata.elapsedMs))}ms`
-                        : `${(Number(message.metadata.elapsedMs) / 1000).toFixed(1)}s`}
-                    </span>
-                  </>
-                )}
-                {message.metadata?.tokensPerSecond !== undefined && Number(message.metadata.tokensPerSecond) > 0 && (
-                  <>
-                    <span>Speed:</span>
-                    <span className="chat-message__info-value">{Number(message.metadata.tokensPerSecond).toFixed(1)} tok/s</span>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="chat-message__actions">
-          <button
-            onClick={handleCopy}
-            className="chat-message__action-btn"
-          >
-            {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-          <button
-            onClick={onReply}
-            className="chat-message__action-btn"
-          >
-            <Reply className="h-3 w-3" />
-            Reply
-          </button>
-          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-            <button
-              onClick={() => setShowToolCalls(!showToolCalls)}
-              className={cn(
-                'chat-message__action-btn',
-                showToolCalls && 'chat-message__action-btn--active'
-              )}
-            >
-              <Code className="h-3 w-3" />
-              Tools ({message.toolCalls.length})
-            </button>
-          )}
-          {hasMetadata && (
-            <button
-              onClick={() => setShowInfo(!showInfo)}
-              className={cn(
-                'chat-message__action-btn',
-                showInfo && 'chat-message__action-btn--active'
-              )}
-            >
-              <Info className="h-3 w-3" />
-              Info
-            </button>
-          )}
-          {!isUser && (
-            <button className="chat-message__action-btn">
-              <RotateCcw className="h-3 w-3" />
-              Retry
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// MEDIA DETECTION HELPER
-// =============================================================================
-
-/** Check if a tool result contains rendered media (image/audio data URIs). */
-function isMediaResult(result: unknown): boolean {
-  if (typeof result !== 'string') return false
-  return /!\[.*?\]\(data:(?:image|audio)\//.test(result)
-}
-
-// =============================================================================
-// MEDIA EXTRACTION & INLINE PREVIEWS
-// =============================================================================
-
-interface MediaArtifact {
-  type: 'image' | 'audio'
-  dataUri: string
-  toolName: string
-  caption?: string
-}
-
-/** Extract media artifacts (images/audio) from tool call results. */
-function extractMediaArtifacts(toolCalls: ToolCall[]): MediaArtifact[] {
-  const artifacts: MediaArtifact[] = []
-  for (const call of toolCalls) {
-    if (typeof call.result !== 'string') continue
-
-    // Extract images: ![alt](data:image/...)
-    const imgMatch = call.result.match(/!\[([^\]]*)\]\((data:image\/[^)]+)\)/)
-    if (imgMatch) {
-      // Get caption text after the media markdown
-      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:[^)]+\)/, '').trim()
-      artifacts.push({
-        type: 'image',
-        dataUri: imgMatch[2],
-        toolName: call.tool,
-        caption: afterMedia || undefined,
-      })
-      continue
-    }
-
-    // Extract audio: ![alt](data:audio/...)
-    const audioMatch = call.result.match(/!\[([^\]]*)\]\((data:audio\/[^\s)]+(?:\s[^)]*)?)\)/)
-    if (audioMatch) {
-      const rawUri = audioMatch[2].replace(/\s+/g, '')
-      const afterMedia = call.result.replace(/!\[[^\]]*\]\(data:audio\/[^)]+\)/, '').trim()
-      artifacts.push({
-        type: 'audio',
-        dataUri: rawUri,
-        toolName: call.tool,
-        caption: afterMedia || undefined,
-      })
-    }
-  }
-  return artifacts
-}
-
-/** Fullscreen image lightbox overlay. */
-function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
-  return (
-    <div
-      className="chat-lightbox"
-      onClick={onClose}
-    >
-      <button
-        onClick={onClose}
-        className="chat-lightbox__close"
-      >
-        <X className="h-5 w-5" />
-      </button>
-      <img
-        src={src}
-        alt="Full size"
-        className="chat-lightbox__image"
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  )
-}
-
-/** Inline media previews for message artifacts. */
-function MediaPreviews({ artifacts }: { artifacts: MediaArtifact[] }) {
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
-
-  if (artifacts.length === 0) return null
-
-  return (
-    <>
-      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
-      <div className="chat-media-previews">
-        {artifacts.map((artifact, i) => (
-          artifact.type === 'image' ? (
-            <button
-              key={i}
-              onClick={() => setLightboxSrc(artifact.dataUri)}
-              className="chat-media-thumb"
-            >
-              <img
-                src={artifact.dataUri}
-                alt="Generated"
-                className="chat-media-thumb__img"
-              />
-              <div className="chat-media-thumb__overlay">
-                <Image className="h-5 w-5 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100" />
-              </div>
-              {artifact.caption && (
-                <div className="chat-media-thumb__caption">
-                  <span>{artifact.caption}</span>
-                </div>
-              )}
-            </button>
-          ) : (
-            <div
-              key={i}
-              className="chat-media-audio"
-            >
-              <div className="chat-media-audio__icon">
-                <Volume2 className="h-4 w-4 text-cachi-400" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <audio controls className="chat-media-audio__player">
-                  <source src={artifact.dataUri} type={artifact.dataUri.split(';')[0].replace('data:', '')} />
-                </audio>
-                {artifact.caption && (
-                  <p className="chat-media-audio__caption">{artifact.caption}</p>
-                )}
-              </div>
-            </div>
-          )
-        ))}
-      </div>
-    </>
-  )
-}
-
-// =============================================================================
-// MESSAGE TOOL CALL ITEM (Inline, compact version for completed messages)
-// =============================================================================
-
-function MessageToolCallItem({ call }: { call: ToolCall }) {
-  const resultStr = typeof call.result === 'string' ? call.result : JSON.stringify(call.result ?? '', null, 2)
-  const hasMedia = isMediaResult(call.result)
-  const [expanded, setExpanded] = useState(hasMedia)
-  const isSuccess = call.success !== false
-  const toolModel = getToolModel(call.tool)
-
-  return (
-    <div className="chat-msg-tool-call">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="chat-msg-tool-call__header"
-      >
-        {isSuccess ? (
-          <CheckCircle className="h-3 w-3 flex-shrink-0 text-green-400" />
-        ) : (
-          <XCircle className="h-3 w-3 flex-shrink-0 text-red-400" />
-        )}
-        <Code className="h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)]" />
-        <span className="chat-msg-tool-call__name">{call.tool}</span>
-        {toolModel && (
-          <span className="chat-msg-tool-call__model">
-            {toolModel}
-          </span>
-        )}
-        <ChevronDown
-          className={cn(
-            'h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)] transition-transform',
-            expanded && 'rotate-180'
-          )}
-        />
-      </button>
-
-      {expanded && (
-        <div className="chat-msg-tool-call__body">
-          <div className="space-y-2 text-xs">
-            <div className="font-mono">
-              <span className="text-[var(--color-text-secondary)]">Arguments:</span>
-              <pre className="chat-msg-tool-call__code">
-                {JSON.stringify(call.args, null, 2)}
-              </pre>
-            </div>
-            {call.result !== undefined && (
-              <div>
-                <span className="font-mono text-[var(--color-text-secondary)]">Result:</span>
-                {hasMedia ? (
-                  <div className="mt-1">
-                    <MarkdownRenderer content={resultStr} />
-                  </div>
-                ) : (
-                  <pre className="chat-msg-tool-call__code max-h-32 overflow-auto">
-                    {resultStr}
-                  </pre>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

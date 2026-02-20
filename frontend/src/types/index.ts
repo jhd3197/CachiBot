@@ -1070,6 +1070,7 @@ export interface RoomMessage {
   content: string
   metadata: Record<string, unknown>
   timestamp: string
+  toolCalls?: ToolCall[]
 }
 
 export type RoomWSMessageType =
