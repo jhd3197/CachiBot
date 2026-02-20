@@ -27,6 +27,7 @@ class RoomSettings(BaseModel):
 
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
+    response_mode: str = "parallel"  # "parallel" or "sequential"
 
 
 class Room(BaseModel):
@@ -154,6 +155,7 @@ class RoomResponse(BaseModel):
     members: list[RoomMemberResponse]
     bots: list[RoomBotResponse]
     messageCount: int
+    staleBotIds: list[str] = Field(default_factory=list)
     createdAt: str
     updatedAt: str
 
@@ -165,6 +167,10 @@ class RoomResponse(BaseModel):
         bots: list[RoomBot],
         message_count: int = 0,
     ) -> "RoomResponse":
+        # Detect stale bots: room_bot entries whose bot_name resolved to empty
+        # (the LEFT JOIN in RoomBotRepository.get_bots didn't find a matching bot)
+        stale = [b.bot_id for b in bots if not b.bot_name]
+
         return cls(
             id=room.id,
             title=room.title,
@@ -175,6 +181,7 @@ class RoomResponse(BaseModel):
             members=[RoomMemberResponse.from_member(m) for m in members],
             bots=[RoomBotResponse.from_room_bot(b) for b in bots],
             messageCount=message_count,
+            staleBotIds=stale,
             createdAt=room.created_at.isoformat(),
             updatedAt=room.updated_at.isoformat(),
         )
@@ -190,10 +197,12 @@ class RoomMessageResponse(BaseModel):
     senderName: str
     content: str
     metadata: dict[str, Any]
+    toolCalls: list[dict[str, Any]] | None = None
     timestamp: str
 
     @classmethod
     def from_message(cls, msg: RoomMessage) -> "RoomMessageResponse":
+        tool_calls = msg.metadata.get("toolCalls") if msg.metadata else None
         return cls(
             id=msg.id,
             roomId=msg.room_id,
@@ -202,5 +211,6 @@ class RoomMessageResponse(BaseModel):
             senderName=msg.sender_name,
             content=msg.content,
             metadata=msg.metadata,
+            toolCalls=tool_calls,
             timestamp=msg.timestamp.isoformat(),
         )

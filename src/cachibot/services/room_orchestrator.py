@@ -32,6 +32,7 @@ class RoomOrchestrator:
     cooldowns: dict[str, BotCooldownState] = field(default_factory=dict)
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
+    response_mode: str = "parallel"  # "parallel" or "sequential"
 
     def register_bot(self, bot: Bot) -> None:
         """Register a bot in this room."""
@@ -54,6 +55,11 @@ class RoomOrchestrator:
 
         # Check for @all — return all bots in the room
         if re.search(r"@all\b", msg_lower):
+            logger.debug(
+                "Room %s: @all detected, returning all %d bots",
+                self.room_id,
+                len(self.bot_configs),
+            )
             return list(self.bot_configs.keys())
 
         # Match against known bot names directly (handles multi-word names
@@ -64,7 +70,19 @@ class RoomOrchestrator:
             pattern = re.compile(r"@" + re.escape(bot.name) + r"\b", re.IGNORECASE)
             if pattern.search(message):
                 matched_bot_ids.append(bot_id)
+                logger.debug(
+                    "Room %s: mention matched bot %s (%s)",
+                    self.room_id,
+                    bot_id,
+                    bot.name,
+                )
 
+        if not matched_bot_ids:
+            logger.debug(
+                "Room %s: no mentions matched. Registered bots: %s",
+                self.room_id,
+                [b.name for b in self.bot_configs.values()],
+            )
         return matched_bot_ids
 
     def is_on_cooldown(self, bot_id: str) -> bool:
@@ -109,13 +127,23 @@ class RoomOrchestrator:
         if sender_type == "system":
             return []
 
+        logger.debug(
+            "Room %s: select_respondents — sender_type=%s, registered bots: %s",
+            self.room_id,
+            sender_type,
+            [b.name for b in self.bot_configs.values()],
+        )
+
         # Check for @mentions
         mentioned_ids = self.parse_mentions(message)
         if mentioned_ids:
             # @mentioned bots respond regardless of cooldown, exclude sender
-            return [bid for bid in mentioned_ids if bid != exclude_bot_id]
+            respondents = [bid for bid in mentioned_ids if bid != exclude_bot_id]
+            logger.debug("Room %s: selected respondents (mentions): %s", self.room_id, respondents)
+            return respondents
 
         if not self.auto_relevance:
+            logger.debug("Room %s: auto_relevance disabled, no respondents", self.room_id)
             return []
 
         # Auto-select first available bot not on cooldown
@@ -123,8 +151,12 @@ class RoomOrchestrator:
             if bot_id == exclude_bot_id:
                 continue
             if not self.is_on_cooldown(bot_id):
+                logger.debug(
+                    "Room %s: auto-selected respondent: %s", self.room_id, bot_id
+                )
                 return [bot_id]
 
+        logger.debug("Room %s: all bots on cooldown, no respondents", self.room_id)
         return []
 
     def build_room_context(self, bot_id: str, recent_messages: list[RoomMessage]) -> str:
@@ -175,12 +207,14 @@ def create_room_orchestrator(
     room_id: str,
     cooldown_seconds: float = 5.0,
     auto_relevance: bool = True,
+    response_mode: str = "parallel",
 ) -> RoomOrchestrator:
     """Create and register an orchestrator for a room."""
     orchestrator = RoomOrchestrator(
         room_id=room_id,
         cooldown_seconds=cooldown_seconds,
         auto_relevance=auto_relevance,
+        response_mode=response_mode,
     )
     _active_orchestrators[room_id] = orchestrator
     return orchestrator

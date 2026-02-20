@@ -20,6 +20,9 @@ export function useRoomWebSocket(roomId: string | null) {
   // Track current bot message ID per bot (botId → messageId)
   const lastBotMessageIdRef = useRef<Record<string, string>>({})
 
+  // Rapid double-send guard
+  const lastSentRef = useRef<{ content: string; time: number }>({ content: '', time: 0 })
+
   const {
     addMessage,
     setBotState,
@@ -193,6 +196,11 @@ export function useRoomWebSocket(roomId: string | null) {
 
   const sendMessage = useCallback((message: string) => {
     if (!roomId) return
+
+    // Rapid double-send guard (same content within 500ms)
+    const now = Date.now()
+    if (message === lastSentRef.current.content && now - lastSentRef.current.time < 500) return
+    lastSentRef.current = { content: message, time: now }
 
     // Generate a stable ID shared between local store and backend
     const messageId = crypto.randomUUID()

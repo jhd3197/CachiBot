@@ -14,7 +14,7 @@ interface RoomPanelProps {
 }
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
-  const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom } = useRoomStore()
+  const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom } = useRoomStore()
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -58,6 +58,11 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   const handleSettingsUpdate = (updated: Room) => {
     setRoom(updated)
     updateRoom(roomId, updated)
+  }
+
+  const handleDeleteRoom = () => {
+    deleteRoom(roomId)
+    setActiveRoom(null)
   }
 
   if (loading) {
@@ -167,6 +172,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           room={room}
           onClose={() => setShowSettings(false)}
           onUpdate={handleSettingsUpdate}
+          onDelete={handleDeleteRoom}
         />
       )}
     </div>
