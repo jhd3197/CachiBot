@@ -41,20 +41,25 @@
 // -----------------------------------------------------------------------------
 
 .tasks-view-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  border-radius: @radius-lg;
+  gap: @sp-0-5;
+  border-radius: @radius-xl;
   border: 1px solid var(--color-border-secondary);
   background: var(--color-bg-secondary);
-  padding: @sp-1;
+  padding: @sp-0-5;
 
   .dark & {
     background: var(--card-bg);
   }
 
   &__btn {
-    border-radius: @radius-md;
-    padding: @sp-1\.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: @radius-lg;
+    width: 2rem;
+    height: 2rem;
     .transition-colors();
     background: none;
     border: none;
@@ -63,13 +68,15 @@
     &--active {
       background: var(--color-active-bg);
       color: var(--color-text-primary);
+      box-shadow: @shadow-sm;
     }
 
     &--inactive {
-      color: var(--color-text-secondary);
+      color: var(--color-text-tertiary);
 
       &:hover {
         color: var(--color-text-primary);
+        background: var(--color-hover-bg);
       }
     }
   }
@@ -155,7 +162,7 @@
     margin-left: auto;
     border-radius: @radius-full;
     background: var(--color-active-bg);
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     color: var(--color-text-secondary);
 
@@ -248,7 +255,7 @@
   &__tag {
     border-radius: @radius-sm;
     background: var(--color-hover-bg);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
@@ -258,7 +265,7 @@
     align-items: center;
     gap: @sp-1;
     border-radius: @radius-sm;
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
 
     &--high {
@@ -388,14 +395,14 @@
   &__tag {
     border-radius: @radius-sm;
     background: var(--color-hover-bg);
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
 
   &__priority {
     border-radius: @radius-sm;
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     font-weight: @font-medium;
 

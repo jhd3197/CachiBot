@@ -39,8 +39,7 @@
     }
   }
 
-  &__gear-menu,
-  &__add-menu {
+  &__gear-menu {
     .context-menu();
     position: absolute;
     right: 0;
@@ -58,20 +57,6 @@
     }
   }
 
-  &__add-menu {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    min-width: 10rem;
-  }
-
-  &__nav-divider {
-    width: 1px;
-    height: 1rem;
-    background: var(--color-border-primary);
-    flex-shrink: 0;
-  }
-
   &__bot-avatar {
     .flex-center();
     height: 2rem;
@@ -80,22 +65,14 @@
     border-radius: @radius-lg;
   }
 
-  &__bot-info {
+  &__bot-name {
+    .truncate();
     min-width: 0;
     flex: 1;
-
-    .name {
-      .truncate();
-      font-size: @text-sm;
-      font-weight: @font-semibold;
-      color: var(--color-text-primary);
-    }
-
-    .model {
-      .truncate();
-      font-size: @text-xs;
-      color: var(--color-text-secondary);
-    }
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    margin: 0;
   }
 
   &__nav {
@@ -103,9 +80,9 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: @sp-1\.5;
+    gap: @sp-2;
     border-bottom: 1px solid var(--color-border-primary);
-    padding: @sp-2 @sp-3;
+    padding: 0.875rem @sp-3;
   }
 
   &__nav-tooltip {
@@ -144,53 +121,139 @@
 }
 
 // =============================================================================
-// Sidebar Search
+// Global Search Dialog
 // =============================================================================
 
-.sidebar-search {
-  display: flex;
-  gap: @sp-2;
-  padding: @sp-3;
-
-  &__wrap {
+.global-search {
+  &__input-wrap {
     position: relative;
-    flex: 1;
+    padding: @sp-4 @sp-5;
+    border-bottom: 1px solid var(--color-border-primary);
   }
 
   &__icon {
     position: absolute;
-    left: @sp-3;
+    left: @sp-5 + @sp-3;
     top: 50%;
     transform: translateY(-50%);
-    height: 1rem;
-    width: 1rem;
+    height: 1.125rem;
+    width: 1.125rem;
     color: var(--color-text-tertiary);
     pointer-events: none;
   }
 
   &__input {
     .input-base();
-    height: @height-md - 0.125rem;
+    height: @height-lg;
     padding-left: @sp-10;
     padding-right: @sp-3;
+    font-size: @text-sm;
+    border: none;
+    background: var(--color-bg-secondary);
   }
 
-  &__toggle {
-    .flex-center();
-    flex-shrink: 0;
-    height: @height-md - 0.125rem;
-    width: @height-md - 0.125rem;
+  &__body {
+    padding: @sp-2;
+    max-height: 22rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__group-label {
+    .section-label();
+    padding: @sp-2 @sp-3 @sp-1;
+  }
+
+  &__item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2-5 @sp-3;
     border-radius: @radius-lg;
     border: none;
     background: none;
-    color: var(--color-text-secondary);
+    color: var(--color-text-primary);
     cursor: pointer;
+    text-align: left;
     .transition-colors();
 
     &:hover {
       background: var(--color-hover-bg);
-      color: var(--color-text-primary);
     }
+  }
+
+  &__item-icon {
+    .flex-center();
+    height: 1.75rem;
+    width: 1.75rem;
+    flex-shrink: 0;
+    border-radius: @radius-md;
+
+    &--chat {
+      background: color-mix(in srgb, @blue-500 12%, transparent);
+      color: @blue-400;
+    }
+
+    &--room {
+      background: color-mix(in srgb, @purple-500 12%, transparent);
+      color: @purple-400;
+    }
+
+    &--task {
+      background: color-mix(in srgb, @green-500 12%, transparent);
+      color: @green-400;
+    }
+  }
+
+  &__item-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__item-name {
+    .truncate();
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+  }
+
+  &__item-meta {
+    .truncate();
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    margin-top: 1px;
+  }
+
+  &__empty {
+    padding: @sp-8 0;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-tertiary);
+  }
+
+  &__hint {
+    padding: @sp-6 0;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-tertiary);
+  }
+
+  &__kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 @sp-1;
+    margin: 0 2px;
+    border-radius: @radius-sm;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-secondary);
+    font-size: 10px;
+    font-family: inherit;
+    color: var(--color-text-secondary);
   }
 }
 
@@ -229,7 +292,7 @@
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 @sp-2 @sp-2;
+  padding: @sp-2 @sp-2 @sp-2;
   .scrollbar-thin();
 
   &__empty {
@@ -247,7 +310,7 @@
 .sidebar-chat-item {
   .sidebar-item();
   width: 100%;
-  padding: @sp-2\.5 @sp-3;
+  padding: @sp-2 @sp-3;
   text-align: left;
   border: none;
   background: none;
@@ -529,4 +592,65 @@
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-primary);
   padding: @sp-3;
+}
+
+// =============================================================================
+// Create Picker (Chat / Room chooser dialog)
+// =============================================================================
+
+.create-picker {
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: @sp-3;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-5 @sp-4;
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+    cursor: pointer;
+    text-align: center;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 6%, var(--color-bg-secondary));
+    }
+  }
+
+  &__icon {
+    .flex-center();
+    height: 2.75rem;
+    width: 2.75rem;
+    border-radius: @radius-xl;
+
+    &--chat {
+      background: color-mix(in srgb, @blue-500 15%, transparent);
+      color: @blue-400;
+    }
+
+    &--room {
+      background: color-mix(in srgb, @purple-500 15%, transparent);
+      color: @purple-400;
+    }
+  }
+
+  &__label {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__desc {
+    font-size: @text-xs;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
 }

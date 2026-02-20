@@ -1,5 +1,10 @@
-import { useEffect, useRef } from 'react'
-import { Bot, User } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { User, Copy, CheckCircle } from 'lucide-react'
+import { useBotStore } from '../../stores/bots'
+import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
+import { BotIconRenderer } from '../common/BotIconRenderer'
+import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { cn, darkenColor } from '../../lib/utils'
 import type { RoomMessage } from '../../types'
 
 interface RoomMessageListProps {
@@ -27,7 +32,7 @@ export function RoomMessageList({ messages }: RoomMessageListProps) {
 
   return (
     <div className="room-panel__messages">
-      <div className="room-panel__messages-inner" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div className="room-panel__messages-inner">
         {messages.map((msg) => (
           <MessageBubble key={`${msg.id}-${msg.content.length}`} message={msg} />
         ))}
@@ -38,6 +43,10 @@ export function RoomMessageList({ messages }: RoomMessageListProps) {
 }
 
 function MessageBubble({ message }: { message: RoomMessage }) {
+  const [copied, setCopied] = useState(false)
+  const bots = useBotStore((s) => s.bots)
+  const { accentColor, customHex } = useUIStore()
+
   if (message.senderType === 'system') {
     return (
       <div className="room-message room-message--system">
@@ -47,18 +56,63 @@ function MessageBubble({ message }: { message: RoomMessage }) {
   }
 
   const isBot = message.senderType === 'bot'
+  const isUser = !isBot
+
+  // Look up per-bot color/icon
+  const bot = isBot ? bots.find((b) => b.id === message.senderId) : undefined
+  const botColor = bot?.color
+  const botIcon = bot?.icon
+
+  // User accent color
+  const userColor = accentColor === 'custom'
+    ? generatePalette(customHex)[600]
+    : accentColors[accentColor].palette[600]
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
-    <div className="room-message">
+    <div className={cn(
+      'room-message',
+      isUser ? 'room-message--user' : 'room-message--bot'
+    )}>
       {/* Avatar */}
-      <div className={`room-message__avatar room-message__avatar--${isBot ? 'bot' : 'user'}`}>
-        {isBot ? <Bot size={16} /> : <User size={16} />}
+      <div
+        className={cn(
+          'room-message__avatar',
+          isUser ? 'room-message__avatar--user' : 'room-message__avatar--bot'
+        )}
+        style={
+          isBot && botColor
+            ? { backgroundColor: botColor + '20', color: botColor }
+            : isUser
+              ? { backgroundColor: userColor }
+              : undefined
+        }
+      >
+        {isBot ? (
+          <BotIconRenderer icon={botIcon || 'bot'} size={16} />
+        ) : (
+          <User size={16} />
+        )}
       </div>
 
       {/* Content */}
-      <div className="room-message__content">
+      <div className={cn(
+        'room-message__content',
+        isUser ? 'room-message__content--user' : 'room-message__content--bot'
+      )}>
         <div className="room-message__header">
-          <span className={`room-message__sender room-message__sender--${isBot ? 'bot' : 'user'}`}>
+          <span
+            className={cn(
+              'room-message__sender',
+              isUser ? 'room-message__sender--user' : 'room-message__sender--bot'
+            )}
+            style={isBot && botColor ? { color: botColor } : undefined}
+          >
             {message.senderName}
           </span>
           <span className="room-message__time">
@@ -68,8 +122,26 @@ function MessageBubble({ message }: { message: RoomMessage }) {
             })}
           </span>
         </div>
-        <div className="room-message__text">
-          {message.content}
+        <div
+          className={cn(
+            'room-message__bubble',
+            isUser ? 'room-message__bubble--user' : 'room-message__bubble--bot'
+          )}
+          style={isUser ? { background: `linear-gradient(135deg, ${userColor}, ${darkenColor(userColor, 15)})` } : undefined}
+        >
+          {isBot ? (
+            <MarkdownRenderer content={message.content} />
+          ) : (
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          )}
+        </div>
+
+        {/* Actions (hover-reveal) */}
+        <div className="room-message__actions">
+          <button onClick={handleCopy} className="chat-message__action-btn">
+            {copied ? <CheckCircle className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
         </div>
       </div>
     </div>

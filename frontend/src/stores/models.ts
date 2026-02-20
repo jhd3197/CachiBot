@@ -1,5 +1,15 @@
 import { create } from 'zustand'
-import { getModels, getDefaultModel, setDefaultModel, getImageModels, getAudioModels, type ModelsGrouped, type ModelInfo } from '../api/models'
+import { getModels, getDefaultModel, setDefaultModel, type ModelsGrouped, type ModelInfo } from '../api/models'
+
+/** Filter a ModelsGrouped object to only models matching a predicate. */
+function filterGroups(groups: ModelsGrouped, predicate: (m: ModelInfo) => boolean): ModelsGrouped {
+  const result: ModelsGrouped = {}
+  for (const [provider, items] of Object.entries(groups)) {
+    const filtered = items.filter(predicate)
+    if (filtered.length > 0) result[provider] = filtered
+  }
+  return result
+}
 
 interface ModelsState {
   groups: ModelsGrouped
@@ -32,16 +42,14 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null })
     try {
-      const [groups, defaultModel, imageGroups, audioGroups] = await Promise.all([
+      const [groups, defaultModel] = await Promise.all([
         getModels(),
         getDefaultModel(),
-        getImageModels().catch(() => ({} as ModelsGrouped)),
-        getAudioModels().catch(() => ({} as ModelsGrouped)),
       ])
       set({
         groups,
-        imageGroups,
-        audioGroups,
+        imageGroups: filterGroups(groups, (m) => m.supports_image_generation),
+        audioGroups: filterGroups(groups, (m) => m.supports_audio),
         defaultModel,
         loading: false,
       })

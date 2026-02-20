@@ -67,9 +67,7 @@
       "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-mac.${ext}",
       "category": "public.app-category.developer-tools",
-      "hardenedRuntime": true,
-      "entitlements": "../build/entitlements.mac.plist",
-      "entitlementsInherit": "../build/entitlements.mac.plist"
+      "hardenedRuntime": false
     },
     "linux": {
       "target": [
