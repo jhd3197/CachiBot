@@ -161,6 +161,16 @@ async def update_room(
     if updated is None:
         raise HTTPException(status_code=404, detail="Room not found")
 
+    # Sync live orchestrator with new settings
+    if data.settings:
+        from cachibot.services.room_orchestrator import get_room_orchestrator
+
+        orch = get_room_orchestrator(room_id)
+        if orch:
+            orch.cooldown_seconds = data.settings.cooldown_seconds
+            orch.auto_relevance = data.settings.auto_relevance
+            orch.response_mode = data.settings.response_mode
+
     members = await member_repo.get_members(room_id)
     bots = await bot_repo.get_bots(room_id)
     count = await message_repo.get_message_count(room_id)

@@ -152,15 +152,39 @@ async def room_websocket_endpoint(
             room_id=room_id,
             cooldown_seconds=room.settings.cooldown_seconds,
             auto_relevance=room.settings.auto_relevance,
+            response_mode=room.settings.response_mode,
         )
-        # Load room bots into orchestrator
-        bot_repo = RoomBotRepository()
-        backend_bot_repo = BotRepository()
-        room_bots = await bot_repo.get_bots(room_id)
-        for rb in room_bots:
-            bot = await backend_bot_repo.get_bot(rb.bot_id)
-            if bot:
-                orchestrator.register_bot(bot)
+
+    # Always (re-)load bots — handles both fresh init and late-added bots
+    bot_repo_ws = RoomBotRepository()
+    backend_bot_repo_ws = BotRepository()
+    room_bots = await bot_repo_ws.get_bots(room_id)
+    failed_bots: list[str] = []
+    for rb in room_bots:
+        if rb.bot_id in orchestrator.bot_configs:
+            continue  # Already registered
+        bot = await backend_bot_repo_ws.get_bot(rb.bot_id)
+        if bot:
+            orchestrator.register_bot(bot)
+        else:
+            logger.warning(
+                "Room %s: bot %s (%s) not found in bots table — skipped",
+                room_id,
+                rb.bot_id,
+                rb.bot_name,
+            )
+            failed_bots.append(rb.bot_name or rb.bot_id)
+
+    if failed_bots:
+        await room_manager.send_to_user(
+            room_id,
+            user.id,
+            RoomWSMessage.error(
+                room_id,
+                f"Could not load bot(s): {', '.join(failed_bots)}. "
+                "They may need to be re-synced from bot settings.",
+            ),
+        )
 
     # Broadcast presence
     await room_manager.broadcast_to_room(
@@ -230,31 +254,91 @@ async def room_websocket_endpoint(
 
                 # Ask orchestrator which bots should respond
                 respondents = orchestrator.select_respondents(message_text, "user")
-                for bot_id in respondents:
-                    bot = orchestrator.bot_configs.get(bot_id)
-                    if not bot:
-                        continue
 
-                    orchestrator.mark_responding(bot_id)
+                if orchestrator.response_mode == "sequential" and len(respondents) > 1:
+                    # Sequential: run bots one-by-one in a wrapper task
+                    async def _run_sequential(
+                        bots_to_run: list[str], msg: str, cfg: Config
+                    ) -> None:
+                        for bid in bots_to_run:
+                            b = orchestrator.bot_configs.get(bid)
+                            if not b:
+                                continue
+                            try:
+                                orchestrator.mark_responding(bid)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(room_id, bid, b.name),
+                                )
+                                await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bid,
+                                    message=msg,
+                                    config=cfg,
+                                )
+                            except Exception as seq_err:
+                                logger.error(
+                                    "Sequential bot %s failed in room %s: %s",
+                                    bid, room_id, seq_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"{b.name} failed: {seq_err}",
+                                        bot_id=bid,
+                                    ),
+                                )
+                                orchestrator.mark_done(bid)
 
-                    # Broadcast thinking
-                    await room_manager.send_to_room(
-                        room_id,
-                        RoomWSMessage.bot_thinking(room_id, bot_id, bot.name),
-                    )
-
-                    # Spawn bot response task
-                    task = asyncio.create_task(
-                        run_room_bot(
-                            room_id=room_id,
-                            bot_id=bot_id,
-                            message=message_text,
-                            config=config,
-                        )
+                    seq_task = asyncio.create_task(
+                        _run_sequential(respondents, message_text, config)
                     )
                     if room_id not in room_manager.bot_tasks:
                         room_manager.bot_tasks[room_id] = {}
-                    room_manager.bot_tasks[room_id][bot_id] = task
+                    room_manager.bot_tasks[room_id]["_sequential"] = seq_task
+                else:
+                    # Parallel (default): spawn all bot tasks concurrently
+                    for bot_id in respondents:
+                        bot = orchestrator.bot_configs.get(bot_id)
+                        if not bot:
+                            continue
+
+                        try:
+                            orchestrator.mark_responding(bot_id)
+
+                            # Broadcast thinking
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.bot_thinking(room_id, bot_id, bot.name),
+                            )
+
+                            # Spawn bot response task
+                            task = asyncio.create_task(
+                                run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bot_id,
+                                    message=message_text,
+                                    config=config,
+                                )
+                            )
+                            if room_id not in room_manager.bot_tasks:
+                                room_manager.bot_tasks[room_id] = {}
+                            room_manager.bot_tasks[room_id][bot_id] = task
+                        except Exception as spawn_err:
+                            logger.error(
+                                "Failed to spawn bot %s in room %s: %s",
+                                bot_id, room_id, spawn_err,
+                            )
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.error(
+                                    room_id,
+                                    f"{bot.name} failed to start: {spawn_err}",
+                                    bot_id=bot_id,
+                                ),
+                            )
+                            orchestrator.mark_done(bot_id)
 
             elif msg_type == RoomWSMessageType.ROOM_TYPING:
                 is_typing = payload.get("isTyping", False)
@@ -290,6 +374,9 @@ async def room_websocket_endpoint(
 
 MAX_CHAIN_DEPTH = 3
 """Maximum bot-to-bot mention chain depth to prevent infinite loops."""
+
+BOT_TIMEOUT_SECONDS = 120
+"""Maximum seconds a single bot execution may run before being timed out."""
 
 
 async def run_room_bot(
@@ -360,57 +447,76 @@ async def run_room_bot(
 
         await load_dynamic_instructions(agent)
 
-        # Stream response
+        # Stream response (with timeout)
         response_parts: list[str] = []
+        tool_calls: list[dict] = []
         response_msg_id = str(uuid.uuid4())
         agent_result = None  # Captured from the final output event
 
-        async for event in agent.run_stream(message):
-            match event.event_type:
-                case StreamEventType.text_delta:
-                    response_parts.append(event.data)
-                    await room_manager.send_to_room(
-                        room_id,
-                        RoomWSMessage.room_message(
-                            room_id=room_id,
-                            sender_type="bot",
-                            sender_id=bot_id,
-                            sender_name=bot.name,
-                            content=event.data,
-                            message_id=response_msg_id,
-                        ),
-                    )
-                case StreamEventType.tool_call:
-                    await room_manager.send_to_room(
-                        room_id,
-                        RoomWSMessage.bot_tool_start(
-                            room_id=room_id,
-                            bot_id=bot_id,
-                            bot_name=bot.name,
-                            tool_id=event.data.get("id", ""),
-                            tool_name=event.data["name"],
-                            args=event.data.get("arguments", {}),
-                            message_id=response_msg_id,
-                        ),
-                    )
-                case StreamEventType.tool_result:
-                    await room_manager.send_to_room(
-                        room_id,
-                        RoomWSMessage.bot_tool_end(
-                            room_id=room_id,
-                            bot_id=bot_id,
-                            bot_name=bot.name,
-                            tool_id=event.data.get("id", ""),
-                            result=str(event.data.get("result", "")),
-                            message_id=response_msg_id,
-                        ),
-                    )
-                case StreamEventType.output:
-                    agent_result = event.data  # AgentResult
+        async with asyncio.timeout(BOT_TIMEOUT_SECONDS):
+            async for event in agent.run_stream(message):
+                match event.event_type:
+                    case StreamEventType.text_delta:
+                        response_parts.append(event.data)
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.room_message(
+                                room_id=room_id,
+                                sender_type="bot",
+                                sender_id=bot_id,
+                                sender_name=bot.name,
+                                content=event.data,
+                                message_id=response_msg_id,
+                            ),
+                        )
+                    case StreamEventType.tool_call:
+                        tool_calls.append({
+                            "id": event.data.get("id", ""),
+                            "tool": event.data["name"],
+                            "args": event.data.get("arguments", {}),
+                            "startTime": int(datetime.utcnow().timestamp() * 1000),
+                        })
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.bot_tool_start(
+                                room_id=room_id,
+                                bot_id=bot_id,
+                                bot_name=bot.name,
+                                tool_id=event.data.get("id", ""),
+                                tool_name=event.data["name"],
+                                args=event.data.get("arguments", {}),
+                                message_id=response_msg_id,
+                            ),
+                        )
+                    case StreamEventType.tool_result:
+                        # Update the matching tool call entry
+                        tool_id = event.data.get("id", "")
+                        for tc in tool_calls:
+                            if tc["id"] == tool_id:
+                                tc["result"] = str(event.data.get("result", ""))
+                                tc["success"] = event.data.get("success", True)
+                                tc["endTime"] = int(datetime.utcnow().timestamp() * 1000)
+                                break
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.bot_tool_end(
+                                room_id=room_id,
+                                bot_id=bot_id,
+                                bot_name=bot.name,
+                                tool_id=tool_id,
+                                result=str(event.data.get("result", "")),
+                                message_id=response_msg_id,
+                            ),
+                        )
+                    case StreamEventType.output:
+                        agent_result = event.data  # AgentResult
 
-        # Save bot response
+        # Save bot response (include tool calls in metadata)
         full_response = "".join(response_parts)
         if full_response:
+            metadata: dict = {}
+            if tool_calls:
+                metadata["toolCalls"] = tool_calls
             bot_msg = RoomMessage(
                 id=response_msg_id,
                 room_id=room_id,
@@ -418,6 +524,7 @@ async def run_room_bot(
                 sender_id=bot_id,
                 sender_name=bot.name,
                 content=full_response,
+                metadata=metadata,
                 timestamp=datetime.utcnow(),
             )
             await msg_repo.save_message(bot_msg)
@@ -479,6 +586,16 @@ async def run_room_bot(
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(room_id, f"{bot.name} was cancelled", bot_id=bot_id),
+        )
+    except TimeoutError:
+        logger.warning("Bot %s timed out in room %s after %ds", bot_id, room_id, BOT_TIMEOUT_SECONDS)
+        await room_manager.send_to_room(
+            room_id,
+            RoomWSMessage.error(
+                room_id,
+                f"{bot.name} timed out after {BOT_TIMEOUT_SECONDS}s",
+                bot_id=bot_id,
+            ),
         )
     except Exception as e:
         logger.error(f"Bot {bot_id} error in room {room_id}: {e}", exc_info=True)

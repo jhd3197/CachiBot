@@ -1045,6 +1045,7 @@ export interface RoomBot {
 export interface RoomSettings {
   cooldown_seconds: number
   auto_relevance: boolean
+  response_mode: 'parallel' | 'sequential'
 }
 
 export interface Room {

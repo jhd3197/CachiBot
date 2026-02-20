@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { X, UserPlus, UserMinus, Plus, Minus, RotateCcw } from 'lucide-react'
+import { X, UserPlus, UserMinus, Plus, Minus, RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   updateRoom as updateRoomApi,
+  deleteRoom as deleteRoomApi,
   inviteMember,
   removeMember,
   addRoomBot,
@@ -18,18 +19,21 @@ interface RoomSettingsDialogProps {
   room: Room
   onClose: () => void
   onUpdate: (room: Room) => void
+  onDelete?: () => void
 }
 
-export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDialogProps) {
+export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSettingsDialogProps) {
   const { bots: allBots } = useBotStore()
   const { clearMessages } = useRoomStore()
   const [title, setTitle] = useState(room.title)
   const [description, setDescription] = useState(room.description || '')
   const [cooldown, setCooldown] = useState(room.settings.cooldown_seconds)
   const [autoRelevance, setAutoRelevance] = useState(room.settings.auto_relevance)
+  const [responseMode, setResponseMode] = useState<'parallel' | 'sequential'>(room.settings.response_mode || 'parallel')
   const [inviteUsername, setInviteUsername] = useState('')
   const [saving, setSaving] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -37,7 +41,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
       const updated = await updateRoomApi(room.id, {
         title: title.trim() || undefined,
         description: description.trim() || undefined,
-        settings: { cooldown_seconds: cooldown, auto_relevance: autoRelevance },
+        settings: { cooldown_seconds: cooldown, auto_relevance: autoRelevance, response_mode: responseMode },
       })
       onUpdate(updated)
       toast.success('Room updated')
@@ -245,9 +249,35 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
               </label>
             </div>
           </div>
+
+          {/* Response mode */}
+          <div className="form-field">
+            <label className="form-field__label">Response Mode</label>
+            <div className="room-settings__mode-toggle">
+              <button
+                type="button"
+                onClick={() => setResponseMode('parallel')}
+                className={`room-settings__mode-btn ${responseMode === 'parallel' ? 'room-settings__mode-btn--active' : ''}`}
+              >
+                Parallel
+              </button>
+              <button
+                type="button"
+                onClick={() => setResponseMode('sequential')}
+                className={`room-settings__mode-btn ${responseMode === 'sequential' ? 'room-settings__mode-btn--active' : ''}`}
+              >
+                One by one
+              </button>
+            </div>
+            <p className="form-field__help">
+              {responseMode === 'parallel'
+                ? 'All bots respond at the same time'
+                : 'Bots take turns responding one after another'}
+            </p>
+          </div>
         </div>
 
-        {/* Start Over */}
+        {/* Start Over & Delete */}
         <div className="room-settings__section" style={{ borderTop: '1px solid var(--color-border-primary)' }}>
           {showResetConfirm ? (
             <div className="room-settings__reset-confirm">
@@ -286,6 +316,45 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
             >
               <RotateCcw size={14} />
               Start Over
+            </button>
+          )}
+
+          {showDeleteConfirm ? (
+            <div className="room-settings__reset-confirm" style={{ marginTop: '0.5rem' }}>
+              <p className="form-field__help" style={{ margin: 0 }}>
+                Permanently delete this room and all its messages? This can't be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="btn btn--ghost btn--sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await deleteRoomApi(room.id)
+                      toast.success('Room deleted')
+                      onDelete?.()
+                    } catch {
+                      toast.error('Failed to delete room')
+                    }
+                  }}
+                  className="btn btn--danger btn--sm"
+                >
+                  Delete Room
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="btn btn--ghost btn--sm"
+              style={{ color: 'var(--color-danger)', width: '100%', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}
+            >
+              <Trash2 size={14} />
+              Delete Room
             </button>
           )}
         </div>

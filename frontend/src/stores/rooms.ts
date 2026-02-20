@@ -106,6 +106,20 @@ export const useRoomStore = create<RoomState>()(
             // User/system: already have it, skip
             return state
           }
+
+          // Deduplicate user messages: skip if same sender + content within 2 seconds
+          if (message.senderType === 'user') {
+            const msgTime = new Date(message.timestamp).getTime()
+            const isDup = existing.some(
+              (m) =>
+                m.senderType === 'user' &&
+                m.senderId === message.senderId &&
+                m.content === message.content &&
+                Math.abs(new Date(m.timestamp).getTime() - msgTime) < 2000
+            )
+            if (isDup) return state
+          }
+
           return { messages: { ...state.messages, [roomId]: [...existing, message] } }
         }),
 
@@ -251,7 +265,6 @@ export const useRoomStore = create<RoomState>()(
       name: 'cachibot-rooms',
       partialize: (state) => ({
         rooms: state.rooms,
-        messages: state.messages,
       }),
     }
   )

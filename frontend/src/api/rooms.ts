@@ -116,5 +116,9 @@ export async function getRoomMessages(
 ): Promise<RoomMessage[]> {
   const params = new URLSearchParams({ limit: limit.toString() })
   if (before) params.set('before', before)
-  return request(`/rooms/${roomId}/messages?${params}`)
+  const raw = await request<RoomMessage[]>(`/rooms/${roomId}/messages?${params}`)
+  return raw.map((msg) => ({
+    ...msg,
+    toolCalls: msg.toolCalls ?? (msg.metadata?.toolCalls as RoomMessage['toolCalls']) ?? undefined,
+  }))
 }
