@@ -10,19 +10,37 @@
   // Trigger (select-like button)
   // ---------------------------------------------------------------------------
   &__trigger {
-    .input-base();
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: @sp-2;
-    padding-right: @sp-8;
+    padding: 0.625rem @sp-3;
+    padding-right: @sp-10;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
+    border-radius: @radius-xl;
+    font-size: @text-sm;
+    font-family: @font-sans;
     cursor: pointer;
     text-align: left;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-500) 15%, transparent);
+    }
   }
 
   &__trigger-text {
     .truncate();
-    color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
 
     &--value {
       color: var(--color-text-primary);
@@ -38,6 +56,8 @@
     transform: translateY(-50%);
     color: var(--color-text-secondary);
     pointer-events: none;
+    border-left: 1px solid var(--color-border-primary);
+    padding-left: @sp-2;
   }
 
   // ---------------------------------------------------------------------------
@@ -57,7 +77,7 @@
   // Search area
   // ---------------------------------------------------------------------------
   &__search {
-    padding: @sp-2;
+    padding: 0.625rem;
     border-bottom: 1px solid var(--color-border-primary);
   }
 
@@ -67,7 +87,7 @@
 
   &__search-icon {
     position: absolute;
-    left: @sp-2\.5;
+    left: 0.625rem;
     top: 50%;
     transform: translateY(-50%);
     color: var(--color-text-secondary);
@@ -80,7 +100,7 @@
     color: var(--color-text-primary);
     font-size: @text-xs;
     border-radius: @radius-md;
-    padding: @sp-1\.5 @sp-3 @sp-1\.5 @sp-8;
+    padding: 0.375rem @sp-3 0.375rem @sp-8;
     .transition-colors();
 
     &::placeholder {
@@ -97,7 +117,7 @@
   // Model list
   // ---------------------------------------------------------------------------
   &__list {
-    max-height: 16rem;
+    max-height: 24rem;
     overflow-y: auto;
     .scrollbar-thin();
   }
@@ -106,7 +126,7 @@
   // Provider group header
   // ---------------------------------------------------------------------------
   &__group-header {
-    padding: @sp-1\.5 @sp-3;
+    padding: @sp-2 @sp-3;
     font-size: 10px;
     font-weight: @font-semibold;
     color: var(--color-text-secondary);
@@ -118,7 +138,7 @@
   }
 
   &__group-count {
-    margin-left: @sp-1\.5;
+    margin-left: 0.375rem;
     color: var(--color-text-tertiary);
   }
 
@@ -128,7 +148,7 @@
   &__item {
     width: 100%;
     text-align: left;
-    padding: @sp-1\.5 @sp-3;
+    padding: @sp-2 @sp-3;
     font-size: @text-sm;
     color: var(--color-text-primary);
     display: flex;
@@ -214,13 +234,13 @@
   &__manual-hint {
     font-size: 10px;
     color: var(--color-text-secondary);
-    margin-bottom: @sp-1\.5;
+    margin-bottom: 0.375rem;
     padding: 0 @sp-1;
   }
 
   &__manual-form {
     display: flex;
-    gap: @sp-1\.5;
+    gap: 0.375rem;
   }
 
   &__manual-input {
@@ -231,7 +251,7 @@
     font-size: @text-xs;
     font-family: @font-mono;
     border-radius: @radius-md;
-    padding: @sp-1\.5 @sp-2;
+    padding: 0.375rem @sp-2;
     .transition-colors();
 
     &::placeholder {
@@ -247,7 +267,7 @@
   &__manual-submit {
     .button-base();
     .button-variant(primary);
-    padding: @sp-1\.5 @sp-2\.5;
+    padding: 0.375rem 0.625rem;
     font-size: @text-xs;
     height: auto;
     border-radius: @radius-md;
@@ -285,7 +305,7 @@
   // ---------------------------------------------------------------------------
   &__empty,
   &__loading {
-    padding: @sp-3 @sp-3 @sp-6;
+    padding: @sp-4 @sp-3 @sp-8;
     text-align: center;
     font-size: @text-xs;
     color: var(--color-text-secondary);

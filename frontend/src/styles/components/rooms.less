@@ -28,7 +28,7 @@
   &__reconnecting {
     border-radius: @radius-sm;
     background: rgba(@yellow-500, 0.2);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: 10px;
     font-weight: @font-medium;
     color: @yellow-600;
@@ -67,7 +67,7 @@
     align-items: center;
     gap: @sp-2;
     border-bottom: 1px solid var(--color-border-primary);
-    padding: @sp-1\.5 @sp-4;
+    padding: @sp-1-5 @sp-4;
   }
 
   &__bot-status {
@@ -75,7 +75,7 @@
     align-items: center;
     gap: @sp-1;
     border-radius: @radius-full;
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     font-weight: @font-medium;
 
@@ -106,6 +106,9 @@
   }
 
   &__messages-inner {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-4;
     max-width: 48rem;
     margin: 0 auto;
   }
@@ -126,181 +129,6 @@
     height: 100%;
     font-size: @text-sm;
     color: var(--color-text-secondary);
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Room Messages
-// -----------------------------------------------------------------------------
-
-.room-message {
-  display: flex;
-  align-items: flex-start;
-  gap: @sp-3;
-
-  &--system {
-    display: block;
-    padding: @sp-1 0;
-    text-align: center;
-    font-size: @text-xs;
-    color: var(--color-text-secondary);
-  }
-
-  &__avatar {
-    .flex-center();
-    width: 2rem;
-    height: 2rem;
-    flex-shrink: 0;
-    border-radius: @radius-full;
-
-    &--user {
-      background: rgba(@blue-600, 0.2);
-      color: @blue-600;
-
-      .dark & {
-        color: @blue-400;
-      }
-    }
-
-    &--bot {
-      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
-      color: var(--accent-600);
-
-      .dark & {
-        color: var(--accent-400);
-      }
-    }
-  }
-
-  &__content {
-    min-width: 0;
-    flex: 1;
-  }
-
-  &__header {
-    display: flex;
-    align-items: baseline;
-    gap: @sp-2;
-  }
-
-  &__sender {
-    font-size: @text-sm;
-    font-weight: @font-semibold;
-
-    &--user {
-      color: @blue-600;
-
-      .dark & {
-        color: @blue-400;
-      }
-    }
-
-    &--bot {
-      color: var(--accent-600);
-
-      .dark & {
-        color: var(--accent-400);
-      }
-    }
-  }
-
-  &__time {
-    font-size: @text-xs;
-    color: var(--color-text-secondary);
-  }
-
-  &__text {
-    margin-top: 2px;
-    white-space: pre-wrap;
-    font-size: @text-sm;
-    color: @zinc-800;
-
-    .dark & {
-      color: @zinc-200;
-    }
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Room Input
-// -----------------------------------------------------------------------------
-
-.room-input {
-  position: relative;
-  border-top: 1px solid var(--color-border-primary);
-  padding: @sp-3 @sp-4;
-
-  &__inner {
-    max-width: 48rem;
-    margin: 0 auto;
-    display: flex;
-    align-items: flex-end;
-    gap: @sp-2;
-  }
-
-  &__textarea {
-    .input-base();
-    flex: 1;
-    min-height: 40px;
-    max-height: 120px;
-    resize: none;
-    border-radius: @radius-lg;
-    padding: @sp-2 @sp-3;
-  }
-
-  &__send {
-    .flex-center();
-    width: 2.5rem;
-    height: 2.5rem;
-    flex-shrink: 0;
-    border-radius: @radius-lg;
-    background: var(--accent-600);
-    color: white;
-    border: none;
-    cursor: pointer;
-    .transition-colors();
-
-    &:hover {
-      background: var(--accent-500);
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-  }
-
-  &__mention-popup {
-    position: absolute;
-    bottom: 100%;
-    left: @sp-4;
-    right: @sp-4;
-    z-index: @z-dropdown;
-    margin-bottom: @sp-1;
-    border-radius: @radius-lg;
-    border: 1px solid var(--color-border-primary);
-    background: var(--color-bg-primary);
-    padding: @sp-1 0;
-    box-shadow: @shadow-lg;
-  }
-
-  &__mention-item {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: @sp-2;
-    padding: @sp-1\.5 @sp-3;
-    text-align: left;
-    font-size: @text-sm;
-    color: var(--color-text-primary);
-    background: none;
-    border: none;
-    cursor: pointer;
-    .transition-colors();
-
-    &:hover {
-      background: var(--color-hover-bg);
-    }
   }
 }
 
@@ -550,7 +378,7 @@
     width: 100%;
     align-items: center;
     gap: @sp-2;
-    padding: @sp-1\.5 @sp-3;
+    padding: @sp-1-5 @sp-3;
     font-size: @text-sm;
     background: none;
     border: none;
@@ -591,7 +419,7 @@
     align-items: center;
     gap: @sp-2;
     border-radius: @radius-lg;
-    padding: @sp-1\.5 @sp-2;
+    padding: @sp-1-5 @sp-2;
     text-align: left;
     font-size: @text-sm;
     background: none;

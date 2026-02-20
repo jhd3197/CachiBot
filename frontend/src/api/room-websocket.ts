@@ -40,8 +40,8 @@ export class RoomWebSocketClient extends BaseWebSocketClient<RoomWSMessage> {
     this.sendRaw({ type, payload })
   }
 
-  sendChat(message: string): void {
-    this.send('room_chat', { message })
+  sendChat(message: string, messageId?: string): void {
+    this.send('room_chat', { message, messageId })
   }
 
   sendTyping(isTyping: boolean): void {

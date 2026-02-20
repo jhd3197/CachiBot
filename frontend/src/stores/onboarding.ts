@@ -5,7 +5,6 @@ const STEPS = ['welcome', 'api-key', 'model', 'database', 'smtp', 'preferences',
 export type OnboardingStep = (typeof STEPS)[number]
 
 interface OnboardingState {
-  isOpen: boolean
   currentStep: number
   hasCompletedOnboarding: boolean
 
@@ -15,8 +14,7 @@ interface OnboardingState {
   smtpConfigured: boolean
 
   // Actions
-  open: () => void
-  close: () => void
+  resetStep: () => void
   nextStep: () => void
   prevStep: () => void
   completeOnboarding: () => void
@@ -31,7 +29,6 @@ export { STEPS as ONBOARDING_STEPS }
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set) => ({
-      isOpen: false,
       currentStep: 0,
       hasCompletedOnboarding: false,
 
@@ -39,8 +36,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       databaseConfigured: false,
       smtpConfigured: false,
 
-      open: () => set({ isOpen: true, currentStep: 0 }),
-      close: () => set({ isOpen: false }),
+      resetStep: () => set({ currentStep: 0 }),
       nextStep: () =>
         set((state) => ({
           currentStep: Math.min(state.currentStep + 1, STEPS.length - 1),
@@ -50,9 +46,9 @@ export const useOnboardingStore = create<OnboardingState>()(
           currentStep: Math.max(state.currentStep - 1, 0),
         })),
       completeOnboarding: () =>
-        set({ isOpen: false, hasCompletedOnboarding: true, currentStep: 0 }),
+        set({ hasCompletedOnboarding: true, currentStep: 0 }),
       skipOnboarding: () =>
-        set({ isOpen: false, hasCompletedOnboarding: true, currentStep: 0 }),
+        set({ hasCompletedOnboarding: true, currentStep: 0 }),
       setDatabaseType: (type) => set({ databaseType: type }),
       setDatabaseConfigured: (configured) => set({ databaseConfigured: configured }),
       setSmtpConfigured: (configured) => set({ smtpConfigured: configured }),

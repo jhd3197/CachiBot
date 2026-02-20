@@ -237,9 +237,8 @@ export function ToolsView() {
                     title={allEnabled ? `Disable all ${level} tools` : `Enable all ${level} tools`}
                     className={cn(
                       'tools-risk-btn',
-                      allEnabled
-                        ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                        : 'tools-risk-btn--inactive'
+                      `tools-risk-btn--${level}`,
+                      allEnabled && 'tools-risk-btn--active'
                     )}
                   >
                     <RiskIcon className="h-3.5 w-3.5" />

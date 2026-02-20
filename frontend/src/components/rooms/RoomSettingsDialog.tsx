@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, UserPlus, UserMinus, Plus, Minus } from 'lucide-react'
+import { X, UserPlus, UserMinus, Plus, Minus, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   updateRoom as updateRoomApi,
@@ -7,8 +7,10 @@ import {
   removeMember,
   addRoomBot,
   removeRoomBot,
+  clearRoomMessages,
 } from '../../api/rooms'
 import { useBotStore } from '../../stores/bots'
+import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import type { Room } from '../../types'
 
@@ -20,12 +22,14 @@ interface RoomSettingsDialogProps {
 
 export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDialogProps) {
   const { bots: allBots } = useBotStore()
+  const { clearMessages } = useRoomStore()
   const [title, setTitle] = useState(room.title)
   const [description, setDescription] = useState(room.description || '')
   const [cooldown, setCooldown] = useState(room.settings.cooldown_seconds)
   const [autoRelevance, setAutoRelevance] = useState(room.settings.auto_relevance)
   const [inviteUsername, setInviteUsername] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -241,6 +245,49 @@ export function RoomSettingsDialog({ room, onClose, onUpdate }: RoomSettingsDial
               </label>
             </div>
           </div>
+        </div>
+
+        {/* Start Over */}
+        <div className="room-settings__section" style={{ borderTop: '1px solid var(--color-border-primary)' }}>
+          {showResetConfirm ? (
+            <div className="room-settings__reset-confirm">
+              <p className="form-field__help" style={{ margin: 0 }}>
+                Clear all messages in this room? This can't be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="btn btn--ghost btn--sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await clearRoomMessages(room.id)
+                      clearMessages(room.id)
+                      setShowResetConfirm(false)
+                      toast.success('Chat cleared')
+                    } catch {
+                      toast.error('Failed to clear messages')
+                    }
+                  }}
+                  className="btn btn--danger btn--sm"
+                >
+                  Clear Messages
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="btn btn--ghost btn--sm"
+              style={{ color: 'var(--color-text-secondary)', width: '100%', justifyContent: 'center', gap: '0.5rem' }}
+            >
+              <RotateCcw size={14} />
+              Start Over
+            </button>
+          )}
         </div>
 
         {/* Footer */}

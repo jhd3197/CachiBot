@@ -3,8 +3,8 @@ import { Settings, Users, Bot, Loader2 } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useRoomWebSocket } from '../../hooks/useRoomWebSocket'
 import { getRoomMessages, getRoom } from '../../api/rooms'
-import { RoomMessageList } from './RoomMessageList'
-import { RoomInputArea } from './RoomInputArea'
+import { RoomMessageList } from '../chat/MessageList'
+import { InputArea } from '../chat/InputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { useAuthStore } from '../../stores/auth'
 import type { Room } from '../../types'
@@ -15,10 +15,14 @@ interface RoomPanelProps {
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
   const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom } = useRoomStore()
-  const { isConnected, sendMessage, sendTyping } = useRoomWebSocket(roomId)
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Connect WebSocket only after the initial REST load finishes so that
+  // setMessages() from the REST response cannot overwrite messages that
+  // arrived via WebSocket in the meantime.
+  const { isConnected, sendMessage, sendTyping } = useRoomWebSocket(loading ? null : roomId)
   const user = useAuthStore((s) => s.user)
 
   const roomMessages = messages[roomId] || []
@@ -150,11 +154,11 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
       )}
 
       {/* Input */}
-      <RoomInputArea
+      <InputArea
         onSend={sendMessage}
         onTyping={sendTyping}
         bots={room.bots}
-        disabled={!isConnected}
+        isConnected={isConnected}
       />
 
       {/* Settings dialog */}

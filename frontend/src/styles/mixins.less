@@ -119,6 +119,53 @@
 }
 
 // -----------------------------------------------------------------------------
+// Tag — Muted Neon
+// Low-opacity colored background with bright text. Works in both modes.
+// Usage: .tag-neon(@green-500); or .tag-neon(var(--accent-500));
+// -----------------------------------------------------------------------------
+.tag-neon(@color) {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1;
+  border-radius: @radius-full;
+  padding: 2px @sp-2-5;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  background: color-mix(in srgb, @color 12%, transparent);
+  color: @color;
+}
+
+// -----------------------------------------------------------------------------
+// Section Label — uppercase tracked headers
+// -----------------------------------------------------------------------------
+.section-label() {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: @font-semibold;
+  color: var(--color-text-tertiary);
+  line-height: @leading-normal;
+}
+
+// -----------------------------------------------------------------------------
+// Card — hover lift effect
+// -----------------------------------------------------------------------------
+.card-hover-lift() {
+  transition: transform @transition-normal, border-color @transition-normal, box-shadow @transition-normal;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Tabular Numbers — prevents jitter on changing digits
+// -----------------------------------------------------------------------------
+.tabular-nums() {
+  font-variant-numeric: tabular-nums;
+}
+
+// -----------------------------------------------------------------------------
 // Component — Button
 // -----------------------------------------------------------------------------
 .button-base() {
@@ -207,7 +254,7 @@
   background: var(--input-bg);
   color: var(--input-text);
   border: 1px solid var(--input-border);
-  border-radius: @radius-lg;
+  border-radius: @radius-xl;
   padding: @sp-2 @sp-3;
   font-size: @text-sm;
   font-family: @font-sans;
@@ -219,8 +266,8 @@
 
   &:focus {
     outline: none;
-    border-color: transparent;
-    box-shadow: 0 0 0 2px var(--accent-500);
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-500) 15%, transparent);
   }
 }
 
@@ -230,7 +277,7 @@
 .card-base() {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: @radius-xl;
+  border-radius: @radius-2xl;
   box-shadow: var(--card-shadow);
 }
 
@@ -241,10 +288,10 @@
   display: inline-flex;
   align-items: center;
   gap: @sp-1;
-  padding: @sp-0\.5 @sp-2;
+  padding: @sp-0-5 @sp-2-5;
   font-size: @text-xs;
   font-weight: @font-medium;
-  border-radius: @radius-sm;
+  border-radius: @radius-full;
   line-height: @leading-normal;
 }
 
@@ -304,7 +351,7 @@
   align-items: center;
   gap: @sp-3;
   padding: @sp-2 @sp-3;
-  border-radius: @radius-lg;
+  border-radius: @radius-xl;
   font-size: @text-sm;
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -375,7 +422,7 @@
 // Component — Context Menu
 // -----------------------------------------------------------------------------
 .context-menu() {
-  background: var(--color-bg-primary);
+  background: var(--color-bg-dropdown);
   border: 1px solid var(--color-border-primary);
   border-radius: @radius-lg;
   box-shadow: @shadow-lg;
@@ -386,12 +433,16 @@
 
 .context-menu-item() {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: @sp-2;
   padding: @sp-2 @sp-3;
   font-size: @text-sm;
   color: var(--color-text-primary);
   border-radius: @radius-md;
+  border: none;
+  background: none;
+  text-align: left;
   cursor: pointer;
   .transition-colors();
 
@@ -406,7 +457,7 @@
 .tooltip() {
   position: absolute;
   z-index: @z-tooltip;
-  padding: @sp-1\.5 @sp-2\.5;
+  padding: @sp-1-5 @sp-2-5;
   font-size: @text-xs;
   color: white;
   background: @zinc-900;

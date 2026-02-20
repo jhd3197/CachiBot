@@ -64,16 +64,13 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
       )}
 
       {/* Input area */}
-      <div className="chat-panel__input-area">
-        <div className="chat-panel__input-inner">
-          <InputArea
-            onSend={onSendMessage}
-            onCancel={onCancel}
-            isLoading={isLoading}
-            disabled={!isConnected || !canOperate}
-          />
-        </div>
-      </div>
+      <InputArea
+        onSend={onSendMessage}
+        onCancel={onCancel}
+        isLoading={isLoading}
+        isConnected={isConnected}
+        disabled={!canOperate}
+      />
     </div>
   )
 }

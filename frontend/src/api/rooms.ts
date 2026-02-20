@@ -103,6 +103,11 @@ export async function removeRoomBot(roomId: string, botId: string): Promise<void
   return request(`/rooms/${roomId}/bots/${botId}`, { method: 'DELETE' })
 }
 
+// Clear messages
+export async function clearRoomMessages(roomId: string): Promise<{ deleted: number }> {
+  return request(`/rooms/${roomId}/messages/_clear`, { method: 'POST' })
+}
+
 // Messages
 export async function getRoomMessages(
   roomId: string,

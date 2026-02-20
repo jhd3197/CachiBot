@@ -41,46 +41,73 @@
 // Tools Risk Toggle Buttons
 // -----------------------------------------------------------------------------
 
+// Risk-level color map
+.tools-risk-color(@color) {
+  --risk-color: @color;
+  --risk-bg: color-mix(in srgb, @color 10%, transparent);
+  --risk-bg-hover: color-mix(in srgb, @color 16%, transparent);
+  --risk-border: color-mix(in srgb, @color 20%, transparent);
+  --risk-border-hover: color-mix(in srgb, @color 35%, transparent);
+}
+
 .tools-risk-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: @sp-1\.5;
-  border-radius: @radius-lg;
-  border: 1px solid;
-  padding: @sp-1\.5 @sp-2\.5;
+  gap: @sp-2;
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-secondary);
+  padding: @sp-1-5 @sp-3;
   font-size: @text-xs;
+  font-weight: @font-medium;
   .transition-colors();
   cursor: pointer;
-  background: none;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
 
-  &--inactive {
-    border-color: var(--color-border-secondary);
-    background: var(--color-bg-secondary);
-    color: var(--color-text-secondary);
+  .dark & {
+    background: var(--card-bg);
+  }
 
-    .dark & {
-      background: var(--card-bg);
-    }
+  &:hover {
+    border-color: var(--risk-border-hover, var(--color-border-secondary));
+    background: var(--risk-bg-hover, var(--color-hover-bg));
+    color: var(--risk-color, var(--color-text-primary));
+  }
 
-    &:hover {
-      border-color: var(--color-border-secondary);
-      color: var(--color-text-secondary);
-    }
+  &--safe {
+    .tools-risk-color(@green-500);
+  }
+
+  &--moderate {
+    .tools-risk-color(@yellow-500);
+  }
+
+  &--dangerous {
+    .tools-risk-color(@red-500);
+  }
+
+  &--active {
+    border-color: var(--risk-border);
+    background: var(--risk-bg);
+    color: var(--risk-color);
   }
 
   &__count {
     border-radius: @radius-full;
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: 2px @sp-2;
     font-size: 10px;
-    font-weight: @font-medium;
+    font-weight: @font-semibold;
     line-height: @leading-none;
+    font-variant-numeric: tabular-nums;
 
     &--active {
-      background: rgba(255, 255, 255, 0.1);
+      background: color-mix(in srgb, var(--risk-color, @zinc-400) 15%, transparent);
+      color: var(--risk-color);
     }
 
     &--inactive {
       background: var(--color-bg-secondary);
+      color: var(--color-text-tertiary);
 
       .dark & {
         background: var(--color-hover-bg);
@@ -94,8 +121,8 @@
 // -----------------------------------------------------------------------------
 
 .tools-divider {
-  margin: 0 @sp-1;
-  height: 1.25rem;
+  margin: 0 @sp-0-5;
+  height: 1.5rem;
   width: 1px;
   background: var(--color-border-secondary);
 
@@ -109,17 +136,19 @@
 // -----------------------------------------------------------------------------
 
 .tools-bulk-btn {
-  border-radius: @radius-lg;
-  padding: @sp-2 @sp-1\.5;
+  border-radius: @radius-xl;
+  padding: @sp-1-5 @sp-2-5;
   font-size: @text-xs;
-  color: var(--color-text-secondary);
+  font-weight: @font-medium;
+  color: var(--color-text-tertiary);
   background: none;
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   .transition-colors();
 
   &:hover {
     background: var(--color-hover-bg);
+    border-color: var(--color-border-secondary);
     color: var(--color-text-primary);
   }
 }
@@ -253,7 +282,7 @@
   &__count {
     border-radius: @radius-full;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
@@ -261,7 +290,7 @@
   &__capability {
     border-radius: @radius-full;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-2;
+    padding: @sp-0-5 @sp-2;
     font-size: @text-xs;
     color: var(--color-text-tertiary);
 
@@ -271,11 +300,24 @@
   }
 
   &__always-on {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1-5;
     border-radius: @radius-full;
-    background: rgba(@green-500, 0.1);
-    padding: @sp-0\.5 @sp-2;
+    background: color-mix(in srgb, @green-500 12%, transparent);
+    padding: @sp-0-5 @sp-2-5;
     font-size: @text-xs;
+    font-weight: @font-medium;
     color: @green-500;
+
+    &::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: @radius-full;
+      background: @green-500;
+      box-shadow: 0 0 5px rgba(@green-500, 0.5);
+    }
   }
 }
 
@@ -466,7 +508,7 @@
   &__type {
     border-radius: @radius-sm;
     background: var(--color-bg-secondary);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
     color: var(--color-text-secondary);
   }
@@ -474,7 +516,7 @@
   &__required {
     border-radius: @radius-sm;
     background: rgba(@red-500, 0.2);
-    padding: @sp-0\.5 @sp-1\.5;
+    padding: @sp-0-5 @sp-1-5;
     font-size: @text-xs;
     color: @red-400;
   }

@@ -119,6 +119,9 @@ function stopBackend() {
     }
   }
   backendProcess = null;
+
+  // Clean up PID file after stopping backend
+  try { fs.unlinkSync(PID_FILE); } catch {}
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +186,37 @@ function isPortInUse(port) {
     sock.once('timeout', () => { sock.destroy(); resolve(false); });
     sock.connect(port, BACKEND_HOST);
   });
+}
+
+const PID_FILE = path.join(require('os').homedir(), '.cachibot', 'server.pid');
+
+async function killStalePidFile() {
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(PID_FILE, 'utf8'));
+  } catch {
+    return; // No PID file or invalid JSON
+  }
+
+  const pid = data.pid;
+  if (!pid) return;
+
+  console.log(`[electron] Found stale PID file (PID ${pid}), killing...`);
+
+  if (process.platform === 'win32') {
+    try {
+      await new Promise((resolve) => {
+        execFile('taskkill', ['/PID', String(pid), '/T', '/F'], (err) => {
+          if (err) console.warn('[electron] taskkill stale PID error:', err.message);
+          resolve();
+        });
+      });
+    } catch {}
+  } else {
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+  }
+
+  try { fs.unlinkSync(PID_FILE); } catch {}
 }
 
 function killProcessOnPort(port) {
@@ -640,6 +674,9 @@ app.whenReady().then(async () => {
     // Dev mode: skip backend startup/wait, Vite proxy handles API calls
     console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
   } else {
+    // Kill any orphaned server process from a previous crash
+    await killStalePidFile();
+
     const portInUse = await isPortInUse(BACKEND_PORT);
     if (portInUse) {
       console.log(`[electron] Port ${BACKEND_PORT} in use, killing existing process...`);

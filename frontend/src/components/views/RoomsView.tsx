@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Users, Bot, Trash2, MoreHorizontal, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRoomStore } from '../../stores/rooms'
+import { useBotStore } from '../../stores/bots'
 import { getRooms, deleteRoom as deleteRoomApi } from '../../api/rooms'
 import { RoomPanel } from '../rooms/RoomPanel'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
@@ -9,7 +10,8 @@ import { cn } from '../../lib/utils'
 import type { Room } from '../../types'
 
 export function RoomsView() {
-  const { rooms, setRooms, activeRoomId, setActiveRoom, deleteRoom } = useRoomStore()
+  const { activeBotId } = useBotStore()
+  const { setRooms, activeRoomId, setActiveRoom, deleteRoom, getRoomsForBot } = useRoomStore()
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
@@ -67,23 +69,23 @@ export function RoomsView() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-secondary)]" />
           </div>
-        ) : rooms.length === 0 ? (
+        ) : getRoomsForBot(activeBotId ?? '').length === 0 ? (
           <div className="rooms-view__empty">
             <Users className="mx-auto h-12 w-12 text-[var(--color-text-secondary)]" />
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">No rooms yet</p>
+            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">No rooms for this bot</p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              Create a room to start a multi-bot conversation
+              Create a room and add this bot to start a multi-bot conversation
             </p>
             <button
               onClick={() => setShowCreate(true)}
               className="mt-4 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
             >
-              Create Your First Room
+              Create a Room
             </button>
           </div>
         ) : (
           <div className="mx-auto max-w-2xl space-y-2">
-            {rooms.map((room) => (
+            {getRoomsForBot(activeBotId ?? '').map((room) => (
               <RoomCard
                 key={room.id}
                 room={room}

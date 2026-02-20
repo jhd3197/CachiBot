@@ -92,19 +92,3 @@ export async function setDefaultModel(model: string): Promise<void> {
     body: JSON.stringify({ model }),
   })
 }
-
-/**
- * Get image generation models
- */
-export async function getImageModels(): Promise<ModelsGrouped> {
-  const data = await request<{ groups: ModelsGrouped }>('/models/image')
-  return data.groups || {}
-}
-
-/**
- * Get audio models (TTS/STT)
- */
-export async function getAudioModels(): Promise<ModelsGrouped> {
-  const data = await request<{ groups: ModelsGrouped }>('/models/audio')
-  return data.groups || {}
-}

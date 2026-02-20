@@ -21,7 +21,6 @@ import {
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
-import { OnboardingWizard } from '../dialogs/OnboardingWizard'
 import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { useUpdateStore } from '../../stores/update'
@@ -72,7 +71,7 @@ export function MainLayout() {
   const { setConfig } = useConfigStore()
   const { refresh: refreshModels } = useModelsStore()
   const { providers, refresh: refreshProviders } = useProvidersStore()
-  const { hasCompletedOnboarding, open: openOnboarding } = useOnboardingStore()
+  const { hasCompletedOnboarding } = useOnboardingStore()
 
   // Derive appView from URL path
   const appView = getAppViewFromPath(location.pathname)
@@ -83,6 +82,7 @@ export function MainLayout() {
 
   const viewMap: Record<string, BotView> = {
     chats: 'chats',
+    rooms: 'rooms',
     tasks: 'tasks',
     work: 'work',
     schedules: 'schedules',
@@ -214,7 +214,7 @@ export function MainLayout() {
     refreshProviders()
   }, [setConfig, refreshModels, refreshProviders])
 
-  // Onboarding detection: show wizard for first-time users with no API keys
+  // Onboarding detection: redirect first-time users with no API keys
   useEffect(() => {
     if (hasCompletedOnboarding) return
     // Wait until providers have loaded
@@ -225,9 +225,9 @@ export function MainLayout() {
       // Existing user upgrading — silently mark as completed
       useOnboardingStore.getState().completeOnboarding()
     } else {
-      openOnboarding()
+      navigate('/onboarding')
     }
-  }, [hasCompletedOnboarding, providers, openOnboarding])
+  }, [hasCompletedOnboarding, providers, navigate])
 
   // Check for updates on mount (pip-based, skip in Electron)
   useEffect(() => {
@@ -342,7 +342,6 @@ export function MainLayout() {
       <CreateBotDialog />
       <SettingsDialog />
       <ApprovalDialog onApprove={() => {}} />
-      <OnboardingWizard />
       <UpdateDialog />
     </div>
   )
