@@ -14,7 +14,7 @@ interface RoomPanelProps {
 }
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
-  const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom } = useRoomStore()
+  const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom, chainStep, routeDecision } = useRoomStore()
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -29,6 +29,8 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   const roomBotStates = botStates[roomId] || {}
   const roomTyping = typingUsers[roomId] || []
   const roomOnline = onlineUsers[roomId] || []
+  const roomChainStep = chainStep[roomId] || null
+  const roomRouteDecision = routeDecision[roomId] || null
 
   // Load room data and transcript
   useEffect(() => {
@@ -128,6 +130,20 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           )}
         </div>
       </div>
+
+      {/* Chain step indicator */}
+      {roomChainStep && (
+        <div className="room-panel__chain-step">
+          Step {roomChainStep.step}/{roomChainStep.totalSteps}: {roomChainStep.botName}
+        </div>
+      )}
+
+      {/* Route decision indicator */}
+      {roomRouteDecision && (
+        <div className="room-panel__route-decision">
+          Routed to {roomRouteDecision.botName} — {roomRouteDecision.reason}
+        </div>
+      )}
 
       {/* Bot status bar */}
       {activeBots.length > 0 && (

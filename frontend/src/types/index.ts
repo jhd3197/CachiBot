@@ -1028,6 +1028,7 @@ export interface CreateScheduleRequest {
 
 export type RoomMemberRole = 'creator' | 'member'
 export type RoomSenderType = 'user' | 'bot' | 'system'
+export type RoomBotRole = 'default' | 'lead' | 'reviewer' | 'observer' | 'specialist'
 
 export interface RoomMember {
   userId: string
@@ -1039,13 +1040,14 @@ export interface RoomMember {
 export interface RoomBot {
   botId: string
   botName: string
+  role: RoomBotRole
   addedAt: string
 }
 
 export interface RoomSettings {
   cooldown_seconds: number
   auto_relevance: boolean
-  response_mode: 'parallel' | 'sequential'
+  response_mode: 'parallel' | 'sequential' | 'chain' | 'router'
 }
 
 export interface Room {
@@ -1088,6 +1090,8 @@ export type RoomWSMessageType =
   | 'room_presence'
   | 'room_error'
   | 'room_usage'
+  | 'room_chain_step'
+  | 'room_route_decision'
 
 export interface RoomWSMessage {
   type: RoomWSMessageType

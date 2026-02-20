@@ -34,6 +34,8 @@ export function useRoomWebSocket(roomId: string | null) {
     completeToolCall,
     finalizeToolCalls,
     updateMessageMetadata,
+    setChainStep,
+    setRouteDecision,
   } = useRoomStore()
 
   useEffect(() => {
@@ -134,6 +136,13 @@ export function useRoomWebSocket(roomId: string | null) {
             finalizeToolCalls(roomId, msgId)
           }
           setBotState(roomId, botId, 'idle')
+          // Clear chain step if this was the last bot
+          const currentChain = useRoomStore.getState().chainStep[roomId]
+          if (currentChain && currentChain.step === currentChain.totalSteps) {
+            setChainStep(roomId, null)
+          }
+          // Clear route decision
+          setRouteDecision(roomId, null)
           delete lastBotMessageIdRef.current[botId]
           break
         }
@@ -181,6 +190,21 @@ export function useRoomWebSocket(roomId: string | null) {
           }
           break
         }
+
+        case 'room_chain_step':
+          setChainStep(roomId, {
+            step: p.step as number,
+            totalSteps: p.totalSteps as number,
+            botName: p.botName as string,
+          })
+          break
+
+        case 'room_route_decision':
+          setRouteDecision(roomId, {
+            botName: p.botName as string,
+            reason: p.reason as string,
+          })
+          break
       }
     })
 
@@ -192,7 +216,7 @@ export function useRoomWebSocket(roomId: string | null) {
       setIsConnected(false)
       lastBotMessageIdRef.current = {}
     }
-  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata])
+  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision])
 
   const sendMessage = useCallback((message: string) => {
     if (!roomId) return

@@ -22,12 +22,22 @@ class RoomSenderType(str, Enum):
     SYSTEM = "system"
 
 
+class RoomBotRole(str, Enum):
+    """Role of a bot in a room."""
+
+    DEFAULT = "default"
+    LEAD = "lead"
+    REVIEWER = "reviewer"
+    OBSERVER = "observer"
+    SPECIALIST = "specialist"
+
+
 class RoomSettings(BaseModel):
     """Configurable room settings."""
 
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # "parallel" or "sequential"
+    response_mode: str = "parallel"  # "parallel", "sequential", "chain", or "router"
 
 
 class Room(BaseModel):
@@ -59,6 +69,7 @@ class RoomBot(BaseModel):
     room_id: str
     bot_id: str
     bot_name: str = ""
+    role: str = "default"
     added_at: datetime
 
 
@@ -109,6 +120,12 @@ class AddBotRequest(BaseModel):
     bot_id: str
 
 
+class UpdateBotRoleRequest(BaseModel):
+    """Request to update a bot's role in a room."""
+
+    role: str
+
+
 class RoomMemberResponse(BaseModel):
     """Response model for a room member."""
 
@@ -132,6 +149,7 @@ class RoomBotResponse(BaseModel):
 
     botId: str
     botName: str
+    role: str = "default"
     addedAt: str
 
     @classmethod
@@ -139,6 +157,7 @@ class RoomBotResponse(BaseModel):
         return cls(
             botId=room_bot.bot_id,
             botName=room_bot.bot_name,
+            role=room_bot.role,
             addedAt=room_bot.added_at.isoformat(),
         )
 
