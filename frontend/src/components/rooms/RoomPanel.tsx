@@ -15,10 +15,14 @@ interface RoomPanelProps {
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
   const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom } = useRoomStore()
-  const { isConnected, sendMessage, sendTyping } = useRoomWebSocket(roomId)
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Connect WebSocket only after the initial REST load finishes so that
+  // setMessages() from the REST response cannot overwrite messages that
+  // arrived via WebSocket in the meantime.
+  const { isConnected, sendMessage, sendTyping } = useRoomWebSocket(loading ? null : roomId)
   const user = useAuthStore((s) => s.user)
 
   const roomMessages = messages[roomId] || []

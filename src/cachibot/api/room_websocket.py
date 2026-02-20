@@ -200,10 +200,10 @@ async def room_websocket_endpoint(
                 if not message_text:
                     continue
 
-                # Save user message
+                # Save user message (use client-provided ID for optimistic rendering)
                 msg_repo = RoomMessageRepository()
                 user_msg = RoomMessage(
-                    id=str(uuid.uuid4()),
+                    id=payload.get("messageId") or str(uuid.uuid4()),
                     room_id=room_id,
                     sender_type=RoomSenderType.USER,
                     sender_id=user.id,
