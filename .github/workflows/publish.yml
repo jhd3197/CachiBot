@@ -311,6 +311,24 @@ jobs:
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
 
+      # Fix Python.framework structure so codesign doesn't fail with
+      # "bundle format is ambiguous (could be app or framework)"
+      - name: Fix Python.framework for codesigning
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          FW="build/backend/_internal/Python.framework"
+          if [[ -d "$FW" ]]; then
+            # Remove the framework bundle structure entirely — keep only the binary
+            # codesign will then treat it as a plain Mach-O file, not a bundle
+            cp "$FW/Python" "$FW/../Python.tmp"
+            rm -rf "$FW"
+            mv "$FW/../Python.tmp" "$FW/../Python"
+            echo "Flattened Python.framework to plain binary"
+          else
+            echo "No Python.framework found, skipping"
+          fi
+
       - name: Install RPM tools
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
