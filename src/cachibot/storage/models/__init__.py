@@ -36,6 +36,7 @@ from cachibot.storage.models.bot import Bot, BotOwnership
 from cachibot.storage.models.chat import Chat
 from cachibot.storage.models.connection import BotConnection
 from cachibot.storage.models.contact import BotContact
+from cachibot.storage.models.developer import BotApiKey, BotWebhook
 from cachibot.storage.models.env_var import (
     BotEnvironment,
     BotSkillConfig,
@@ -115,4 +116,7 @@ __all__ = [
     # Custom instructions
     "InstructionRecord",
     "InstructionVersion",
+    # Developer API
+    "BotApiKey",
+    "BotWebhook",
 ]

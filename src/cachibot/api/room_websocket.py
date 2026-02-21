@@ -21,9 +21,12 @@ from cachibot.models.auth import User
 from cachibot.models.room import RoomMessage, RoomSenderType
 from cachibot.models.room_websocket import RoomWSMessage, RoomWSMessageType
 from cachibot.services.room_orchestrator import (
+    DebateTranscriptEntry,
     create_room_orchestrator,
     get_room_orchestrator,
+    keyword_route,
     remove_room_orchestrator,
+    round_robin_route,
     route_message,
 )
 from cachibot.storage.repository import BotRepository
@@ -156,6 +159,8 @@ async def room_websocket_endpoint(
             cooldown_seconds=room.settings.cooldown_seconds,
             auto_relevance=room.settings.auto_relevance,
             response_mode=room.settings.response_mode,
+            routing_strategy=room.settings.routing_strategy,
+            bot_keywords=room.settings.bot_keywords,
         )
 
     # Always (re-)load bots — handles both fresh init and late-added bots
@@ -259,7 +264,7 @@ async def room_websocket_endpoint(
                 # Ask orchestrator which bots should respond
                 respondents = orchestrator.select_respondents(message_text, "user")
 
-                # Router mode: LLM picks the best bot (unless explicit @mentions)
+                # Router mode: pick the best bot (unless explicit @mentions)
                 mentioned_ids = orchestrator.parse_mentions(message_text)
                 if (
                     orchestrator.response_mode == "router"
@@ -267,13 +272,29 @@ async def room_websocket_endpoint(
                     and len(orchestrator.bot_configs) > 1
                 ):
                     try:
-                        chosen_id, reason = await route_message(orchestrator, message_text, config)
+                        strategy = orchestrator.routing_strategy
+                        if strategy == "keyword":
+                            chosen_id, reason, confidence = keyword_route(
+                                orchestrator, message_text
+                            )
+                        elif strategy == "round_robin":
+                            chosen_id, reason, confidence = round_robin_route(orchestrator)
+                        else:  # "llm"
+                            chosen_id, reason = await route_message(
+                                orchestrator, message_text, config
+                            )
+                            confidence = 0.8
                         chosen_bot = orchestrator.bot_configs.get(chosen_id)
                         if chosen_bot:
                             await room_manager.send_to_room(
                                 room_id,
                                 RoomWSMessage.route_decision(
-                                    room_id, chosen_id, chosen_bot.name, reason
+                                    room_id,
+                                    chosen_id,
+                                    chosen_bot.name,
+                                    reason,
+                                    confidence=confidence,
+                                    strategy=strategy,
                                 ),
                             )
                             respondents = [chosen_id]
@@ -333,6 +354,217 @@ async def room_websocket_endpoint(
                     if room_id not in room_manager.bot_tasks:
                         room_manager.bot_tasks[room_id] = {}
                     room_manager.bot_tasks[room_id]["_chain"] = chain_task
+
+                elif orchestrator.response_mode == "debate" and len(respondents) >= 2:
+                    # Debate mode: multiple rounds of position-aware arguments + optional judge
+                    async def _run_debate(bots_to_run: list[str], msg: str, cfg: Config) -> None:
+                        settings = room.settings
+                        orchestrator.reset_debate_state()
+
+                        for round_num in range(settings.debate_rounds):
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.debate_round_start(
+                                    room_id, round_num + 1, settings.debate_rounds
+                                ),
+                            )
+
+                            for bid in bots_to_run:
+                                bot = orchestrator.bot_configs.get(bid)
+                                if not bot:
+                                    continue
+                                try:
+                                    orchestrator.mark_responding(bid)
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.bot_thinking(room_id, bid, bot.name),
+                                    )
+                                    recent = await msg_repo.get_messages(room_id, limit=50)
+                                    debate_prompt = orchestrator.build_debate_context(
+                                        bid,
+                                        msg,
+                                        settings.debate_positions,
+                                        round_num,
+                                        recent,
+                                    )
+                                    response_text = await run_room_bot(
+                                        room_id=room_id,
+                                        bot_id=bid,
+                                        message=msg,
+                                        config=cfg,
+                                        system_prompt_override=debate_prompt,
+                                    )
+                                    if response_text:
+                                        orchestrator.debate_transcript.append(
+                                            DebateTranscriptEntry(
+                                                round=round_num,
+                                                bot_id=bid,
+                                                bot_name=bot.name,
+                                                position=settings.debate_positions.get(bid),
+                                                content=response_text,
+                                            )
+                                        )
+                                except Exception as debate_err:
+                                    logger.error(
+                                        "Debate bot %s failed in room %s: %s",
+                                        bid,
+                                        room_id,
+                                        debate_err,
+                                    )
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.error(
+                                            room_id,
+                                            f"{bot.name} failed: {debate_err}",
+                                            bot_id=bid,
+                                        ),
+                                    )
+                                    orchestrator.mark_done(bid)
+
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.debate_round_end(room_id, round_num + 1),
+                            )
+
+                        # Judge phase (optional)
+                        judge_id = settings.debate_judge_bot_id
+                        if judge_id and orchestrator.debate_transcript:
+                            judge_bot = orchestrator.bot_configs.get(judge_id)
+                            if judge_bot:
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.debate_judge_start(
+                                        room_id, judge_id, judge_bot.name
+                                    ),
+                                )
+                                try:
+                                    orchestrator.mark_responding(judge_id)
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.bot_thinking(
+                                            room_id, judge_id, judge_bot.name
+                                        ),
+                                    )
+                                    recent = await msg_repo.get_messages(room_id, limit=50)
+                                    judge_prompt = orchestrator.build_judge_context(
+                                        judge_id, msg, settings.debate_judge_prompt, recent
+                                    )
+                                    await run_room_bot(
+                                        room_id=room_id,
+                                        bot_id=judge_id,
+                                        message=msg,
+                                        config=cfg,
+                                        system_prompt_override=judge_prompt,
+                                    )
+                                except Exception as judge_err:
+                                    logger.error(
+                                        "Debate judge %s failed in room %s: %s",
+                                        judge_id,
+                                        room_id,
+                                        judge_err,
+                                    )
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.error(
+                                            room_id,
+                                            f"{judge_bot.name} (judge) failed: {judge_err}",
+                                            bot_id=judge_id,
+                                        ),
+                                    )
+                                    orchestrator.mark_done(judge_id)
+
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.debate_complete(
+                                room_id,
+                                settings.debate_rounds,
+                                has_verdict=judge_id is not None,
+                            ),
+                        )
+
+                    debate_task = asyncio.create_task(
+                        _run_debate(respondents, message_text, config)
+                    )
+                    room_manager.bot_tasks.setdefault(room_id, {})["_debate"] = debate_task
+
+                elif orchestrator.response_mode == "waterfall" and len(respondents) > 1:
+                    # Waterfall mode: sequential with conditional early stopping
+                    async def _run_waterfall(bots_to_run: list[str], msg: str, cfg: Config) -> None:
+                        previous_outputs: list[tuple[str, str]] = []
+                        total = len(bots_to_run)
+                        waterfall_conditions = room.settings.waterfall_conditions
+
+                        for step_idx, bid in enumerate(bots_to_run):
+                            bot = orchestrator.bot_configs.get(bid)
+                            if not bot:
+                                continue
+
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.waterfall_step(
+                                    room_id, step_idx + 1, total, bid, bot.name
+                                ),
+                            )
+                            try:
+                                orchestrator.mark_responding(bid)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(room_id, bid, bot.name),
+                                )
+                                response_text = await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bid,
+                                    message=msg,
+                                    config=cfg,
+                                    chain_context=previous_outputs,
+                                )
+                            except Exception as wf_err:
+                                logger.error(
+                                    "Waterfall bot %s failed in room %s: %s",
+                                    bid,
+                                    room_id,
+                                    wf_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"{bot.name} failed: {wf_err}",
+                                        bot_id=bid,
+                                    ),
+                                )
+                                orchestrator.mark_done(bid)
+                                continue
+
+                            if response_text:
+                                previous_outputs.append((bot.name, response_text))
+                                condition_type = waterfall_conditions.get(bid, "always_continue")
+                                should_continue = _evaluate_waterfall_condition(
+                                    condition_type, response_text
+                                )
+
+                                if not should_continue:
+                                    for skip_idx in range(step_idx + 1, len(bots_to_run)):
+                                        skip_bid = bots_to_run[skip_idx]
+                                        skip_bot = orchestrator.bot_configs.get(skip_bid)
+                                        if skip_bot:
+                                            await room_manager.send_to_room(
+                                                room_id,
+                                                RoomWSMessage.waterfall_skipped(
+                                                    room_id,
+                                                    skip_bid,
+                                                    skip_bot.name,
+                                                    f"Resolved by {bot.name}",
+                                                ),
+                                            )
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.waterfall_stopped(room_id, bot.name),
+                                    )
+                                    break
+
+                    wf_task = asyncio.create_task(_run_waterfall(respondents, message_text, config))
+                    room_manager.bot_tasks.setdefault(room_id, {})["_waterfall"] = wf_task
 
                 elif orchestrator.response_mode == "sequential" and len(respondents) > 1:
                     # Sequential: run bots one-by-one in a wrapper task
@@ -462,6 +694,22 @@ BOT_TIMEOUT_SECONDS = 120
 """Maximum seconds a single bot execution may run before being timed out."""
 
 
+def _evaluate_waterfall_condition(condition_type: str, output_text: str) -> bool:
+    """Returns True to continue to next bot, False to stop (current bot resolved it)."""
+    text_lower = output_text.lower()
+    if condition_type == "resolved":
+        # Continue only if escalation markers found (bot couldn't resolve)
+        escalation = ["escalate", "i can't", "i cannot", "need help", "not sure", "unable to"]
+        return any(m in text_lower for m in escalation)
+    elif condition_type == "confidence_high":
+        uncertainty = ["uncertain", "maybe", "not confident", "low confidence", "i'm not sure"]
+        return any(m in text_lower for m in uncertainty)
+    elif condition_type == "short_response":
+        return len(output_text) < 500
+    else:  # "always_continue"
+        return True
+
+
 async def run_room_bot(
     room_id: str,
     bot_id: str,
@@ -469,6 +717,7 @@ async def run_room_bot(
     config: Config,
     chain_depth: int = 0,
     chain_context: list[tuple[str, str]] | None = None,
+    system_prompt_override: str | None = None,
 ) -> str:
     """Run a bot's response in a room.
 
@@ -478,6 +727,7 @@ async def run_room_bot(
     Args:
         chain_depth: Current depth in a bot-to-bot mention chain (0 = user-triggered).
         chain_context: List of (bot_name, response_text) from earlier chain steps.
+        system_prompt_override: Full system prompt to use instead of building from context.
     """
     orchestrator = get_room_orchestrator(room_id)
     if orchestrator is None:
@@ -490,15 +740,16 @@ async def run_room_bot(
     msg_repo = RoomMessageRepository()
 
     try:
-        # Get recent messages for context
-        recent = await msg_repo.get_messages(room_id, limit=50)
-        if chain_context is not None:
-            room_context = orchestrator.build_chain_context(bot_id, recent, chain_context)
-        else:
-            room_context = orchestrator.build_room_context(bot_id, recent)
-
         # Build enhanced system prompt
-        enhanced_prompt = (bot.system_prompt or "") + room_context
+        if system_prompt_override is not None:
+            enhanced_prompt = (bot.system_prompt or "") + system_prompt_override
+        else:
+            recent = await msg_repo.get_messages(room_id, limit=50)
+            if chain_context is not None:
+                room_context = orchestrator.build_chain_context(bot_id, recent, chain_context)
+            else:
+                room_context = orchestrator.build_room_context(bot_id, recent)
+            enhanced_prompt = (bot.system_prompt or "") + room_context
 
         # Create agent with bot config
         agent_config = copy.deepcopy(config)
@@ -531,9 +782,7 @@ async def run_room_bot(
         )
 
         # Sync callback for budget-triggered model fallback
-        def _model_fallback_sync(
-            old_model: str, new_model: str, _state: Any
-        ) -> None:
+        def _model_fallback_sync(old_model: str, new_model: str, _state: Any) -> None:
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(

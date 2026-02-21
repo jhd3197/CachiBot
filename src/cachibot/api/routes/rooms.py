@@ -357,7 +357,7 @@ async def update_bot_role(
 # =============================================================================
 
 
-@router.post("/{room_id}/messages/_clear", status_code=200)
+@router.post("/{room_id}/clear-messages", status_code=200)
 async def clear_room_messages(
     room_id: str,
     user: User = Depends(get_current_user),

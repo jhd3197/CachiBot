@@ -5,9 +5,16 @@ Provides dependency functions for protecting routes.
 In cloud mode, users exchange a short-lived launch token for V2-native
 tokens via /auth/exchange. After that, all auth uses V2-native tokens only.
 The website's main JWT secret is never shared with V2.
+
+API keys (cb-* prefix) are resolved via SHA-256 hash lookup and coexist
+with JWT tokens transparently.
 """
 
+import asyncio
+import hashlib
+import logging
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, HTTPException, status
@@ -16,8 +23,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from cachibot.models.auth import User, UserInDB, UserRole
 from cachibot.models.group import BotAccessLevel
 from cachibot.services.auth_service import get_auth_service
+from cachibot.storage.developer_repository import ApiKeyRepository
 from cachibot.storage.group_repository import BotAccessRepository
 from cachibot.storage.user_repository import OwnershipRepository, UserRepository
+
+logger = logging.getLogger(__name__)
 
 # HTTP Bearer token scheme
 security = HTTPBearer(auto_error=False)
@@ -39,6 +49,66 @@ def _to_user(user_db: UserInDB) -> User:
         credit_balance=user_db.credit_balance,
         is_verified=user_db.is_verified,
     )
+
+
+async def resolve_api_key(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> tuple[str, str]:
+    """Resolve a cb-* API key to (bot_id, key_id).
+
+    Hashes the bearer token with SHA-256 and looks up the key record.
+    Checks revocation and expiration, then fires a background usage update.
+
+    Raises:
+        HTTPException 401 if credentials are missing, invalid, revoked, or expired.
+    """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+    if not token.startswith("cb-"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key format",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    key_hash = hashlib.sha256(token.encode()).hexdigest()
+    repo = ApiKeyRepository()
+    key_record = await repo.get_key_by_hash(key_hash)
+
+    if key_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if key_record.is_revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if key_record.expires_at and key_record.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Fire-and-forget usage tracking
+    try:
+        asyncio.get_running_loop().create_task(repo.record_usage(key_record.id))
+    except RuntimeError:
+        pass
+
+    return (key_record.bot_id, key_record.id)
 
 
 async def _resolve_token(token: str) -> User | None:

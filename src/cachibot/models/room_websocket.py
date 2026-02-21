@@ -28,6 +28,17 @@ class RoomWSMessageType(str, Enum):
     ROOM_CHAIN_STEP = "room_chain_step"
     ROOM_ROUTE_DECISION = "room_route_decision"
 
+    # Debate lifecycle
+    ROOM_DEBATE_ROUND_START = "room_debate_round_start"
+    ROOM_DEBATE_ROUND_END = "room_debate_round_end"
+    ROOM_DEBATE_JUDGE_START = "room_debate_judge_start"
+    ROOM_DEBATE_COMPLETE = "room_debate_complete"
+
+    # Waterfall lifecycle
+    ROOM_WATERFALL_STEP = "room_waterfall_step"
+    ROOM_WATERFALL_SKIPPED = "room_waterfall_skipped"
+    ROOM_WATERFALL_STOPPED = "room_waterfall_stopped"
+
 
 class RoomWSMessage(BaseModel):
     """Generic room WebSocket message wrapper."""
@@ -240,6 +251,8 @@ class RoomWSMessage(BaseModel):
         bot_id: str,
         bot_name: str,
         reason: str,
+        confidence: float = 0.0,
+        strategy: str = "llm",
     ) -> "RoomWSMessage":
         """Create a route decision message."""
         return cls(
@@ -249,5 +262,78 @@ class RoomWSMessage(BaseModel):
                 "botId": bot_id,
                 "botName": bot_name,
                 "reason": reason,
+                "confidence": confidence,
+                "strategy": strategy,
             },
+        )
+
+    # ----- Debate lifecycle -----
+
+    @classmethod
+    def debate_round_start(cls, room_id: str, round_num: int, total_rounds: int) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_DEBATE_ROUND_START,
+            payload={"roomId": room_id, "round": round_num, "totalRounds": total_rounds},
+        )
+
+    @classmethod
+    def debate_round_end(cls, room_id: str, round_num: int) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_DEBATE_ROUND_END,
+            payload={"roomId": room_id, "round": round_num},
+        )
+
+    @classmethod
+    def debate_judge_start(
+        cls, room_id: str, judge_bot_id: str, judge_bot_name: str
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_DEBATE_JUDGE_START,
+            payload={"roomId": room_id, "botId": judge_bot_id, "botName": judge_bot_name},
+        )
+
+    @classmethod
+    def debate_complete(
+        cls, room_id: str, rounds_completed: int, has_verdict: bool
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_DEBATE_COMPLETE,
+            payload={
+                "roomId": room_id,
+                "roundsCompleted": rounds_completed,
+                "hasVerdict": has_verdict,
+            },
+        )
+
+    # ----- Waterfall lifecycle -----
+
+    @classmethod
+    def waterfall_step(
+        cls, room_id: str, step: int, total_steps: int, bot_id: str, bot_name: str
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_WATERFALL_STEP,
+            payload={
+                "roomId": room_id,
+                "step": step,
+                "totalSteps": total_steps,
+                "botId": bot_id,
+                "botName": bot_name,
+            },
+        )
+
+    @classmethod
+    def waterfall_skipped(
+        cls, room_id: str, bot_id: str, bot_name: str, reason: str
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_WATERFALL_SKIPPED,
+            payload={"roomId": room_id, "botId": bot_id, "botName": bot_name, "reason": reason},
+        )
+
+    @classmethod
+    def waterfall_stopped(cls, room_id: str, stopped_at_bot_name: str) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_WATERFALL_STOPPED,
+            payload={"roomId": room_id, "stoppedAtBotName": stopped_at_bot_name},
         )

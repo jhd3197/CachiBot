@@ -583,7 +583,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'
@@ -1047,7 +1047,14 @@ export interface RoomBot {
 export interface RoomSettings {
   cooldown_seconds: number
   auto_relevance: boolean
-  response_mode: 'parallel' | 'sequential' | 'chain' | 'router'
+  response_mode: 'parallel' | 'sequential' | 'chain' | 'router' | 'debate' | 'waterfall'
+  debate_rounds?: number
+  debate_positions?: Record<string, string>
+  debate_judge_bot_id?: string | null
+  debate_judge_prompt?: string
+  routing_strategy?: 'llm' | 'keyword' | 'round_robin'
+  bot_keywords?: Record<string, string[]>
+  waterfall_conditions?: Record<string, string>
 }
 
 export interface Room {
@@ -1092,6 +1099,13 @@ export type RoomWSMessageType =
   | 'room_usage'
   | 'room_chain_step'
   | 'room_route_decision'
+  | 'room_debate_round_start'
+  | 'room_debate_round_end'
+  | 'room_debate_judge_start'
+  | 'room_debate_complete'
+  | 'room_waterfall_step'
+  | 'room_waterfall_skipped'
+  | 'room_waterfall_stopped'
 
 export interface RoomWSMessage {
   type: RoomWSMessageType
@@ -1132,4 +1146,45 @@ export interface CreateRoomRequest {
   description?: string
   bot_ids: string[]
   settings?: RoomSettings
+}
+
+// =============================================================================
+// DEVELOPER API TYPES
+// =============================================================================
+
+export type WebhookEvent =
+  | 'message.created'
+  | 'task.completed'
+  | 'work.completed'
+  | 'work.failed'
+  | 'schedule.triggered'
+  | 'api.request'
+
+export interface BotApiKey {
+  id: string
+  bot_id: string
+  name: string
+  key_prefix: string
+  created_at: string
+  last_used_at: string | null
+  usage_count: number
+  expires_at: string | null
+  is_revoked: boolean
+}
+
+export interface BotApiKeyCreated extends BotApiKey {
+  key: string
+}
+
+export interface BotWebhook {
+  id: string
+  bot_id: string
+  name: string
+  url: string
+  events: WebhookEvent[]
+  is_active: boolean
+  last_triggered_at: string | null
+  failure_count: number
+  created_at: string
+  updated_at: string | null
 }

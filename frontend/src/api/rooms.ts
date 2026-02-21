@@ -117,7 +117,7 @@ export async function updateBotRole(
 
 // Clear messages
 export async function clearRoomMessages(roomId: string): Promise<{ deleted: number }> {
-  return request(`/rooms/${roomId}/messages/_clear`, { method: 'POST' })
+  return request(`/rooms/${roomId}/clear-messages`, { method: 'POST' })
 }
 
 // Messages

@@ -79,7 +79,7 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     try:
         from prompture.infra import get_available_models
 
-        enriched_models = get_available_models(include_capabilities=True)  # type: ignore[assignment]
+        enriched_models = get_available_models(include_capabilities=True)
     except ImportError:
         logger.warning("Prompture not available — no models will be returned")
     except Exception as exc:

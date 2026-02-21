@@ -37,7 +37,24 @@ class RoomSettings(BaseModel):
 
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # "parallel", "sequential", "chain", or "router"
+    response_mode: str = "parallel"  # parallel | sequential | chain | router | debate | waterfall
+
+    # Debate mode settings
+    debate_rounds: int = Field(default=2, ge=1, le=5)
+    debate_positions: dict[str, str] = Field(default_factory=dict)  # bot_id -> "FOR"/"AGAINST"/etc.
+    debate_judge_bot_id: str | None = None
+    debate_judge_prompt: str = (
+        "The following debate took place on the topic: {topic}\n\n"
+        "{transcript}\n\n"
+        "Provide a balanced summary and verdict."
+    )
+
+    # Router strategy settings
+    routing_strategy: str = "llm"  # "llm" | "keyword" | "round_robin"
+    bot_keywords: dict[str, list[str]] = Field(default_factory=dict)  # bot_id -> keywords
+
+    # Waterfall settings
+    waterfall_conditions: dict[str, str] = Field(default_factory=dict)  # bot_id -> condition type
 
 
 class Room(BaseModel):
