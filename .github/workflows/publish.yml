@@ -315,16 +315,58 @@ jobs:
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
 
-      # Build and upload to the GitHub Release (unsigned)
+      # Build Electron app (signed on mac, unsigned on linux/win)
       - name: Build Electron app
         working-directory: desktop
         shell: bash
         run: |
-          unset CSC_LINK CSC_KEY_PASSWORD
-          npx electron-builder --${{ matrix.platform }} --publish always
+          if [[ "${{ matrix.platform }}" == "mac" ]]; then
+            npx electron-builder --mac --publish always
+          elif [[ "${{ matrix.platform }}" == "win" ]]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            npx electron-builder --win --publish always
+          else
+            unset CSC_LINK CSC_KEY_PASSWORD
+            npx electron-builder --linux --publish always
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # macOS code signing
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' }}
+          # macOS notarization
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      # Sign Windows installer with Azure Trusted Signing
+      - name: Sign Windows installer
+        if: matrix.platform == 'win'
+        uses: azure/trusted-signing-action@v0.5.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}/release
+          files-folder-filter: exe
+
+      # Re-upload signed Windows exe to GitHub Release
+      - name: Upload signed exe to release
+        if: matrix.platform == 'win'
+        shell: bash
+        run: |
+          VERSION="${{ needs.release.outputs.new_version }}"
+          EXE_NAME="CachiBot-Setup-${VERSION}-win.exe"
+          EXE_PATH="${{ github.workspace }}/release/${EXE_NAME}"
+          if [[ -f "$EXE_PATH" ]]; then
+            gh release upload "v${VERSION}" "$EXE_PATH" --clobber
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =========================================================================
   # 4. Update release body with actual asset sizes

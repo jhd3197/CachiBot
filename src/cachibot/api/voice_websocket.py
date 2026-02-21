@@ -14,6 +14,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
+from prompture.exceptions import BudgetExceededError
 from prompture.drivers import get_async_stt_driver_for_model, get_async_tts_driver_for_model
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
@@ -137,6 +138,11 @@ async def _run_voice_pipeline(
                         response_text = agent_result.output_text
     except asyncio.CancelledError:
         logger.info("Voice pipeline cancelled during agent run")
+    except BudgetExceededError as e:
+        logger.warning("Budget exceeded during voice pipeline: %s", e)
+        await _send_json(websocket, VoiceMessage.error(f"Budget limit reached: {e}"))
+        await _send_json(websocket, VoiceMessage.turn_complete())
+        return
     except Exception as e:
         logger.error("Agent run failed: %s", e)
         await _send_json(websocket, VoiceMessage.error(f"Agent error: {e}"))

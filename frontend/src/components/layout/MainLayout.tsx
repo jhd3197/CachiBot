@@ -25,6 +25,7 @@ import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
+import { useRoomStore } from '../../stores/rooms'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
@@ -59,14 +60,16 @@ function getAppViewFromPath(pathname: string): AppView | null {
 export function MainLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { botId: urlBotId, chatId: urlChatId, taskId: urlTaskId } = useParams<{
+  const { botId: urlBotId, chatId: urlChatId, taskId: urlTaskId, roomId: urlRoomId } = useParams<{
     botId?: string
     chatId?: string
     taskId?: string
+    roomId?: string
   }>()
   const { activeView, activeBotId, bots, setActiveBot, setActiveView } = useBotStore()
   const { activeChatId, chats, setActiveChat } = useChatStore()
   const { setActiveTask } = useTaskStore()
+  const { activeRoomId, rooms, setActiveRoom } = useRoomStore()
   const { theme, accentColor, customHex, mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { setConfig } = useConfigStore()
   const { refresh: refreshModels } = useModelsStore()
@@ -127,13 +130,18 @@ export function MainLayout() {
       }
     }
 
+    // Sync room ID from URL
+    if (urlRoomId && urlRoomId !== activeRoomId) {
+      setActiveRoom(urlRoomId)
+    }
+
     // Sync task ID from URL
     if (urlTaskId) {
       setActiveTask(urlTaskId)
     }
 
     // Note: workId and scheduleId are handled by their respective views
-  }, [urlBotId, botView, urlChatId, urlTaskId, bots, chats, activeBotId, activeChatId, activeView, setActiveBot, setActiveView, setActiveChat, setActiveTask, navigate])
+  }, [urlBotId, botView, urlChatId, urlRoomId, urlTaskId, bots, chats, rooms, activeBotId, activeChatId, activeRoomId, activeView, setActiveBot, setActiveView, setActiveChat, setActiveRoom, setActiveTask, navigate])
 
   // Apply theme
   useEffect(() => {

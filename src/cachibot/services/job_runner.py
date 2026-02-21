@@ -12,6 +12,8 @@ import logging
 import uuid
 from typing import Any
 
+from prompture.exceptions import BudgetExceededError
+
 from cachibot.config import Config
 from cachibot.models.work import (
     Job,
@@ -298,6 +300,43 @@ class JobRunnerService:
                 pass
             await self._handle_task_failure(task, work, job.id, error_msg)
             await self._broadcast_execution_end(exec_log_id, "timeout", error=error_msg)
+
+        except BudgetExceededError as exc:
+            error_msg = f"Budget limit reached: {exc}"
+            await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
+            await self._job_repo.append_log(job.id, "error", error_msg)
+            try:
+                await self._exec_log_repo.complete(
+                    exec_log_id, status="error", error=error_msg
+                )
+                await self._timeline_repo.save(
+                    TimelineEvent(
+                        id=str(uuid.uuid4()),
+                        bot_id=task.bot_id,
+                        source_type="function" if work.function_id else "work",
+                        source_id=work.function_id or work.id,
+                        event_type="execution",
+                        title=f"Budget exceeded: {work.title}",
+                        description=error_msg,
+                        execution_log_id=exec_log_id,
+                    )
+                )
+            except Exception:
+                pass
+            # No retry — budget exceeded would fail again immediately
+            await self._task_repo.update_status(task.id, TaskStatus.FAILED, error=error_msg)
+            await self._work_repo.update_status(
+                work.id, WorkStatus.FAILED, error=error_msg
+            )
+            await self._broadcast_update(
+                work_id=work.id,
+                task_id=task.id,
+                job_id=job.id,
+                status="failed",
+                progress=work.progress,
+                error=error_msg,
+            )
+            await self._broadcast_execution_end(exec_log_id, "error", error=error_msg)
 
         except Exception as exc:
             error_msg = str(exc)

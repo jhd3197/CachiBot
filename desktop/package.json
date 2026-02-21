@@ -20,6 +20,7 @@
     "electron-updater": "^6.3.0"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"
   },
@@ -67,8 +68,12 @@
       "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-mac.${ext}",
       "category": "public.app-category.developer-tools",
-      "hardenedRuntime": false
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
     },
+    "afterSign": "notarize.js",
     "linux": {
       "target": [
         { "target": "AppImage", "arch": ["x64"] },

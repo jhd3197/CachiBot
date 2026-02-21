@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from prompture.exceptions import BudgetExceededError
+
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
@@ -448,6 +450,9 @@ class MessageProcessor:
 
             return PlatformResponse(text=response_text, media=media_items)
 
+        except BudgetExceededError:
+            logger.warning("Budget exceeded for bot %s", bot_id)
+            return PlatformResponse(text="I've reached my budget limit for this session.")
         except Exception as e:
             logger.error("Error processing message for bot %s: %s", bot_id, e, exc_info=True)
             return PlatformResponse(text="Sorry, I encountered an error processing your message.")
