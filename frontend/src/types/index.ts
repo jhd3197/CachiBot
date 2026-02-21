@@ -1149,6 +1149,63 @@ export interface CreateRoomRequest {
 }
 
 // =============================================================================
+// ROOM MARKETPLACE TYPES
+// =============================================================================
+
+export interface RoomBotSpec {
+  template_id: string
+  role: RoomBotRole
+  position?: string | null
+  keywords?: string[]
+  waterfall_condition?: string | null
+}
+
+export interface RoomMarketplaceTemplate {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  category: string
+  tags: string[]
+  response_mode: RoomSettings['response_mode']
+  bots: RoomBotSpec[]
+  settings: Partial<RoomSettings>
+  rating: number
+  downloads: number
+  bot_details?: MarketplaceBot[]
+}
+
+export interface MarketplaceBot {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  category: string
+  tags: string[]
+  model: string
+  system_prompt: string
+  tools: string[]
+  rating: number
+  downloads: number
+}
+
+export interface RoomTemplateListResponse {
+  templates: RoomMarketplaceTemplate[]
+  total: number
+  source?: 'local' | 'remote'
+}
+
+export interface InstallRoomTemplateResponse {
+  room_id: string
+  room_title: string
+  bot_ids: string[]
+  installed_bots: string[]
+  reused_bots: string[]
+}
+
+// =============================================================================
 // DEVELOPER API TYPES
 // =============================================================================
 
