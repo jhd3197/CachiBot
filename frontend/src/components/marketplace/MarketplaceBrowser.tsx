@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Store, Loader2, X } from 'lucide-react'
+import { Search, Store, Loader2, X, Users } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
@@ -7,20 +7,28 @@ import {
 } from '../common/Dialog'
 import { BotCard } from './BotCard'
 import { BotDetailDialog } from './BotDetailDialog'
+import { RoomCard } from './RoomCard'
+import { RoomDetailDialog } from './RoomDetailDialog'
 import {
   getMarketplaceTemplates,
   getMarketplaceCategories,
+  getRoomMarketplaceTemplates,
   type MarketplaceTemplate,
   type MarketplaceCategory,
 } from '../../api/client'
+import type { RoomMarketplaceTemplate } from '../../types'
+
+type MarketplaceTab = 'bots' | 'rooms'
 
 interface MarketplaceBrowserProps {
   open: boolean
   onClose: () => void
   onInstalled?: (botId: string) => void
+  initialTab?: MarketplaceTab
 }
 
-export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBrowserProps) {
+export function MarketplaceBrowser({ open, onClose, onInstalled, initialTab = 'bots' }: MarketplaceBrowserProps) {
+  const [tab, setTab] = useState<MarketplaceTab>(initialTab)
   const [templates, setTemplates] = useState<MarketplaceTemplate[]>([])
   const [categories, setCategories] = useState<MarketplaceCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -29,20 +37,39 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
   const [error, setError] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<MarketplaceTemplate | null>(null)
 
+  // Room state
+  const [roomTemplates, setRoomTemplates] = useState<RoomMarketplaceTemplate[]>([])
+  const [roomLoading, setRoomLoading] = useState(false)
+  const [roomError, setRoomError] = useState<string | null>(null)
+  const [selectedRoomTemplate, setSelectedRoomTemplate] = useState<RoomMarketplaceTemplate | null>(null)
+
+  // Sync initialTab when it changes
+  useEffect(() => {
+    setTab(initialTab)
+  }, [initialTab])
+
   // Fetch categories on mount
   useEffect(() => {
     if (open) {
       loadCategories()
-      loadTemplates()
+      if (tab === 'bots') {
+        loadTemplates()
+      } else {
+        loadRoomTemplates()
+      }
     }
   }, [open])
 
-  // Reload templates when filter changes
+  // Reload templates when filter/tab changes
   useEffect(() => {
     if (open) {
-      loadTemplates()
+      if (tab === 'bots') {
+        loadTemplates()
+      } else {
+        loadRoomTemplates()
+      }
     }
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, searchQuery, tab])
 
   const loadCategories = async () => {
     try {
@@ -70,9 +97,31 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
     }
   }
 
+  const loadRoomTemplates = async () => {
+    setRoomLoading(true)
+    setRoomError(null)
+
+    try {
+      const data = await getRoomMarketplaceTemplates(
+        selectedCategory || undefined,
+        searchQuery || undefined
+      )
+      setRoomTemplates(data.templates)
+    } catch (err) {
+      setRoomError(err instanceof Error ? err.message : 'Failed to load room templates')
+    } finally {
+      setRoomLoading(false)
+    }
+  }
+
   const handleInstalled = (botId: string) => {
     setSelectedTemplate(null)
     onInstalled?.(botId)
+    onClose()
+  }
+
+  const handleRoomInstalled = () => {
+    setSelectedRoomTemplate(null)
     onClose()
   }
 
@@ -80,9 +129,12 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
     <>
       <Dialog open={open} onClose={onClose} size="xl">
         <DialogHeader
-          title="Bot Marketplace"
-          subtitle="Discover and install bot templates"
-          icon={<Store size={20} style={{ color: 'var(--accent-500)' }} />}
+          title="Marketplace"
+          subtitle={tab === 'bots' ? 'Discover and install bot templates' : 'Discover and install room templates'}
+          icon={tab === 'bots'
+            ? <Store size={20} style={{ color: 'var(--accent-500)' }} />
+            : <Users size={20} style={{ color: 'var(--accent-500)' }} />
+          }
           onClose={onClose}
         />
 
@@ -90,6 +142,24 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
           <div className="marketplace">
             {/* Sidebar */}
             <div className="marketplace__sidebar">
+              {/* Tab switcher */}
+              <div className="marketplace__tabs">
+                <button
+                  onClick={() => { setTab('bots'); setSelectedCategory(null); setSearchQuery('') }}
+                  className={`marketplace__tab${tab === 'bots' ? ' marketplace__tab--active' : ''}`}
+                >
+                  <Store size={14} />
+                  Bots
+                </button>
+                <button
+                  onClick={() => { setTab('rooms'); setSelectedCategory(null); setSearchQuery('') }}
+                  className={`marketplace__tab${tab === 'rooms' ? ' marketplace__tab--active' : ''}`}
+                >
+                  <Users size={14} />
+                  Rooms
+                </button>
+              </div>
+
               <nav className="marketplace__nav">
                 <button
                   onClick={() => setSelectedCategory(null)}
@@ -120,7 +190,7 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search templates..."
+                    placeholder={tab === 'bots' ? 'Search bot templates...' : 'Search room templates...'}
                     className="marketplace__search-input"
                   />
                   {searchQuery && (
@@ -134,49 +204,94 @@ export function MarketplaceBrowser({ open, onClose, onInstalled }: MarketplaceBr
                 </div>
               </div>
 
-              {/* Templates grid */}
-              <div className="marketplace__grid">
-                {loading ? (
-                  <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
-                    <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
-                  </div>
-                ) : error ? (
-                  <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-danger-text)' }}>{error}</p>
-                    <button onClick={loadTemplates} className="marketplace__retry">
-                      Try again
-                    </button>
-                  </div>
-                ) : templates.length === 0 ? (
-                  <div className="marketplace__empty" style={{ gridColumn: '1 / -1' }}>
-                    <Store size={40} style={{ marginBottom: '0.75rem', color: 'var(--color-text-tertiary)' }} />
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>No templates found</p>
-                    {searchQuery && (
-                      <button onClick={() => setSearchQuery('')} className="marketplace__retry">
-                        Clear search
+              {/* Bot templates grid */}
+              {tab === 'bots' && (
+                <div className="marketplace__grid">
+                  {loading ? (
+                    <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
+                      <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
+                    </div>
+                  ) : error ? (
+                    <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--color-danger-text)' }}>{error}</p>
+                      <button onClick={loadTemplates} className="marketplace__retry">
+                        Try again
                       </button>
-                    )}
-                  </div>
-                ) : (
-                  templates.map((template) => (
-                    <BotCard
-                      key={template.id}
-                      template={template}
-                      onClick={() => setSelectedTemplate(template)}
-                    />
-                  ))
-                )}
-              </div>
+                    </div>
+                  ) : templates.length === 0 ? (
+                    <div className="marketplace__empty" style={{ gridColumn: '1 / -1' }}>
+                      <Store size={40} style={{ marginBottom: '0.75rem', color: 'var(--color-text-tertiary)' }} />
+                      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>No templates found</p>
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="marketplace__retry">
+                          Clear search
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    templates.map((template) => (
+                      <BotCard
+                        key={template.id}
+                        template={template}
+                        onClick={() => setSelectedTemplate(template)}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Room templates grid */}
+              {tab === 'rooms' && (
+                <div className="marketplace__grid">
+                  {roomLoading ? (
+                    <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
+                      <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
+                    </div>
+                  ) : roomError ? (
+                    <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--color-danger-text)' }}>{roomError}</p>
+                      <button onClick={loadRoomTemplates} className="marketplace__retry">
+                        Try again
+                      </button>
+                    </div>
+                  ) : roomTemplates.length === 0 ? (
+                    <div className="marketplace__empty" style={{ gridColumn: '1 / -1' }}>
+                      <Users size={40} style={{ marginBottom: '0.75rem', color: 'var(--color-text-tertiary)' }} />
+                      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>No room templates found</p>
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="marketplace__retry">
+                          Clear search
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    roomTemplates.map((template) => (
+                      <RoomCard
+                        key={template.id}
+                        template={template}
+                        onClick={() => setSelectedRoomTemplate(template)}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Template detail dialog */}
+      {/* Bot template detail dialog */}
       <BotDetailDialog
         template={selectedTemplate}
         onClose={() => setSelectedTemplate(null)}
         onInstalled={handleInstalled}
+      />
+
+      {/* Room template detail dialog */}
+      <RoomDetailDialog
+        template={selectedRoomTemplate}
+        onClose={() => setSelectedRoomTemplate(null)}
+        onInstalled={handleRoomInstalled}
       />
     </>
   )

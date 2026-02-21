@@ -593,3 +593,92 @@
     gap: @sp-4;
   }
 }
+
+// -----------------------------------------------------------------------------
+// Response Mode Settings (shared by Create + Settings dialogs)
+// -----------------------------------------------------------------------------
+
+.room-mode-settings {
+  .flex-col();
+  gap: @sp-3;
+  margin-top: @sp-3;
+  padding: @sp-3;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+
+  &__row {
+    .flex-col();
+    gap: @sp-1-5;
+  }
+
+  &__bot-configs {
+    .flex-col();
+    gap: @sp-2;
+  }
+
+  &__bot-row {
+    .flex-between();
+    gap: @sp-2;
+  }
+
+  &__bot-name {
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    min-width: 5rem;
+  }
+
+  &__keyword-group {
+    .flex-col();
+    gap: @sp-1;
+  }
+
+  &__keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  &__keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+    color: var(--accent-600);
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+
+  &__keyword-remove {
+    .flex-center();
+    width: 14px;
+    height: 14px;
+    border-radius: @radius-full;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    .transition-colors();
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__keyword-input {
+    .input-base();
+    height: auto;
+    padding: 2px @sp-1-5;
+    font-size: @text-xs;
+    min-width: 6rem;
+    max-width: 8rem;
+  }
+}

@@ -22,6 +22,13 @@ from cachibot.data.marketplace_templates import (
     get_templates_by_category,
     search_templates,
 )
+from cachibot.data.room_marketplace_templates import (
+    RoomTemplateCategory,
+    get_all_room_templates,
+    get_room_template_by_id,
+    get_room_templates_by_category,
+    search_room_templates,
+)
 from cachibot.models.auth import User
 from cachibot.models.bot import Bot
 from cachibot.storage.repository import BotRepository
@@ -81,6 +88,44 @@ class InstallResponse(BaseModel):
     name: str
     installed: bool
     message: str
+
+
+class RoomBotSpecResponse(BaseModel):
+    template_id: str
+    role: str
+    position: str | None = None
+    keywords: list[str] = []
+    waterfall_condition: str | None = None
+
+
+class RoomTemplateResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    icon: str
+    color: str
+    category: str
+    tags: list[str]
+    response_mode: str
+    bots: list[RoomBotSpecResponse]
+    settings: dict[str, Any]
+    rating: float
+    downloads: int
+    bot_details: list[TemplateResponse] | None = None
+
+
+class RoomTemplateListResponse(BaseModel):
+    templates: list[RoomTemplateResponse]
+    total: int
+    source: str = "local"
+
+
+class InstallRoomResponse(BaseModel):
+    room_id: str
+    room_title: str
+    bot_ids: list[str]
+    installed_bots: list[str]
+    reused_bots: list[str]
 
 
 # Category metadata (used when remote is unavailable)
@@ -379,3 +424,229 @@ async def list_categories(
 
     # Fall back to local
     return list(CATEGORY_INFO.values())
+
+
+# =============================================================================
+# ROOM TEMPLATES
+# =============================================================================
+
+
+@router.get("/room-templates", response_model=RoomTemplateListResponse)
+async def list_room_templates(
+    category: RoomTemplateCategory | None = Query(None, description="Filter by category"),
+    search: str | None = Query(None, description="Search query"),
+    response_mode: str | None = Query(None, description="Filter by response mode"),
+    user: User = Depends(get_current_user),
+) -> RoomTemplateListResponse:
+    """List all available room marketplace templates."""
+    if search:
+        templates = search_room_templates(search)
+    elif category:
+        templates = get_room_templates_by_category(category)
+    else:
+        templates = get_all_room_templates()
+
+    if response_mode:
+        templates = [t for t in templates if t["response_mode"] == response_mode]
+
+    return RoomTemplateListResponse(
+        templates=[RoomTemplateResponse.model_validate(t) for t in templates],
+        total=len(templates),
+        source="local",
+    )
+
+
+@router.get("/room-templates/{template_id}", response_model=RoomTemplateResponse)
+async def get_room_template(
+    template_id: str,
+    user: User = Depends(get_current_user),
+) -> RoomTemplateResponse:
+    """Get details of a specific room template with resolved bot details."""
+    template = get_room_template_by_id(template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Room template not found")
+
+    # Resolve bot details from bot marketplace templates
+    bot_details = []
+    for bot_spec in template["bots"]:
+        bot_template = get_template_by_id(bot_spec["template_id"])
+        if bot_template:
+            bot_details.append(TemplateResponse(**bot_template))
+
+    return RoomTemplateResponse.model_validate({**template, "bot_details": bot_details})
+
+
+@router.post("/room-templates/{template_id}/install", response_model=InstallRoomResponse)
+async def install_room_template(
+    template_id: str,
+    user: User = Depends(get_current_user),
+) -> InstallRoomResponse:
+    """
+    Install a room template: creates all required bots and the room.
+
+    For each bot in the template:
+    - Checks if user already has a bot with the same name (reuses it)
+    - If not, installs the bot template
+    Then creates a room with all the bots and configured settings.
+    """
+    template = get_room_template_by_id(template_id)
+    if template is None:
+        raise HTTPException(status_code=404, detail="Room template not found")
+
+    installed_bots: list[str] = []
+    reused_bots: list[str] = []
+    bot_ids: list[str] = []
+    bot_id_map: dict[str, str] = {}  # template_id -> actual bot ID
+
+    # Fetch all existing bots once for name-matching
+    all_existing_bots = await repo.get_all_bots()
+    existing_bots_by_name: dict[str, Bot] = {b.name: b for b in all_existing_bots}
+
+    # Step 1: Install or reuse bots
+    for bot_spec in template["bots"]:
+        bot_template = get_template_by_id(bot_spec["template_id"])
+        if bot_template is None:
+            continue
+
+        # Check if user already has a bot with this name
+        existing = existing_bots_by_name.get(bot_template["name"])
+        if existing:
+            bot_ids.append(existing.id)
+            bot_id_map[bot_spec["template_id"]] = existing.id
+            reused_bots.append(bot_template["name"])
+        else:
+            # Install the bot template
+            bot_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+
+            template_model = bot_template.get("model", "")
+            if not template_model:
+                try:
+                    template_model = Config.load().agent.model
+                except Exception:
+                    template_model = "moonshot/kimi-k2.5"
+
+            bot = Bot(
+                id=bot_id,
+                name=bot_template["name"],
+                description=bot_template["description"],
+                icon=bot_template["icon"],
+                color=bot_template["color"],
+                model=template_model,
+                systemPrompt=bot_template["system_prompt"],
+                capabilities={tool: True for tool in bot_template["tools"]},
+                createdAt=now,
+                updatedAt=now,
+            )
+            await repo.upsert_bot(bot)
+            bot_ids.append(bot_id)
+            bot_id_map[bot_spec["template_id"]] = bot_id
+            installed_bots.append(bot_template["name"])
+
+    if len(bot_ids) < 2:
+        raise HTTPException(status_code=400, detail="Could not install enough bots for the room")
+
+    # Step 2: Build room settings from template
+    from cachibot.models.room import (
+        Room,
+        RoomBot,
+        RoomMember,
+        RoomMemberRole,
+        RoomSettings,
+    )
+    from cachibot.storage.room_repository import (
+        RoomBotRepository,
+        RoomMemberRepository,
+        RoomRepository,
+    )
+
+    settings_data = dict(template.get("settings", {}))
+    settings_data["response_mode"] = template["response_mode"]
+
+    # Map mode-specific settings using actual bot IDs
+    if template["response_mode"] == "debate":
+        positions = {}
+        judge_bot_id = None
+        for bot_spec in template["bots"]:
+            actual_id = bot_id_map.get(bot_spec["template_id"])
+            if actual_id and bot_spec.get("position"):
+                positions[actual_id] = bot_spec["position"]
+                if bot_spec["position"] == "NEUTRAL":
+                    judge_bot_id = actual_id
+        settings_data["debate_positions"] = positions
+        if judge_bot_id:
+            settings_data["debate_judge_bot_id"] = judge_bot_id
+
+    if template["response_mode"] == "router":
+        keywords = {}
+        for bot_spec in template["bots"]:
+            actual_id = bot_id_map.get(bot_spec["template_id"])
+            if actual_id and bot_spec.get("keywords"):
+                keywords[actual_id] = bot_spec["keywords"]
+        if keywords:
+            settings_data["bot_keywords"] = keywords
+
+    if template["response_mode"] == "waterfall":
+        conditions = {}
+        for bot_spec in template["bots"]:
+            actual_id = bot_id_map.get(bot_spec["template_id"])
+            if actual_id and bot_spec.get("waterfall_condition"):
+                conditions[actual_id] = bot_spec["waterfall_condition"]
+        if conditions:
+            settings_data["waterfall_conditions"] = conditions
+
+    # Step 3: Create the room
+    room_repo = RoomRepository()
+    member_repo = RoomMemberRepository()
+    room_bot_repo = RoomBotRepository()
+
+    now = datetime.utcnow()
+    room = Room(
+        id=str(uuid.uuid4()),
+        title=template["name"],
+        description=template["description"],
+        creator_id=user.id,
+        max_bots=max(len(bot_ids), 2),
+        settings=RoomSettings(**settings_data),
+        created_at=now,
+        updated_at=now,
+    )
+    await room_repo.create_room(room)
+
+    # Add creator as member
+    creator_member = RoomMember(
+        room_id=room.id,
+        user_id=user.id,
+        username=user.username,
+        role=RoomMemberRole.CREATOR,
+        joined_at=now,
+    )
+    await member_repo.add_member(creator_member)
+
+    # Add bots to the room
+    for bid in bot_ids:
+        bot_obj = await repo.get_bot(bid)
+        rb = RoomBot(
+            room_id=room.id,
+            bot_id=bid,
+            bot_name=bot_obj.name if bot_obj else "",
+            added_at=now,
+        )
+        await room_bot_repo.add_bot(rb)
+
+    # Step 4: Set bot roles
+    for bot_spec in template["bots"]:
+        actual_id = bot_id_map.get(bot_spec["template_id"])
+        if actual_id and bot_spec.get("role") and bot_spec["role"] != "default":
+            try:
+                await room_bot_repo.update_bot_role(room.id, actual_id, bot_spec["role"])
+            except Exception:
+                pass  # Non-critical -- role is cosmetic
+
+    return InstallRoomResponse(
+        room_id=room.id,
+        room_title=template["name"],
+        bot_ids=bot_ids,
+        installed_bots=installed_bots,
+        reused_bots=reused_bots,
+    )

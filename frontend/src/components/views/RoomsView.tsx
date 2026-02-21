@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { DoorOpen, Plus, Loader2 } from 'lucide-react'
+import { DoorOpen, Plus, Loader2, Store } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useBotStore } from '../../stores/bots'
 import { getRooms } from '../../api/rooms'
 import { RoomPanel } from '../rooms/RoomPanel'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
+import { MarketplaceBrowser } from '../marketplace/MarketplaceBrowser'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 
 export function RoomsView() {
@@ -12,6 +13,7 @@ export function RoomsView() {
   const activeBot = useBotStore((s) => s.getActiveBot())
   const { setRooms, activeRoomId, getRoomsForBot } = useRoomStore()
   const [showCreate, setShowCreate] = useState(false)
+  const [showMarketplace, setShowMarketplace] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Load rooms on mount
@@ -70,19 +72,42 @@ export function RoomsView() {
                   ? 'Create a room and add bots to start a multi-bot conversation.'
                   : 'Select a room from the sidebar to continue, or create a new one.'}
               </p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
-              >
-                <Plus className="h-4 w-4" />
-                Create a Room
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-500"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create a Room
+                </button>
+                <button
+                  onClick={() => setShowMarketplace(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border-primary)] px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)]"
+                >
+                  <Store className="h-4 w-4" />
+                  Browse Templates
+                </button>
+              </div>
             </>
           )}
         </div>
       </div>
 
-      {showCreate && <CreateRoomDialog onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <CreateRoomDialog
+          onClose={() => setShowCreate(false)}
+          onOpenMarketplace={() => {
+            setShowCreate(false)
+            setShowMarketplace(true)
+          }}
+        />
+      )}
+
+      <MarketplaceBrowser
+        open={showMarketplace}
+        onClose={() => setShowMarketplace(false)}
+        initialTab="rooms"
+      />
     </div>
   )
 }

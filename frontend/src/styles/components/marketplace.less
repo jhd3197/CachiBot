@@ -20,6 +20,41 @@
     .scrollbar-thin();
   }
 
+  &__tabs {
+    display: flex;
+    gap: @sp-1;
+    margin-bottom: @sp-3;
+    padding-bottom: @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: @sp-1-5;
+    flex: 1;
+    justify-content: center;
+    border-radius: @radius-lg;
+    padding: @sp-1-5 @sp-2;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+      color: var(--accent-400);
+    }
+  }
+
   &__nav {
     .flex-col();
     gap: @sp-1;

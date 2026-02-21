@@ -14,6 +14,7 @@ import {
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
+import { ResponseModePicker } from './ResponseModePicker'
 import type { Room, RoomBotRole, RoomSettings } from '../../types'
 
 interface RoomSettingsDialogProps {
@@ -39,13 +40,78 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Debate settings
+  const [debateRounds, setDebateRounds] = useState(room.settings.debate_rounds ?? 2)
+  const [debatePositions, setDebatePositions] = useState<Record<string, string>>(
+    room.settings.debate_positions ?? {}
+  )
+  const [debateJudgeBotId, setDebateJudgeBotId] = useState<string | null>(
+    room.settings.debate_judge_bot_id ?? null
+  )
+
+  // Router settings
+  const [routingStrategy, setRoutingStrategy] = useState<'llm' | 'keyword' | 'round_robin'>(
+    room.settings.routing_strategy ?? 'llm'
+  )
+  const [botKeywords, setBotKeywords] = useState<Record<string, string[]>>(
+    room.settings.bot_keywords ?? {}
+  )
+
+  // Waterfall settings
+  const [waterfallConditions, setWaterfallConditions] = useState<Record<string, string>>(
+    room.settings.waterfall_conditions ?? {}
+  )
+
+  const buildSettings = (): RoomSettings => {
+    const settings: RoomSettings = {
+      cooldown_seconds: cooldown,
+      auto_relevance: autoRelevance,
+      response_mode: responseMode,
+    }
+
+    if (responseMode === 'debate') {
+      settings.debate_rounds = debateRounds
+      const positions: Record<string, string> = {}
+      for (const bot of room.bots) {
+        positions[bot.botId] = debatePositions[bot.botId] || 'NEUTRAL'
+      }
+      settings.debate_positions = positions
+      if (debateJudgeBotId) {
+        settings.debate_judge_bot_id = debateJudgeBotId
+      }
+    }
+
+    if (responseMode === 'router') {
+      settings.routing_strategy = routingStrategy
+      if (routingStrategy === 'keyword') {
+        const keywords: Record<string, string[]> = {}
+        for (const bot of room.bots) {
+          if (botKeywords[bot.botId]?.length) {
+            keywords[bot.botId] = botKeywords[bot.botId]
+          }
+        }
+        settings.bot_keywords = keywords
+      }
+    }
+
+    if (responseMode === 'waterfall') {
+      const conditions: Record<string, string> = {}
+      for (const bot of room.bots) {
+        conditions[bot.botId] = waterfallConditions[bot.botId] || 'always_continue'
+      }
+      settings.waterfall_conditions = conditions
+    }
+
+    return settings
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
       await updateRoomApi(room.id, {
         title: title.trim() || undefined,
         description: description.trim() || undefined,
-        settings: { cooldown_seconds: cooldown, auto_relevance: autoRelevance, response_mode: responseMode },
+        settings: buildSettings(),
       })
 
       // Save changed bot roles
@@ -122,6 +188,17 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
 
   const roomBotIds = new Set(room.bots.map((b) => b.botId))
   const availableBots = allBots.filter((b) => !roomBotIds.has(b.id))
+
+  // Build bot info for the ResponseModePicker
+  const selectedBots = room.bots.map((rb) => {
+    const bot = allBots.find((b) => b.id === rb.botId)
+    return {
+      id: rb.botId,
+      name: rb.botName,
+      icon: bot?.icon ?? 'bot' as const,
+      color: bot?.color ?? '#666',
+    }
+  })
 
   return (
     <div className="dialog__backdrop">
@@ -281,49 +358,24 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
             </div>
           </div>
 
-          {/* Response mode */}
-          <div className="form-field">
-            <label className="form-field__label">Response Mode</label>
-            <div className="room-settings__mode-toggle">
-              <button
-                type="button"
-                onClick={() => setResponseMode('parallel')}
-                className={`room-settings__mode-btn ${responseMode === 'parallel' ? 'room-settings__mode-btn--active' : ''}`}
-              >
-                Parallel
-              </button>
-              <button
-                type="button"
-                onClick={() => setResponseMode('sequential')}
-                className={`room-settings__mode-btn ${responseMode === 'sequential' ? 'room-settings__mode-btn--active' : ''}`}
-              >
-                One by one
-              </button>
-              <button
-                type="button"
-                onClick={() => setResponseMode('chain')}
-                className={`room-settings__mode-btn ${responseMode === 'chain' ? 'room-settings__mode-btn--active' : ''}`}
-              >
-                Chain
-              </button>
-              <button
-                type="button"
-                onClick={() => setResponseMode('router')}
-                className={`room-settings__mode-btn ${responseMode === 'router' ? 'room-settings__mode-btn--active' : ''}`}
-              >
-                Router
-              </button>
-            </div>
-            <p className="form-field__help">
-              {responseMode === 'parallel'
-                ? 'All bots respond at the same time'
-                : responseMode === 'sequential'
-                  ? 'Bots take turns responding one after another'
-                  : responseMode === 'chain'
-                    ? 'Bots respond in order, each building on previous outputs'
-                    : 'An AI picks the best bot for each message'}
-            </p>
-          </div>
+          {/* Response mode with mode-specific settings */}
+          <ResponseModePicker
+            responseMode={responseMode}
+            onResponseModeChange={setResponseMode}
+            selectedBots={selectedBots}
+            debateRounds={debateRounds}
+            onDebateRoundsChange={setDebateRounds}
+            debatePositions={debatePositions}
+            onDebatePositionsChange={setDebatePositions}
+            debateJudgeBotId={debateJudgeBotId}
+            onDebateJudgeBotIdChange={setDebateJudgeBotId}
+            routingStrategy={routingStrategy}
+            onRoutingStrategyChange={setRoutingStrategy}
+            botKeywords={botKeywords}
+            onBotKeywordsChange={setBotKeywords}
+            waterfallConditions={waterfallConditions}
+            onWaterfallConditionsChange={setWaterfallConditions}
+          />
         </div>
 
         {/* Start Over & Delete */}

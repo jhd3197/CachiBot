@@ -1416,4 +1416,130 @@ export async function saveSmtpConfig(data: SmtpSetupRequest): Promise<SmtpStatus
   })
 }
 
+// =============================================================================
+// ROOM MARKETPLACE API
+// =============================================================================
+
+import type {
+  RoomMarketplaceTemplate,
+  RoomTemplateListResponse,
+  InstallRoomTemplateResponse,
+} from '../types'
+
+const ROOM_MARKETPLACE_CACHE_KEY = 'cachibot_room_marketplace_cache'
+
+function getRoomMarketplaceCache<T>(key: string): T | null {
+  try {
+    const cached = localStorage.getItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`)
+    if (!cached) return null
+    const entry: CacheEntry<T> = JSON.parse(cached)
+    if (Date.now() - entry.timestamp > MARKETPLACE_CACHE_TTL) {
+      localStorage.removeItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`)
+      return null
+    }
+    return entry.data
+  } catch {
+    return null
+  }
+}
+
+function setRoomMarketplaceCache<T>(key: string, data: T): void {
+  try {
+    const entry: CacheEntry<T> = { data, timestamp: Date.now() }
+    localStorage.setItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`, JSON.stringify(entry))
+  } catch {
+    // Ignore cache errors
+  }
+}
+
+async function fetchRemoteRoomTemplates(
+  category?: string,
+  search?: string,
+  responseMode?: string,
+): Promise<RoomTemplateListResponse | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cacheKey = `remote_room_templates_${category || ''}_${search || ''}_${responseMode || ''}`
+    if (!search) {
+      const cached = getRoomMarketplaceCache<RoomTemplateListResponse>(cacheKey)
+      if (cached) return { ...cached, source: 'remote' }
+    }
+
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (search) params.set('search', search)
+    if (responseMode) params.set('response_mode', responseMode)
+
+    const queryString = params.toString()
+    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/room-templates${queryString ? `?${queryString}` : ''}`
+
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!response.ok) return null
+
+    const data: RoomTemplateListResponse = await response.json()
+
+    if (!search) {
+      setRoomMarketplaceCache(cacheKey, data)
+    }
+
+    return { ...data, source: 'remote' }
+  } catch (err) {
+    console.warn('Failed to fetch remote room templates:', err)
+    return null
+  }
+}
+
+async function fetchRemoteRoomTemplate(templateId: string): Promise<RoomMarketplaceTemplate | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cacheKey = `remote_room_template_${templateId}`
+    const cached = getRoomMarketplaceCache<RoomMarketplaceTemplate>(cacheKey)
+    if (cached) return cached
+
+    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/room-templates/${templateId}`
+    const response = await fetch(url)
+
+    if (!response.ok) return null
+
+    const data: RoomMarketplaceTemplate = await response.json()
+    setRoomMarketplaceCache(cacheKey, data)
+    return data
+  } catch (err) {
+    console.warn('Failed to fetch remote room template:', err)
+    return null
+  }
+}
+
+export async function getRoomMarketplaceTemplates(
+  category?: string,
+  search?: string,
+  responseMode?: string,
+): Promise<RoomTemplateListResponse> {
+  const remote = await fetchRemoteRoomTemplates(category, search, responseMode)
+  if (remote) return remote
+
+  const params = new URLSearchParams()
+  if (category) params.set('category', category)
+  if (search) params.set('search', search)
+  if (responseMode) params.set('response_mode', responseMode)
+  const result = await request<RoomTemplateListResponse>(`/marketplace/room-templates?${params}`)
+  return { ...result, source: 'local' }
+}
+
+export async function getRoomMarketplaceTemplate(templateId: string): Promise<RoomMarketplaceTemplate> {
+  const remote = await fetchRemoteRoomTemplate(templateId)
+  if (remote) return remote
+
+  return request(`/marketplace/room-templates/${templateId}`)
+}
+
+export async function installRoomMarketplaceTemplate(templateId: string): Promise<InstallRoomTemplateResponse> {
+  return request(`/marketplace/room-templates/${templateId}/install`, { method: 'POST' })
+}
+
 export { ApiError }
