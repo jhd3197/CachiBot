@@ -182,7 +182,7 @@ class RoomOrchestrator:
                 available.append(bot_id)
 
         # Sort: leads first for sequential/chain benefit
-        available.sort(key=lambda bid: (0 if self.bot_roles.get(bid) == "lead" else 1))
+        available.sort(key=lambda bid: 0 if self.bot_roles.get(bid) == "lead" else 1)
 
         if available:
             logger.debug("Room %s: auto-selected respondent: %s", self.room_id, available[0])
