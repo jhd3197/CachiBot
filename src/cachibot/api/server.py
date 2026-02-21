@@ -10,10 +10,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from cachibot import __version__
 from cachibot.api.room_websocket import router as room_ws_router
@@ -29,6 +30,7 @@ from cachibot.api.routes import (
     contacts,
     creation,
     custom_instructions,
+    developer,
     documents,
     executions,
     groups,
@@ -37,6 +39,7 @@ from cachibot.api.routes import (
     knowledge,
     marketplace,
     models,
+    openai_compat,
     platform_tools,
     platforms,
     plugins,
@@ -264,6 +267,8 @@ def create_app(
     app.include_router(setup.router, prefix="/api", tags=["setup"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
     app.include_router(rooms.router, tags=["rooms"])
+    app.include_router(developer.router, tags=["developer"])
+    app.include_router(openai_compat.router, tags=["openai-compat"])
     app.include_router(ws_router, tags=["websocket"])
     app.include_router(voice_ws_router, tags=["voice"])
     app.include_router(room_ws_router, tags=["room-websocket"])
@@ -288,18 +293,35 @@ def create_app(
                 headers={"Cache-Control": "no-cache, must-revalidate"},
             )
 
-        @app.get("/{path:path}")
-        async def serve_spa_routes(path: str) -> FileResponse:
-            """Serve static files or fallback to index.html for SPA routing."""
-            file_path = FRONTEND_DIST / path
-            if file_path.exists() and file_path.is_file():
-                headers = {}
-                if path.startswith("assets/"):
-                    headers["Cache-Control"] = "public, max-age=31536000, immutable"
-                return FileResponse(file_path, headers=headers)
-            return FileResponse(
-                FRONTEND_DIST / "index.html",
-                headers={"Cache-Control": "no-cache, must-revalidate"},
+        # SPA fallback: serve index.html for non-API GET requests that don't
+        # match any route. Using an exception handler instead of a catch-all
+        # route avoids PARTIAL-match 405 interference with API routes.
+        @app.exception_handler(StarletteHTTPException)
+        async def _spa_or_http_error(
+            request: Request, exc: StarletteHTTPException
+        ) -> FileResponse | JSONResponse:
+            # For 404s on non-API GET requests, serve the SPA shell
+            if (
+                exc.status_code == 404
+                and request.method == "GET"
+                and not request.url.path.startswith("/api/")
+                and not request.url.path.startswith("/ws/")
+            ):
+                # Check if the path matches a real static file first
+                file_path = FRONTEND_DIST / request.url.path.lstrip("/")
+                if file_path.exists() and file_path.is_file():
+                    headers = {}
+                    if request.url.path.startswith("/assets/"):
+                        headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                    return FileResponse(file_path, headers=headers)
+                return FileResponse(
+                    FRONTEND_DIST / "index.html",
+                    headers={"Cache-Control": "no-cache, must-revalidate"},
+                )
+            # Everything else: standard JSON error
+            return JSONResponse(
+                {"detail": exc.detail},
+                status_code=exc.status_code,
             )
     else:
 

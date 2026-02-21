@@ -14,7 +14,7 @@ import {
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import type { Room, RoomBotRole } from '../../types'
+import type { Room, RoomBotRole, RoomSettings } from '../../types'
 
 interface RoomSettingsDialogProps {
   room: Room
@@ -30,7 +30,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   const [description, setDescription] = useState(room.description || '')
   const [cooldown, setCooldown] = useState(room.settings.cooldown_seconds)
   const [autoRelevance, setAutoRelevance] = useState(room.settings.auto_relevance)
-  const [responseMode, setResponseMode] = useState<'parallel' | 'sequential' | 'chain' | 'router'>(room.settings.response_mode || 'parallel')
+  const [responseMode, setResponseMode] = useState<RoomSettings['response_mode']>(room.settings.response_mode || 'parallel')
   const [botRoles, setBotRoles] = useState<Record<string, RoomBotRole>>(
     Object.fromEntries(room.bots.map((b) => [b.botId, b.role || 'default']))
   )

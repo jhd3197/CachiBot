@@ -57,6 +57,7 @@ const gearMenuItems: { id: BotView; label: string; icon: React.ComponentType<{ c
   { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
   { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor' },
   { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator' },
+  { id: 'developer', label: 'Developer', icon: Code2, minLevel: 'editor' },
   { id: 'settings', label: 'Settings', icon: Settings, minLevel: 'editor' },
 ]
 
@@ -238,6 +239,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'automations' && <AutomationsSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'tools' && <ToolsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
+        {activeView === 'developer' && <DeveloperSectionsList collapsed={sidebarCollapsed} />}
         {activeView === 'settings' && <SettingsList collapsed={sidebarCollapsed} />}
       </div>
 
@@ -1129,6 +1131,68 @@ function ToolsList({ collapsed }: { botId: string; collapsed: boolean }) {
             <ToolIconRenderer toolId={toolId} className="h-5 w-5 text-[var(--color-text-secondary)]" />
             <span className="text-sm capitalize text-[var(--color-text-primary)]">{toolId.replace(/_/g, ' ')}</span>
           </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// DEVELOPER SECTIONS LIST
+// =============================================================================
+
+type DeveloperSection = 'api-keys' | 'api-docs' | 'webhooks'
+
+const developerSections: { id: DeveloperSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'api-keys', label: 'API Keys', icon: Key },
+  { id: 'api-docs', label: 'API Docs', icon: Code2 },
+  { id: 'webhooks', label: 'Webhooks', icon: Plug },
+]
+
+function DeveloperSectionsList({ collapsed }: { collapsed: boolean }) {
+  const { setSettingsSection } = useUIStore()
+  const [devSection, setDevSection] = useState<DeveloperSection>('api-keys')
+
+  // Ensure we're in developer settings section
+  useEffect(() => {
+    setSettingsSection('developer')
+  }, [setSettingsSection])
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1 p-2">
+        {developerSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setDevSection(section.id)}
+            className={cn(
+              'sidebar-section-btn-icon',
+              devSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--accent'
+            )}
+            title={section.label}
+          >
+            <section.icon className="h-5 w-5" />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col p-3">
+      <div className="space-y-1">
+        {developerSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setDevSection(section.id)}
+            className={cn(
+              'sidebar-section-btn',
+              devSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--accent'
+            )}
+          >
+            <section.icon className="h-5 w-5" />
+            <span className="label">{section.label}</span>
+          </button>
         ))}
       </div>
     </div>

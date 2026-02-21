@@ -49,6 +49,7 @@ export function CreateRoomDialog({ onClose }: CreateRoomDialogProps) {
         settings: {
           cooldown_seconds: cooldown,
           auto_relevance: autoRelevance,
+          response_mode: 'parallel',
         },
       })
       addRoom(room)

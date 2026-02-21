@@ -14,8 +14,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
-from prompture.exceptions import BudgetExceededError
 from prompture.drivers import get_async_stt_driver_for_model, get_async_tts_driver_for_model
+from prompture.exceptions import BudgetExceededError
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import get_user_from_token

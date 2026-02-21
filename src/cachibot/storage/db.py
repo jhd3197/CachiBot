@@ -17,7 +17,7 @@ import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from sqlalchemy import event, inspect, text
+from sqlalchemy import String, Text, event, inspect, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -229,6 +229,17 @@ def _reconcile_schema(connection) -> None:  # type: ignore[no-untyped-def]
                 # server_default.arg can be a TextClause or plain string
                 if hasattr(default_val, "text"):
                     default_val = default_val.text
+                    # Quote bare-word string defaults for String/Text columns
+                    # (e.g. server_default="default" → DEFAULT 'default')
+                    if (
+                        isinstance(col.type, (String, Text))
+                        and isinstance(default_val, str)
+                        and not default_val.startswith("'")
+                    ):
+                        default_val = f"'{default_val}'"
+                # Compile clause elements (e.g. func.now()) via the dialect
+                elif hasattr(default_val, "compile"):
+                    default_val = default_val.compile(dialect=connection.dialect)
                 default = f" DEFAULT {default_val}"
 
             ddl = (

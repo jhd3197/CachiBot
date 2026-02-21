@@ -268,7 +268,7 @@ async def get_bot_available_models(
                 )
 
         provider_env = ProviderEnvironment(**env_kwargs) if env_kwargs else None
-        all_models = get_available_models(  # type: ignore[assignment]
+        all_models = get_available_models(
             env=provider_env, include_capabilities=True, force_refresh=True
         )
     except Exception:

@@ -306,9 +306,7 @@ class JobRunnerService:
             await self._job_repo.update_status(job.id, JobStatus.FAILED, error=error_msg)
             await self._job_repo.append_log(job.id, "error", error_msg)
             try:
-                await self._exec_log_repo.complete(
-                    exec_log_id, status="error", error=error_msg
-                )
+                await self._exec_log_repo.complete(exec_log_id, status="error", error=error_msg)
                 await self._timeline_repo.save(
                     TimelineEvent(
                         id=str(uuid.uuid4()),
@@ -325,9 +323,7 @@ class JobRunnerService:
                 pass
             # No retry — budget exceeded would fail again immediately
             await self._task_repo.update_status(task.id, TaskStatus.FAILED, error=error_msg)
-            await self._work_repo.update_status(
-                work.id, WorkStatus.FAILED, error=error_msg
-            )
+            await self._work_repo.update_status(work.id, WorkStatus.FAILED, error=error_msg)
             await self._broadcast_update(
                 work_id=work.id,
                 task_id=task.id,

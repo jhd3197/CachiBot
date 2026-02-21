@@ -287,9 +287,7 @@ async def websocket_endpoint(
                     )
 
                 # Sync callback for budget-triggered model fallback
-                def _model_fallback_sync(
-                    old_model: str, new_model: str, _state: Any
-                ) -> None:
+                def _model_fallback_sync(old_model: str, new_model: str, _state: Any) -> None:
                     try:
                         loop = asyncio.get_running_loop()
                         loop.create_task(
@@ -444,6 +442,23 @@ async def run_agent(
                 reply_to_id=bot_reply_to,
             )
             await repo.save_bot_message(assistant_msg)
+
+            # Emit webhook event for new message
+            try:
+                from cachibot.services.webhook_delivery import emit_webhook_event
+
+                emit_webhook_event(
+                    bot_id,
+                    "message.created",
+                    {
+                        "chat_id": chat_id,
+                        "message_id": assistant_msg.id,
+                        "role": "assistant",
+                        "content_length": len(response_text),
+                    },
+                )
+            except Exception:
+                pass
 
         # Send usage stats from AgentResult.run_usage
         await manager.send(

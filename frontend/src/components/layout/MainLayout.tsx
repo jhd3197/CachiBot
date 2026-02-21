@@ -282,6 +282,8 @@ export function MainLayout() {
         return <VoiceView />
       case 'tools':
         return <ToolsView />
+      case 'developer':
+        return <SettingsView />
       case 'settings':
         return <SettingsView />
       default:

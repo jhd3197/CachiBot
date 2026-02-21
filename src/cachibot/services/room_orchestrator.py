@@ -25,6 +25,17 @@ class BotCooldownState:
 
 
 @dataclass
+class DebateTranscriptEntry:
+    """A single entry in a debate transcript."""
+
+    round: int
+    bot_id: str
+    bot_name: str
+    position: str | None
+    content: str
+
+
+@dataclass
 class RoomOrchestrator:
     """Manages turn logic for a single room."""
 
@@ -33,8 +44,16 @@ class RoomOrchestrator:
     cooldowns: dict[str, BotCooldownState] = field(default_factory=dict)
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # "parallel", "sequential", "chain", or "router"
+    response_mode: str = "parallel"  # parallel | sequential | chain | router | debate | waterfall
     bot_roles: dict[str, str] = field(default_factory=dict)
+
+    # Router strategy
+    routing_strategy: str = "llm"
+    bot_keywords: dict[str, list[str]] = field(default_factory=dict)
+    _rr_index: int = 0  # round-robin counter
+
+    # Debate state
+    debate_transcript: list[DebateTranscriptEntry] = field(default_factory=list)
 
     def register_bot(self, bot: Bot) -> None:
         """Register a bot in this room."""
@@ -247,6 +266,135 @@ class RoomOrchestrator:
             f"--- END CHAIN CONTEXT ---"
         )
 
+    def reset_debate_state(self) -> None:
+        """Clear debate transcript for a fresh debate."""
+        self.debate_transcript.clear()
+
+    def build_debate_context(
+        self,
+        bot_id: str,
+        topic: str,
+        positions: dict[str, str],
+        round_num: int,
+        recent_messages: list[RoomMessage],
+    ) -> str:
+        """Build a context prompt for a debate participant.
+
+        Includes room context, the debate topic, this bot's position,
+        and a transcript of all prior arguments.
+        """
+        base = self.build_room_context(bot_id, recent_messages)
+        position = positions.get(bot_id)
+        position_line = f"Your assigned position is: {position}\n" if position else ""
+
+        # Build transcript of prior entries
+        transcript_lines = []
+        for entry in self.debate_transcript:
+            pos_tag = f" [{entry.position}]" if entry.position else ""
+            transcript_lines.append(
+                f"Round {entry.round + 1} — {entry.bot_name}{pos_tag}:\n{entry.content}"
+            )
+        transcript_str = (
+            "\n\n".join(transcript_lines) if transcript_lines else "(no prior arguments)"
+        )
+
+        return (
+            f"{base}\n\n"
+            f"--- DEBATE CONTEXT ---\n"
+            f"Topic: {topic}\n"
+            f"Round: {round_num + 1}\n"
+            f"{position_line}"
+            f"Argue your position clearly and persuasively.\n\n"
+            f"Prior arguments:\n{transcript_str}\n"
+            f"--- END DEBATE CONTEXT ---"
+        )
+
+    def build_judge_context(
+        self,
+        bot_id: str,
+        topic: str,
+        judge_prompt_template: str,
+        recent_messages: list[RoomMessage],
+    ) -> str:
+        """Build a context prompt for the debate judge.
+
+        Substitutes {topic} and {transcript} in the judge prompt template.
+        """
+        base = self.build_room_context(bot_id, recent_messages)
+
+        transcript_lines = []
+        for entry in self.debate_transcript:
+            pos_tag = f" [{entry.position}]" if entry.position else ""
+            transcript_lines.append(
+                f"Round {entry.round + 1} — {entry.bot_name}{pos_tag}:\n{entry.content}"
+            )
+        transcript_str = "\n\n".join(transcript_lines)
+
+        judge_instruction = judge_prompt_template.replace("{topic}", topic).replace(
+            "{transcript}", transcript_str
+        )
+
+        return f"{base}\n\n--- JUDGE CONTEXT ---\n{judge_instruction}\n--- END JUDGE CONTEXT ---"
+
+
+# =============================================================================
+# MODULE-LEVEL ROUTING FUNCTIONS
+# =============================================================================
+
+
+def keyword_route(orchestrator: RoomOrchestrator, message: str) -> tuple[str, str, float]:
+    """Match message tokens against per-bot keyword lists.
+
+    Returns:
+        (bot_id, reason, confidence) tuple.
+    """
+    msg_lower = message.lower()
+    best_id = ""
+    best_hits = 0
+    best_total = 1
+
+    for bot_id, keywords in orchestrator.bot_keywords.items():
+        if not keywords:
+            continue
+        if orchestrator.bot_roles.get(bot_id) == "observer":
+            continue
+        hits = sum(1 for kw in keywords if kw.lower() in msg_lower)
+        if hits > best_hits:
+            best_hits = hits
+            best_total = len(keywords)
+            best_id = bot_id
+
+    if best_id:
+        confidence = best_hits / best_total
+        return best_id, f"Matched {best_hits} keyword(s)", confidence
+
+    # Fallback: first non-observer bot
+    for bot_id in orchestrator.bot_configs:
+        if orchestrator.bot_roles.get(bot_id) != "observer":
+            return bot_id, "No keyword match, fallback", 0.0
+    first_id = next(iter(orchestrator.bot_configs))
+    return first_id, "No eligible bots", 0.0
+
+
+def round_robin_route(orchestrator: RoomOrchestrator) -> tuple[str, str, float]:
+    """Rotate through non-observer bots.
+
+    Returns:
+        (bot_id, reason, confidence) tuple.
+    """
+    eligible = [
+        bid for bid in orchestrator.bot_configs if orchestrator.bot_roles.get(bid) != "observer"
+    ]
+    if not eligible:
+        first_id = next(iter(orchestrator.bot_configs))
+        return first_id, "No eligible bots", 0.0
+
+    idx = orchestrator._rr_index % len(eligible)
+    orchestrator._rr_index += 1
+    chosen = eligible[idx]
+    bot = orchestrator.bot_configs[chosen]
+    return chosen, f"Round-robin: {bot.name}'s turn", 1.0
+
 
 # =============================================================================
 # MODULE-LEVEL REGISTRY
@@ -265,6 +413,8 @@ def create_room_orchestrator(
     cooldown_seconds: float = 5.0,
     auto_relevance: bool = True,
     response_mode: str = "parallel",
+    routing_strategy: str = "llm",
+    bot_keywords: dict[str, list[str]] | None = None,
 ) -> RoomOrchestrator:
     """Create and register an orchestrator for a room."""
     orchestrator = RoomOrchestrator(
@@ -272,6 +422,8 @@ def create_room_orchestrator(
         cooldown_seconds=cooldown_seconds,
         auto_relevance=auto_relevance,
         response_mode=response_mode,
+        routing_strategy=routing_strategy,
+        bot_keywords=bot_keywords or {},
     )
     _active_orchestrators[room_id] = orchestrator
     return orchestrator

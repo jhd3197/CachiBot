@@ -104,7 +104,7 @@ class RoomBot(Base):
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    role: Mapped[str] = mapped_column(String, nullable=False, server_default="default")
+    role: Mapped[str] = mapped_column(String, nullable=False, server_default="'default'")
 
     # Relationships
     room: Mapped[Room] = relationship("Room", back_populates="bots")

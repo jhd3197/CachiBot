@@ -134,9 +134,7 @@ class WSMessage(BaseModel):
         )
 
     @classmethod
-    def model_fallback(
-        cls, old_model: str, new_model: str, reason: str = ""
-    ) -> "WSMessage":
+    def model_fallback(cls, old_model: str, new_model: str, reason: str = "") -> "WSMessage":
         """Create a model fallback notification (budget-triggered)."""
         return cls(
             type=WSMessageType.MODEL_FALLBACK,
