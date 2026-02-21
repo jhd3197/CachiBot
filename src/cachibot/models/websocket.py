@@ -30,6 +30,7 @@ class WSMessageType(str, Enum):
     EXECUTION_END = "execution_end"  # Execution completed/failed
     APPROVAL_NEEDED = "approval_needed"
     INSTRUCTION_DELTA = "instruction_delta"
+    MODEL_FALLBACK = "model_fallback"
     USAGE = "usage"
     ERROR = "error"
     DONE = "done"
@@ -130,6 +131,16 @@ class WSMessage(BaseModel):
         return cls(
             type=WSMessageType.INSTRUCTION_DELTA,
             payload={"id": tool_call_id, "text": text},
+        )
+
+    @classmethod
+    def model_fallback(
+        cls, old_model: str, new_model: str, reason: str = ""
+    ) -> "WSMessage":
+        """Create a model fallback notification (budget-triggered)."""
+        return cls(
+            type=WSMessageType.MODEL_FALLBACK,
+            payload={"oldModel": old_model, "newModel": new_model, "reason": reason},
         )
 
     @classmethod

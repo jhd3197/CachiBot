@@ -42,7 +42,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updated = await updateRoomApi(room.id, {
+      await updateRoomApi(room.id, {
         title: title.trim() || undefined,
         description: description.trim() || undefined,
         settings: { cooldown_seconds: cooldown, auto_relevance: autoRelevance, response_mode: responseMode },

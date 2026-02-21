@@ -88,6 +88,10 @@ class CachibotAgent:
     # When set, instruction executions broadcast incremental text chunks.
     on_instruction_delta: Callable[..., Any] | None = None
 
+    # Sync callback for budget-triggered model fallback notifications.
+    # Signature: (old_model: str, new_model: str, budget_state: Any) -> None
+    on_model_fallback: Callable[..., Any] | None = None
+
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
         self._setup_sandbox()
@@ -266,6 +270,24 @@ class CachibotAgent:
                 "max_tokens": max_tokens,
             },
         }
+
+        # Wire budget enforcement from per-bot environment
+        if env and env.budget_policy:
+            from prompture.infra import BudgetPolicy
+
+            try:
+                agent_kwargs["budget_policy"] = BudgetPolicy(env.budget_policy)
+            except ValueError:
+                pass
+            else:
+                if env.budget_max_cost is not None:
+                    agent_kwargs["max_cost"] = env.budget_max_cost
+                if env.budget_max_tokens is not None:
+                    agent_kwargs["max_tokens"] = env.budget_max_tokens
+                if env.budget_fallback_models:
+                    agent_kwargs["fallback_models"] = env.budget_fallback_models
+                if self.on_model_fallback is not None:
+                    agent_kwargs["on_model_fallback"] = self.on_model_fallback
 
         # When a per-bot driver is provided, pass it directly to bypass the
         # global Prompture registry.  Otherwise, use the model string.

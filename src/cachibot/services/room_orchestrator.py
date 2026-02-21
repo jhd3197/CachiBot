@@ -166,9 +166,7 @@ class RoomOrchestrator:
         available.sort(key=lambda bid: (0 if self.bot_roles.get(bid) == "lead" else 1))
 
         if available:
-            logger.debug(
-                "Room %s: auto-selected respondent: %s", self.room_id, available[0]
-            )
+            logger.debug("Room %s: auto-selected respondent: %s", self.room_id, available[0])
             return [available[0]]
 
         logger.debug("Room %s: all bots on cooldown, no respondents", self.room_id)
@@ -294,7 +292,11 @@ async def route_message(
     Returns:
         (bot_id, reason) tuple.
     """
-    from cachibot.services.name_generator import _chat_completion, _extract_json, _resolve_utility_model
+    from cachibot.services.name_generator import (
+        _chat_completion,
+        _extract_json,
+        _resolve_utility_model,
+    )
 
     # Build bot descriptions for the prompt
     candidates = []
@@ -314,8 +316,7 @@ async def route_message(
         return candidates[0]["id"], "Only one eligible bot"
 
     bot_list = "\n".join(
-        f'- id="{c["id"]}", name="{c["name"]}": {c["description"]}'
-        for c in candidates
+        f'- id="{c["id"]}", name="{c["name"]}": {c["description"]}' for c in candidates
     )
 
     prompt = (

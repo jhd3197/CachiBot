@@ -8,9 +8,11 @@ import copy
 import logging
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
+from prompture.exceptions import BudgetExceededError
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities
 from cachibot.api.auth import get_user_from_token
@@ -265,9 +267,7 @@ async def room_websocket_endpoint(
                     and len(orchestrator.bot_configs) > 1
                 ):
                     try:
-                        chosen_id, reason = await route_message(
-                            orchestrator, message_text, config
-                        )
+                        chosen_id, reason = await route_message(orchestrator, message_text, config)
                         chosen_bot = orchestrator.bot_configs.get(chosen_id)
                         if chosen_bot:
                             await room_manager.send_to_room(
@@ -278,16 +278,12 @@ async def room_websocket_endpoint(
                             )
                             respondents = [chosen_id]
                     except Exception as route_err:
-                        logger.error(
-                            "Router failed in room %s: %s", room_id, route_err
-                        )
+                        logger.error("Router failed in room %s: %s", room_id, route_err)
                         # Fall through to normal respondent selection
 
                 if orchestrator.response_mode == "chain" and len(respondents) > 1:
                     # Chain mode: sequential with state passing
-                    async def _run_chain(
-                        bots_to_run: list[str], msg: str, cfg: Config
-                    ) -> None:
+                    async def _run_chain(bots_to_run: list[str], msg: str, cfg: Config) -> None:
                         previous_outputs: list[tuple[str, str]] = []
                         total = len(bots_to_run)
                         for step_idx, bid in enumerate(bots_to_run):
@@ -319,7 +315,9 @@ async def room_websocket_endpoint(
                             except Exception as chain_err:
                                 logger.error(
                                     "Chain bot %s failed in room %s: %s",
-                                    bid, room_id, chain_err,
+                                    bid,
+                                    room_id,
+                                    chain_err,
                                 )
                                 await room_manager.send_to_room(
                                     room_id,
@@ -331,9 +329,7 @@ async def room_websocket_endpoint(
                                 )
                                 orchestrator.mark_done(bid)
 
-                    chain_task = asyncio.create_task(
-                        _run_chain(respondents, message_text, config)
-                    )
+                    chain_task = asyncio.create_task(_run_chain(respondents, message_text, config))
                     if room_id not in room_manager.bot_tasks:
                         room_manager.bot_tasks[room_id] = {}
                     room_manager.bot_tasks[room_id]["_chain"] = chain_task
@@ -362,7 +358,9 @@ async def room_websocket_endpoint(
                             except Exception as seq_err:
                                 logger.error(
                                     "Sequential bot %s failed in room %s: %s",
-                                    bid, room_id, seq_err,
+                                    bid,
+                                    room_id,
+                                    seq_err,
                                 )
                                 await room_manager.send_to_room(
                                     room_id,
@@ -411,7 +409,9 @@ async def room_websocket_endpoint(
                         except Exception as spawn_err:
                             logger.error(
                                 "Failed to spawn bot %s in room %s: %s",
-                                bot_id, room_id, spawn_err,
+                                bot_id,
+                                room_id,
+                                spawn_err,
                             )
                             await room_manager.send_to_room(
                                 room_id,
@@ -521,13 +521,45 @@ async def run_room_bot(
                 ),
             )
 
+        # Resolve per-bot environment for budget enforcement and API keys
+        from cachibot.api.websocket import _resolve_bot_env
+
+        resolved_env, per_bot_driver = await _resolve_bot_env(
+            bot_id,
+            platform="web",
+            effective_model=effective_model or agent_config.agent.model,
+        )
+
+        # Sync callback for budget-triggered model fallback
+        def _model_fallback_sync(
+            old_model: str, new_model: str, _state: Any
+        ) -> None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(
+                    room_manager.send_to_room(
+                        room_id,
+                        RoomWSMessage.error(
+                            room_id,
+                            f"{bot.name} switched from {old_model} to {new_model} "
+                            "(budget threshold reached)",
+                            bot_id=bot_id,
+                        ),
+                    )
+                )
+            except RuntimeError:
+                pass
+
         disabled_caps = await load_disabled_capabilities()
         agent = CachibotAgent(
             config=agent_config,
             system_prompt_override=enhanced_prompt,
             bot_id=bot_id,
+            driver=per_bot_driver,
+            provider_environment=resolved_env,
             disabled_capabilities=disabled_caps,
             on_instruction_delta=_instruction_delta_sender,
+            on_model_fallback=_model_fallback_sync,
         )
 
         # Load custom instructions from DB
@@ -537,11 +569,11 @@ async def run_room_bot(
 
         # Stream response (with timeout)
         response_parts: list[str] = []
-        tool_calls: list[dict] = []
+        tool_calls: list[dict[str, Any]] = []
         response_msg_id = str(uuid.uuid4())
         agent_result = None  # Captured from the final output event
 
-        async with asyncio.timeout(BOT_TIMEOUT_SECONDS):
+        async with asyncio.timeout(BOT_TIMEOUT_SECONDS):  # type: ignore[attr-defined]
             async for event in agent.run_stream(message):
                 match event.event_type:
                     case StreamEventType.text_delta:
@@ -558,12 +590,14 @@ async def run_room_bot(
                             ),
                         )
                     case StreamEventType.tool_call:
-                        tool_calls.append({
-                            "id": event.data.get("id", ""),
-                            "tool": event.data["name"],
-                            "args": event.data.get("arguments", {}),
-                            "startTime": int(datetime.utcnow().timestamp() * 1000),
-                        })
+                        tool_calls.append(
+                            {
+                                "id": event.data.get("id", ""),
+                                "tool": event.data["name"],
+                                "args": event.data.get("arguments", {}),
+                                "startTime": int(datetime.utcnow().timestamp() * 1000),
+                            }
+                        )
                         await room_manager.send_to_room(
                             room_id,
                             RoomWSMessage.bot_tool_start(
@@ -602,7 +636,7 @@ async def run_room_bot(
         # Save bot response (include tool calls in metadata)
         full_response = "".join(response_parts)
         if full_response:
-            metadata: dict = {}
+            metadata: dict[str, Any] = {}
             if tool_calls:
                 metadata["toolCalls"] = tool_calls
             bot_msg = RoomMessage(
@@ -678,8 +712,21 @@ async def run_room_bot(
             RoomWSMessage.error(room_id, f"{bot.name} was cancelled", bot_id=bot_id),
         )
         return ""
+    except BudgetExceededError as e:
+        logger.warning("Budget exceeded for bot %s in room %s: %s", bot_id, room_id, e)
+        await room_manager.send_to_room(
+            room_id,
+            RoomWSMessage.error(
+                room_id,
+                f"{bot.name} budget limit reached: {e}",
+                bot_id=bot_id,
+            ),
+        )
+        return ""
     except TimeoutError:
-        logger.warning("Bot %s timed out in room %s after %ds", bot_id, room_id, BOT_TIMEOUT_SECONDS)
+        logger.warning(
+            "Bot %s timed out in room %s after %ds", bot_id, room_id, BOT_TIMEOUT_SECONDS
+        )
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(

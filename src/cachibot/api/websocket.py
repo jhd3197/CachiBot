@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
+from prompture.exceptions import BudgetExceededError
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import get_user_from_token
@@ -285,6 +286,23 @@ async def websocket_endpoint(
                         WSMessage.instruction_delta(tool_call_id, text),
                     )
 
+                # Sync callback for budget-triggered model fallback
+                def _model_fallback_sync(
+                    old_model: str, new_model: str, _state: Any
+                ) -> None:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(
+                            manager.send(
+                                client_id,
+                                WSMessage.model_fallback(
+                                    old_model, new_model, "Budget threshold reached"
+                                ),
+                            )
+                        )
+                    except RuntimeError:
+                        pass
+
                 disabled_caps = await load_disabled_capabilities()
                 agent = CachibotAgent(
                     config=agent_config,
@@ -299,6 +317,7 @@ async def websocket_endpoint(
                     provider_environment=resolved_env,
                     disabled_capabilities=disabled_caps,
                     on_instruction_delta=_instruction_delta_sender,
+                    on_model_fallback=_model_fallback_sync,
                 )
 
                 # Load custom instructions from DB (async)
@@ -449,6 +468,9 @@ async def run_agent(
 
     except asyncio.CancelledError:
         await manager.send(client_id, WSMessage.error("Operation cancelled"))
+    except BudgetExceededError as e:
+        logger.warning("Budget exceeded for client %s: %s", client_id, e)
+        await manager.send(client_id, WSMessage.error(str(e), code="budget_exceeded"))
     except Exception as e:
         logger.error(f"Agent error for client {client_id}: {e}", exc_info=True)
         await manager.send(client_id, WSMessage.error(f"An internal error occurred: {e}"))

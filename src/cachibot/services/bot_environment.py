@@ -41,6 +41,12 @@ class ResolvedEnvironment:
     skill_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
     sources: dict[str, str] = field(default_factory=dict)
 
+    # Budget enforcement (Prompture BudgetPolicy)
+    budget_max_cost: float | None = None
+    budget_max_tokens: int | None = None
+    budget_policy: str | None = None  # "hard_stop" | "warn_and_continue" | "degrade"
+    budget_fallback_models: list[str] = field(default_factory=list)
+
 
 class BotEnvironmentService:
     """Resolves the effective environment for a bot by merging all 5 layers.
@@ -234,6 +240,41 @@ class BotEnvironmentService:
             elif key.lower() == "utility_model":
                 base.utility_model = str(value)
                 base.sources["utility_model"] = source
+            elif key.lower() == "budget_max_cost":
+                try:
+                    base.budget_max_cost = float(value)
+                    base.sources["budget_max_cost"] = source
+                except (ValueError, TypeError):
+                    pass
+            elif key.lower() == "budget_max_tokens":
+                try:
+                    base.budget_max_tokens = int(value)
+                    base.sources["budget_max_tokens"] = source
+                except (ValueError, TypeError):
+                    pass
+            elif key.lower() == "budget_policy":
+                if str(value) in {"hard_stop", "warn_and_continue", "degrade"}:
+                    base.budget_policy = str(value)
+                    base.sources["budget_policy"] = source
+            elif key.lower() == "budget_fallback_models":
+                try:
+                    if isinstance(value, list):
+                        base.budget_fallback_models = value
+                    elif isinstance(value, str):
+                        # Try JSON array first, then comma-separated
+                        try:
+                            parsed = json.loads(value)
+                            if isinstance(parsed, list):
+                                base.budget_fallback_models = [str(m) for m in parsed]
+                            else:
+                                base.budget_fallback_models = [str(parsed)]
+                        except (json.JSONDecodeError, TypeError):
+                            base.budget_fallback_models = [
+                                m.strip() for m in value.split(",") if m.strip()
+                            ]
+                    base.sources["budget_fallback_models"] = source
+                except (ValueError, TypeError):
+                    pass
             else:
                 # Unknown key — store in sources for traceability
                 base.sources[key.lower()] = source
@@ -267,6 +308,24 @@ class BotEnvironmentService:
                 env.sources["max_iterations"] = "request"
             except (ValueError, TypeError):
                 pass
+
+        if "budget_max_cost" in overrides:
+            try:
+                env.budget_max_cost = float(overrides["budget_max_cost"])
+                env.sources["budget_max_cost"] = "request"
+            except (ValueError, TypeError):
+                pass
+        if "budget_max_tokens" in overrides:
+            try:
+                env.budget_max_tokens = int(overrides["budget_max_tokens"])
+                env.sources["budget_max_tokens"] = "request"
+            except (ValueError, TypeError):
+                pass
+        if "budget_policy" in overrides:
+            val = str(overrides["budget_policy"])
+            if val in {"hard_stop", "warn_and_continue", "degrade"}:
+                env.budget_policy = val
+                env.sources["budget_policy"] = "request"
 
         # Merge skill/tool configs from request
         if "tool_configs" in overrides and isinstance(overrides["tool_configs"], dict):
