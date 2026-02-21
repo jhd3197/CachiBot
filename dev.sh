@@ -125,7 +125,13 @@ case "$MODE" in frontend|browser|desktop|all) kill_port 5173 ;; esac
 case "$MODE" in backend|browser|desktop|all)
   echo -e "${CYAN}[dev]${RESET} backend  -> ${GREEN}http://127.0.0.1:6392${RESET}"
   cd "$ROOT_DIR"
-  cachibot server --port 6392 --reload &
+  if [ -x "$ROOT_DIR/.venv/bin/cachibot" ]; then
+    "$ROOT_DIR/.venv/bin/cachibot" server --port 6392 --reload &
+  elif [ -x "$ROOT_DIR/.venv/Scripts/cachibot.exe" ]; then
+    "$ROOT_DIR/.venv/Scripts/cachibot.exe" server --port 6392 --reload &
+  else
+    cachibot server --port 6392 --reload &
+  fi
   PIDS+=($!)
   ;; esac
 

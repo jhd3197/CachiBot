@@ -378,6 +378,11 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.platform }}" == "mac" ]]; then
+            # Do NOT pass CSC_LINK here — it makes electron-builder create
+            # its own keychain without partition-list, causing codesign to
+            # hang waiting for a GUI prompt. The cert is already imported
+            # into build.keychain with proper permissions above.
+            unset CSC_LINK CSC_KEY_PASSWORD
             npx electron-builder --mac --publish always
           elif [[ "${{ matrix.platform }}" == "win" ]]; then
             unset CSC_LINK CSC_KEY_PASSWORD
@@ -388,10 +393,7 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS code signing — CSC_LINK still needed so electron-builder
-          # knows to sign, but the keychain is already set up above
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Let electron-builder auto-discover the identity from our keychain
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' }}
           # macOS notarization
           APPLE_ID: ${{ secrets.APPLE_ID }}

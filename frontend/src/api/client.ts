@@ -1224,24 +1224,32 @@ export async function getMarketplaceTemplates(
   if (remote) return remote
 
   // Fall back to local API
-  const params = new URLSearchParams()
-  if (category) params.set('category', category)
-  if (search) params.set('search', search)
-  const result = await request<TemplateListResponse>(`/marketplace/templates?${params}`)
-  return { ...result, source: 'local' }
+  try {
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (search) params.set('search', search)
+    const result = await request<TemplateListResponse>(`/marketplace/templates?${params}`)
+    return { ...result, source: 'local' }
+  } catch {
+    return { templates: [], total: 0, source: 'local' }
+  }
 }
 
 /**
  * Get a single marketplace template.
  * Tries remote first, falls back to local API.
  */
-export async function getMarketplaceTemplate(templateId: string): Promise<MarketplaceTemplate> {
+export async function getMarketplaceTemplate(templateId: string): Promise<MarketplaceTemplate | null> {
   // Try remote first
   const remote = await fetchRemoteTemplate(templateId)
   if (remote) return remote
 
   // Fall back to local
-  return request(`/marketplace/templates/${templateId}`)
+  try {
+    return await request(`/marketplace/templates/${templateId}`)
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -1262,7 +1270,11 @@ export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]>
   if (remote) return remote
 
   // Fall back to local
-  return request('/marketplace/categories')
+  try {
+    return await request('/marketplace/categories')
+  } catch {
+    return []
+  }
 }
 
 // =============================================================================
@@ -1523,19 +1535,27 @@ export async function getRoomMarketplaceTemplates(
   const remote = await fetchRemoteRoomTemplates(category, search, responseMode)
   if (remote) return remote
 
-  const params = new URLSearchParams()
-  if (category) params.set('category', category)
-  if (search) params.set('search', search)
-  if (responseMode) params.set('response_mode', responseMode)
-  const result = await request<RoomTemplateListResponse>(`/marketplace/room-templates?${params}`)
-  return { ...result, source: 'local' }
+  try {
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (search) params.set('search', search)
+    if (responseMode) params.set('response_mode', responseMode)
+    const result = await request<RoomTemplateListResponse>(`/marketplace/room-templates?${params}`)
+    return { ...result, source: 'local' }
+  } catch {
+    return { templates: [], total: 0, source: 'local' }
+  }
 }
 
-export async function getRoomMarketplaceTemplate(templateId: string): Promise<RoomMarketplaceTemplate> {
+export async function getRoomMarketplaceTemplate(templateId: string): Promise<RoomMarketplaceTemplate | null> {
   const remote = await fetchRemoteRoomTemplate(templateId)
   if (remote) return remote
 
-  return request(`/marketplace/room-templates/${templateId}`)
+  try {
+    return await request(`/marketplace/room-templates/${templateId}`)
+  } catch {
+    return null
+  }
 }
 
 export async function installRoomMarketplaceTemplate(templateId: string): Promise<InstallRoomTemplateResponse> {
