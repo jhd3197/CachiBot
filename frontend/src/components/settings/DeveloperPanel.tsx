@@ -308,7 +308,7 @@ function CreateApiKeyDialog({
 // =============================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ApiDocsPanel({ botId }: { botId: string }) {
+function ApiDocsPanel({ botId: _botId }: { botId: string }) {
   const { getActiveBot } = useBotStore()
   const bot = getActiveBot()
   const baseUrl = `${window.location.origin}/v1`
