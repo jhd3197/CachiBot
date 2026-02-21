@@ -317,17 +317,20 @@ jobs:
         if: matrix.platform == 'mac'
         shell: bash
         run: |
-          FW="build/backend/_internal/Python.framework"
-          if [[ -d "$FW" ]]; then
-            # Remove the framework bundle structure entirely — keep only the binary
-            # codesign will then treat it as a plain Mach-O file, not a bundle
-            cp "$FW/Python" "$FW/../Python.tmp"
-            rm -rf "$FW"
-            mv "$FW/../Python.tmp" "$FW/../Python"
-            echo "Flattened Python.framework to plain binary"
-          else
-            echo "No Python.framework found, skipping"
-          fi
+          # Find all Python.framework dirs in the backend bundle
+          find build/backend -name "Python.framework" -type d | while read FW; do
+            echo "Found: $FW"
+            PARENT=$(dirname "$FW")
+            if [[ -f "$FW/Python" ]]; then
+              cp "$FW/Python" "$PARENT/Python.bin.tmp"
+              rm -rf "$FW"
+              mv "$PARENT/Python.bin.tmp" "$PARENT/Python"
+              echo "Flattened $FW to plain binary"
+            else
+              echo "No Python binary inside $FW, removing empty framework"
+              rm -rf "$FW"
+            fi
+          done
 
       - name: Install RPM tools
         if: matrix.platform == 'linux'
