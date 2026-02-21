@@ -171,7 +171,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: python -m twine upload dist/cachibot/* --non-interactive
+        run: python -m twine upload dist/cachibot/* --non-interactive --skip-existing
 
   # =========================================================================
   # 2. Build Python backend binary with PyInstaller  (3 platforms)
