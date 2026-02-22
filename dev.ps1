@@ -197,6 +197,16 @@ if ($startBackend) {
 
 # --- Ensure latest editable installs (CachiBot + owned libs) ---
 if ($startBackend) {
+    # Clean corrupted dist-info directories (e.g. ~achibot) that break pip
+    $sitePackages = & python -c "import site; print(site.getsitepackages()[0])" 2>$null
+    if ($sitePackages -and (Test-Path $sitePackages)) {
+        Get-ChildItem -Path $sitePackages -Directory -Filter "~*" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                Write-Host "[dev] Removing corrupted dist: $($_.Name)" -ForegroundColor Yellow
+                Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+    }
+
     Write-Host "[dev] Syncing editable installs..." -ForegroundColor DarkGray
     $prompturePath = Join-Path (Split-Path $Root) "prompture"
     $tukuyPath = Join-Path (Split-Path $Root) "Tukuy"
@@ -222,12 +232,21 @@ if ($startBackend) {
     }
 
     # Verify editable install points to source tree
-    $installPath = & python -c "import cachibot; print(cachibot.__path__[0])" 2>&1
-    $expectedPath = "$Root\src\cachibot"
-    if ($installPath -ne $expectedPath) {
-        Write-Host "[dev] WARNING: cachibot is loading from $installPath" -ForegroundColor Red
-        Write-Host "[dev]          Expected: $expectedPath" -ForegroundColor Red
-        Write-Host "[dev]          Run: pip uninstall cachibot -y && pip install -e '.[dev]'" -ForegroundColor Yellow
+    $pipFixCmd = 'pip uninstall cachibot -y; pip install -e ".[dev]"'
+    try {
+        $installPath = & python -c "import cachibot; print(cachibot.__path__[0])" 2>&1
+        $expectedPath = "$Root\src\cachibot"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host '[dev] WARNING: cachibot could not be imported — install may be broken' -ForegroundColor Red
+            Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
+        } elseif ("$installPath" -ne $expectedPath) {
+            Write-Host "[dev] WARNING: cachibot is loading from $installPath" -ForegroundColor Red
+            Write-Host "[dev]          Expected: $expectedPath" -ForegroundColor Red
+            Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host '[dev] WARNING: cachibot import check failed' -ForegroundColor Red
+        Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
     }
 }
 

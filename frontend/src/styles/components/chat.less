@@ -1167,6 +1167,45 @@
   }
 }
 
+// -----------------------------------------------------------------------------
+// Typing Dots — bouncing dots inside message bubble
+// -----------------------------------------------------------------------------
+
+.chat-typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: @sp-1 @sp-0-5;
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: @radius-full;
+    background: var(--color-text-secondary);
+    opacity: 0.4;
+    animation: typing-bounce 1.4s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
 // Existing input enrichment classes -------
 
 .chat-input-wrap {

@@ -311,6 +311,7 @@ export interface MessageBubbleProps {
   userColor?: string
   chatId?: string           // For reply/citation lookups (chat only)
   showSenderName?: boolean  // true for rooms
+  isStreaming?: boolean      // true while bot is still generating
   onReply?: () => void      // Chat only (omit to hide Reply btn)
   onRetry?: () => void      // Future use
 }
@@ -322,6 +323,7 @@ export function MessageBubble({
   userColor: userColorProp,
   chatId,
   showSenderName,
+  isStreaming,
   onReply,
   onRetry,
 }: MessageBubbleProps) {
@@ -449,6 +451,12 @@ export function MessageBubble({
         >
           {isUser ? (
             <div className="whitespace-pre-wrap">{displayContent}</div>
+          ) : !displayContent && isStreaming ? (
+            <div className="chat-typing-dots">
+              <span className="chat-typing-dots__dot" />
+              <span className="chat-typing-dots__dot" />
+              <span className="chat-typing-dots__dot" />
+            </div>
           ) : (
             <MarkdownRenderer content={displayContent} />
           )}
