@@ -21,6 +21,7 @@ import type {
   Priority,
 } from '../types'
 import { syncBot, deleteBackendBot, getPlatformChats, getPlatformChatMessages, archivePlatformChat, unarchivePlatformChat } from '../api/client'
+import { useRailStore } from './rail'
 
 // Guard to prevent concurrent syncPlatformChats calls for the same bot
 const syncingBotIds = new Set<string>()
@@ -119,6 +120,8 @@ export const useBotStore = create<BotState>()(
         }))
         // Sync to backend for platform connections
         syncBotToBackend(bot)
+        // Add to rail
+        useRailStore.getState().ensureBotInRail(bot.id)
       },
 
       updateBot: (id, updates) => {
@@ -148,6 +151,8 @@ export const useBotStore = create<BotState>()(
         deleteBackendBot(id).catch((err) => {
           console.warn('Failed to delete bot from backend:', err)
         })
+        // Remove from rail
+        useRailStore.getState().removeBotFromRail(id)
       },
 
       setActiveBot: (id) => set({ activeBotId: id }),

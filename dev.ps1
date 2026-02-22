@@ -260,6 +260,30 @@ if ($startBackend) {
 
 # --- Frontend (Vite) ---
 if ($startFrontend) {
+    # Ensure node_modules are installed with correct platform binaries
+    $nodeModules = "$Root\frontend\node_modules"
+    $packageJson = "$Root\frontend\package.json"
+    $viteBin = "$nodeModules\.bin\vite.cmd"
+    $needsInstall = -not (Test-Path $nodeModules)
+    if (-not $needsInstall -and -not (Test-Path $viteBin)) {
+        # node_modules exists but missing Windows binaries (e.g. installed from WSL)
+        Write-Host "[dev] Detected non-Windows node_modules, reinstalling..." -ForegroundColor Yellow
+        Remove-Item $nodeModules -Recurse -Force -ErrorAction SilentlyContinue
+        $needsInstall = $true
+    }
+    if (-not $needsInstall) {
+        # Re-install if package.json is newer than node_modules
+        $nmTime = (Get-Item $nodeModules).LastWriteTime
+        $pjTime = (Get-Item $packageJson).LastWriteTime
+        if ($pjTime -gt $nmTime) { $needsInstall = $true }
+    }
+    if ($needsInstall) {
+        Write-Host "[dev] Installing frontend dependencies..." -ForegroundColor DarkGray
+        Push-Location "$Root\frontend"
+        & npm install --loglevel warn 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+        Pop-Location
+    }
+
     Write-Host "[dev] frontend -> " -ForegroundColor Cyan -NoNewline
     Write-Host "http://localhost:5173" -ForegroundColor Green
     $procs += Start-Process -NoNewWindow -PassThru -FilePath "npm" `
