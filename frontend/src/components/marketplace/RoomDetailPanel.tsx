@@ -1,18 +1,13 @@
 import { useState, useMemo } from 'react'
-import { Star, Download, Loader2, Users, AlertTriangle } from 'lucide-react'
-import {
-  Dialog,
-  DialogHeader,
-  DialogContent,
-  DialogFooter,
-  DialogButton,
-} from '../common/Dialog'
+import { ArrowLeft, Star, Download, Loader2, Users, AlertTriangle } from 'lucide-react'
+import { DialogButton } from '../common/Dialog'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import { installRoomMarketplaceTemplate } from '../../api/client'
+import { installRoomMarketplaceTemplate, getBackendBot } from '../../api/client'
 import { useRoomStore } from '../../stores/rooms'
+import { useBotStore } from '../../stores/bots'
 import { useModelsStore } from '../../stores/models'
 import { useModelCompatibility, type CompatibilityStatus } from '../../hooks/useModelCompatibility'
-import type { RoomMarketplaceTemplate, MarketplaceBot, BotIcon } from '../../types'
+import type { RoomMarketplaceTemplate, MarketplaceBot, BotIcon, Bot } from '../../types'
 
 const MODE_LABELS: Record<string, string> = {
   parallel: 'Parallel',
@@ -32,9 +27,9 @@ const MODE_DESCRIPTIONS: Record<string, string> = {
   waterfall: 'Bots respond in sequence, stopping when resolved',
 }
 
-interface RoomDetailDialogProps {
-  template: RoomMarketplaceTemplate | null
-  onClose: () => void
+interface RoomDetailPanelProps {
+  template: RoomMarketplaceTemplate
+  onBack: () => void
   onInstalled: (roomId: string) => void
 }
 
@@ -62,7 +57,6 @@ function useRoomModelIssues(bots: MarketplaceBot[] | undefined): number {
       const slashIdx = bot.model.indexOf('/')
       const provider = slashIdx > 0 ? bot.model.slice(0, slashIdx) : ''
       if (!provider) {
-        // Check all groups
         const found = Object.values(groups).flat().some((m) => m.id === bot.model)
         if (!found) issues++
       } else {
@@ -83,56 +77,93 @@ function formatDownloads(n: number): string {
   return String(n)
 }
 
-export function RoomDetailDialog({ template, onClose, onInstalled }: RoomDetailDialogProps) {
+export function RoomDetailPanel({ template, onBack, onInstalled }: RoomDetailPanelProps) {
   const { addRoom, setActiveRoom } = useRoomStore()
+  const { bots, addBot } = useBotStore()
   const [isInstalling, setIsInstalling] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const modelIssueCount = useRoomModelIssues(template?.bot_details)
+  const modelIssueCount = useRoomModelIssues(template.bot_details)
 
   const handleInstall = async () => {
-    if (!template) return
-
     setIsInstalling(true)
     setError(null)
 
     try {
+      console.log('[RoomDetailPanel] Installing room template:', template.id, template.name)
       const result = await installRoomMarketplaceTemplate(template.id)
+      console.log('[RoomDetailPanel] Install API response:', result)
 
-      // Refresh rooms to pick up the newly created room
-      const { getRooms } = await import('../../api/rooms')
-      const rooms = await getRooms()
-      const newRoom = rooms.find((r) => r.id === result.room_id)
-      if (newRoom) {
-        addRoom(newRoom)
-        setActiveRoom(newRoom.id)
+      // Sync any bots that aren't in the frontend store yet
+      const existingBotIds = new Set(bots.map((b) => b.id))
+      for (const botId of result.bot_ids) {
+        if (!existingBotIds.has(botId)) {
+          try {
+            console.log('[RoomDetailPanel] Fetching missing bot from backend:', botId)
+            const backendBot = await getBackendBot(botId)
+            const bot: Bot = {
+              id: backendBot.id,
+              name: backendBot.name,
+              description: backendBot.description || '',
+              icon: (backendBot.icon || 'bot') as BotIcon,
+              color: backendBot.color || '#6366f1',
+              model: backendBot.model,
+              systemPrompt: backendBot.systemPrompt,
+              tools: backendBot.capabilities
+                ? Object.entries(backendBot.capabilities).filter(([, v]) => v).map(([k]) => k)
+                : [],
+              createdAt: backendBot.createdAt,
+              updatedAt: backendBot.updatedAt,
+            }
+            addBot(bot)
+            console.log('[RoomDetailPanel] Added missing bot to store:', bot.id, bot.name)
+          } catch (err) {
+            console.warn('[RoomDetailPanel] Failed to fetch bot:', botId, err)
+          }
+        }
       }
 
+      const { getRooms } = await import('../../api/rooms')
+      const rooms = await getRooms()
+      console.log('[RoomDetailPanel] Fetched rooms after install, count:', rooms.length)
+      const newRoom = rooms.find((r) => r.id === result.room_id)
+      if (newRoom) {
+        console.log('[RoomDetailPanel] Found new room, adding to store:', newRoom.id, newRoom.title)
+        addRoom(newRoom)
+        setActiveRoom(newRoom.id)
+      } else {
+        console.warn('[RoomDetailPanel] Room not found in fetched rooms. room_id:', result.room_id, 'available ids:', rooms.map((r) => r.id))
+      }
+
+      console.log('[RoomDetailPanel] Calling onInstalled with room_id:', result.room_id)
       onInstalled(result.room_id)
     } catch (err) {
+      console.error('[RoomDetailPanel] Install failed:', err)
       setError(err instanceof Error ? err.message : 'Failed to install room template')
     } finally {
       setIsInstalling(false)
     }
   }
 
-  if (!template) return null
-
   return (
-    <Dialog open={!!template} onClose={onClose} size="lg">
-      <DialogHeader
-        title={template.name}
-        subtitle={template.description}
-        icon={
-          <BotIconRenderer
-            icon={template.icon as BotIcon}
-            size={20}
-            color={template.color}
-          />
-        }
-        onClose={onClose}
-      />
+    <div className="marketplace__detail">
+      {/* Header with back button */}
+      <div className="marketplace__detail-header">
+        <button onClick={onBack} className="marketplace__detail-back">
+          <ArrowLeft size={18} />
+        </button>
+        <BotIconRenderer icon={template.icon as BotIcon} size={20} color={template.color} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {template.name}
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {template.description}
+          </p>
+        </div>
+      </div>
 
-      <DialogContent scrollable>
+      {/* Scrollable content */}
+      <div className="marketplace__detail-content">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Stats row */}
           <div className="bot-detail__stats">
@@ -228,10 +259,11 @@ export function RoomDetailDialog({ template, onClose, onInstalled }: RoomDetailD
             </div>
           )}
         </div>
-      </DialogContent>
+      </div>
 
-      <DialogFooter>
-        <DialogButton variant="ghost" onClick={onClose}>
+      {/* Sticky install footer */}
+      <div className="marketplace__detail-footer">
+        <DialogButton variant="ghost" onClick={onBack}>
           Cancel
         </DialogButton>
         <DialogButton
@@ -251,7 +283,7 @@ export function RoomDetailDialog({ template, onClose, onInstalled }: RoomDetailD
             </>
           )}
         </DialogButton>
-      </DialogFooter>
-    </Dialog>
+      </div>
+    </div>
   )
 }

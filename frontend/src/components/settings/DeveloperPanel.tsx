@@ -312,7 +312,10 @@ function CreateApiKeyDialog({
 function ApiDocsPanel({ botId: _botId }: { botId: string }) {
   const { getActiveBot } = useBotStore()
   const bot = getActiveBot()
-  const baseUrl = `${window.location.origin}/v1`
+  // In production the backend serves the frontend (same origin).
+  // In dev the Vite server runs on a different port — use the backend directly.
+  const apiOrigin = import.meta.env.DEV ? 'http://127.0.0.1:5870' : window.location.origin
+  const baseUrl = `${apiOrigin}/v1`
   const modelName = bot?.models?.default || bot?.model || 'unknown'
   const [copiedId, setCopiedId] = useState<string | null>(null)
 

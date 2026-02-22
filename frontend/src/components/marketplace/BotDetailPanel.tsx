@@ -1,21 +1,15 @@
 import { useState } from 'react'
-import { Star, Download, Wrench, MessageSquare, Loader2, CircleCheck, AlertTriangle, CircleAlert } from 'lucide-react'
-import {
-  Dialog,
-  DialogHeader,
-  DialogContent,
-  DialogFooter,
-  DialogButton,
-} from '../common/Dialog'
+import { ArrowLeft, Star, Download, Wrench, MessageSquare, Loader2, CircleCheck, AlertTriangle, CircleAlert } from 'lucide-react'
+import { DialogButton } from '../common/Dialog'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installMarketplaceTemplate, type MarketplaceTemplate } from '../../api/client'
 import { useBotStore } from '../../stores/bots'
 import { useModelCompatibility } from '../../hooks/useModelCompatibility'
 import type { Bot, BotIcon } from '../../types'
 
-interface BotDetailDialogProps {
-  template: MarketplaceTemplate | null
-  onClose: () => void
+interface BotDetailPanelProps {
+  template: MarketplaceTemplate
+  onBack: () => void
   onInstalled: (botId: string) => void
 }
 
@@ -26,22 +20,21 @@ function formatDownloads(n: number): string {
   return String(n)
 }
 
-export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDialogProps) {
+export function BotDetailPanel({ template, onBack, onInstalled }: BotDetailPanelProps) {
   const { addBot, setActiveBot } = useBotStore()
   const [isInstalling, setIsInstalling] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const compat = useModelCompatibility(template?.model)
+  const compat = useModelCompatibility(template.model)
 
   const handleInstall = async () => {
-    if (!template) return
-
     setIsInstalling(true)
     setError(null)
 
     try {
+      console.log('[BotDetailPanel] Installing bot template:', template.id, template.name)
       const result = await installMarketplaceTemplate(template.id)
+      console.log('[BotDetailPanel] Install API response:', result)
 
-      // Also add to local store for immediate availability
       const newBot: Bot = {
         id: result.bot_id,
         name: template.name,
@@ -56,33 +49,36 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
       }
       addBot(newBot)
       setActiveBot(result.bot_id)
+      console.log('[BotDetailPanel] Bot added to store, calling onInstalled:', result.bot_id)
       onInstalled(result.bot_id)
     } catch (err) {
+      console.error('[BotDetailPanel] Install failed:', err)
       setError(err instanceof Error ? err.message : 'Failed to install template')
     } finally {
       setIsInstalling(false)
     }
   }
 
-  if (!template) return null
-
   return (
-    <Dialog open={!!template} onClose={onClose} size="lg">
-      <DialogHeader
-        title={template.name}
-        subtitle={template.description}
-        icon={
-          <BotIconRenderer
-            icon={template.icon as BotIcon}
-            size={20}
-            color={template.color}
-          />
-        }
-        iconClassName={`bg-[${template.color}20]`}
-        onClose={onClose}
-      />
+    <div className="marketplace__detail">
+      {/* Header with back button */}
+      <div className="marketplace__detail-header">
+        <button onClick={onBack} className="marketplace__detail-back">
+          <ArrowLeft size={18} />
+        </button>
+        <BotIconRenderer icon={template.icon as BotIcon} size={20} color={template.color} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h3 style={{ fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {template.name}
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {template.description}
+          </p>
+        </div>
+      </div>
 
-      <DialogContent scrollable>
+      {/* Scrollable content */}
+      <div className="marketplace__detail-content">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Stats row */}
           <div className="bot-detail__stats">
@@ -195,10 +191,11 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
             </div>
           )}
         </div>
-      </DialogContent>
+      </div>
 
-      <DialogFooter>
-        <DialogButton variant="ghost" onClick={onClose}>
+      {/* Sticky install footer */}
+      <div className="marketplace__detail-footer">
+        <DialogButton variant="ghost" onClick={onBack}>
           Cancel
         </DialogButton>
         <DialogButton
@@ -218,7 +215,7 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
             </>
           )}
         </DialogButton>
-      </DialogFooter>
-    </Dialog>
+      </div>
+    </div>
   )
 }

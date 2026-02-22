@@ -12,11 +12,13 @@ interface DashboardCardsViewProps {
   roomBots: RoomBot[]
 }
 
+const EMPTY_OBJ: Record<string, never> = {}
+
 export function DashboardCardsView({ roomId, messages, roomBots }: DashboardCardsViewProps) {
   const bots = useBotStore((s) => s.bots)
-  const botStates = useRoomStore((s) => s.botStates[roomId] || {})
-  const botActivity = useRoomStore((s) => s.botActivity[roomId] || {})
-  const activeToolCalls = useRoomStore((s) => s.activeToolCalls[roomId] || {})
+  const botStates = useRoomStore((s) => s.botStates[roomId]) || EMPTY_OBJ
+  const botActivity = useRoomStore((s) => s.botActivity[roomId]) || EMPTY_OBJ
+  const activeToolCalls = useRoomStore((s) => s.activeToolCalls[roomId]) || EMPTY_OBJ
 
   // Group messages by bot
   const botMessages = useMemo(() => {

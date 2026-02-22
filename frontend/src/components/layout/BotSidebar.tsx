@@ -546,41 +546,6 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
                   </div>
                 </button>
 
-                {/* Context menu trigger */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(menuOpen === room.id ? null : room.id)
-                  }}
-                  className={cn(
-                    'sidebar-chat-item__menu-btn',
-                    menuOpen === room.id && 'sidebar-chat-item__menu-btn--open'
-                  )}
-                >
-                  <MoreHorizontal size={14} />
-                </button>
-
-                {/* Context menu */}
-                {menuOpen === room.id && (
-                  <div className="context-menu absolute right-0 top-8 z-10 w-48">
-                    <button
-                      onClick={() => {
-                        const msgs = useRoomStore.getState().messages[room.id] || []
-                        const date = new Date().toISOString().slice(0, 10)
-                        downloadJson({
-                          room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
-                          messages: msgs,
-                          exportedAt: new Date().toISOString(),
-                        }, `room-${slugify(room.title)}-${date}.json`)
-                        setMenuOpen(null)
-                      }}
-                      className="context-menu__item"
-                    >
-                      <Download className="h-4 w-4" />
-                      Export JSON
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
