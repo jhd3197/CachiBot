@@ -44,13 +44,27 @@ class RoomOrchestrator:
     cooldowns: dict[str, BotCooldownState] = field(default_factory=dict)
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # parallel | sequential | chain | router | debate | waterfall
+    # parallel | sequential | chain | router | debate | waterfall | relay | consensus | interview
+    response_mode: str = "parallel"
     bot_roles: dict[str, str] = field(default_factory=dict)
 
     # Router strategy
     routing_strategy: str = "llm"
     bot_keywords: dict[str, list[str]] = field(default_factory=dict)
     _rr_index: int = 0  # round-robin counter
+
+    # Room personality and variables
+    room_system_prompt: str = ""
+    room_variables: dict[str, str] = field(default_factory=dict)
+
+    # Interview mode state
+    interview_question_count: int = 0
+    interview_handoff_triggered: bool = False
+
+    # Consensus state
+    _consensus_responses: list[tuple[str, str, str]] = field(
+        default_factory=list
+    )  # (bot_id, bot_name, response)
 
     # Debate state
     debate_transcript: list[DebateTranscriptEntry] = field(default_factory=list)
@@ -220,6 +234,22 @@ class RoomOrchestrator:
         }
         role_line = role_instructions.get(role, "")
 
+        # Room personality injection
+        personality_block = ""
+        if self.room_system_prompt:
+            personality_block = (
+                f"\n--- ROOM INSTRUCTIONS ---\n{self.room_system_prompt}\n"
+                f"--- END ROOM INSTRUCTIONS ---\n"
+            )
+
+        # Room variables injection
+        variables_block = ""
+        if self.room_variables:
+            var_lines = "\n".join(f"  {k} = {v}" for k, v in self.room_variables.items())
+            variables_block = (
+                f"\n--- ROOM VARIABLES ---\n{var_lines}\n--- END ROOM VARIABLES ---\n"
+            )
+
         return (
             f"\n\n--- ROOM CONTEXT ---\n"
             f"You are {bot.name} in a collaborative room.\n"
@@ -229,6 +259,8 @@ class RoomOrchestrator:
             f"(e.g. @{bot_names[0] if bot_names else 'BotName'}). "
             f"Use @all to address everyone.\n"
             f"{role_line}\n"
+            f"{personality_block}"
+            f"{variables_block}"
             f"\nRecent conversation:\n{transcript}\n"
             f"--- END ROOM CONTEXT ---"
         )
@@ -336,6 +368,103 @@ class RoomOrchestrator:
 
         return f"{base}\n\n--- JUDGE CONTEXT ---\n{judge_instruction}\n--- END JUDGE CONTEXT ---"
 
+    # -- Consensus helpers --
+
+    def reset_consensus_state(self) -> None:
+        """Clear collected consensus responses for a fresh round."""
+        self._consensus_responses.clear()
+
+    def add_consensus_response(self, bot_id: str, bot_name: str, response: str) -> None:
+        """Record a hidden bot response for later synthesis."""
+        self._consensus_responses.append((bot_id, bot_name, response))
+
+    def build_consensus_synthesis_context(
+        self,
+        synthesizer_bot_id: str,
+        topic: str,
+        recent_messages: list[RoomMessage],
+    ) -> str:
+        """Build context for the synthesizer bot to merge consensus responses."""
+        base = self.build_room_context(synthesizer_bot_id, recent_messages)
+
+        response_lines = []
+        for _bid, bname, resp in self._consensus_responses:
+            truncated = resp[:3000] + ("..." if len(resp) > 3000 else "")
+            response_lines.append(f"{bname}:\n{truncated}")
+
+        responses_section = "\n\n".join(response_lines)
+
+        return (
+            f"{base}\n\n"
+            f"--- CONSENSUS SYNTHESIS ---\n"
+            f"The user asked: {topic[:500]}\n\n"
+            f"The following bots responded independently:\n\n"
+            f"{responses_section}\n\n"
+            f"Synthesize these responses into a single, coherent answer.\n"
+            f"Identify points of agreement and note any significant disagreements.\n"
+            f"--- END CONSENSUS SYNTHESIS ---"
+        )
+
+    # -- Interview helpers --
+
+    def reset_interview_state(self) -> None:
+        """Reset interview mode state for a new session."""
+        self.interview_question_count = 0
+        self.interview_handoff_triggered = False
+
+    def build_interview_context(
+        self,
+        interviewer_bot_id: str,
+        recent_messages: list[RoomMessage],
+        max_questions: int,
+    ) -> str:
+        """Build context for the interviewer bot."""
+        base = self.build_room_context(interviewer_bot_id, recent_messages)
+        remaining = max_questions - self.interview_question_count
+
+        return (
+            f"{base}\n\n"
+            f"--- INTERVIEW MODE ---\n"
+            f"You are the interviewer. Ask focused questions to gather context.\n"
+            f"Questions asked so far: {self.interview_question_count}/{max_questions}\n"
+            f"Questions remaining: {remaining}\n"
+            f"When you have enough context or reach the limit, include [HANDOFF] "
+            f"in your response to hand off to the specialist bots.\n"
+            f"--- END INTERVIEW MODE ---"
+        )
+
+    def check_interview_handoff(
+        self,
+        response_text: str,
+        handoff_trigger: str,
+        max_questions: int,
+    ) -> bool:
+        """Check if the interview should hand off to specialists.
+
+        Returns True if handoff should occur.
+        """
+        if self.interview_handoff_triggered:
+            return True
+
+        self.interview_question_count += 1
+
+        if handoff_trigger == "keyword":
+            if "[HANDOFF]" in response_text.upper():
+                self.interview_handoff_triggered = True
+                return True
+        elif handoff_trigger == "auto":
+            # Auto: hand off if [HANDOFF] detected OR max questions reached
+            if "[HANDOFF]" in response_text.upper():
+                self.interview_handoff_triggered = True
+                return True
+            if self.interview_question_count >= max_questions:
+                self.interview_handoff_triggered = True
+                return True
+        # "manual" — only user can trigger by typing "done" or "handoff"
+        # (handled in the WS handler, not here)
+
+        return False
+
 
 # =============================================================================
 # MODULE-LEVEL ROUTING FUNCTIONS
@@ -415,6 +544,8 @@ def create_room_orchestrator(
     response_mode: str = "parallel",
     routing_strategy: str = "llm",
     bot_keywords: dict[str, list[str]] | None = None,
+    room_system_prompt: str = "",
+    room_variables: dict[str, str] | None = None,
 ) -> RoomOrchestrator:
     """Create and register an orchestrator for a room."""
     orchestrator = RoomOrchestrator(
@@ -424,6 +555,8 @@ def create_room_orchestrator(
         response_mode=response_mode,
         routing_strategy=routing_strategy,
         bot_keywords=bot_keywords or {},
+        room_system_prompt=room_system_prompt,
+        room_variables=room_variables or {},
     )
     _active_orchestrators[room_id] = orchestrator
     return orchestrator

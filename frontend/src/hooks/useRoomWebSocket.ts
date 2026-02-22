@@ -43,6 +43,14 @@ export function useRoomWebSocket(roomId: string | null) {
     setBotActivity,
     clearBotActivity,
     setMessageToolCalls,
+    addReactionToMessage,
+    removeReactionFromMessage,
+    addPinnedMessage,
+    removePinnedMessage,
+    setConsensusState,
+    setInterviewState,
+    addTimelineEntry,
+    resetTimeline,
   } = useRoomStore()
 
   useEffect(() => {
@@ -254,6 +262,73 @@ export function useRoomWebSocket(roomId: string | null) {
             reason: p.reason as string,
           })
           break
+
+        // Social features
+        case 'room_reaction_add':
+          addReactionToMessage(
+            roomId,
+            p.messageId as string,
+            p.emoji as string,
+            p.userId as string
+          )
+          break
+
+        case 'room_reaction_remove':
+          removeReactionFromMessage(
+            roomId,
+            p.messageId as string,
+            p.emoji as string,
+            p.userId as string
+          )
+          break
+
+        case 'room_pin_add':
+          addPinnedMessage(roomId, {
+            id: '',
+            roomId,
+            messageId: p.messageId as string,
+            pinnedBy: p.pinnedBy as string,
+            pinnedAt: new Date().toISOString(),
+            senderName: '',
+            content: '',
+            timestamp: '',
+          })
+          break
+
+        case 'room_pin_remove':
+          removePinnedMessage(roomId, p.messageId as string)
+          break
+
+        // Consensus mode
+        case 'room_consensus_synthesizing':
+          setConsensusState(roomId, {
+            phase: 'synthesizing',
+            collected: p.responseCount as number,
+            total: p.responseCount as number,
+            synthesizerName: p.botName as string,
+          })
+          break
+
+        case 'room_consensus_complete':
+          setConsensusState(roomId, null)
+          break
+
+        // Interview mode
+        case 'room_interview_question':
+          setInterviewState(roomId, {
+            questionCount: p.questionNum as number,
+            maxQuestions: p.maxQuestions as number,
+            handoffTriggered: false,
+          })
+          break
+
+        case 'room_interview_handoff':
+          setInterviewState(roomId, {
+            questionCount: 0,
+            maxQuestions: 0,
+            handoffTriggered: true,
+          })
+          break
       }
     })
 
@@ -265,7 +340,7 @@ export function useRoomWebSocket(roomId: string | null) {
       setIsConnected(false)
       lastBotMessageIdRef.current = {}
     }
-  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision, setBotThinking, clearBotThinking, attachThinkingToMessage, appendInstructionDelta])
+  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision, setBotThinking, clearBotThinking, attachThinkingToMessage, appendInstructionDelta, addReactionToMessage, removeReactionFromMessage, addPinnedMessage, removePinnedMessage, setConsensusState, setInterviewState, addTimelineEntry, resetTimeline])
 
   const sendMessage = useCallback((message: string) => {
     if (!roomId) return

@@ -60,6 +60,24 @@
     &:hover {
       background: var(--color-hover-bg);
     }
+
+    &--active {
+      color: var(--accent-500);
+      background: var(--accent-50);
+
+      .dark & {
+        background: rgba(var(--accent-500-rgb, 99, 102, 241), 0.15);
+      }
+    }
+  }
+
+  &__view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: @radius-md;
+    background: var(--color-bg-secondary);
+    padding: 2px;
   }
 
   &__status-bar {
@@ -1055,6 +1073,510 @@
     &:hover {
       background: color-mix(in srgb, var(--accent-500) 8%, transparent);
       border-color: var(--accent-400);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Reaction Bar
+// -----------------------------------------------------------------------------
+
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: @sp-1;
+  margin-top: @sp-1;
+
+  &__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+    font-size: @text-xs;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 15%, transparent);
+    }
+  }
+
+  &__count {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    font-weight: @font-medium;
+  }
+
+  &__picker-wrap {
+    position: relative;
+  }
+
+  &__add {
+    .flex-center();
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: @radius-full;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__picker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    z-index: @z-dropdown;
+    display: flex;
+    gap: 2px;
+    padding: @sp-1;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-primary);
+    box-shadow: @shadow-lg;
+    margin-bottom: @sp-1;
+  }
+
+  &__picker-btn {
+    .flex-center();
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: @radius-md;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: @text-base;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pinned Messages Bar
+// -----------------------------------------------------------------------------
+
+.pinned-bar {
+  border-bottom: 1px solid var(--color-border-primary);
+  background: color-mix(in srgb, @yellow-500 5%, transparent);
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: @sp-1-5;
+    width: 100%;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @yellow-600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    .dark & {
+      color: @yellow-400;
+    }
+
+    &:hover {
+      background: color-mix(in srgb, @yellow-500 8%, transparent);
+    }
+  }
+
+  &__list {
+    padding: 0 @sp-4 @sp-2;
+    .flex-col();
+    gap: @sp-1;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1 @sp-2;
+    border-radius: @radius-md;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+  }
+
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    .transition-colors();
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &__sender {
+    font-size: 10px;
+    font-weight: @font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  &__text {
+    font-size: @text-xs;
+    color: var(--color-text-primary);
+    .truncate();
+  }
+
+  &__unpin {
+    .flex-center();
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: @radius-sm;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    .transition-colors();
+
+    &:hover {
+      color: @red-400;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// View Mode Toggle
+// -----------------------------------------------------------------------------
+
+.room-view-toggle {
+  display: flex;
+  border-radius: @radius-md;
+  border: 1px solid var(--color-border-primary);
+  overflow: hidden;
+
+  &__btn {
+    .flex-center();
+    width: 1.75rem;
+    height: 1.5rem;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:not(:last-child) {
+      border-right: 1px solid var(--color-border-primary);
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      background: color-mix(in srgb, var(--accent-500) 20%, transparent);
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Dashboard Cards View
+// -----------------------------------------------------------------------------
+
+.room-cards-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: @sp-4;
+  }
+}
+
+.room-card-bot {
+  .flex-col();
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__avatar {
+    .flex-center();
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-lg;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__role {
+    margin-left: auto;
+  }
+
+  &__state {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: @font-medium;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+
+    &--thinking {
+      background: rgba(@yellow-500, 0.2);
+      color: @yellow-600;
+      .dark & { color: @yellow-400; }
+    }
+
+    &--responding {
+      background: color-mix(in srgb, var(--accent-500) 20%, transparent);
+      color: var(--accent-600);
+      .dark & { color: var(--accent-400); }
+    }
+  }
+
+  &__content {
+    flex: 1;
+    padding: @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    overflow-y: auto;
+    max-height: 16rem;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2 @sp-3;
+    border-top: 1px solid var(--color-border-primary);
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Timeline View
+// -----------------------------------------------------------------------------
+
+.room-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__container {
+    position: relative;
+    min-height: 8rem;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    height: 2rem;
+    margin-bottom: @sp-1;
+  }
+
+  &__label {
+    width: 6rem;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    text-align: right;
+    flex-shrink: 0;
+    .truncate();
+  }
+
+  &__track {
+    flex: 1;
+    position: relative;
+    height: 1.25rem;
+    background: var(--color-bg-secondary);
+    border-radius: @radius-sm;
+    overflow: hidden;
+  }
+
+  &__bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: @radius-sm;
+    min-width: 4px;
+    cursor: pointer;
+    .transition-colors();
+    display: flex;
+    align-items: center;
+    padding: 0 @sp-1;
+    font-size: 9px;
+    font-weight: @font-medium;
+    color: white;
+    overflow: hidden;
+    white-space: nowrap;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &__axis {
+    display: flex;
+    justify-content: space-between;
+    padding-left: calc(6rem + @sp-2);
+    font-size: 9px;
+    color: var(--color-text-tertiary);
+    margin-top: @sp-1;
+  }
+
+  &__empty {
+    .flex-center();
+    height: 8rem;
+    font-size: @text-sm;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Consensus / Interview status indicators
+// -----------------------------------------------------------------------------
+
+.room-panel__consensus-status,
+.room-panel__interview-status {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-1-5 @sp-4;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.room-panel__consensus-status {
+  color: var(--accent-600);
+  background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+  .dark & { color: var(--accent-400); }
+}
+
+.room-panel__interview-status {
+  color: @green-600;
+  background: rgba(@green-500, 0.1);
+  .dark & { color: @green-400; }
+
+  &--handoff {
+    color: var(--accent-600);
+    background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+    .dark & { color: var(--accent-400); }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Personality & Variables (Settings Dialog)
+// -----------------------------------------------------------------------------
+
+.room-settings__variables {
+  .flex-col();
+  gap: @sp-2;
+
+  &-row {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &-key,
+  &-value {
+    .input-base();
+    height: auto;
+    padding: @sp-1 @sp-2;
+    font-size: @text-sm;
+  }
+
+  &-key {
+    flex: 0 0 6rem;
+  }
+
+  &-value {
+    flex: 1;
+  }
+
+  &-remove {
+    .flex-center();
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: @radius-sm;
+    background: none;
+    border: none;
+    color: @red-400;
+    cursor: pointer;
+    flex-shrink: 0;
+    .transition-colors();
+
+    &:hover {
+      color: @red-300;
+    }
+  }
+
+  &-add {
+    .button-base();
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    border-radius: @radius-md;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
     }
   }
 }

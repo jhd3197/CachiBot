@@ -37,7 +37,8 @@ class RoomSettings(BaseModel):
 
     cooldown_seconds: float = 5.0
     auto_relevance: bool = True
-    response_mode: str = "parallel"  # parallel | sequential | chain | router | debate | waterfall
+    # parallel | sequential | chain | router | debate | waterfall | relay | consensus | interview
+    response_mode: str = "parallel"
 
     # Debate mode settings
     debate_rounds: int = Field(default=2, ge=1, le=5)
@@ -55,6 +56,26 @@ class RoomSettings(BaseModel):
 
     # Waterfall settings
     waterfall_conditions: dict[str, str] = Field(default_factory=dict)  # bot_id -> condition type
+
+    # Consensus mode settings
+    consensus_synthesizer_bot_id: str | None = None
+    consensus_show_individual: bool = False
+
+    # Interview mode settings
+    interview_bot_id: str | None = None
+    interview_max_questions: int = Field(default=5, ge=1, le=20)
+    interview_handoff_trigger: str = "auto"  # auto | manual | keyword
+
+    # Auto-summary settings
+    auto_summary_interval: int = 0  # 0 = disabled; N = every N messages
+    auto_summary_bot_id: str | None = None
+    auto_summary_auto_pin: bool = True
+
+    # Room personality — injected into all bots' context
+    system_prompt: str = ""
+
+    # Room variables — key-value pairs accessible to all bots
+    variables: dict[str, str] = Field(default_factory=dict)
 
 
 class Room(BaseModel):
@@ -234,10 +255,15 @@ class RoomMessageResponse(BaseModel):
     content: str
     metadata: dict[str, Any]
     toolCalls: list[dict[str, Any]] | None = None
+    reactions: list["ReactionSummary"] = Field(default_factory=list)
     timestamp: str
 
     @classmethod
-    def from_message(cls, msg: RoomMessage) -> "RoomMessageResponse":
+    def from_message(
+        cls,
+        msg: RoomMessage,
+        reactions: list["ReactionSummary"] | None = None,
+    ) -> "RoomMessageResponse":
         tool_calls = msg.metadata.get("toolCalls") if msg.metadata else None
         return cls(
             id=msg.id,
@@ -248,5 +274,111 @@ class RoomMessageResponse(BaseModel):
             content=msg.content,
             metadata=msg.metadata,
             toolCalls=tool_calls,
+            reactions=reactions or [],
             timestamp=msg.timestamp.isoformat(),
         )
+
+
+# =============================================================================
+# REACTIONS
+# =============================================================================
+
+# Fixed set of allowed emojis
+ALLOWED_EMOJIS = {"👍", "👎", "❤️", "😂", "🤔", "🎉"}
+
+
+class ReactionSummary(BaseModel):
+    """Summary of reactions for a single emoji on a message."""
+
+    emoji: str
+    count: int
+    userIds: list[str] = Field(default_factory=list)
+
+
+class AddReactionRequest(BaseModel):
+    """Request to add a reaction to a message."""
+
+    emoji: str
+
+
+# =============================================================================
+# PINNED MESSAGES
+# =============================================================================
+
+
+class PinnedMessage(BaseModel):
+    """A pinned message in a room."""
+
+    id: str
+    roomId: str
+    messageId: str
+    pinnedBy: str
+    pinnedAt: str
+    # Denormalized message fields for display
+    senderName: str = ""
+    content: str = ""
+    timestamp: str = ""
+
+
+# =============================================================================
+# BOOKMARKS
+# =============================================================================
+
+
+class BookmarkedMessage(BaseModel):
+    """A bookmarked message for a user."""
+
+    id: str
+    roomId: str
+    messageId: str
+    createdAt: str
+    # Denormalized message fields for display
+    senderName: str = ""
+    content: str = ""
+    timestamp: str = ""
+
+
+# =============================================================================
+# AUTOMATIONS
+# =============================================================================
+
+VALID_TRIGGER_TYPES = {"on_message", "on_keyword", "on_idle", "on_schedule"}
+VALID_ACTION_TYPES = {"send_message", "summarize", "pin_message"}
+
+
+class RoomAutomationResponse(BaseModel):
+    """Response model for a room automation."""
+
+    id: str
+    roomId: str
+    name: str
+    enabled: bool
+    triggerType: str
+    triggerConfig: dict[str, Any]
+    actionType: str
+    actionConfig: dict[str, Any]
+    createdBy: str
+    triggerCount: int
+    createdAt: str
+    updatedAt: str
+
+
+class CreateRoomAutomationRequest(BaseModel):
+    """Request to create a room automation."""
+
+    name: str = Field(min_length=1, max_length=100)
+    trigger_type: str
+    trigger_config: dict[str, Any] = Field(default_factory=dict)
+    action_type: str
+    action_config: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateRoomAutomationRequest(BaseModel):
+    """Request to update a room automation."""
+
+    name: str | None = None
+    enabled: bool | None = None
+    trigger_type: str | None = None
+    trigger_config: dict[str, Any] | None = None
+    action_type: str | None = None
+    action_config: dict[str, Any] | None = None

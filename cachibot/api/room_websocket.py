@@ -161,6 +161,8 @@ async def room_websocket_endpoint(
             response_mode=room.settings.response_mode,
             routing_strategy=room.settings.routing_strategy,
             bot_keywords=room.settings.bot_keywords,
+            room_system_prompt=room.settings.system_prompt,
+            room_variables=room.settings.variables,
         )
 
     # Always (re-)load bots — handles both fresh init and late-added bots
@@ -565,6 +567,310 @@ async def room_websocket_endpoint(
 
                     wf_task = asyncio.create_task(_run_waterfall(respondents, message_text, config))
                     room_manager.bot_tasks.setdefault(room_id, {})["_waterfall"] = wf_task
+
+                elif orchestrator.response_mode == "relay" and not mentioned_ids:
+                    # Relay mode: round-robin, single bot per message
+                    chosen_id, reason, _confidence = round_robin_route(orchestrator)
+                    chosen_bot = orchestrator.bot_configs.get(chosen_id)
+                    if chosen_bot:
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.route_decision(
+                                room_id,
+                                chosen_id,
+                                chosen_bot.name,
+                                reason,
+                                confidence=1.0,
+                                strategy="relay",
+                            ),
+                        )
+                        orchestrator.mark_responding(chosen_id)
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.bot_thinking(room_id, chosen_id, chosen_bot.name),
+                        )
+                        task = asyncio.create_task(
+                            run_room_bot(
+                                room_id=room_id,
+                                bot_id=chosen_id,
+                                message=message_text,
+                                config=config,
+                            )
+                        )
+                        room_manager.bot_tasks.setdefault(room_id, {})[chosen_id] = task
+
+                elif orchestrator.response_mode == "consensus" and len(respondents) >= 2:
+                    # Consensus mode: all bots respond hidden, then synthesizer merges
+                    async def _run_consensus(
+                        bots_to_run: list[str], msg: str, cfg: Config
+                    ) -> None:
+                        settings = room.settings
+                        orchestrator.reset_consensus_state()
+
+                        # Phase 1: Collect hidden responses in parallel
+                        async def _collect_response(bid: str) -> tuple[str, str, str]:
+                            b = orchestrator.bot_configs.get(bid)
+                            if not b:
+                                return bid, "", ""
+                            try:
+                                orchestrator.mark_responding(bid)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(room_id, bid, b.name),
+                                )
+                                resp = await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bid,
+                                    message=msg,
+                                    config=cfg,
+                                )
+                                return bid, b.name, resp or ""
+                            except Exception as consensus_err:
+                                logger.error(
+                                    "Consensus bot %s failed in room %s: %s",
+                                    bid,
+                                    room_id,
+                                    consensus_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"{b.name} failed: {consensus_err}",
+                                        bot_id=bid,
+                                    ),
+                                )
+                                orchestrator.mark_done(bid)
+                                return bid, b.name, ""
+
+                        # Determine which bots are respondents vs synthesizer
+                        synth_id = settings.consensus_synthesizer_bot_id
+                        if not synth_id or synth_id not in orchestrator.bot_configs:
+                            synth_id = bots_to_run[0]
+
+                        contributor_ids = [bid for bid in bots_to_run if bid != synth_id]
+                        if not contributor_ids:
+                            # If synth is the only bot, fall back to parallel
+                            contributor_ids = bots_to_run
+
+                        # Run contributors in parallel
+                        results = await asyncio.gather(
+                            *[_collect_response(bid) for bid in contributor_ids]
+                        )
+
+                        for bid, bname, resp in results:
+                            if resp:
+                                orchestrator.add_consensus_response(bid, bname, resp)
+
+                        if not orchestrator._consensus_responses:
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.error(
+                                    room_id, "No responses collected for consensus"
+                                ),
+                            )
+                            return
+
+                        # If not showing individual, delete the messages (they were
+                        # already broadcast by run_room_bot — in a future iteration
+                        # we could suppress the broadcast)
+                        # For now, individual responses are always visible as they stream.
+
+                        # Phase 2: Synthesize
+                        synth_bot = orchestrator.bot_configs.get(synth_id)
+                        if synth_bot:
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.consensus_synthesizing(
+                                    room_id,
+                                    synth_id,
+                                    synth_bot.name,
+                                    len(orchestrator._consensus_responses),
+                                ),
+                            )
+                            try:
+                                orchestrator.mark_responding(synth_id)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(
+                                        room_id, synth_id, synth_bot.name
+                                    ),
+                                )
+                                msg_repo_c = RoomMessageRepository()
+                                recent = await msg_repo_c.get_messages(room_id, limit=50)
+                                synth_prompt = (
+                                    orchestrator.build_consensus_synthesis_context(
+                                        synth_id, msg, recent
+                                    )
+                                )
+                                await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=synth_id,
+                                    message=msg,
+                                    config=cfg,
+                                    system_prompt_override=synth_prompt,
+                                )
+                            except Exception as synth_err:
+                                logger.error(
+                                    "Consensus synthesizer %s failed: %s",
+                                    synth_id,
+                                    synth_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"Synthesizer {synth_bot.name} failed: {synth_err}",
+                                        bot_id=synth_id,
+                                    ),
+                                )
+                                orchestrator.mark_done(synth_id)
+
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.consensus_complete(
+                                room_id, len(orchestrator._consensus_responses)
+                            ),
+                        )
+
+                    consensus_task = asyncio.create_task(
+                        _run_consensus(respondents, message_text, config)
+                    )
+                    room_manager.bot_tasks.setdefault(room_id, {})["_consensus"] = (
+                        consensus_task
+                    )
+
+                elif orchestrator.response_mode == "interview":
+                    # Interview mode: interviewer asks questions, then hands off
+                    settings = room.settings
+                    interview_bot_id = settings.interview_bot_id
+                    if not interview_bot_id or interview_bot_id not in orchestrator.bot_configs:
+                        # Default to first non-observer bot
+                        for bid in orchestrator.bot_configs:
+                            if orchestrator.bot_roles.get(bid) != "observer":
+                                interview_bot_id = bid
+                                break
+
+                    # Check if user manually triggers handoff
+                    manual_handoff = False
+                    if settings.interview_handoff_trigger == "manual":
+                        lower_msg = message_text.lower().strip()
+                        if lower_msg in ("done", "handoff", "/handoff", "/done"):
+                            manual_handoff = True
+                            orchestrator.interview_handoff_triggered = True
+
+                    if orchestrator.interview_handoff_triggered or manual_handoff:
+                        # Handoff: run all specialist bots in parallel
+                        await room_manager.send_to_room(
+                            room_id,
+                            RoomWSMessage.interview_handoff(
+                                room_id,
+                                "Interview complete, handing off to specialists",
+                            ),
+                        )
+                        specialist_ids = [
+                            bid
+                            for bid in respondents
+                            if bid != interview_bot_id
+                            and orchestrator.bot_roles.get(bid) != "observer"
+                        ]
+                        if not specialist_ids:
+                            specialist_ids = respondents
+
+                        for bid in specialist_ids:
+                            b = orchestrator.bot_configs.get(bid)
+                            if not b:
+                                continue
+                            orchestrator.mark_responding(bid)
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.bot_thinking(room_id, bid, b.name),
+                            )
+                            task = asyncio.create_task(
+                                run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=bid,
+                                    message=message_text,
+                                    config=config,
+                                )
+                            )
+                            room_manager.bot_tasks.setdefault(room_id, {})[bid] = task
+                    else:
+                        # Interview phase: only interviewer responds
+                        async def _run_interview_step(
+                            interviewer_id: str, msg: str, cfg: Config
+                        ) -> None:
+                            b = orchestrator.bot_configs.get(interviewer_id)
+                            if not b:
+                                return
+                            try:
+                                orchestrator.mark_responding(interviewer_id)
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.bot_thinking(
+                                        room_id, interviewer_id, b.name
+                                    ),
+                                )
+                                msg_repo_i = RoomMessageRepository()
+                                recent = await msg_repo_i.get_messages(room_id, limit=50)
+                                interview_prompt = orchestrator.build_interview_context(
+                                    interviewer_id,
+                                    recent,
+                                    settings.interview_max_questions,
+                                )
+                                response_text = await run_room_bot(
+                                    room_id=room_id,
+                                    bot_id=interviewer_id,
+                                    message=msg,
+                                    config=cfg,
+                                    system_prompt_override=interview_prompt,
+                                )
+
+                                # Send question progress
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.interview_question(
+                                        room_id,
+                                        orchestrator.interview_question_count,
+                                        settings.interview_max_questions,
+                                    ),
+                                )
+
+                                # Check for handoff
+                                if response_text and orchestrator.check_interview_handoff(
+                                    response_text,
+                                    settings.interview_handoff_trigger,
+                                    settings.interview_max_questions,
+                                ):
+                                    await room_manager.send_to_room(
+                                        room_id,
+                                        RoomWSMessage.interview_handoff(
+                                            room_id,
+                                            "Interviewer triggered handoff",
+                                        ),
+                                    )
+                            except Exception as interview_err:
+                                logger.error(
+                                    "Interview bot %s failed: %s",
+                                    interviewer_id,
+                                    interview_err,
+                                )
+                                await room_manager.send_to_room(
+                                    room_id,
+                                    RoomWSMessage.error(
+                                        room_id,
+                                        f"{b.name} failed: {interview_err}",
+                                        bot_id=interviewer_id,
+                                    ),
+                                )
+                                orchestrator.mark_done(interviewer_id)
+
+                        interview_task = asyncio.create_task(
+                            _run_interview_step(interview_bot_id, message_text, config)
+                        )
+                        room_manager.bot_tasks.setdefault(room_id, {})[
+                            "_interview"
+                        ] = interview_task
 
                 elif orchestrator.response_mode == "sequential" and len(respondents) > 1:
                     # Sequential: run bots one-by-one in a wrapper task

@@ -2,7 +2,7 @@
  * REST API client for room operations.
  */
 
-import type { Room, RoomMessage, CreateRoomRequest, RoomSettings } from '../types'
+import type { Room, RoomMessage, CreateRoomRequest, RoomSettings, PinnedMessage, BookmarkedMessage, RoomAutomation } from '../types'
 import { useAuthStore } from '../stores/auth'
 import { tryRefreshToken } from './auth'
 
@@ -133,4 +133,124 @@ export async function getRoomMessages(
     ...msg,
     toolCalls: msg.toolCalls ?? (msg.metadata?.toolCalls as RoomMessage['toolCalls']) ?? undefined,
   }))
+}
+
+// =============================================================================
+// REACTIONS
+// =============================================================================
+
+export async function addReaction(
+  roomId: string,
+  messageId: string,
+  emoji: string
+): Promise<{ id: string; emoji: string }> {
+  return request(`/rooms/${roomId}/messages/${messageId}/reactions`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  })
+}
+
+export async function removeReaction(
+  roomId: string,
+  messageId: string,
+  emoji: string
+): Promise<void> {
+  return request(`/rooms/${roomId}/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, {
+    method: 'DELETE',
+  })
+}
+
+// =============================================================================
+// PINNED MESSAGES
+// =============================================================================
+
+export async function pinMessage(
+  roomId: string,
+  messageId: string
+): Promise<{ id: string; messageId: string }> {
+  return request(`/rooms/${roomId}/pins/${messageId}`, { method: 'POST' })
+}
+
+export async function unpinMessage(
+  roomId: string,
+  messageId: string
+): Promise<void> {
+  return request(`/rooms/${roomId}/pins/${messageId}`, { method: 'DELETE' })
+}
+
+export async function getPinnedMessages(
+  roomId: string
+): Promise<PinnedMessage[]> {
+  return request(`/rooms/${roomId}/pins`)
+}
+
+// =============================================================================
+// BOOKMARKS
+// =============================================================================
+
+export async function addBookmark(
+  roomId: string,
+  messageId: string
+): Promise<{ id: string; messageId: string }> {
+  return request(`/rooms/${roomId}/bookmarks/${messageId}`, { method: 'POST' })
+}
+
+export async function removeBookmark(
+  roomId: string,
+  messageId: string
+): Promise<void> {
+  return request(`/rooms/${roomId}/bookmarks/${messageId}`, { method: 'DELETE' })
+}
+
+export async function getBookmarks(
+  roomId?: string
+): Promise<BookmarkedMessage[]> {
+  const params = roomId ? `?room_id=${roomId}` : ''
+  return request(`/rooms/bookmarks${params}`)
+}
+
+// Automations
+export async function getAutomations(roomId: string): Promise<RoomAutomation[]> {
+  return request(`/rooms/${roomId}/automations`)
+}
+
+export async function createAutomation(
+  roomId: string,
+  data: {
+    name: string
+    trigger_type: string
+    trigger_config: Record<string, unknown>
+    action_type: string
+    action_config: Record<string, unknown>
+  }
+): Promise<RoomAutomation> {
+  return request(`/rooms/${roomId}/automations`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateAutomation(
+  roomId: string,
+  automationId: string,
+  data: Partial<{
+    name: string
+    enabled: boolean
+    trigger_type: string
+    trigger_config: Record<string, unknown>
+    action_type: string
+    action_config: Record<string, unknown>
+  }>
+): Promise<RoomAutomation> {
+  return request(`/rooms/${roomId}/automations/${automationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteAutomation(
+  roomId: string,
+  automationId: string
+): Promise<void> {
+  return request(`/rooms/${roomId}/automations/${automationId}`, { method: 'DELETE' })
 }

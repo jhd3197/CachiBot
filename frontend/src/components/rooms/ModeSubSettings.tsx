@@ -235,3 +235,156 @@ export function WaterfallSettings({
     </div>
   )
 }
+
+// ---------- Consensus Settings ----------
+
+export interface ConsensusSettingsProps {
+  bots: BotInfo[]
+  synthesizerBotId: string | null
+  onSynthesizerBotIdChange: (id: string | null) => void
+  showIndividual: boolean
+  onShowIndividualChange: (show: boolean) => void
+}
+
+export function ConsensusSettings({
+  bots,
+  synthesizerBotId,
+  onSynthesizerBotIdChange,
+  showIndividual,
+  onShowIndividualChange,
+}: ConsensusSettingsProps) {
+  return (
+    <div className="room-mode-settings">
+      {/* Synthesizer bot */}
+      {bots.length > 0 && (
+        <div className="room-mode-settings__row">
+          <label className="form-field__label">Synthesizer Bot</label>
+          <select
+            value={synthesizerBotId || ''}
+            onChange={(e) => onSynthesizerBotIdChange(e.target.value || null)}
+            className="room-settings__role-select"
+            style={{ width: '100%' }}
+          >
+            <option value="">First bot (default)</option>
+            {bots.map((bot) => (
+              <option key={bot.id} value={bot.id}>
+                {bot.name}
+              </option>
+            ))}
+          </select>
+          <p className="form-field__help">This bot merges all responses into a final answer.</p>
+        </div>
+      )}
+
+      {/* Show individual responses */}
+      <div className="room-mode-settings__row">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input
+            id="consensus-show-individual"
+            type="checkbox"
+            checked={showIndividual}
+            onChange={(e) => onShowIndividualChange(e.target.checked)}
+            className="consent__checkbox"
+          />
+          <label htmlFor="consensus-show-individual" className="form-field__help">
+            Show individual bot responses before synthesis
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Interview Settings ----------
+
+export interface InterviewSettingsProps {
+  bots: BotInfo[]
+  interviewBotId: string | null
+  onInterviewBotIdChange: (id: string | null) => void
+  maxQuestions: number
+  onMaxQuestionsChange: (n: number) => void
+  handoffTrigger: 'auto' | 'manual' | 'keyword'
+  onHandoffTriggerChange: (trigger: 'auto' | 'manual' | 'keyword') => void
+}
+
+export function InterviewSettings({
+  bots,
+  interviewBotId,
+  onInterviewBotIdChange,
+  maxQuestions,
+  onMaxQuestionsChange,
+  handoffTrigger,
+  onHandoffTriggerChange,
+}: InterviewSettingsProps) {
+  return (
+    <div className="room-mode-settings">
+      {/* Interviewer bot */}
+      {bots.length > 0 && (
+        <div className="room-mode-settings__row">
+          <label className="form-field__label">Interviewer Bot</label>
+          <select
+            value={interviewBotId || ''}
+            onChange={(e) => onInterviewBotIdChange(e.target.value || null)}
+            className="room-settings__role-select"
+            style={{ width: '100%' }}
+          >
+            <option value="">First bot (default)</option>
+            {bots.map((bot) => (
+              <option key={bot.id} value={bot.id}>
+                {bot.name}
+              </option>
+            ))}
+          </select>
+          <p className="form-field__help">This bot asks questions to gather context before handing off.</p>
+        </div>
+      )}
+
+      {/* Max questions */}
+      <div className="room-mode-settings__row">
+        <label className="form-field__label">Max Questions</label>
+        <input
+          type="number"
+          value={maxQuestions}
+          onChange={(e) => onMaxQuestionsChange(Math.max(1, Math.min(20, Number(e.target.value))))}
+          min={1}
+          max={20}
+          className="input"
+          style={{ width: '5rem' }}
+        />
+      </div>
+
+      {/* Handoff trigger */}
+      <div className="room-mode-settings__row">
+        <label className="form-field__label">Handoff Trigger</label>
+        <div className="room-settings__mode-toggle">
+          <button
+            type="button"
+            onClick={() => onHandoffTriggerChange('auto')}
+            className={`room-settings__mode-btn ${handoffTrigger === 'auto' ? 'room-settings__mode-btn--active' : ''}`}
+          >
+            Auto
+          </button>
+          <button
+            type="button"
+            onClick={() => onHandoffTriggerChange('manual')}
+            className={`room-settings__mode-btn ${handoffTrigger === 'manual' ? 'room-settings__mode-btn--active' : ''}`}
+          >
+            Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => onHandoffTriggerChange('keyword')}
+            className={`room-settings__mode-btn ${handoffTrigger === 'keyword' ? 'room-settings__mode-btn--active' : ''}`}
+          >
+            Keyword
+          </button>
+        </div>
+        <p className="form-field__help">
+          {handoffTrigger === 'auto' && 'Interviewer decides when to hand off or max questions reached.'}
+          {handoffTrigger === 'manual' && 'User types "done" or "handoff" to trigger handoff.'}
+          {handoffTrigger === 'keyword' && 'Interviewer includes [HANDOFF] in response to trigger.'}
+        </p>
+      </div>
+    </div>
+  )
+}
