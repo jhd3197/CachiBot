@@ -899,6 +899,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                     toolCalls: msg.toolCalls,
                     metadata: msg.metadata,
                     replyToId: msg.replyToId,
+                    thinking: msg.thinking,
                   }}
                   botIcon={activeBot?.icon}
                   botColor={activeBot?.color}

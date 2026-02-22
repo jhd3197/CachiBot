@@ -41,6 +41,7 @@ import {
 } from '../knowledge'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
+import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
 import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
@@ -111,12 +112,13 @@ export function SettingsView() {
     deleteBot(botId)
   }
 
-  const sectionTitles = {
+  const sectionTitles: Record<string, string> = {
     general: 'General',
     knowledge: 'Knowledge',
     skills: 'Skills',
     connections: 'Connections',
     environment: 'Environment',
+    developer: 'Developer',
     danger: 'Danger Zone',
   }
 
@@ -127,7 +129,7 @@ export function SettingsView() {
         <h1 className="settings-view__title">
           {sectionTitles[settingsSection]}
         </h1>
-        {settingsSection !== 'danger' && settingsSection !== 'environment' && (
+        {settingsSection !== 'danger' && settingsSection !== 'environment' && settingsSection !== 'developer' && (
           <button
             onClick={handleSave}
             className={cn(
@@ -173,6 +175,9 @@ export function SettingsView() {
           )}
           {settingsSection === 'environment' && (
             <BotEnvironmentPanel botId={activeBot.id} />
+          )}
+          {settingsSection === 'developer' && (
+            <DeveloperPanel botId={activeBot.id} />
           )}
           {settingsSection === 'danger' && (
             <DangerSection

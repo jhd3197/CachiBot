@@ -28,6 +28,7 @@ import {
   Key,
   Code2,
   X,
+  Download,
 } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -39,7 +40,7 @@ import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSectio
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
-import { cn } from '../../lib/utils'
+import { cn, downloadJson, slugify } from '../../lib/utils'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import type { BotView, Chat, Task } from '../../types'
 
@@ -57,6 +58,7 @@ const gearMenuItems: { id: BotView; label: string; icon: React.ComponentType<{ c
   { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
   { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor' },
   { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator' },
+  { id: 'developer', label: 'Developer', icon: Code2, minLevel: 'editor' },
   { id: 'settings', label: 'Settings', icon: Settings, minLevel: 'editor' },
 ]
 
@@ -238,6 +240,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
         {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'automations' && <AutomationsSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'tools' && <ToolsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
+        {activeView === 'developer' && <DeveloperSectionsList collapsed={sidebarCollapsed} />}
         {activeView === 'settings' && <SettingsList collapsed={sidebarCollapsed} />}
       </div>
 
@@ -422,6 +425,23 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
                         {chat.pinned ? 'Unpin' : 'Pin'}
                       </button>
 
+                      <button
+                        onClick={() => {
+                          const msgs = useChatStore.getState().getMessages(chat.id)
+                          const date = new Date().toISOString().slice(0, 10)
+                          downloadJson({
+                            chat: { id: chat.id, title: chat.title, botId: chat.botId, createdAt: chat.createdAt, updatedAt: chat.updatedAt },
+                            messages: msgs,
+                            exportedAt: new Date().toISOString(),
+                          }, `chat-${slugify(chat.title)}-${date}.json`)
+                          setMenuOpen(null)
+                        }}
+                        className="context-menu__item"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export JSON
+                      </button>
+
                       {chat.platform ? (
                         <>
                           <button
@@ -506,25 +526,27 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
         ) : (
           <div className="space-y-1">
             {botRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => handleRoomClick(room.id)}
-                className={cn(
-                  'sidebar-chat-item',
-                  activeRoomId === room.id && 'sidebar-chat-item--active'
-                )}
-              >
-                <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
-                <div className="min-w-0 flex-1">
-                  <div className="sidebar-chat-item__title-row">
-                    <span className="sidebar-chat-item__name">{room.title}</span>
-                    <span className="sidebar-chat-item__time">{formatRelativeTime(room.updatedAt)}</span>
+              <div key={room.id} className="group relative">
+                <button
+                  onClick={() => handleRoomClick(room.id)}
+                  className={cn(
+                    'sidebar-chat-item',
+                    activeRoomId === room.id && 'sidebar-chat-item--active'
+                  )}
+                >
+                  <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
+                  <div className="min-w-0 flex-1">
+                    <div className="sidebar-chat-item__title-row">
+                      <span className="sidebar-chat-item__name">{room.title}</span>
+                      <span className="sidebar-chat-item__time">{formatRelativeTime(room.updatedAt)}</span>
+                    </div>
+                    <p className="sidebar-chat-item__preview">
+                      {room.bots.length} bots · {room.messageCount ?? 0} msgs
+                    </p>
                   </div>
-                  <p className="sidebar-chat-item__preview">
-                    {room.bots.length} bots · {room.messageCount ?? 0} msgs
-                  </p>
-                </div>
-              </button>
+                </button>
+
+              </div>
             ))}
           </div>
         )}
@@ -1129,6 +1151,68 @@ function ToolsList({ collapsed }: { botId: string; collapsed: boolean }) {
             <ToolIconRenderer toolId={toolId} className="h-5 w-5 text-[var(--color-text-secondary)]" />
             <span className="text-sm capitalize text-[var(--color-text-primary)]">{toolId.replace(/_/g, ' ')}</span>
           </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// DEVELOPER SECTIONS LIST
+// =============================================================================
+
+type DeveloperSection = 'api-keys' | 'api-docs' | 'webhooks'
+
+const developerSections: { id: DeveloperSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'api-keys', label: 'API Keys', icon: Key },
+  { id: 'api-docs', label: 'API Docs', icon: Code2 },
+  { id: 'webhooks', label: 'Webhooks', icon: Plug },
+]
+
+function DeveloperSectionsList({ collapsed }: { collapsed: boolean }) {
+  const { setSettingsSection } = useUIStore()
+  const [devSection, setDevSection] = useState<DeveloperSection>('api-keys')
+
+  // Ensure we're in developer settings section
+  useEffect(() => {
+    setSettingsSection('developer')
+  }, [setSettingsSection])
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1 p-2">
+        {developerSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setDevSection(section.id)}
+            className={cn(
+              'sidebar-section-btn-icon',
+              devSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--accent'
+            )}
+            title={section.label}
+          >
+            <section.icon className="h-5 w-5" />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col p-3">
+      <div className="space-y-1">
+        {developerSections.map((section) => (
+          <button
+            key={section.id}
+            onClick={() => setDevSection(section.id)}
+            className={cn(
+              'sidebar-section-btn',
+              devSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--accent'
+            )}
+          >
+            <section.icon className="h-5 w-5" />
+            <span className="label">{section.label}</span>
+          </button>
         ))}
       </div>
     </div>

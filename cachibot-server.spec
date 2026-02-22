@@ -30,7 +30,7 @@ a = Analysis(
     pathex=[],
     binaries=tukuy_binaries + prompture_binaries,
     datas=[
-        (f'src{sep}cachibot', 'cachibot'),
+        ('cachibot', 'cachibot'),
         (f'frontend{sep}dist', f'cachibot{sep}frontend_dist'),
         ('VERSION', 'cachibot'),
     ] + tukuy_datas + prompture_datas + cachibot_metadata,

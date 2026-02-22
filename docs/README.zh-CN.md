@@ -88,7 +88,7 @@ pip install cachibot
 cachibot server
 ```
 
-打开 **http://localhost:6392** — 前端已打包并自动提供服务。无需单独的构建步骤。
+打开 **http://localhost:5870** — 前端已打包并自动提供服务。无需单独的构建步骤。
 
 ### 配置 API 密钥
 

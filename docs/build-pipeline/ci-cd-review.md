@@ -99,7 +99,7 @@ This is the critical section. There are **multiple version sources** and **multi
 | `frontend/package.json` | `"version"` | `"0.2.0"` (never updated) | `"0.2.0"` (never updated) |
 | Git tags | `v0.2.56` | Latest release tag | Latest release tag |
 
-### How the Python backend resolves its version (`src/cachibot/__init__.py`)
+### How the Python backend resolves its version (`cachibot/__init__.py`)
 1. Try `importlib.metadata.version("cachibot")` -- works for pip-installed packages
 2. Fallback: read `VERSION` file from multiple candidate paths
 3. If PyInstaller frozen: check `_MEIPASS/cachibot/VERSION`
@@ -154,8 +154,8 @@ The version shows `0.0.0-unknown` when the Python backend cannot find its versio
 ### What CI tests (`ci.yml`)
 | Check | Status | Notes |
 |-------|--------|-------|
-| Ruff lint | Yes | `ruff check src/cachibot` |
-| Ruff format | Yes | `ruff format --check src/cachibot` |
+| Ruff lint | Yes | `ruff check cachibot` |
+| Ruff format | Yes | `ruff format --check cachibot` |
 | Bandit security scan | Yes | With configured skip list in `pyproject.toml` |
 | pytest | Yes | Across Python 3.10, 3.11, 3.12 |
 | mypy type checking | **No** | Listed in dev deps, has config in `pyproject.toml`, but not run in CI |
@@ -261,7 +261,7 @@ That is 4 total frontend builds per release. Caching or using artifacts could re
 5. **mypy not run in CI despite being configured**
    - `pyproject.toml` has `[tool.mypy]` config with `strict = true`
    - Dev dependencies include `mypy>=1.10.0`
-   - But CI does not run `mypy src/cachibot`
+   - But CI does not run `mypy cachibot`
 
 6. **Redundant frontend builds**
    - Frontend is built 4 times per release (once in `release`, once per `build-backend` platform)

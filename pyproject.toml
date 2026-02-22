@@ -35,7 +35,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "prompture>=1.0.31",
+    "prompture>=1.0.36",
     "tukuy>=0.0.30",
     "typer>=0.12.0",
     "rich>=13.0.0",
@@ -99,7 +99,7 @@ pattern = "(?P<version>.+)"
 "frontend/dist" = "frontend/dist"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cachibot"]
+packages = ["cachibot"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "frontend/dist" = "cachibot/frontend_dist"
@@ -123,8 +123,8 @@ module = [
     "botbuilder.*",
     "pgvector.*",
     "pymupdf",
-    "prompture.model_rates",
-    "prompture.skills",
+    "prompture",
+    "prompture.*",
     "tomllib",
     "croniter",
     "yaml",
@@ -133,7 +133,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.bandit]
-targets = ["src/cachibot"]
+targets = ["cachibot"]
 exclude_dirs = ["tests"]
 # B110  try_except_pass — intentional graceful degradation
 # B112  try_except_continue — intentional skip-on-error loops

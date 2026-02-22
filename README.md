@@ -88,7 +88,7 @@ Then start the server:
 cachibot server
 ```
 
-Open **http://localhost:6392** — the frontend is bundled and served automatically. No separate build step.
+Open **http://localhost:5870** — the frontend is bundled and served automatically. No separate build step.
 
 ### Configure your API keys
 

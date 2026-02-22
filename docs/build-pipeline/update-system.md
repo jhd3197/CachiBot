@@ -76,7 +76,7 @@ TypeScript types are declared in `frontend/src/vite-env.d.ts:8-43`.
 
 ### 2.1 Backend Implementation
 
-A full pip-based update service exists at `src/cachibot/services/update_service.py` (651 lines) with:
+A full pip-based update service exists at `cachibot/services/update_service.py` (651 lines) with:
 
 - **Version check**: Queries PyPI JSON API (`https://pypi.org/pypi/cachibot/json`) for latest stable and pre-release versions.
 - **Release notes**: Fetches from GitHub API (`https://api.github.com/repos/jhd3197/cachibot/releases/tags/v{version}`).
@@ -85,7 +85,7 @@ A full pip-based update service exists at `src/cachibot/services/update_service.
 
 ### 2.2 Update Flow
 
-Exposed via REST API at `src/cachibot/api/routes/update.py`:
+Exposed via REST API at `cachibot/api/routes/update.py`:
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
@@ -248,9 +248,9 @@ The CI workflow (`publish.yml`) attempts to sync these:
 | `frontend/src/components/dialogs/UpdateDialog.tsx` | Pip update dialog (hidden in Electron) |
 | `frontend/src/stores/update.ts` | Pip update Zustand store |
 | `frontend/src/api/client.ts:1271-1315` | Pip update API client |
-| `src/cachibot/api/routes/update.py` | Pip update REST endpoints |
-| `src/cachibot/services/update_service.py` | Full pip update service (check, install, verify, rollback, repair) |
-| `src/cachibot/__init__.py:15-35` | Version resolution logic |
+| `cachibot/api/routes/update.py` | Pip update REST endpoints |
+| `cachibot/services/update_service.py` | Full pip update service (check, install, verify, rollback, repair) |
+| `cachibot/__init__.py:15-35` | Version resolution logic |
 | `.github/workflows/publish.yml` | CI: tag, release, build, publish |
 | `pyproject.toml` | Python package version (source: `0.2.0`) |
 | `VERSION` | CI-written version file (currently `0.2.34`) |

@@ -21,6 +21,7 @@ import type {
   Priority,
 } from '../types'
 import { syncBot, deleteBackendBot, getPlatformChats, getPlatformChatMessages, archivePlatformChat, unarchivePlatformChat } from '../api/client'
+import { useRailStore } from './rail'
 
 // Guard to prevent concurrent syncPlatformChats calls for the same bot
 const syncingBotIds = new Set<string>()
@@ -119,6 +120,8 @@ export const useBotStore = create<BotState>()(
         }))
         // Sync to backend for platform connections
         syncBotToBackend(bot)
+        // Add to rail
+        useRailStore.getState().ensureBotInRail(bot.id)
       },
 
       updateBot: (id, updates) => {
@@ -148,6 +151,8 @@ export const useBotStore = create<BotState>()(
         deleteBackendBot(id).catch((err) => {
           console.warn('Failed to delete bot from backend:', err)
         })
+        // Remove from rail
+        useRailStore.getState().removeBotFromRail(id)
       },
 
       setActiveBot: (id) => set({ activeBotId: id }),
@@ -211,6 +216,7 @@ interface ChatState {
   updateToolCall: (id: string, result: unknown, success: boolean) => void
   clearToolCalls: () => void
   attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
+  attachThinkingToLastMessage: (chatId: string, thinking: string) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 }
@@ -505,6 +511,29 @@ export const useChatStore = create<ChatState>()(
               [chatId]: chatMessages.map((m, i) =>
                 i === lastAssistantIndex
                   ? { ...m, toolCalls: [...toolCalls] }
+                  : m
+              ),
+            },
+          }
+        }),
+
+      attachThinkingToLastMessage: (chatId, thinking) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          let lastAssistantIndex = -1
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].role === 'assistant') {
+              lastAssistantIndex = i
+              break
+            }
+          }
+          if (lastAssistantIndex === -1) return state
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) =>
+                i === lastAssistantIndex
+                  ? { ...m, thinking }
                   : m
               ),
             },

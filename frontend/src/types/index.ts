@@ -178,6 +178,7 @@ export interface ChatMessage {
   metadata?: MessageMetadata & Record<string, unknown>
   toolCalls?: ToolCall[]
   replyToId?: string
+  thinking?: string
 }
 
 // =============================================================================
@@ -256,6 +257,18 @@ export interface BotStats {
   activeJobs: number
   completedTasks: number
 }
+
+// Rail ordering types
+export interface BotGroup {
+  id: string
+  name: string
+  collapsed: boolean
+  botIds: string[]  // ordered bot IDs within this group
+}
+
+export type RailItem =
+  | { type: 'bot'; botId: string }
+  | { type: 'group'; groupId: string }
 
 // =============================================================================
 // CHAT TYPES
@@ -583,7 +596,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
 export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'
@@ -1028,6 +1041,7 @@ export interface CreateScheduleRequest {
 
 export type RoomMemberRole = 'creator' | 'member'
 export type RoomSenderType = 'user' | 'bot' | 'system'
+export type RoomBotRole = 'default' | 'lead' | 'reviewer' | 'observer' | 'specialist'
 
 export interface RoomMember {
   userId: string
@@ -1039,12 +1053,41 @@ export interface RoomMember {
 export interface RoomBot {
   botId: string
   botName: string
+  role: RoomBotRole
   addedAt: string
 }
 
 export interface RoomSettings {
   cooldown_seconds: number
   auto_relevance: boolean
+  response_mode: 'parallel' | 'sequential' | 'chain' | 'router' | 'debate' | 'waterfall' | 'relay' | 'consensus' | 'interview'
+  debate_rounds?: number
+  debate_positions?: Record<string, string>
+  debate_judge_bot_id?: string | null
+  debate_judge_prompt?: string
+  routing_strategy?: 'llm' | 'keyword' | 'round_robin'
+  bot_keywords?: Record<string, string[]>
+  waterfall_conditions?: Record<string, string>
+
+  // Room personality — injected into all bots' context
+  system_prompt?: string
+
+  // Room variables — key-value pairs accessible to all bots
+  variables?: Record<string, string>
+
+  // Consensus mode
+  consensus_synthesizer_bot_id?: string | null
+  consensus_show_individual?: boolean
+
+  // Interview mode
+  interview_bot_id?: string | null
+  interview_max_questions?: number
+  interview_handoff_trigger?: 'auto' | 'manual' | 'keyword'
+
+  // Auto-summary
+  auto_summary_interval?: number
+  auto_summary_bot_id?: string | null
+  auto_summary_auto_pin?: boolean
 }
 
 export interface Room {
@@ -1061,6 +1104,36 @@ export interface Room {
   updatedAt: string
 }
 
+// Reaction types
+export interface ReactionSummary {
+  emoji: string
+  count: number
+  userIds: string[]
+}
+
+// Pinned message types
+export interface PinnedMessage {
+  id: string
+  roomId: string
+  messageId: string
+  pinnedBy: string
+  pinnedAt: string
+  senderName: string
+  content: string
+  timestamp: string
+}
+
+// Bookmarked message types
+export interface BookmarkedMessage {
+  id: string
+  roomId: string
+  messageId: string
+  createdAt: string
+  senderName: string
+  content: string
+  timestamp: string
+}
+
 export interface RoomMessage {
   id: string
   roomId: string
@@ -1071,6 +1144,8 @@ export interface RoomMessage {
   metadata: Record<string, unknown>
   timestamp: string
   toolCalls?: ToolCall[]
+  thinking?: string
+  reactions?: ReactionSummary[]
 }
 
 export type RoomWSMessageType =
@@ -1087,6 +1162,29 @@ export type RoomWSMessageType =
   | 'room_presence'
   | 'room_error'
   | 'room_usage'
+  | 'room_chain_step'
+  | 'room_route_decision'
+  | 'room_debate_round_start'
+  | 'room_debate_round_end'
+  | 'room_debate_judge_start'
+  | 'room_debate_complete'
+  | 'room_waterfall_step'
+  | 'room_waterfall_skipped'
+  | 'room_waterfall_stopped'
+  // Social features
+  | 'room_reaction_add'
+  | 'room_reaction_remove'
+  | 'room_pin_add'
+  | 'room_pin_remove'
+  | 'room_variable_update'
+  // Consensus mode
+  | 'room_consensus_synthesizing'
+  | 'room_consensus_complete'
+  // Interview mode
+  | 'room_interview_question'
+  | 'room_interview_handoff'
+  // Automations
+  | 'room_automation_triggered'
 
 export interface RoomWSMessage {
   type: RoomWSMessageType
@@ -1127,4 +1225,124 @@ export interface CreateRoomRequest {
   description?: string
   bot_ids: string[]
   settings?: RoomSettings
+}
+
+// =============================================================================
+// ROOM MARKETPLACE TYPES
+// =============================================================================
+
+export interface RoomBotSpec {
+  template_id: string
+  role: RoomBotRole
+  position?: string | null
+  keywords?: string[]
+  waterfall_condition?: string | null
+}
+
+export interface RoomMarketplaceTemplate {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  category: string
+  tags: string[]
+  response_mode: RoomSettings['response_mode']
+  bots: RoomBotSpec[]
+  settings: Partial<RoomSettings>
+  rating: number
+  downloads: number
+  bot_details?: MarketplaceBot[]
+}
+
+export interface MarketplaceBot {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  category: string
+  tags: string[]
+  model: string
+  system_prompt: string
+  tools: string[]
+  rating: number
+  downloads: number
+}
+
+export interface RoomTemplateListResponse {
+  templates: RoomMarketplaceTemplate[]
+  total: number
+  source?: 'local' | 'remote'
+}
+
+export interface InstallRoomTemplateResponse {
+  room_id: string
+  room_title: string
+  bot_ids: string[]
+  installed_bots: string[]
+  reused_bots: string[]
+}
+
+// =============================================================================
+// DEVELOPER API TYPES
+// =============================================================================
+
+export type WebhookEvent =
+  | 'message.created'
+  | 'task.completed'
+  | 'work.completed'
+  | 'work.failed'
+  | 'schedule.triggered'
+  | 'api.request'
+
+export interface BotApiKey {
+  id: string
+  bot_id: string
+  name: string
+  key_prefix: string
+  created_at: string
+  last_used_at: string | null
+  usage_count: number
+  expires_at: string | null
+  is_revoked: boolean
+}
+
+export interface BotApiKeyCreated extends BotApiKey {
+  key: string
+}
+
+export interface BotWebhook {
+  id: string
+  bot_id: string
+  name: string
+  url: string
+  events: WebhookEvent[]
+  is_active: boolean
+  last_triggered_at: string | null
+  failure_count: number
+  created_at: string
+  updated_at: string | null
+}
+
+// =============================================================================
+// ROOM AUTOMATIONS
+// =============================================================================
+
+export type AutomationTriggerType = 'on_message' | 'on_keyword' | 'on_idle' | 'on_schedule'
+export type AutomationActionType = 'send_message' | 'summarize' | 'pin_message'
+
+export interface RoomAutomation {
+  id: string
+  roomId: string
+  name: string
+  enabled: boolean
+  triggerType: AutomationTriggerType
+  triggerConfig: Record<string, unknown>
+  actionType: AutomationActionType
+  actionConfig: Record<string, unknown>
+  createdBy: string
+  triggerCount: number
+  createdAt: string
+  updatedAt: string
 }

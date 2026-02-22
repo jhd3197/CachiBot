@@ -22,7 +22,7 @@ line numbers. Results are compiled into a single dated report.
 
 ### 1. Tina — The DRY Enforcer
 
-**Scope:** `src/cachibot/` and `frontend/src/`
+**Scope:** `cachibot/` and `frontend/src/`
 **Looks for:** Duplicated logic, copy-pasted code, missed shared abstractions
 
 - Functions or blocks that appear in 2+ files with identical or near-identical
@@ -59,7 +59,7 @@ line numbers. Results are compiled into a single dated report.
 
 ### 3. Priya — The API Consistency Reviewer
 
-**Scope:** `src/cachibot/api/routes/`
+**Scope:** `cachibot/api/routes/`
 **Looks for:** Inconsistent endpoint patterns, missing validation, API design issues
 
 - Inconsistent response shapes — do all endpoints follow the same success/error
@@ -76,7 +76,7 @@ line numbers. Results are compiled into a single dated report.
 
 ### 4. Carlos — The Data Layer Inspector
 
-**Scope:** `src/cachibot/storage/` and any database-touching code
+**Scope:** `cachibot/storage/` and any database-touching code
 **Looks for:** Database issues, unsafe queries, missing error handling in storage
 
 - Raw SQL without parameterized queries (SQL injection risk)
@@ -163,7 +163,7 @@ After all agents finish, write `.reviews/YYYY-MM-DD-review.md` with this structu
 # CachiBot Code Review — YYYY-MM-DD
 
 **Reviewers:** Tina, Marcus, Priya, Carlos, Zoe, Derek, Luna, Oscar
-**Scope:** src/cachibot/, frontend/src/, desktop/
+**Scope:** cachibot/, frontend/src/, desktop/
 
 ## Summary
 

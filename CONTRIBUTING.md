@@ -99,8 +99,8 @@ bash dev.sh watch-lint     # watch Python + TS files, lint on changes
 If you prefer to run things in separate terminals:
 
 ```bash
-# Terminal 1 — Backend (port 6392)
-cachibot server --port 6392 --reload
+# Terminal 1 — Backend (port 5870)
+cachibot server --port 5870 --reload
 
 # Terminal 2 — Frontend (port 5173, proxies API to backend)
 cd frontend && npm run dev
@@ -111,7 +111,7 @@ cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
 
 ### What each mode does
 
-| Mode | Backend (6392) | Vite (5173) | Electron | Use case |
+| Mode | Backend (5870) | Vite (5173) | Electron | Use case |
 |------|:-:|:-:|:-:|------|
 | `browser` | x | x | | Frontend/backend work, open browser to localhost:5173 |
 | `backend` | x | | | API-only work, testing endpoints |
@@ -124,7 +124,7 @@ cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
 
 ```
 CachiBot/
-├── src/cachibot/          # Python backend (FastAPI)
+├── cachibot/          # Python backend (FastAPI)
 │   ├── agent.py           #   Core agent with tool registration
 │   ├── cli.py             #   CLI entry point (cachibot / cachi)
 │   ├── api/               #   REST + WebSocket endpoints
@@ -164,7 +164,7 @@ ruff format src/           # Format
 cd frontend && npm run lint
 
 # Type checking
-mypy src/cachibot
+mypy cachibot
 ```
 
 ## Code Style
@@ -202,7 +202,7 @@ def process_file(path: str, encoding: str = "utf-8") -> str:
 
 Tools are the actions CachiBot can take. To add a new tool:
 
-1. Create a new file in `src/cachibot/tools/`
+1. Create a new file in `cachibot/tools/`
 2. Inherit from `BaseTool`
 3. Implement the `execute` method
 4. Register in `agent.py`

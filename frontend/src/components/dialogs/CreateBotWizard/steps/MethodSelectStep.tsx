@@ -58,6 +58,11 @@ export function MethodSelectStep() {
     setTimeout(reset, 200)
   }
 
+  const handleRoomInstalled = () => {
+    close()
+    setTimeout(reset, 200)
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -110,6 +115,7 @@ export function MethodSelectStep() {
         open={marketplaceOpen}
         onClose={() => setMarketplaceOpen(false)}
         onInstalled={handleMarketplaceInstalled}
+        onRoomInstalled={handleRoomInstalled}
       />
     </div>
   )

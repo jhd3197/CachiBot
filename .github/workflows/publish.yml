@@ -100,6 +100,12 @@ jobs:
 
             > Desktop downloads become available once the build pipeline completes (~10 min after release).
 
+            > **macOS users:** This build is not yet notarized by Apple. After installing, open Terminal and run:
+            > ```
+            > xattr -cr /Applications/CachiBot.app
+            > ```
+            > Then open the app normally. This only needs to be done once.
+
             ### Python Package (pip)
             ```bash
             pip install cachibot==${{ steps.bump_version.outputs.new_version }}
@@ -171,7 +177,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: python -m twine upload dist/cachibot/* --non-interactive
+        run: python -m twine upload dist/cachibot/* --non-interactive --skip-existing
 
   # =========================================================================
   # 2. Build Python backend binary with PyInstaller  (3 platforms)
@@ -230,7 +236,7 @@ jobs:
             BINARY="./dist/cachibot-server/cachibot-server.exe"
           fi
 
-          PORT=16392
+          PORT=15870
           "$BINARY" --port $PORT --host 127.0.0.1 &
           SERVER_PID=$!
 
@@ -315,16 +321,48 @@ jobs:
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
 
-      # Build and upload to the GitHub Release (unsigned)
+      # Build Electron app (unsigned — notarization disabled for now)
       - name: Build Electron app
         working-directory: desktop
         shell: bash
         run: |
-          unset CSC_LINK CSC_KEY_PASSWORD
-          npx electron-builder --${{ matrix.platform }} --publish always
+          if [[ "${{ matrix.platform }}" == "mac" ]]; then
+            npx electron-builder --mac --publish always
+          elif [[ "${{ matrix.platform }}" == "win" ]]; then
+            npx electron-builder --win --publish always
+          else
+            npx electron-builder --linux --publish always
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # Sign Windows installer with Azure Trusted Signing
+      - name: Sign Windows installer
+        if: matrix.platform == 'win'
+        uses: azure/trusted-signing-action@v0.5.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}/release
+          files-folder-filter: exe
+
+      # Re-upload signed Windows exe to GitHub Release
+      - name: Upload signed exe to release
+        if: matrix.platform == 'win'
+        shell: bash
+        run: |
+          VERSION="${{ needs.release.outputs.new_version }}"
+          EXE_NAME="CachiBot-Setup-${VERSION}-win.exe"
+          EXE_PATH="${{ github.workspace }}/release/${EXE_NAME}"
+          if [[ -f "$EXE_PATH" ]]; then
+            gh release upload "v${VERSION}" "$EXE_PATH" --clobber
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =========================================================================
   # 4. Update release body with actual asset sizes
