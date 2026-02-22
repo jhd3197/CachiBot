@@ -127,70 +127,75 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Online members */}
-          <div className="room-panel__counter">
-            <Users size={14} />
-            <span>{roomOnline.length}/{room.members.length}</span>
+        <div className="room-panel__actions">
+          {/* Presence counters */}
+          <div className="room-panel__counters">
+            <div className="room-panel__counter">
+              <Users size={13} />
+              <span>{roomOnline.length}/{room.members.length}</span>
+            </div>
+            <div className="room-panel__counter">
+              <Bot size={13} />
+              <span>{room.bots.length}</span>
+            </div>
           </div>
 
-          {/* Bot count */}
-          <div className="room-panel__counter">
-            <Bot size={14} />
-            <span>{room.bots.length}</span>
-          </div>
+          <div className="room-panel__divider" />
 
           {/* View mode toggle */}
           <div className="room-panel__view-toggle">
             <button
               onClick={() => setViewMode(roomId, 'chat')}
-              className={`room-panel__icon-btn ${currentView === 'chat' ? 'room-panel__icon-btn--active' : ''}`}
+              className={`room-panel__view-btn ${currentView === 'chat' ? 'room-panel__view-btn--active' : ''}`}
               title="Chat view"
             >
               <MessageSquare size={14} />
             </button>
             <button
               onClick={() => setViewMode(roomId, 'cards')}
-              className={`room-panel__icon-btn ${currentView === 'cards' ? 'room-panel__icon-btn--active' : ''}`}
+              className={`room-panel__view-btn ${currentView === 'cards' ? 'room-panel__view-btn--active' : ''}`}
               title="Dashboard cards"
             >
               <LayoutGrid size={14} />
             </button>
             <button
               onClick={() => setViewMode(roomId, 'timeline')}
-              className={`room-panel__icon-btn ${currentView === 'timeline' ? 'room-panel__icon-btn--active' : ''}`}
+              className={`room-panel__view-btn ${currentView === 'timeline' ? 'room-panel__view-btn--active' : ''}`}
               title="Timeline view"
             >
               <Clock size={14} />
             </button>
           </div>
 
-          {/* Export button */}
-          <button
-            onClick={() => {
-              const msgs = useRoomStore.getState().messages[roomId] || []
-              const date = new Date().toISOString().slice(0, 10)
-              downloadJson({
-                room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
-                messages: msgs,
-                exportedAt: new Date().toISOString(),
-              }, `room-${slugify(room.title)}-${date}.json`)
-            }}
-            className="room-panel__icon-btn"
-            title="Export JSON"
-          >
-            <Download size={16} />
-          </button>
+          <div className="room-panel__divider" />
 
-          {/* Settings button */}
-          {isCreator && (
+          {/* Toolbar buttons */}
+          <div className="room-panel__toolbar">
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => {
+                const msgs = useRoomStore.getState().messages[roomId] || []
+                const date = new Date().toISOString().slice(0, 10)
+                downloadJson({
+                  room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
+                  messages: msgs,
+                  exportedAt: new Date().toISOString(),
+                }, `room-${slugify(room.title)}-${date}.json`)
+              }}
               className="room-panel__icon-btn"
+              title="Export JSON"
             >
-              <Settings size={16} />
+              <Download size={15} />
             </button>
-          )}
+            {isCreator && (
+              <button
+                onClick={() => setShowSettings(true)}
+                className="room-panel__icon-btn"
+                title="Settings"
+              >
+                <Settings size={15} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

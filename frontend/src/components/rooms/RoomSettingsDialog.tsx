@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, UserPlus, UserMinus, Plus, Minus, RotateCcw, Trash2, Pencil, Zap } from 'lucide-react'
+import { X, UserPlus, UserMinus, Plus, Minus, RotateCcw, Trash2, Pencil, Zap, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   updateRoom as updateRoomApi,
@@ -18,7 +18,14 @@ import {
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import { ResponseModePicker } from './ResponseModePicker'
+import {
+  Dialog,
+  DialogHeader,
+  DialogContent,
+  DialogFooter,
+  DialogButton,
+} from '../common/Dialog'
+import { ModeCardGrid } from './ModeCardGrid'
 import type { Room, RoomBotRole, RoomSettings, RoomAutomation, AutomationTriggerType, AutomationActionType } from '../../types'
 
 interface RoomSettingsDialogProps {
@@ -281,7 +288,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
       await inviteMember(room.id, inviteUsername.trim())
       toast.success(`Invited ${inviteUsername}`)
       setInviteUsername('')
-      // Refresh room data
       const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
@@ -329,7 +335,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   const roomBotIds = new Set(room.bots.map((b) => b.botId))
   const availableBots = allBots.filter((b) => !roomBotIds.has(b.id))
 
-  // Build bot info for the ResponseModePicker
+  // Build bot info for the ModeCardGrid
   const selectedBots = room.bots.map((rb) => {
     const bot = allBots.find((b) => b.id === rb.botId)
     return {
@@ -341,20 +347,17 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
   })
 
   return (
-    <div className="dialog__backdrop">
-      <div className="dialog__panel dialog__panel--sm room-settings__panel">
-        {/* Header */}
-        <div className="dialog__header">
-          <h3 className="room-panel__title" style={{ fontSize: '1rem' }}>
-            Room Settings
-          </h3>
-          <button onClick={onClose} className="btn-close">
-            <X size={16} />
-          </button>
-        </div>
+    <Dialog open onClose={onClose} size="xl" ariaLabel="Room Settings">
+      <DialogHeader
+        title="Room Settings"
+        icon={<Settings className="h-5 w-5" style={{ color: 'var(--accent-500)' }} />}
+        onClose={onClose}
+      />
 
-        <div className="room-settings__section">
-          {/* Title & description */}
+      <DialogContent scrollable>
+        {/* ---- Section 1: General ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">General</span>
           <div className="form-field">
             <label className="form-field__label">Title</label>
             <input
@@ -373,6 +376,11 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
               className="input"
             />
           </div>
+        </div>
+
+        {/* ---- Section 2: Bots & Members ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">Bots & Members</span>
 
           {/* Members */}
           <div className="form-field">
@@ -427,7 +435,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
               {room.bots.map((rb) => (
                 <div key={rb.botId} className="room-settings__member-item">
                   <span className="room-settings__member-name">{rb.botName}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="room-settings__bot-actions">
                     <button
                       onClick={() => {
                         onClose()
@@ -463,8 +471,8 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                 </div>
               ))}
               {room.bots.length < 4 && availableBots.length > 0 && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <p className="form-field__help" style={{ marginBottom: '0.25rem' }}>Add a bot:</p>
+                <div className="room-settings__add-bot-area">
+                  <p className="form-field__help">Add a bot:</p>
                   {availableBots.slice(0, 5).map((bot) => (
                     <button
                       key={bot.id}
@@ -473,46 +481,23 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                     >
                       <BotIconRenderer icon={bot.icon} size={14} />
                       <span>{bot.name}</span>
-                      <Plus size={14} style={{ marginLeft: 'auto', color: 'var(--color-text-tertiary)' }} />
+                      <Plus size={14} className="room-settings__add-bot-icon" />
                     </button>
                   ))}
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Cooldown & auto-relevance */}
-          <div className="room-settings__setting-row">
-            <div style={{ flex: 1 }}>
-              <label className="form-field__label">Cooldown (seconds)</label>
-              <input
-                type="number"
-                value={cooldown}
-                onChange={(e) => setCooldown(Number(e.target.value))}
-                min={1}
-                max={30}
-                className="input"
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem' }}>
-              <input
-                id="settings-auto-relevance"
-                type="checkbox"
-                checked={autoRelevance}
-                onChange={(e) => setAutoRelevance(e.target.checked)}
-                className="consent__checkbox"
-              />
-              <label htmlFor="settings-auto-relevance" className="form-field__help">
-                Auto-respond
-              </label>
-            </div>
-          </div>
+        {/* ---- Section 3: Response Mode ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">Response Mode</span>
 
-          {/* Response mode with mode-specific settings */}
-          <ResponseModePicker
-            responseMode={responseMode}
-            onResponseModeChange={setResponseMode}
-            selectedBots={selectedBots}
+          <ModeCardGrid
+            selectedMode={responseMode}
+            onSelectMode={setResponseMode}
+            bots={selectedBots}
             debateRounds={debateRounds}
             onDebateRoundsChange={setDebateRounds}
             debatePositions={debatePositions}
@@ -537,7 +522,38 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
             onInterviewHandoffTriggerChange={setInterviewHandoffTrigger}
           />
 
-          {/* Room Personality */}
+          {/* Cooldown & auto-relevance */}
+          <div className="room-settings__setting-row">
+            <div className="room-settings__setting-field">
+              <label className="form-field__label">Cooldown (seconds)</label>
+              <input
+                type="number"
+                value={cooldown}
+                onChange={(e) => setCooldown(Number(e.target.value))}
+                min={1}
+                max={30}
+                className="input"
+              />
+            </div>
+            <div className="room-settings__auto-respond">
+              <input
+                id="settings-auto-relevance"
+                type="checkbox"
+                checked={autoRelevance}
+                onChange={(e) => setAutoRelevance(e.target.checked)}
+                className="consent__checkbox"
+              />
+              <label htmlFor="settings-auto-relevance" className="form-field__help">
+                Auto-respond
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Section 4: Personality & Context ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">Personality & Context</span>
+
           <div className="form-field">
             <label className="form-field__label">Room Personality</label>
             <p className="form-field__help">System prompt injected into all bots in this room.</p>
@@ -555,8 +571,8 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           <div className="form-field">
             <label className="form-field__label">Auto-Summary</label>
             <p className="form-field__help">Automatically summarize every N messages.</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span className="form-field__help" style={{ margin: 0, whiteSpace: 'nowrap' }}>Every</span>
+            <div className="room-settings__auto-summary-row">
+              <span className="form-field__help">Every</span>
               <input
                 type="number"
                 value={autoSummaryInterval}
@@ -565,10 +581,10 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                 className="input"
                 style={{ width: '5rem' }}
               />
-              <span className="form-field__help" style={{ margin: 0, whiteSpace: 'nowrap' }}>messages (0 = off)</span>
+              <span className="form-field__help">messages (0 = off)</span>
             </div>
             {autoSummaryInterval > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="room-settings__auto-summary-opts">
                 <select
                   value={autoSummaryBotId || ''}
                   onChange={(e) => setAutoSummaryBotId(e.target.value || null)}
@@ -579,7 +595,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                     <option key={rb.botId} value={rb.botId}>{rb.botName}</option>
                   ))}
                 </select>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="room-settings__auto-summary-pin">
                   <input
                     id="auto-summary-pin"
                     type="checkbox"
@@ -613,7 +629,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                     className="room-settings__variables-key"
                     placeholder="Key"
                   />
-                  <span style={{ color: 'var(--color-text-tertiary)' }}>=</span>
+                  <span className="room-settings__variables-eq">=</span>
                   <input
                     type="text"
                     value={v.value}
@@ -643,28 +659,28 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           </div>
         </div>
 
-        {/* Automations */}
-        <div className="room-settings__section" style={{ borderTop: '1px solid var(--color-border-primary)' }}>
+        {/* ---- Section 5: Automations ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">
+            <Zap size={12} /> Automations ({automations.length})
+          </span>
+
           <div className="form-field">
-            <label className="form-field__label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Zap size={14} />
-              Automations ({automations.length})
-            </label>
             <p className="form-field__help">Trigger actions automatically based on events.</p>
 
             {automations.map((auto) => (
-              <div key={auto.id} className="room-settings__member-item" style={{ gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+              <div key={auto.id} className="room-settings__member-item">
+                <div className="room-settings__auto-item-left">
                   <input
                     type="checkbox"
                     checked={auto.enabled}
                     onChange={() => handleToggleAutomation(auto)}
                     className="consent__checkbox"
                   />
-                  <span className="room-settings__member-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span className="room-settings__member-name room-settings__auto-name">
                     {auto.name}
                   </span>
-                  <span className="form-field__help" style={{ margin: 0, flexShrink: 0 }}>
+                  <span className="form-field__help room-settings__auto-type">
                     {auto.triggerType} → {auto.actionType}
                   </span>
                 </div>
@@ -678,7 +694,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
             ))}
 
             {showAddAutomation ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem', padding: '0.75rem', background: 'var(--color-bg-secondary)', borderRadius: '0.375rem' }}>
+              <div className="room-settings__add-auto-form">
                 <input
                   type="text"
                   value={newAutoName}
@@ -686,12 +702,11 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                   placeholder="Automation name"
                   className="input"
                 />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="room-settings__add-auto-selects">
                   <select
                     value={newAutoTrigger}
                     onChange={(e) => setNewAutoTrigger(e.target.value as AutomationTriggerType)}
                     className="room-settings__role-select"
-                    style={{ flex: 1 }}
                   >
                     <option value="on_message">On every message</option>
                     <option value="on_keyword">On keyword</option>
@@ -702,7 +717,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                     value={newAutoAction}
                     onChange={(e) => setNewAutoAction(e.target.value as AutomationActionType)}
                     className="room-settings__role-select"
-                    style={{ flex: 1 }}
                   >
                     <option value="send_message">Send message</option>
                     <option value="summarize">Summarize</option>
@@ -739,7 +753,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
                     className="input"
                   />
                 )}
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <div className="room-settings__add-auto-actions">
                   <button onClick={() => setShowAddAutomation(false)} className="btn btn--ghost btn--sm">
                     Cancel
                   </button>
@@ -752,7 +766,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
               <button
                 onClick={() => setShowAddAutomation(true)}
                 className="room-settings__variables-add"
-                style={{ marginTop: '0.5rem' }}
               >
                 <Plus size={12} /> Add Automation
               </button>
@@ -760,14 +773,16 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           </div>
         </div>
 
-        {/* Start Over & Delete */}
-        <div className="room-settings__section" style={{ borderTop: '1px solid var(--color-border-primary)' }}>
+        {/* ---- Section 6: Danger Zone ---- */}
+        <div className="room-settings__group">
+          <span className="room-settings__group-title">Danger Zone</span>
+
           {showResetConfirm ? (
             <div className="room-settings__reset-confirm">
               <p className="form-field__help" style={{ margin: 0 }}>
                 Clear all messages in this room? This can't be undone.
               </p>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="room-settings__confirm-actions">
                 <button
                   onClick={() => setShowResetConfirm(false)}
                   className="btn btn--ghost btn--sm"
@@ -794,8 +809,7 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           ) : (
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="btn btn--ghost btn--sm"
-              style={{ color: 'var(--color-text-secondary)', width: '100%', justifyContent: 'center', gap: '0.5rem' }}
+              className="btn btn--ghost btn--sm room-settings__danger-btn"
             >
               <RotateCcw size={14} />
               Start Over
@@ -803,11 +817,11 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           )}
 
           {showDeleteConfirm ? (
-            <div className="room-settings__reset-confirm" style={{ marginTop: '0.5rem' }}>
+            <div className="room-settings__reset-confirm">
               <p className="form-field__help" style={{ margin: 0 }}>
                 Permanently delete this room and all its messages? This can't be undone.
               </p>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="room-settings__confirm-actions">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="btn btn--ghost btn--sm"
@@ -833,29 +847,30 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
           ) : (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="btn btn--ghost btn--sm"
-              style={{ color: 'var(--color-danger)', width: '100%', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}
+              className="btn btn--ghost btn--sm room-settings__danger-btn room-settings__danger-btn--delete"
             >
               <Trash2 size={14} />
               Delete Room
             </button>
           )}
         </div>
+      </DialogContent>
 
-        {/* Footer */}
-        <div className="dialog__footer">
-          <button onClick={onClose} className="btn btn--ghost btn--sm">
+      <DialogFooter
+        leftContent={
+          <DialogButton variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn btn--primary btn--sm"
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </DialogButton>
+        }
+      >
+        <DialogButton
+          variant="primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </DialogButton>
+      </DialogFooter>
+    </Dialog>
   )
 }

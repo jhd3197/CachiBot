@@ -100,6 +100,12 @@ jobs:
 
             > Desktop downloads become available once the build pipeline completes (~10 min after release).
 
+            > **macOS users:** This build is not yet notarized by Apple. After installing, open Terminal and run:
+            > ```
+            > xattr -cr /Applications/CachiBot.app
+            > ```
+            > Then open the app normally. This only needs to be done once.
+
             ### Python Package (pip)
             ```bash
             pip install cachibot==${{ steps.bump_version.outputs.new_version }}
@@ -311,94 +317,24 @@ jobs:
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
 
-      # Fix Python.framework structure so codesign doesn't fail with
-      # "bundle format is ambiguous (could be app or framework)"
-      - name: Fix Python.framework for codesigning
-        if: matrix.platform == 'mac'
-        shell: bash
-        run: |
-          # Find all Python.framework dirs in the backend bundle
-          find build/backend -name "Python.framework" -type d | while read FW; do
-            echo "Found: $FW"
-            PARENT=$(dirname "$FW")
-            if [[ -f "$FW/Python" ]]; then
-              cp "$FW/Python" "$PARENT/Python.bin.tmp"
-              rm -rf "$FW"
-              mv "$PARENT/Python.bin.tmp" "$PARENT/Python"
-              echo "Flattened $FW to plain binary"
-            else
-              echo "No Python binary inside $FW, removing empty framework"
-              rm -rf "$FW"
-            fi
-          done
-
       - name: Install RPM tools
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
 
-      # Import certificate and unlock keychain so codesign doesn't hang
-      - name: Setup macOS code signing keychain
-        if: matrix.platform == 'mac' && env.CSC_LINK != ''
-        env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        shell: bash
-        run: |
-          KEYCHAIN="build.keychain"
-          KEYCHAIN_PASSWORD="actions"
-
-          # Decode the certificate
-          echo "$CSC_LINK" | base64 --decode > certificate.p12
-
-          # Create and configure a temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security default-keychain -s "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-
-          # Import the certificate
-          security import certificate.p12 -k "$KEYCHAIN" -P "$CSC_KEY_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
-
-          # Grant codesign access without GUI prompt (this is the key fix)
-          security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-
-          # Add to search list so electron-builder finds it
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-
-          # Keep keychain unlocked for the duration of the build
-          security set-keychain-settings -t 3600 "$KEYCHAIN"
-
-          # Clean up certificate file
-          rm -f certificate.p12
-
-      # Build Electron app (signed on mac, unsigned on linux/win)
+      # Build Electron app (unsigned — notarization disabled for now)
       - name: Build Electron app
         working-directory: desktop
         shell: bash
         run: |
           if [[ "${{ matrix.platform }}" == "mac" ]]; then
-            # Do NOT pass CSC_LINK here — it makes electron-builder create
-            # its own keychain without partition-list, causing codesign to
-            # hang waiting for a GUI prompt. The cert is already imported
-            # into build.keychain with proper permissions above.
-            unset CSC_LINK CSC_KEY_PASSWORD
             npx electron-builder --mac --publish always
           elif [[ "${{ matrix.platform }}" == "win" ]]; then
-            unset CSC_LINK CSC_KEY_PASSWORD
             npx electron-builder --win --publish always
           else
-            unset CSC_LINK CSC_KEY_PASSWORD
             npx electron-builder --linux --publish always
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Let electron-builder auto-discover the identity from our keychain
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.platform == 'mac' }}
-          # macOS notarization
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       # Sign Windows installer with Azure Trusted Signing
       - name: Sign Windows installer

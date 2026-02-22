@@ -489,7 +489,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "seo-content-pipeline",
         "name": "SEO Content Pipeline",
-        "description": "Full SEO workflow: research keywords, write optimized copy, then schedule posts",
+        "description": "Full SEO workflow: research keywords, write optimized copy, schedule posts",
         "icon": "search",
         "color": "#22c55e",
         "category": "marketing",
@@ -528,7 +528,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "wellness-dashboard",
         "name": "Wellness Dashboard",
-        "description": "Get fitness, nutrition, and mindfulness advice simultaneously from specialists",
+        "description": "Get fitness, nutrition, and mindfulness advice from specialists",
         "icon": "heart",
         "color": "#ef4444",
         "category": "health",
@@ -649,7 +649,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "hoa-meeting",
         "name": "The HOA Meeting",
-        "description": "A suburban HOA meeting where a nosy neighbor, an anarchist, and an exhausted president debate bylaws",
+        "description": "Nosy neighbor, anarchist, and exhausted president debate HOA bylaws",
         "icon": "house",
         "color": "#ef4444",
         "category": "entertainment",
@@ -689,7 +689,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "galactic-observation-deck",
         "name": "The Galactic Observation Deck",
-        "description": "Three aliens observe Earth and debate whether humanity is worth studying or a lost cause",
+        "description": "Three aliens observe Earth and debate whether humanity is worth studying",
         "icon": "telescope",
         "color": "#3b82f6",
         "category": "entertainment",
@@ -729,7 +729,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "great-arepa-war",
         "name": "The Great Arepa War",
-        "description": "Venezuela vs Colombia in the ultimate arepa showdown, judged by a Miami food blogger",
+        "description": "Venezuela vs Colombia in the ultimate arepa showdown with a Miami judge",
         "icon": "utensils-crossed",
         "color": "#eab308",
         "category": "entertainment",
@@ -769,7 +769,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "pineapple-pizza-tribunal",
         "name": "The Pineapple Pizza Tribunal",
-        "description": "An Italian nonna, a Hawaiian surfer, and a delivery guy settle the pineapple pizza debate once and for all",
+        "description": "Italian nonna, Hawaiian surfer, and delivery guy settle the pizza debate",
         "icon": "pizza",
         "color": "#f59e0b",
         "category": "entertainment",
@@ -809,7 +809,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "hotdog-supreme-court",
         "name": "The Hot Dog Supreme Court",
-        "description": "Is a hot dog a sandwich? A food scholar, a culinary anarchist, and a bewildered umpire decide",
+        "description": "Is a hot dog a sandwich? A food scholar, anarchist, and umpire decide",
         "icon": "gavel",
         "color": "#8b5cf6",
         "category": "entertainment",
@@ -849,7 +849,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "late-night-arepa-stand",
         "name": "The Late-Night Arepa Stand",
-        "description": "A legendary street arepa vendor, an insatiable customer, and a philosophical cashier at 1 AM",
+        "description": "Legendary arepa vendor, hungry customer, and philosophical cashier at 1 AM",
         "icon": "moon",
         "color": "#f97316",
         "category": "entertainment",
@@ -888,7 +888,7 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
     {
         "id": "3am-kitchen-philosophers",
         "name": "The 3 AM Kitchen Philosophers",
-        "description": "An overthinker, a buzzkill, and a half-asleep couch philosopher debate the meaning of cereal at 3 AM",
+        "description": "Overthinker, buzzkill, and couch philosopher debate cereal at 3 AM",
         "icon": "lamp",
         "color": "#a855f7",
         "category": "entertainment",

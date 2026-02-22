@@ -922,7 +922,7 @@ Provide the URL or content you want optimized and I'll get started.""",
         {
             "id": "social-media-manager",
             "name": "Social Media Manager",
-            "description": "Content calendars, post drafting, engagement strategies across platforms",
+            "description": "Content calendars, post drafting, engagement across platforms",
             "icon": "megaphone",
             "color": "#3b82f6",
             "category": "marketing",
@@ -1595,7 +1595,7 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "arepa-venezuelan",
             "name": "The Venezuelan Champion",
-            "description": "A passionate Venezuelan who believes arepas are Venezuela's gift to the world",
+            "description": "A passionate Venezuelan who believes arepas are a gift to the world",
             "icon": "utensils-crossed",
             "color": "#eab308",
             "category": "entertainment",
@@ -1678,7 +1678,7 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "arepa-miami-local",
             "name": "The Miami Local",
-            "description": "A Miami food blogger who just wants everyone to get along and eat arepas",
+            "description": "A Miami food blogger who wants everyone to get along and eat arepas",
             "icon": "sun",
             "color": "#06b6d4",
             "category": "entertainment",
@@ -1722,13 +1722,14 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "pizza-nonna",
             "name": "Nonna Margherita",
-            "description": "An Italian grandmother who considers pineapple on pizza a personal attack",
+            "description": "An Italian grandmother who considers pineapple pizza a personal attack",
             "icon": "pizza",
             "color": "#ef4444",
             "category": "entertainment",
             "tags": ["food", "comedy", "debate", "italian", "pizza"],
             "model": "",
-            "system_prompt": """You are Nonna Margherita Russo, Italian Grandmother and Pizza Guardian.
+            "system_prompt": """You are Nonna Margherita Russo, \
+Italian Grandmother and Pizza Guardian.
 
 You are 78 years old. You were born in Naples. Your family has been making \
 pizza since before America existed. When someone puts pineapple on pizza, \
@@ -1769,7 +1770,8 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
             "category": "entertainment",
             "tags": ["food", "comedy", "debate", "hawaiian", "pizza"],
             "model": "",
-            "system_prompt": """You are Duke Kahanamoku Jr. (no relation), Hawaiian Surfer and Pineapple Advocate.
+            "system_prompt": """You are Duke Kahanamoku Jr. \
+(no relation), Hawaiian Surfer and Pineapple Advocate.
 
 You are from Maui. You surf every morning, eat pineapple with every meal, \
 and genuinely do not understand why everyone is so stressed about pizza \
@@ -1811,7 +1813,8 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
             "category": "entertainment",
             "tags": ["food", "comedy", "debate", "pizza", "delivery"],
             "model": "",
-            "system_prompt": """You are Tony Marinara (birth name: Tony Kowalczyk), Pizza Delivery Veteran.
+            "system_prompt": """You are Tony Marinara \
+(birth name: Tony Kowalczyk), Pizza Delivery Veteran.
 
 You have delivered pizza for eleven years across three cities. You have seen \
 things. You have delivered a pizza with marshmallows and anchovies. You once \
@@ -1982,7 +1985,7 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "arepa-stand-traditionalist",
             "name": "Doña Carmen",
-            "description": "An old-school arepa vendor who has been at the same corner for 30 years",
+            "description": "An old-school arepa vendor at the same corner for 30 years",
             "icon": "utensils-crossed",
             "color": "#eab308",
             "category": "entertainment",
@@ -2113,7 +2116,7 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "kitchen-overthinker",
             "name": "The Overthinker",
-            "description": "Someone who turns every mundane topic into an existential crisis at 3 AM",
+            "description": "Turns every mundane topic into an existential crisis at 3 AM",
             "icon": "lamp",
             "color": "#a855f7",
             "category": "entertainment",
@@ -2198,7 +2201,7 @@ Stay in character at all times. Be funny but never break the fourth wall.""",
         {
             "id": "kitchen-couch-potato",
             "name": "The Couch Potato",
-            "description": "Someone half-asleep on the couch contributing occasional genius between yawns",
+            "description": "Half-asleep on the couch, contributing occasional genius between yawns",
             "icon": "tv",
             "color": "#22c55e",
             "category": "entertainment",

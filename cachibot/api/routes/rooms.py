@@ -5,6 +5,7 @@ Endpoints for managing multi-agent rooms, membership, bots, and transcripts.
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -422,8 +423,7 @@ async def get_room_messages(
     reactions_map = await reaction_repo.get_reactions_bulk(msg_ids)
 
     return [
-        RoomMessageResponse.from_message(m, reactions=reactions_map.get(m.id, []))
-        for m in messages
+        RoomMessageResponse.from_message(m, reactions=reactions_map.get(m.id, [])) for m in messages
     ]
 
 
@@ -614,7 +614,7 @@ async def get_bookmarks(
 async def get_automations(
     room_id: str,
     user: User = Depends(get_current_user),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Get all automations for a room."""
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -627,15 +627,13 @@ async def create_automation(
     room_id: str,
     req: CreateRoomAutomationRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """Create a new automation for a room."""
     room = await room_repo.get_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.creator_id != user.id:
-        raise HTTPException(
-            status_code=403, detail="Only the room creator can manage automations"
-        )
+        raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
     if req.trigger_type not in VALID_TRIGGER_TYPES:
         raise HTTPException(
             status_code=400,
@@ -666,15 +664,13 @@ async def update_automation(
     automation_id: str,
     req: UpdateRoomAutomationRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> dict[str, Any]:
     """Update an automation."""
     room = await room_repo.get_room(room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.creator_id != user.id:
-        raise HTTPException(
-            status_code=403, detail="Only the room creator can manage automations"
-        )
+        raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
 
     if req.trigger_type and req.trigger_type not in VALID_TRIGGER_TYPES:
         raise HTTPException(status_code=400, detail="Invalid trigger_type")
@@ -706,9 +702,7 @@ async def delete_automation(
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.creator_id != user.id:
-        raise HTTPException(
-            status_code=403, detail="Only the room creator can manage automations"
-        )
+        raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
     deleted = await automation_repo.delete(automation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Automation not found")

@@ -249,9 +249,7 @@ class RoomAutomation(Base):
         sa.JSON, nullable=False, server_default="{}"
     )
     created_by: Mapped[str] = mapped_column(String, nullable=False)
-    trigger_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    trigger_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
