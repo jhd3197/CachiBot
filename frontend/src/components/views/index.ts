@@ -6,7 +6,7 @@ export { SettingsView } from './SettingsView'
 export { DashboardView } from './DashboardView'
 export { AppSettingsView } from './AppSettingsView'
 export { WorkView } from './WorkView'
-export { SchedulesView } from './SchedulesView'
+// SchedulesView removed — schedules are now part of AutomationsView
 export { VoiceView } from './VoiceView'
 export { AutomationsView } from './AutomationsView'
 export { ScriptEditorView } from './ScriptEditorView'

@@ -221,6 +221,16 @@ export async function rollbackScriptVersion(
 // TIMELINE API
 // =============================================================================
 
+export async function getBotTimeline(
+  botId: string,
+  limit = 50,
+  offset = 0
+): Promise<TimelineEvent[]> {
+  return request(
+    `/bots/${botId}/timeline?limit=${limit}&offset=${offset}`
+  )
+}
+
 export async function getTimeline(
   botId: string,
   sourceType: string,

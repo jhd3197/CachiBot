@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Loader2,
   LayoutGrid,
+  History,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
@@ -23,6 +24,8 @@ import {
 } from '../../api/automations'
 import { getFunctions, getSchedules, runFunction, toggleSchedule } from '../../api/client'
 import { cn } from '../../lib/utils'
+import { useConfigStore } from '../../stores/config'
+import { ScheduleTimeline } from '../automations/ScheduleTimeline'
 import type { BotFunction, Schedule } from '../../types'
 
 type UnifiedItem = {
@@ -41,6 +44,7 @@ const sectionTabs: { id: AutomationSection; label: string; icon: React.Component
   { id: 'functions', label: 'Functions', icon: FolderKanban },
   { id: 'scripts', label: 'Scripts', icon: Code },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+  { id: 'timeline', label: 'Timeline', icon: History },
 ]
 
 export function AutomationsView() {
@@ -48,6 +52,8 @@ export function AutomationsView() {
   const { getActiveBot, activeBotId } = useBotStore()
   const { scripts, setScripts } = useAutomationsStore()
   const { automationSection, setAutomationSection } = useUIStore()
+  const { config } = useConfigStore()
+  const timezone = config?.timezone || 'UTC'
   const activeBot = getActiveBot()
 
   const [functions, setFunctions] = useState<BotFunction[]>([])
@@ -173,7 +179,7 @@ export function AutomationsView() {
     } else if (item.type === 'function') {
       navigate(`/${activeBotId}/work`)
     } else if (item.type === 'schedule') {
-      navigate(`/${activeBotId}/schedules`)
+      setAutomationSection('schedules')
     }
   }
 
@@ -230,7 +236,9 @@ export function AutomationsView() {
 
       {/* Content */}
       <div className="automations-view__content">
-        {loading ? (
+        {automationSection === 'timeline' ? (
+          <ScheduleTimeline botId={activeBotId} schedules={schedules} timezone={timezone} />
+        ) : loading ? (
           <div className="automations-view__loading">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>

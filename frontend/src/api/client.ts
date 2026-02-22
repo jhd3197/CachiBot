@@ -97,6 +97,7 @@ export async function getConfig(): Promise<{
     style: string
   }
   workspace_path: string
+  timezone: string
 }> {
   return request('/config')
 }

@@ -35,6 +35,7 @@ class ConfigResponse(BaseModel):
     sandbox: SandboxConfigResponse
     display: DisplayConfigResponse
     workspace_path: str = Field(description="Current workspace path")
+    timezone: str = Field(description="Instance timezone (IANA name)")
 
 
 class ConfigUpdate(BaseModel):
@@ -46,3 +47,4 @@ class ConfigUpdate(BaseModel):
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     show_thinking: bool | None = Field(default=None)
     show_cost: bool | None = Field(default=None)
+    timezone: str | None = Field(default=None, description="Instance timezone (IANA name)")

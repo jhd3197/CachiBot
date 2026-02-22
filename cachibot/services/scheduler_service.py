@@ -8,6 +8,7 @@ then delivers messages via platform connections and/or WebSocket.
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from cachibot.models.work import Schedule, ScheduleType, TodoStatus
 from cachibot.storage.work_repository import ScheduleRepository, TodoRepository
@@ -26,6 +27,7 @@ class SchedulerService:
         self._running = False
         self._schedule_repo = ScheduleRepository()
         self._todo_repo = TodoRepository()
+        self.timezone: str = "UTC"
 
     async def start(self) -> None:
         """Start the scheduler background loop."""
@@ -100,7 +102,7 @@ class SchedulerService:
 
         elif schedule.schedule_type == ScheduleType.INTERVAL:
             if schedule.interval_seconds:
-                next_run = datetime.utcnow() + timedelta(seconds=schedule.interval_seconds)
+                next_run = datetime.now(ZoneInfo(self.timezone)) + timedelta(seconds=schedule.interval_seconds)
                 await self._schedule_repo.update_next_run(schedule.id, next_run)
 
         elif schedule.schedule_type == ScheduleType.CRON:
@@ -108,7 +110,7 @@ class SchedulerService:
                 try:
                     from croniter import croniter
 
-                    cron = croniter(schedule.cron_expression, datetime.utcnow())
+                    cron = croniter(schedule.cron_expression, datetime.now(ZoneInfo(self.timezone)))
                     next_run = cron.get_next(datetime)
                     await self._schedule_repo.update_next_run(schedule.id, next_run)
                 except Exception:

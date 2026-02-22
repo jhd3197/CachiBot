@@ -216,6 +216,7 @@ class Config:
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
+    timezone: str = "UTC"
 
     # Runtime paths
     workspace_path: Path = field(default_factory=Path.cwd)
@@ -264,6 +265,15 @@ class Config:
             if config_path.exists():
                 config._load_from_file(config_path)
                 config.config_path = config_path
+
+        # Validate timezone
+        try:
+            from zoneinfo import ZoneInfo
+
+            ZoneInfo(config.timezone)
+        except (KeyError, Exception):
+            logger.warning("Invalid timezone %r, falling back to UTC", config.timezone)
+            config.timezone = "UTC"
 
         return config
 
@@ -358,6 +368,10 @@ class Config:
         # Telemetry override — CACHIBOT_TELEMETRY_DISABLED=1 force-disables
         if os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes"):
             self.telemetry.enabled = False
+
+        # Timezone
+        if tz := os.getenv("CACHIBOT_TIMEZONE"):
+            self.timezone = tz
 
     def _load_from_file(self, path: Path) -> None:
         """Load configuration from a TOML file."""
@@ -488,6 +502,9 @@ class Config:
                 self.telemetry.matomo_site_id = telemetry_data["matomo_site_id"]
             if "last_sent" in telemetry_data:
                 self.telemetry.last_sent = telemetry_data["last_sent"]
+
+        if "timezone" in data:
+            self.timezone = data["timezone"]
 
     def save_telemetry_config(self) -> None:
         """Persist telemetry settings to the user config file (~/.cachibot.toml).
