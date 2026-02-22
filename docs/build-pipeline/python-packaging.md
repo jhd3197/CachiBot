@@ -49,14 +49,14 @@ The spec file is **NOT used in CI**. The GitHub Actions workflow (`publish.yml`,
 
 | Mode | Command | Details |
 |------|---------|---------|
-| **Dev** | `cachibot server --port 6392` | Uses `shell: true` to resolve PATH; expects `pip install -e .` |
-| **Production** | `{resourcesPath}/backend/cachibot-server[.exe] --port 6392` | PyInstaller binary from `extraResources` |
+| **Dev** | `cachibot server --port 5870` | Uses `shell: true` to resolve PATH; expects `pip install -e .` |
+| **Production** | `{resourcesPath}/backend/cachibot-server[.exe] --port 5870` | PyInstaller binary from `extraResources` |
 
 Electron spawns the backend as a **child process** via `child_process.spawn()`.
 
 ### Communication Protocol
 
-- **HTTP REST + WebSocket** on `http://127.0.0.1:6392`
+- **HTTP REST + WebSocket** on `http://127.0.0.1:5870`
 - No IPC or Unix sockets -- pure TCP/HTTP
 - Electron loads the frontend from the backend URL (which serves both API and static files)
 
@@ -64,9 +64,9 @@ Electron spawns the backend as a **child process** via `child_process.spawn()`.
 
 1. Splash window shown
 2. Backend process spawned
-3. `waitForPort()` polls TCP port 6392 (up to 60 retries, 500ms delay = 30s max wait)
+3. `waitForPort()` polls TCP port 5870 (up to 60 retries, 500ms delay = 30s max wait)
 4. Detects early backend crash via `exit` event for fast-fail
-5. On success: main window loads `http://127.0.0.1:6392`; splash closes
+5. On success: main window loads `http://127.0.0.1:5870`; splash closes
 6. On failure: error dialog with last 10 lines of stderr
 
 ### Shutdown

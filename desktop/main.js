@@ -18,7 +18,7 @@ let tray = null;
 let backendStderr = ''; // Capture stderr for error reporting
 
 const isDev = !app.isPackaged;
-const BACKEND_PORT = 6392;
+const BACKEND_PORT = 5870;
 const BACKEND_HOST = '127.0.0.1';
 const BACKEND_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`;
 

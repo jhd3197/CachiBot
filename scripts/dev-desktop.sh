@@ -26,9 +26,9 @@ if [ ! -f "$ROOT_DIR/frontend/dist/index.html" ]; then
 fi
 
 # Start CachiBot server
-echo "[dev] Starting CachiBot server on port 6392..."
+echo "[dev] Starting CachiBot server on port 5870..."
 cd "$ROOT_DIR"
-cachibot server --port 6392 &
+cachibot server --port 5870 &
 BACKEND_PID=$!
 
 # Wait for backend

@@ -348,7 +348,7 @@ Verified: `storage/models/__init__.py` exports all 25 models plus `Base`. The Al
 
 6. **Verify connectivity**
    ```bash
-   curl http://localhost:6392/api/health
+   curl http://localhost:5870/api/health
    ```
 
 ### Rollback

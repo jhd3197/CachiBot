@@ -69,15 +69,15 @@ async def restart(
             message="Cannot restart in desktop mode. Use the app's restart function.",
         )
     # Derive host/port from the current request
-    host = request.headers.get("host", "127.0.0.1:6392")
+    host = request.headers.get("host", "127.0.0.1:5870")
     if ":" in host:
         server_host, port_str = host.rsplit(":", 1)
         try:
             server_port = int(port_str)
         except ValueError:
-            server_host, server_port = "127.0.0.1", 6392
+            server_host, server_port = "127.0.0.1", 5870
     else:
-        server_host, server_port = host, 6392
+        server_host, server_port = host, 5870
 
     # Strip IPv6 brackets if present
     server_host = server_host.strip("[]")

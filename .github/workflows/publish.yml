@@ -230,7 +230,7 @@ jobs:
             BINARY="./dist/cachibot-server/cachibot-server.exe"
           fi
 
-          PORT=16392
+          PORT=15870
           "$BINARY" --port $PORT --host 127.0.0.1 &
           SERVER_PID=$!
 

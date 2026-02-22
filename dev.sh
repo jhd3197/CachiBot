@@ -118,19 +118,19 @@ kill_port() {
   fi
 }
 
-case "$MODE" in backend|browser|desktop|all) kill_port 6392 ;; esac
+case "$MODE" in backend|browser|desktop|all) kill_port 5870 ;; esac
 case "$MODE" in frontend|browser|desktop|all) kill_port 5173 ;; esac
 
 # --- Backend ---
 case "$MODE" in backend|browser|desktop|all)
-  echo -e "${CYAN}[dev]${RESET} backend  -> ${GREEN}http://127.0.0.1:6392${RESET}"
+  echo -e "${CYAN}[dev]${RESET} backend  -> ${GREEN}http://127.0.0.1:5870${RESET}"
   cd "$ROOT_DIR"
   if [ -x "$ROOT_DIR/.venv/bin/cachibot" ]; then
-    "$ROOT_DIR/.venv/bin/cachibot" server --port 6392 --reload &
+    "$ROOT_DIR/.venv/bin/cachibot" server --port 5870 --reload &
   elif [ -x "$ROOT_DIR/.venv/Scripts/cachibot.exe" ]; then
-    "$ROOT_DIR/.venv/Scripts/cachibot.exe" server --port 6392 --reload &
+    "$ROOT_DIR/.venv/Scripts/cachibot.exe" server --port 5870 --reload &
   else
-    cachibot server --port 6392 --reload &
+    cachibot server --port 5870 --reload &
   fi
   PIDS+=($!)
   ;; esac

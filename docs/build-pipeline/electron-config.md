@@ -110,7 +110,7 @@ This feeds the `electron-updater` auto-update system. The `--publish always` fla
 2. `checkVersionChange()` -- clears all Chromium caches if app version changed (prevents stale UI after update)
 3. `createSplashWindow()` -- shows a loading splash
 4. `startBackend()` -- spawns the PyInstaller binary (or `cachibot server` in dev)
-5. `waitForPort(6392)` -- polls TCP port with 60 retries * 500ms = 30s max wait
+5. `waitForPort(5870)` -- polls TCP port with 60 retries * 500ms = 30s max wait
 6. `createWindow()` -- creates main BrowserWindow
 7. `createTray()` -- creates system tray icon
 8. Splash closes, auto-updater initializes
@@ -329,7 +329,7 @@ Standard DMG with drag-to-Applications behavior. No custom DMG background image 
 There is no call to `app.requestSingleInstanceLock()` anywhere in the codebase. This means:
 
 - Users can open multiple instances of CachiBot simultaneously
-- Each instance would try to start its own backend on port 6392, causing a port conflict
+- Each instance would try to start its own backend on port 5870, causing a port conflict
 - The second instance's backend would fail to bind, and the user would see an error dialog
 - Multiple tray icons would appear
 
@@ -351,7 +351,7 @@ const loadURL = (isDev && DEV_FRONTEND_URL) ? DEV_FRONTEND_URL : BACKEND_URL;
 
 **Three modes:**
 
-1. **Packaged app (production):** Loads from `http://127.0.0.1:6392` (backend serves the built frontend)
+1. **Packaged app (production):** Loads from `http://127.0.0.1:5870` (backend serves the built frontend)
 2. **Dev with ELECTRON_DEV_URL set:** Loads from Vite dev server (hot reload), skips backend startup entirely (assumes external backend)
 3. **Dev without ELECTRON_DEV_URL:** Starts `cachibot server` via CLI, loads from backend URL
 
@@ -504,7 +504,7 @@ This is a well-thought-out approach. The frontend is always served by HTTP (eith
      callback({
        responseHeaders: {
          ...details.responseHeaders,
-         'Content-Security-Policy': ["default-src 'self' http://127.0.0.1:6392; script-src 'self'; style-src 'self' 'unsafe-inline'"]
+         'Content-Security-Policy': ["default-src 'self' http://127.0.0.1:5870; script-src 'self'; style-src 'self' 'unsafe-inline'"]
        }
      });
    });

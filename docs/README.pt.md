@@ -88,7 +88,7 @@ Depois inicie o servidor:
 cachibot server
 ```
 
-Abra **http://localhost:6392** — o frontend é empacotado e servido automaticamente. Nenhum passo de build separado necessário.
+Abra **http://localhost:5870** — o frontend é empacotado e servido automaticamente. Nenhum passo de build separado necessário.
 
 ### Configure suas chaves de API
 

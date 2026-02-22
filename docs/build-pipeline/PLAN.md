@@ -146,7 +146,7 @@ Commit `daf1162` adds `window.electronAPI?.appVersion` as the primary version so
 
 ### 4. No Single Instance Lock
 
-Multiple CachiBot windows can be opened simultaneously, each trying to bind to port 6392. The second instance's backend fails, showing an error dialog.
+Multiple CachiBot windows can be opened simultaneously, each trying to bind to port 5870. The second instance's backend fails, showing an error dialog.
 
 **File:** `desktop/main.js` -- add before `app.whenReady()`:
 ```javascript
@@ -338,7 +338,7 @@ Beyond the P0 torch exclusion, add:
 - Add beta channel for Electron updates
 - Add `cachibot://` protocol handler for deep linking
 - Consider NSIS differential/web updates for smaller download size
-- Port conflict detection -- Electron should detect if 6392 is already in use
+- Port conflict detection -- Electron should detect if 5870 is already in use
 
 ### 18. Documentation
 - Add "How to Install" section to README with two clear paths (pip vs desktop)
