@@ -332,6 +332,14 @@
     color: var(--code-text);
   }
 
+  // Tools panel — expanded tool calls below bubble
+  &__tools-panel {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-1-5;
+    margin-top: @sp-2;
+  }
+
   // Action bar — hover actions under each message
   &__actions {
     display: flex;
@@ -344,6 +352,16 @@
       opacity: 1;
       transition-delay: 0ms;
     }
+
+    // When reaction bar has active reactions, always show actions row
+    .reaction-bar:not(:empty) ~ * {
+      // handled by parent opacity
+    }
+  }
+
+  // Keep actions visible when reactions exist
+  &__actions:has(.reaction-bar .reaction-bar__pill) {
+    opacity: 1;
   }
 
   &__action-btn {
@@ -928,7 +946,7 @@
 // -----------------------------------------------------------------------------
 
 .chat-msg-thinking {
-  margin-top: @sp-3;
+  margin-top: @sp-2;
   border-radius: @radius-lg;
   border: 1px solid color-mix(in srgb, @purple-500 20%, transparent);
   background: color-mix(in srgb, @purple-500 6%, transparent);
@@ -993,7 +1011,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: @sp-2;
-  margin-top: @sp-3;
+  margin-top: @sp-2;
 }
 
 // -----------------------------------------------------------------------------

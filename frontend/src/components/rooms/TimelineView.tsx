@@ -8,9 +8,11 @@ interface TimelineViewProps {
   roomBots: RoomBot[]
 }
 
+const EMPTY_TIMELINE: Array<{ botId: string; botName: string; startTime: number; endTime: number; tokens: number }> = []
+
 export function TimelineView({ roomId, roomBots }: TimelineViewProps) {
   const bots = useBotStore((s) => s.bots)
-  const timeline = useRoomStore((s) => s.botTimeline[roomId] || [])
+  const timeline = useRoomStore((s) => s.botTimeline[roomId]) || EMPTY_TIMELINE
 
   // Calculate time bounds
   const { minTime, maxTime, duration } = useMemo(() => {

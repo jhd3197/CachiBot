@@ -508,6 +508,11 @@ export async function syncBot(bot: BotSyncData): Promise<BotSyncData> {
   })
 }
 
+/** Fetch a single bot from the backend by ID. */
+export async function getBackendBot(botId: string): Promise<BotSyncData> {
+  return request(`/bots/${botId}`)
+}
+
 export async function deleteBackendBot(botId: string): Promise<void> {
   return request(`/bots/${botId}`, { method: 'DELETE' })
 }

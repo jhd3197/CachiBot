@@ -4,7 +4,6 @@ import {
   RotateCcw,
   ChevronDown,
   Code,
-  Zap,
   CheckCircle,
   XCircle,
   User,
@@ -474,109 +473,96 @@ export function MessageBubble({
           ) : (
             <MarkdownRenderer content={displayContent} />
           )}
+        </div>
 
-          {/* Inline media previews from tool results */}
-          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-            <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
-          )}
+        {/* Media previews from tool results — always visible */}
+        {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
+          <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
+        )}
 
-          {/* Tool calls collapsible section */}
-          {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
-            <div className="mt-3">
-              <button
-                onClick={() => setShowToolCalls(!showToolCalls)}
-                className="chat-tool-toggle"
-              >
-                <Zap className="h-3 w-3" />
-                <span>{message.toolCalls.length} tool action{message.toolCalls.length > 1 ? 's' : ''}</span>
-                <ChevronDown
-                  className={cn(
-                    'h-3 w-3 transition-transform',
-                    showToolCalls && 'rotate-180'
-                  )}
-                />
-              </button>
-              {showToolCalls && (
-                <div className="mt-2 space-y-1.5">
-                  {message.toolCalls.map((call) => (
-                    <MessageToolCallItem key={call.id} call={call} />
-                  ))}
-                </div>
+        {/* Tool calls collapsible section */}
+        {!isUser && showToolCalls && message.toolCalls && message.toolCalls.length > 0 && (
+          <div className="chat-message__tools-panel">
+            {message.toolCalls.map((call) => (
+              <MessageToolCallItem key={call.id} call={call} />
+            ))}
+          </div>
+        )}
+
+        {/* Thinking collapsible section */}
+        {!isUser && message.thinking && showThinking && showThinkingPanel && (
+          <div className="chat-msg-thinking">
+            <div className="chat-msg-thinking__header">
+              <Brain className="h-3 w-3" />
+              <span>Thinking</span>
+            </div>
+            <div className="chat-msg-thinking__content">
+              {message.thinking}
+            </div>
+          </div>
+        )}
+
+        {/* Usage info popover */}
+        {showInfo && hasMetadata && (
+          <div className="chat-message__info-panel">
+            <div className="chat-message__info-grid">
+              {message.metadata?.model !== undefined && (
+                <>
+                  <span>Model:</span>
+                  <span className="chat-message__info-value">{String(message.metadata.model)}</span>
+                </>
+              )}
+              {message.metadata?.tokens !== undefined && (
+                <>
+                  <span>Tokens:</span>
+                  <span className="chat-message__info-value">
+                    {Number(message.metadata.tokens).toLocaleString()}
+                    {(message.metadata.promptTokens !== undefined || message.metadata.completionTokens !== undefined) && (
+                      <span className="text-[var(--color-text-secondary)] ml-1">
+                        ({Number(message.metadata.promptTokens || 0).toLocaleString()} in / {Number(message.metadata.completionTokens || 0).toLocaleString()} out)
+                      </span>
+                    )}
+                  </span>
+                </>
+              )}
+              {message.metadata?.cost !== undefined && (
+                <>
+                  <span>Cost:</span>
+                  <span className="chat-message__info-value">${Number(message.metadata.cost).toFixed(6)}</span>
+                </>
+              )}
+              {message.metadata?.iterations !== undefined && Number(message.metadata.iterations) > 1 && (
+                <>
+                  <span>Iterations:</span>
+                  <span className="chat-message__info-value">{Number(message.metadata.iterations)}</span>
+                </>
+              )}
+              {message.metadata?.elapsedMs !== undefined && Number(message.metadata.elapsedMs) > 0 && (
+                <>
+                  <span>Time:</span>
+                  <span className="chat-message__info-value">
+                    {Number(message.metadata.elapsedMs) < 1000
+                      ? `${Math.round(Number(message.metadata.elapsedMs))}ms`
+                      : `${(Number(message.metadata.elapsedMs) / 1000).toFixed(1)}s`}
+                  </span>
+                </>
+              )}
+              {message.metadata?.tokensPerSecond !== undefined && Number(message.metadata.tokensPerSecond) > 0 && (
+                <>
+                  <span>Speed:</span>
+                  <span className="chat-message__info-value">{Number(message.metadata.tokensPerSecond).toFixed(1)} tok/s</span>
+                </>
               )}
             </div>
-          )}
-
-          {/* Thinking collapsible section */}
-          {!isUser && message.thinking && showThinking && showThinkingPanel && (
-            <div className="chat-msg-thinking">
-              <div className="chat-msg-thinking__header">
-                <Brain className="h-3 w-3" />
-                <span>Thinking</span>
-              </div>
-              <div className="chat-msg-thinking__content">
-                {message.thinking}
-              </div>
-            </div>
-          )}
-
-          {/* Usage info popover */}
-          {showInfo && hasMetadata && (
-            <div className="chat-message__info-panel">
-              <div className="chat-message__info-grid">
-                {message.metadata?.model !== undefined && (
-                  <>
-                    <span>Model:</span>
-                    <span className="chat-message__info-value">{String(message.metadata.model)}</span>
-                  </>
-                )}
-                {message.metadata?.tokens !== undefined && (
-                  <>
-                    <span>Tokens:</span>
-                    <span className="chat-message__info-value">
-                      {Number(message.metadata.tokens).toLocaleString()}
-                      {(message.metadata.promptTokens !== undefined || message.metadata.completionTokens !== undefined) && (
-                        <span className="text-[var(--color-text-secondary)] ml-1">
-                          ({Number(message.metadata.promptTokens || 0).toLocaleString()} in / {Number(message.metadata.completionTokens || 0).toLocaleString()} out)
-                        </span>
-                      )}
-                    </span>
-                  </>
-                )}
-                {message.metadata?.cost !== undefined && (
-                  <>
-                    <span>Cost:</span>
-                    <span className="chat-message__info-value">${Number(message.metadata.cost).toFixed(6)}</span>
-                  </>
-                )}
-                {message.metadata?.iterations !== undefined && Number(message.metadata.iterations) > 1 && (
-                  <>
-                    <span>Iterations:</span>
-                    <span className="chat-message__info-value">{Number(message.metadata.iterations)}</span>
-                  </>
-                )}
-                {message.metadata?.elapsedMs !== undefined && Number(message.metadata.elapsedMs) > 0 && (
-                  <>
-                    <span>Time:</span>
-                    <span className="chat-message__info-value">
-                      {Number(message.metadata.elapsedMs) < 1000
-                        ? `${Math.round(Number(message.metadata.elapsedMs))}ms`
-                        : `${(Number(message.metadata.elapsedMs) / 1000).toFixed(1)}s`}
-                    </span>
-                  </>
-                )}
-                {message.metadata?.tokensPerSecond !== undefined && Number(message.metadata.tokensPerSecond) > 0 && (
-                  <>
-                    <span>Speed:</span>
-                    <span className="chat-message__info-value">{Number(message.metadata.tokensPerSecond).toFixed(1)} tok/s</span>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="chat-message__actions">
+          {/* Reaction bar (rooms only) — first in actions */}
+          {roomId && (
+            <ReactionBarLazy roomId={roomId} messageId={message.id} reactions={message.reactions ?? []} />
+          )}
           <button
             onClick={handleCopy}
             className="chat-message__action-btn"
@@ -654,11 +640,6 @@ export function MessageBubble({
             </button>
           )}
         </div>
-
-        {/* Reaction bar (rooms only) */}
-        {roomId && message.reactions && (
-          <ReactionBarLazy roomId={roomId} messageId={message.id} reactions={message.reactions} />
-        )}
       </div>
     </div>
   )

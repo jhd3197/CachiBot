@@ -54,6 +54,11 @@ export function TemplateSelectStep() {
     setTimeout(reset, 200)
   }
 
+  const handleRoomInstalled = () => {
+    close()
+    setTimeout(reset, 200)
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -105,6 +110,7 @@ export function TemplateSelectStep() {
         open={marketplaceOpen}
         onClose={() => setMarketplaceOpen(false)}
         onInstalled={handleMarketplaceInstalled}
+        onRoomInstalled={handleRoomInstalled}
       />
     </div>
   )

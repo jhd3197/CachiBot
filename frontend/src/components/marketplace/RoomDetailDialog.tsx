@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Star, Download, Loader2, Users } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Star, Download, Loader2, Users, AlertTriangle } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
@@ -10,7 +10,9 @@ import {
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installRoomMarketplaceTemplate } from '../../api/client'
 import { useRoomStore } from '../../stores/rooms'
-import type { RoomMarketplaceTemplate, BotIcon } from '../../types'
+import { useModelsStore } from '../../stores/models'
+import { useModelCompatibility, type CompatibilityStatus } from '../../hooks/useModelCompatibility'
+import type { RoomMarketplaceTemplate, MarketplaceBot, BotIcon } from '../../types'
 
 const MODE_LABELS: Record<string, string> = {
   parallel: 'Parallel',
@@ -36,6 +38,44 @@ interface RoomDetailDialogProps {
   onInstalled: (roomId: string) => void
 }
 
+function BotCompatDot({ model }: { model: string | undefined }) {
+  const { status } = useModelCompatibility(model)
+  if (status === 'no_model' || status === 'loading') return null
+  const cls = `bot-detail__model-dot bot-detail__model-dot--${status}`
+  const titles: Record<CompatibilityStatus, string> = {
+    compatible: 'Model available',
+    alternative: 'Model not available — alternatives exist from this provider',
+    unavailable: 'Provider not configured',
+    loading: '',
+    no_model: '',
+  }
+  return <span className={cls} title={titles[status]} />
+}
+
+function useRoomModelIssues(bots: MarketplaceBot[] | undefined): number {
+  const { groups, loading } = useModelsStore()
+  return useMemo(() => {
+    if (loading || !bots) return 0
+    let issues = 0
+    for (const bot of bots) {
+      if (!bot.model) continue
+      const slashIdx = bot.model.indexOf('/')
+      const provider = slashIdx > 0 ? bot.model.slice(0, slashIdx) : ''
+      if (!provider) {
+        // Check all groups
+        const found = Object.values(groups).flat().some((m) => m.id === bot.model)
+        if (!found) issues++
+      } else {
+        const providerModels = groups[provider]
+        if (!providerModels || !providerModels.some((m) => m.id === bot.model)) {
+          issues++
+        }
+      }
+    }
+    return issues
+  }, [bots, groups, loading])
+}
+
 function formatDownloads(n: number): string {
   if (n >= 1000) {
     return `${(n / 1000).toFixed(1)}k`
@@ -47,6 +87,7 @@ export function RoomDetailDialog({ template, onClose, onInstalled }: RoomDetailD
   const { addRoom, setActiveRoom } = useRoomStore()
   const [isInstalling, setIsInstalling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const modelIssueCount = useRoomModelIssues(template?.bot_details)
 
   const handleInstall = async () => {
     if (!template) return
@@ -141,31 +182,43 @@ export function RoomDetailDialog({ template, onClose, onInstalled }: RoomDetailD
               <Users size={16} style={{ color: 'var(--color-text-secondary)' }} />
               Included Bots ({template.bots.length})
             </h3>
+            {modelIssueCount > 0 && (
+              <div className="bot-detail__model-warning">
+                <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                <span>
+                  {modelIssueCount} bot{modelIssueCount !== 1 ? 's' : ''} use{modelIssueCount === 1 ? 's' : ''} a model you may not have configured
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {template.bots.map((bot, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: '0.5rem',
-                    background: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border-primary)',
-                  }}
-                >
-                  <span style={{ flex: 1, fontSize: '0.875rem', textTransform: 'capitalize' }}>
-                    {bot.template_id.replace(/-/g, ' ')}
-                  </span>
-                  <span className="bot-detail__tool-badge">{bot.role}</span>
-                  {bot.position && (
-                    <span className="bot-detail__tool-badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
-                      {bot.position}
+              {template.bots.map((bot, i) => {
+                const detail = template.bot_details?.find((d) => d.id === bot.template_id)
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      background: 'var(--color-bg-secondary)',
+                      border: '1px solid var(--color-border-primary)',
+                    }}
+                  >
+                    {detail && <BotCompatDot model={detail.model} />}
+                    <span style={{ flex: 1, fontSize: '0.875rem', textTransform: 'capitalize' }}>
+                      {bot.template_id.replace(/-/g, ' ')}
                     </span>
-                  )}
-                </div>
-              ))}
+                    <span className="bot-detail__tool-badge">{bot.role}</span>
+                    {bot.position && (
+                      <span className="bot-detail__tool-badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+                        {bot.position}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
