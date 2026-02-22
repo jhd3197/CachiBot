@@ -536,61 +536,176 @@
 // -----------------------------------------------------------------------------
 
 .room-create {
-  &__bot-list {
-    max-height: 12rem;
-    overflow-y: auto;
-    border-radius: @radius-lg;
-    border: 1px solid var(--color-border-primary);
-    padding: @sp-2;
-    .scrollbar-thin();
-  }
+  .flex-col();
+  gap: @sp-4;
 
-  &__bot-option {
-    display: flex;
-    width: 100%;
-    align-items: center;
+  // -- Template button --
+  &__template-btn {
+    .flex-center();
     gap: @sp-2;
-    border-radius: @radius-lg;
-    padding: @sp-1-5 @sp-2;
-    text-align: left;
-    font-size: @text-sm;
+    width: 100%;
+    padding: @sp-2-5 @sp-4;
+    border-radius: @radius-xl;
+    border: 1px dashed var(--color-border-primary);
     background: none;
-    border: none;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--accent-500);
     cursor: pointer;
-    color: var(--color-text-primary);
     .transition-colors();
 
     &:hover {
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      border-color: var(--accent-400);
+    }
+  }
+
+  // -- Section structure --
+  &__section {
+    .flex-col();
+    gap: @sp-3;
+  }
+
+  &__section-header {
+    .flex-between();
+  }
+
+  &__section-label {
+    .section-label();
+  }
+
+  &__fields {
+    .flex-col();
+    gap: @sp-3;
+  }
+
+  &__optional {
+    font-weight: @font-normal;
+    color: var(--color-text-tertiary);
+    font-size: @text-xs;
+  }
+
+  // -- Bot selection grid --
+  &__bot-badge {
+    .badge-base();
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    color: var(--accent-500);
+  }
+
+  &__bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: @sp-2;
+    max-height: 14rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__bot-card {
+    position: relative;
+    .flex-col();
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-3 @sp-2;
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
       background: var(--color-hover-bg);
     }
 
     &--selected {
-      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
-      color: var(--accent-600);
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
 
-      .dark & {
-        color: var(--accent-400);
+      &:hover {
+        background: color-mix(in srgb, var(--accent-500) 12%, transparent);
       }
+    }
+
+    &--disabled {
+      opacity: 0.4;
+      pointer-events: none;
     }
   }
 
-  &__bot-icon {
+  &__bot-avatar {
     .flex-center();
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: @radius-md;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: @radius-lg;
   }
 
-  &__bot-count {
-    margin-top: @sp-1;
+  &__bot-name {
     font-size: @text-xs;
-    color: var(--color-text-secondary);
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    text-align: center;
+    .truncate();
+    max-width: 100%;
   }
 
-  &__setting-row {
+  &__bot-check {
+    position: absolute;
+    top: @sp-1-5;
+    right: @sp-1-5;
+    .flex-center();
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: @radius-full;
+    background: var(--accent-500);
+    color: white;
+  }
+
+  &__bot-hint {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__empty-bots {
+    padding: @sp-6 @sp-4;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    border-radius: @radius-lg;
+    border: 1px dashed var(--color-border-primary);
+  }
+
+  // -- Settings row --
+  &__settings-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: @sp-4;
+  }
+
+  &__setting {
+    flex: 0 0 7rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-2;
+    cursor: pointer;
+    padding-top: 1.5rem; // align with input field
+  }
+
+  &__toggle-label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__toggle-desc {
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    line-height: @leading-snug;
   }
 }
 
@@ -680,5 +795,266 @@
     font-size: @text-xs;
     min-width: 6rem;
     max-width: 8rem;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Wizard — 3-step create dialog
+// -----------------------------------------------------------------------------
+
+.room-wizard {
+  .flex-col();
+  min-height: 22rem;
+
+  // -- Step title + description --
+  &__step-title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
+
+  &__step-desc {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    margin-bottom: @sp-5;
+  }
+
+  // -- Fields layout --
+  &__fields {
+    .flex-col();
+    gap: @sp-4;
+  }
+
+  // -- Bot selection list (step 1) --
+  &__bot-list {
+    border: 1px solid var(--color-border-primary);
+    border-radius: @radius-lg;
+    max-height: 16rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__bot-item {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2-5 @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+  }
+
+  &__bot-avatar {
+    .flex-center();
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-lg;
+    flex-shrink: 0;
+  }
+
+  &__bot-name {
+    flex: 1;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__bot-checkbox {
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--accent-500);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  &__bot-header {
+    .flex-between();
+    margin-bottom: @sp-3;
+  }
+
+  &__bot-badge {
+    .badge-base();
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    color: var(--accent-500);
+  }
+
+  &__bot-hint {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    margin-top: @sp-2;
+  }
+
+  &__empty-bots {
+    padding: @sp-6 @sp-4;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    border-radius: @radius-lg;
+    border: 1px dashed var(--color-border-primary);
+  }
+
+  // -- Mode selection grid (step 2) --
+  &__mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: @sp-3;
+  }
+
+  &__mode-card {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-1;
+    padding: @sp-3;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    cursor: pointer;
+    text-align: left;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+
+    &--selected {
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      box-shadow: 0 0 0 1px var(--accent-500);
+
+      &:hover {
+        background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+      }
+    }
+  }
+
+  &__mode-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__mode-title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--accent-600);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+
+    .room-wizard__mode-card:not(.room-wizard__mode-card--selected) & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__mode-radio {
+    width: 1rem;
+    height: 1rem;
+    border-radius: @radius-full;
+    border: 1.5px solid var(--color-border-secondary);
+    flex-shrink: 0;
+    position: relative;
+    .transition-colors();
+
+    .room-wizard__mode-card--selected & {
+      border-color: var(--accent-500);
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 0.5rem;
+        height: 0.5rem;
+        background: var(--accent-500);
+        border-radius: @radius-full;
+      }
+    }
+  }
+
+  &__mode-desc {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    line-height: @leading-snug;
+  }
+
+  &__mode-svg {
+    width: 100%;
+    height: 2.5rem;
+    margin-top: @sp-1;
+    color: var(--color-text-tertiary);
+  }
+
+  // -- Bottom settings (cooldown + auto-respond on step 2) --
+  &__bottom-settings {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-4;
+    margin-top: @sp-4;
+    padding-top: @sp-4;
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  &__setting {
+    flex: 0 0 7rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-2;
+    cursor: pointer;
+    padding-top: 1.5rem;
+  }
+
+  &__toggle-label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__toggle-desc {
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    line-height: @leading-snug;
+  }
+
+  // -- Template button --
+  &__template-btn {
+    .flex-center();
+    gap: @sp-2;
+    width: 100%;
+    padding: @sp-2-5 @sp-4;
+    border-radius: @radius-xl;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--accent-500);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      border-color: var(--accent-400);
+    }
   }
 }

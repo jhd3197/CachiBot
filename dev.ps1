@@ -184,6 +184,53 @@ foreach ($port in $ports) {
 }
 $startElectron = $Mode -in "desktop", "all"
 
+# --- Clear __pycache__ to avoid stale bytecode ---
+if ($startBackend) {
+    Write-Host "[dev] Clearing __pycache__..." -ForegroundColor DarkGray
+    Get-ChildItem -Path "$Root\src" -Recurse -Directory -Filter __pycache__ |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+    # Remove debug log artifact if leftover
+    $debugLog = "$Root\src\cachibot\api\room_ws_debug.log"
+    if (Test-Path $debugLog) { Remove-Item $debugLog -Force }
+}
+
+# --- Ensure latest editable installs (CachiBot + owned libs) ---
+if ($startBackend) {
+    Write-Host "[dev] Syncing editable installs..." -ForegroundColor DarkGray
+    $prompturePath = Join-Path (Split-Path $Root) "prompture"
+    $tukuyPath = Join-Path (Split-Path $Root) "Tukuy"
+    try {
+        if (Test-Path $prompturePath) {
+            $out = & pip install -e $prompturePath -q 2>&1
+            if ($LASTEXITCODE -ne 0) { Write-Host "[dev]   prompture FAILED: $out" -ForegroundColor Red }
+            else { Write-Host "[dev]   prompture -> $prompturePath" -ForegroundColor DarkGray }
+        }
+        if (Test-Path $tukuyPath) {
+            $out = & pip install -e $tukuyPath -q 2>&1
+            if ($LASTEXITCODE -ne 0) { Write-Host "[dev]   tukuy FAILED: $out" -ForegroundColor Red }
+            else { Write-Host "[dev]   tukuy     -> $tukuyPath" -ForegroundColor DarkGray }
+        }
+        Push-Location $Root
+        $out = & pip install -e ".[dev]" -q 2>&1
+        if ($LASTEXITCODE -ne 0) { Write-Host "[dev]   cachibot FAILED: $out" -ForegroundColor Red }
+        else { Write-Host "[dev]   cachibot  -> $Root (editable)" -ForegroundColor DarkGray }
+        Pop-Location
+    } catch {
+        Write-Host "[dev] Warning: pip sync failed: $_" -ForegroundColor Yellow
+        Pop-Location -ErrorAction SilentlyContinue
+    }
+
+    # Verify editable install points to source tree
+    $installPath = & python -c "import cachibot; print(cachibot.__path__[0])" 2>&1
+    $expectedPath = "$Root\src\cachibot"
+    if ($installPath -ne $expectedPath) {
+        Write-Host "[dev] WARNING: cachibot is loading from $installPath" -ForegroundColor Red
+        Write-Host "[dev]          Expected: $expectedPath" -ForegroundColor Red
+        Write-Host "[dev]          Run: pip uninstall cachibot -y && pip install -e '.[dev]'" -ForegroundColor Yellow
+    }
+}
+
 # --- Backend ---
 if ($startBackend) {
     Write-Host "[dev] backend  -> " -ForegroundColor Cyan -NoNewline

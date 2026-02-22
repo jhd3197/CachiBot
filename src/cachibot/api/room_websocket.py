@@ -729,6 +729,7 @@ async def run_room_bot(
         chain_context: List of (bot_name, response_text) from earlier chain steps.
         system_prompt_override: Full system prompt to use instead of building from context.
     """
+    logger.debug("run_room_bot entered: bot_id=%s room_id=%s", bot_id, room_id)
     orchestrator = get_room_orchestrator(room_id)
     if orchestrator is None:
         return ""
@@ -799,11 +800,24 @@ async def run_room_bot(
             except RuntimeError:
                 pass
 
+        # Build tool_configs from resolved environment (mirrors normal chat flow)
+        merged_tool_configs: dict[str, Any] = {}
+        if resolved_env and resolved_env.skill_configs:
+            for skill_name, skill_cfg in resolved_env.skill_configs.items():
+                merged_tool_configs.setdefault(skill_name, {}).update(skill_cfg)
+
         disabled_caps = await load_disabled_capabilities()
+        # Empty capabilities dict ({}) means "no capabilities configured" — treat
+        # as None so the plugin manager enables all tools (legacy mode).  A non-empty
+        # dict means the bot has explicit capability settings from the UI.
+        effective_caps = bot.capabilities if bot.capabilities else None
         agent = CachibotAgent(
             config=agent_config,
             system_prompt_override=enhanced_prompt,
+            capabilities=effective_caps,
             bot_id=bot_id,
+            bot_models=bot.models,
+            tool_configs=merged_tool_configs or None,
             driver=per_bot_driver,
             provider_environment=resolved_env,
             disabled_capabilities=disabled_caps,
@@ -821,6 +835,23 @@ async def run_room_bot(
         tool_calls: list[dict[str, Any]] = []
         response_msg_id = str(uuid.uuid4())
         agent_result = None  # Captured from the final output event
+        has_tool_calls = False
+
+        # Send an initial empty room_message so the frontend creates the message
+        # entry and tracks the bot's message ID BEFORE any tool events arrive.
+        # Without this, tool_start events that arrive before any text_delta have
+        # no message to attach to.
+        await room_manager.send_to_room(
+            room_id,
+            RoomWSMessage.room_message(
+                room_id=room_id,
+                sender_type="bot",
+                sender_id=bot_id,
+                sender_name=bot.name,
+                content="",
+                message_id=response_msg_id,
+            ),
+        )
 
         async with asyncio.timeout(BOT_TIMEOUT_SECONDS):  # type: ignore[attr-defined]
             async for event in agent.run_stream(message):
@@ -838,7 +869,16 @@ async def run_room_bot(
                                 message_id=response_msg_id,
                             ),
                         )
+                        # After tool calls, text deltas are "thinking" content
+                        if has_tool_calls:
+                            await room_manager.send_to_room(
+                                room_id,
+                                RoomWSMessage.bot_thinking(
+                                    room_id, bot_id, bot.name, content=event.data
+                                ),
+                            )
                     case StreamEventType.tool_call:
+                        has_tool_calls = True
                         tool_calls.append(
                             {
                                 "id": event.data.get("id", ""),
@@ -884,7 +924,7 @@ async def run_room_bot(
 
         # Save bot response (include tool calls in metadata)
         full_response = "".join(response_parts)
-        if full_response:
+        if full_response or tool_calls:
             metadata: dict[str, Any] = {}
             if tool_calls:
                 metadata["toolCalls"] = tool_calls
@@ -919,11 +959,24 @@ async def run_room_bot(
                 ),
             )
 
-        # Broadcast done
-        await room_manager.send_to_room(
-            room_id,
-            RoomWSMessage.bot_done(room_id, bot_id, bot.name),
+        # Broadcast done — construct payload directly (bypass classmethod
+        # to rule out stale model import)
+        done_payload: dict[str, Any] = {
+            "roomId": room_id,
+            "botId": bot_id,
+            "botName": bot.name,
+            "messageId": response_msg_id,
+        }
+        if tool_calls:
+            done_payload["toolCalls"] = tool_calls
+        done_msg = RoomWSMessage(
+            type=RoomWSMessageType.ROOM_BOT_DONE,
+            payload=done_payload,
         )
+        logger.debug(
+            "bot_done: bot_id=%s room_id=%s messageId=%s", bot_id, room_id, response_msg_id
+        )
+        await room_manager.send_to_room(room_id, done_msg)
 
         # Bot-to-bot mention chaining: parse the bot's response for @mentions
         if full_response and chain_depth < MAX_CHAIN_DEPTH:
@@ -956,6 +1009,7 @@ async def run_room_bot(
         return full_response
 
     except asyncio.CancelledError:
+        logger.debug("Bot %s cancelled in room %s", bot_id, room_id)
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(room_id, f"{bot.name} was cancelled", bot_id=bot_id),
@@ -986,7 +1040,7 @@ async def run_room_bot(
         )
         return ""
     except Exception as e:
-        logger.error(f"Bot {bot_id} error in room {room_id}: {e}", exc_info=True)
+        logger.exception("Bot %s error in room %s", bot_id, room_id)
         await room_manager.send_to_room(
             room_id,
             RoomWSMessage.error(room_id, f"{bot.name} encountered an error: {e}", bot_id=bot_id),

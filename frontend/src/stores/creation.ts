@@ -28,6 +28,7 @@ export const PURPOSE_CATEGORIES = [
   // Work & Learning
   { id: 'coding', label: 'Coding & Dev', description: 'Programming help, debugging, code review' },
   { id: 'writing', label: 'Writing & Content', description: 'Blog posts, copywriting, editing' },
+  { id: 'marketing', label: 'Marketing', description: 'Campaigns, SEO, social media, analytics' },
   { id: 'learning', label: 'Learning & Study', description: 'Tutoring, flashcards, explanations' },
   { id: 'productivity', label: 'Productivity', description: 'Task management, scheduling, goals' },
   // Creative & Personal

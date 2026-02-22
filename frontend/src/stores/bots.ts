@@ -211,6 +211,7 @@ interface ChatState {
   updateToolCall: (id: string, result: unknown, success: boolean) => void
   clearToolCalls: () => void
   attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
+  attachThinkingToLastMessage: (chatId: string, thinking: string) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 }
@@ -505,6 +506,29 @@ export const useChatStore = create<ChatState>()(
               [chatId]: chatMessages.map((m, i) =>
                 i === lastAssistantIndex
                   ? { ...m, toolCalls: [...toolCalls] }
+                  : m
+              ),
+            },
+          }
+        }),
+
+      attachThinkingToLastMessage: (chatId, thinking) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          let lastAssistantIndex = -1
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].role === 'assistant') {
+              lastAssistantIndex = i
+              break
+            }
+          }
+          if (lastAssistantIndex === -1) return state
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) =>
+                i === lastAssistantIndex
+                  ? { ...m, thinking }
                   : m
               ),
             },

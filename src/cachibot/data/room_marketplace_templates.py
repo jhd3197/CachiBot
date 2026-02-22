@@ -11,6 +11,9 @@ RoomTemplateCategory = Literal[
     "productivity",
     "data",
     "learning",
+    "marketing",
+    "health",
+    "finance",
 ]
 
 
@@ -440,6 +443,207 @@ ROOM_MARKETPLACE_TEMPLATES: list[RoomTemplateDefinition] = [
         "rating": 4.5,
         "downloads": 7200,
     },
+    {
+        "id": "marketing-war-room",
+        "name": "Marketing War Room",
+        "description": (
+            "Debate marketing strategy from three angles: growth, creative, and data-driven"
+        ),
+        "icon": "megaphone",
+        "color": "#8b5cf6",
+        "category": "marketing",
+        "tags": ["marketing", "strategy", "debate", "growth"],
+        "response_mode": "debate",
+        "bots": [
+            {
+                "template_id": "marketing-strategist",
+                "role": "default",
+                "position": "FOR",
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "ad-copywriter",
+                "role": "default",
+                "position": "AGAINST",
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "seo-optimizer",
+                "role": "default",
+                "position": "NEUTRAL",
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+        ],
+        "settings": {
+            "cooldown_seconds": 5,
+            "auto_relevance": True,
+            "debate_rounds": 2,
+        },
+        "rating": 4.8,
+        "downloads": 8900,
+    },
+    {
+        "id": "seo-content-pipeline",
+        "name": "SEO Content Pipeline",
+        "description": "Full SEO workflow: research keywords, write optimized copy, then schedule posts",
+        "icon": "search",
+        "color": "#22c55e",
+        "category": "marketing",
+        "tags": ["seo", "content", "pipeline", "social media"],
+        "response_mode": "chain",
+        "bots": [
+            {
+                "template_id": "seo-optimizer",
+                "role": "lead",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "copywriter",
+                "role": "specialist",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "social-media-manager",
+                "role": "reviewer",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+        ],
+        "settings": {
+            "cooldown_seconds": 5,
+            "auto_relevance": True,
+        },
+        "rating": 4.7,
+        "downloads": 9600,
+    },
+    {
+        "id": "wellness-dashboard",
+        "name": "Wellness Dashboard",
+        "description": "Get fitness, nutrition, and mindfulness advice simultaneously from specialists",
+        "icon": "heart",
+        "color": "#ef4444",
+        "category": "health",
+        "tags": ["fitness", "nutrition", "mindfulness", "wellness"],
+        "response_mode": "parallel",
+        "bots": [
+            {
+                "template_id": "fitness-coach",
+                "role": "specialist",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "nutrition-advisor",
+                "role": "specialist",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "mindfulness-guide",
+                "role": "specialist",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+        ],
+        "settings": {
+            "cooldown_seconds": 5,
+            "auto_relevance": True,
+        },
+        "rating": 4.7,
+        "downloads": 7400,
+    },
+    {
+        "id": "financial-review",
+        "name": "Financial Review",
+        "description": (
+            "Full financial checkup: budget analysis, investment review, then tax optimization"
+        ),
+        "icon": "bar-chart",
+        "color": "#22c55e",
+        "category": "finance",
+        "tags": ["budget", "investment", "tax", "financial planning"],
+        "response_mode": "sequential",
+        "bots": [
+            {
+                "template_id": "budget-planner",
+                "role": "lead",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "investment-analyst",
+                "role": "specialist",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "tax-helper",
+                "role": "reviewer",
+                "position": None,
+                "keywords": [],
+                "waterfall_condition": None,
+            },
+        ],
+        "settings": {
+            "cooldown_seconds": 5,
+            "auto_relevance": True,
+        },
+        "rating": 4.6,
+        "downloads": 6800,
+    },
+    {
+        "id": "full-stack-review",
+        "name": "Full Stack Review",
+        "description": "Route your questions to the right coding specialist automatically",
+        "icon": "code",
+        "color": "#3b82f6",
+        "category": "coding",
+        "tags": ["code review", "api", "debugging", "routing"],
+        "response_mode": "router",
+        "bots": [
+            {
+                "template_id": "code-reviewer",
+                "role": "specialist",
+                "position": None,
+                "keywords": ["code", "review", "refactor", "quality", "pattern"],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "api-designer",
+                "role": "specialist",
+                "position": None,
+                "keywords": ["api", "endpoint", "rest", "graphql", "schema"],
+                "waterfall_condition": None,
+            },
+            {
+                "template_id": "bug-hunter",
+                "role": "specialist",
+                "position": None,
+                "keywords": ["bug", "error", "debug", "crash", "fix"],
+                "waterfall_condition": None,
+            },
+        ],
+        "settings": {
+            "cooldown_seconds": 3,
+            "auto_relevance": True,
+            "routing_strategy": "llm",
+        },
+        "rating": 4.8,
+        "downloads": 10500,
+    },
 ]
 
 ROOM_CATEGORY_INFO: dict[str, dict[str, str]] = {
@@ -467,6 +671,21 @@ ROOM_CATEGORY_INFO: dict[str, dict[str, str]] = {
         "id": "learning",
         "name": "Learning & Education",
         "description": "Multi-perspective learning rooms",
+    },
+    "marketing": {
+        "id": "marketing",
+        "name": "Marketing & Growth",
+        "description": "Marketing strategy and content workflows",
+    },
+    "health": {
+        "id": "health",
+        "name": "Health & Wellness",
+        "description": "Fitness, nutrition, and wellness rooms",
+    },
+    "finance": {
+        "id": "finance",
+        "name": "Finance & Business",
+        "description": "Financial planning and analysis workflows",
     },
 }
 

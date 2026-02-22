@@ -80,12 +80,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
     import logging
 
+    # ---- Centralized logging (file handler + secret masking — must be first) ----
+    from cachibot.logging_config import setup_logging
+
+    setup_logging()
+
     startup_logger = logging.getLogger("cachibot.startup")
-
-    # ---- Secret masking (must be first — before any secrets could be logged) ----
-    from cachibot.services.secret_masking import install_secret_masking
-
-    install_secret_masking()
 
     # ---- Installation health check (P1) ----
     try:

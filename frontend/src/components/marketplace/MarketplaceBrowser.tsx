@@ -13,6 +13,7 @@ import {
   getMarketplaceTemplates,
   getMarketplaceCategories,
   getRoomMarketplaceTemplates,
+  getRoomMarketplaceCategories,
   type MarketplaceTemplate,
   type MarketplaceCategory,
 } from '../../api/client'
@@ -48,19 +49,20 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, initialTab = 'b
     setTab(initialTab)
   }, [initialTab])
 
-  // Fetch categories on mount
+  // Fetch categories and templates on mount and tab change
   useEffect(() => {
     if (open) {
-      loadCategories()
       if (tab === 'bots') {
+        loadCategories()
         loadTemplates()
       } else {
+        loadRoomCategories()
         loadRoomTemplates()
       }
     }
-  }, [open])
+  }, [open, tab])
 
-  // Reload templates when filter/tab changes
+  // Reload templates when filter changes
   useEffect(() => {
     if (open) {
       if (tab === 'bots') {
@@ -69,7 +71,7 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, initialTab = 'b
         loadRoomTemplates()
       }
     }
-  }, [selectedCategory, searchQuery, tab])
+  }, [selectedCategory, searchQuery])
 
   const loadCategories = async () => {
     try {
@@ -77,6 +79,15 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, initialTab = 'b
       setCategories(data)
     } catch (err) {
       console.error('Failed to load categories:', err)
+    }
+  }
+
+  const loadRoomCategories = async () => {
+    try {
+      const data = await getRoomMarketplaceCategories()
+      setCategories(data)
+    } catch (err) {
+      console.error('Failed to load room categories:', err)
     }
   }
 

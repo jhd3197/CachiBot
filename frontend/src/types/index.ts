@@ -178,6 +178,7 @@ export interface ChatMessage {
   metadata?: MessageMetadata & Record<string, unknown>
   toolCalls?: ToolCall[]
   replyToId?: string
+  thinking?: string
 }
 
 // =============================================================================
@@ -1081,6 +1082,7 @@ export interface RoomMessage {
   metadata: Record<string, unknown>
   timestamp: string
   toolCalls?: ToolCall[]
+  thinking?: string
 }
 
 export type RoomWSMessageType =

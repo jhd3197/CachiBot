@@ -13,6 +13,7 @@ import {
   X,
   Image,
   Volume2,
+  Brain,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
@@ -303,6 +304,7 @@ export interface MessageBubbleProps {
     toolCalls?: ToolCall[]
     metadata?: Record<string, unknown>
     replyToId?: string
+    thinking?: string
   }
   botIcon?: BotIcon
   botColor?: string
@@ -327,7 +329,8 @@ export function MessageBubble({
   const [copied, setCopied] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showToolCalls, setShowToolCalls] = useState(false)
-  const { accentColor, customHex } = useUIStore()
+  const [showThinkingPanel, setShowThinkingPanel] = useState(false)
+  const { accentColor, customHex, showThinking } = useUIStore()
   const userColor = userColorProp ?? (
     accentColor === 'custom'
       ? generatePalette(customHex)[600]
@@ -481,6 +484,19 @@ export function MessageBubble({
             </div>
           )}
 
+          {/* Thinking collapsible section */}
+          {!isUser && message.thinking && showThinking && showThinkingPanel && (
+            <div className="chat-msg-thinking">
+              <div className="chat-msg-thinking__header">
+                <Brain className="h-3 w-3" />
+                <span>Thinking</span>
+              </div>
+              <div className="chat-msg-thinking__content">
+                {message.thinking}
+              </div>
+            </div>
+          )}
+
           {/* Usage info popover */}
           {showInfo && hasMetadata && (
             <div className="chat-message__info-panel">
@@ -565,6 +581,18 @@ export function MessageBubble({
             >
               <Code className="h-3 w-3" />
               Tools ({message.toolCalls.length})
+            </button>
+          )}
+          {!isUser && message.thinking && showThinking && (
+            <button
+              onClick={() => setShowThinkingPanel(!showThinkingPanel)}
+              className={cn(
+                'chat-message__action-btn',
+                showThinkingPanel && 'chat-message__action-btn--active'
+              )}
+            >
+              <Brain className="h-3 w-3" />
+              Thinking
             </button>
           )}
           {hasMetadata && (

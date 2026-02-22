@@ -70,11 +70,16 @@ class RoomWSMessage(BaseModel):
         )
 
     @classmethod
-    def bot_thinking(cls, room_id: str, bot_id: str, bot_name: str) -> "RoomWSMessage":
-        """Create a bot thinking indicator."""
+    def bot_thinking(
+        cls, room_id: str, bot_id: str, bot_name: str, content: str | None = None
+    ) -> "RoomWSMessage":
+        """Create a bot thinking indicator, optionally with thinking text content."""
+        payload: dict[str, Any] = {"roomId": room_id, "botId": bot_id, "botName": bot_name}
+        if content is not None:
+            payload["content"] = content
         return cls(
             type=RoomWSMessageType.ROOM_BOT_THINKING,
-            payload={"roomId": room_id, "botId": bot_id, "botName": bot_name},
+            payload=payload,
         )
 
     @classmethod
@@ -149,11 +154,26 @@ class RoomWSMessage(BaseModel):
         )
 
     @classmethod
-    def bot_done(cls, room_id: str, bot_id: str, bot_name: str) -> "RoomWSMessage":
-        """Create a bot done message."""
+    def bot_done(
+        cls,
+        room_id: str,
+        bot_id: str,
+        bot_name: str,
+        message_id: str = "",
+        tool_calls: list[dict[str, Any]] | None = None,
+    ) -> "RoomWSMessage":
+        """Create a bot done message, optionally carrying accumulated tool calls."""
+        payload: dict[str, Any] = {
+            "roomId": room_id,
+            "botId": bot_id,
+            "botName": bot_name,
+            "messageId": message_id,
+        }
+        if tool_calls:
+            payload["toolCalls"] = tool_calls
         return cls(
             type=RoomWSMessageType.ROOM_BOT_DONE,
-            payload={"roomId": room_id, "botId": bot_id, "botName": bot_name},
+            payload=payload,
         )
 
     @classmethod
