@@ -38,12 +38,78 @@
     }
   }
 
-  &__counter {
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__counters {
     display: flex;
     align-items: center;
     gap: @sp-1;
-    font-size: @text-xs;
+  }
+
+  &__counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px @sp-2;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    font-size: 11px;
+    font-weight: @font-medium;
     color: var(--color-text-secondary);
+  }
+
+  &__divider {
+    width: 1px;
+    height: 1rem;
+    background: var(--color-border-primary);
+    flex-shrink: 0;
+  }
+
+  &__view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    border-radius: @radius-lg;
+    background: var(--color-bg-secondary);
+    padding: 3px;
+  }
+
+  &__view-btn {
+    .flex-center();
+    width: 1.625rem;
+    height: 1.625rem;
+    border-radius: @radius-md;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    background: none;
+    border: none;
+    .transition-colors();
+
+    &:hover {
+      color: var(--color-text-secondary);
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      color: var(--accent-600);
+      background: var(--color-bg-primary);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+      .dark & {
+        color: var(--accent-400);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+    }
+  }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
   }
 
   &__icon-btn {
@@ -51,13 +117,14 @@
     width: 1.75rem;
     height: 1.75rem;
     border-radius: @radius-md;
-    color: var(--color-text-secondary);
+    color: var(--color-text-tertiary);
     cursor: pointer;
     background: none;
     border: none;
     .transition-colors();
 
     &:hover {
+      color: var(--color-text-secondary);
       background: var(--color-hover-bg);
     }
   }
@@ -129,6 +196,80 @@
     height: 100%;
     font-size: @text-sm;
     color: var(--color-text-secondary);
+  }
+
+  &__chain-step {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    color: var(--accent-600);
+    background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+    border-bottom: 1px solid var(--color-border-primary);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+
+  &__route-decision {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px @sp-1;
+    border-radius: @radius-sm;
+    font-size: 10px;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+
+    &--lead {
+      background: rgba(@yellow-500, 0.2);
+      color: @yellow-600;
+
+      .dark & {
+        color: @yellow-400;
+      }
+    }
+
+    &--reviewer {
+      background: rgba(@blue-500, 0.2);
+      color: @blue-600;
+
+      .dark & {
+        color: @blue-400;
+      }
+    }
+
+    &--observer {
+      background: rgba(@zinc-500, 0.2);
+      color: @zinc-500;
+
+      .dark & {
+        color: @zinc-400;
+      }
+    }
+
+    &--specialist {
+      background: rgba(@green-500, 0.2);
+      color: @green-600;
+
+      .dark & {
+        color: @green-400;
+      }
+    }
   }
 }
 
@@ -229,6 +370,204 @@
     display: flex;
     align-items: center;
     gap: @sp-4;
+  }
+
+  &__mode-toggle {
+    display: flex;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    overflow: hidden;
+  }
+
+  &__mode-btn {
+    flex: 1;
+    padding: @sp-1-5 @sp-3;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:not(:last-child) {
+      border-right: 1px solid var(--color-border-primary);
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+      color: var(--accent-600);
+
+      .dark & {
+        color: var(--accent-400);
+      }
+    }
+  }
+
+  &__role-select {
+    padding: 2px @sp-1-5;
+    border-radius: @radius-md;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-size: @text-xs;
+    cursor: pointer;
+    .transition-colors();
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-500);
+    }
+  }
+
+  &__reset-confirm {
+    padding: @sp-2;
+    border-radius: @radius-md;
+    background: var(--color-bg-secondary);
+  }
+
+  &__group {
+    .flex-col();
+    gap: @sp-4;
+
+    & + & {
+      margin-top: @sp-2;
+      padding-top: @sp-4;
+      border-top: 1px solid var(--color-border-primary);
+    }
+  }
+
+  &__group-title {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+  }
+
+  &__bot-actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__add-bot-area {
+    margin-top: @sp-2;
+
+    > .form-field__help {
+      margin-bottom: @sp-1;
+    }
+  }
+
+  &__add-bot-icon {
+    margin-left: auto;
+    color: var(--color-text-tertiary);
+  }
+
+  &__setting-field {
+    flex: 1;
+  }
+
+  &__auto-respond {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding-top: 1rem;
+  }
+
+  &__auto-summary-row {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+
+    > .form-field__help {
+      margin: 0;
+      white-space: nowrap;
+    }
+  }
+
+  &__auto-summary-opts {
+    .flex-col();
+    gap: @sp-2;
+    margin-top: @sp-2;
+  }
+
+  &__auto-summary-pin {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &__auto-item-left {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__auto-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__auto-type {
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__add-auto-form {
+    .flex-col();
+    gap: @sp-2;
+    margin-top: @sp-2;
+    padding: @sp-3;
+    background: var(--color-bg-secondary);
+    border-radius: @radius-md;
+  }
+
+  &__add-auto-selects {
+    display: flex;
+    gap: @sp-2;
+
+    > select {
+      flex: 1;
+    }
+  }
+
+  &__add-auto-actions {
+    display: flex;
+    gap: @sp-2;
+    justify-content: flex-end;
+  }
+
+  &__variables-eq {
+    color: var(--color-text-tertiary);
+  }
+
+  &__confirm-actions {
+    display: flex;
+    gap: @sp-2;
+    margin-top: @sp-2;
+  }
+
+  &__danger-btn {
+    width: 100%;
+    justify-content: center;
+    gap: @sp-2;
+    color: var(--color-text-secondary);
+
+    &--delete {
+      color: var(--color-danger);
+      margin-top: @sp-2;
+    }
   }
 }
 
@@ -404,36 +743,770 @@
 // -----------------------------------------------------------------------------
 
 .room-create {
-  &__bot-list {
-    max-height: 12rem;
+  .flex-col();
+  gap: @sp-4;
+
+  // -- Template button --
+  &__template-btn {
+    .flex-center();
+    gap: @sp-2;
+    width: 100%;
+    padding: @sp-2-5 @sp-4;
+    border-radius: @radius-xl;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--accent-500);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      border-color: var(--accent-400);
+    }
+  }
+
+  // -- Section structure --
+  &__section {
+    .flex-col();
+    gap: @sp-3;
+  }
+
+  &__section-header {
+    .flex-between();
+  }
+
+  &__section-label {
+    .section-label();
+  }
+
+  &__fields {
+    .flex-col();
+    gap: @sp-3;
+  }
+
+  &__optional {
+    font-weight: @font-normal;
+    color: var(--color-text-tertiary);
+    font-size: @text-xs;
+  }
+
+  // -- Bot selection grid --
+  &__bot-badge {
+    .badge-base();
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    color: var(--accent-500);
+  }
+
+  &__bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: @sp-2;
+    max-height: 14rem;
     overflow-y: auto;
-    border-radius: @radius-lg;
-    border: 1px solid var(--color-border-primary);
-    padding: @sp-2;
     .scrollbar-thin();
   }
 
-  &__bot-option {
-    display: flex;
-    width: 100%;
+  &__bot-card {
+    position: relative;
+    .flex-col();
     align-items: center;
     gap: @sp-2;
+    padding: @sp-3 @sp-2;
+    border-radius: @radius-xl;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+
+    &--selected {
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+      }
+    }
+
+    &--disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  }
+
+  &__bot-avatar {
+    .flex-center();
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: @radius-lg;
-    padding: @sp-1-5 @sp-2;
-    text-align: left;
+  }
+
+  &__bot-name {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    text-align: center;
+    .truncate();
+    max-width: 100%;
+  }
+
+  &__bot-check {
+    position: absolute;
+    top: @sp-1-5;
+    right: @sp-1-5;
+    .flex-center();
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: @radius-full;
+    background: var(--accent-500);
+    color: white;
+  }
+
+  &__bot-hint {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+  }
+
+  &__empty-bots {
+    padding: @sp-6 @sp-4;
+    text-align: center;
     font-size: @text-sm;
+    color: var(--color-text-secondary);
+    border-radius: @radius-lg;
+    border: 1px dashed var(--color-border-primary);
+  }
+
+  // -- Settings row --
+  &__settings-row {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-4;
+  }
+
+  &__setting {
+    flex: 0 0 7rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-2;
+    cursor: pointer;
+    padding-top: 1.5rem; // align with input field
+  }
+
+  &__toggle-label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__toggle-desc {
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    line-height: @leading-snug;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Response Mode Settings (shared by Create + Settings dialogs)
+// -----------------------------------------------------------------------------
+
+.room-mode-settings {
+  .flex-col();
+  gap: @sp-3;
+  margin-top: @sp-3;
+  padding: @sp-3;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+
+  &__row {
+    .flex-col();
+    gap: @sp-1-5;
+  }
+
+  &__bot-configs {
+    .flex-col();
+    gap: @sp-2;
+  }
+
+  &__bot-row {
+    .flex-between();
+    gap: @sp-2;
+  }
+
+  &__bot-name {
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    min-width: 5rem;
+  }
+
+  &__keyword-group {
+    .flex-col();
+    gap: @sp-1;
+  }
+
+  &__keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  &__keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+    background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+    color: var(--accent-600);
+    font-size: @text-xs;
+    font-weight: @font-medium;
+
+    .dark & {
+      color: var(--accent-400);
+    }
+  }
+
+  &__keyword-remove {
+    .flex-center();
+    width: 14px;
+    height: 14px;
+    border-radius: @radius-full;
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-text-primary);
+    color: inherit;
+    opacity: 0.6;
     .transition-colors();
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__keyword-input {
+    .input-base();
+    height: auto;
+    padding: 2px @sp-1-5;
+    font-size: @text-xs;
+    min-width: 6rem;
+    max-width: 8rem;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Wizard — 3-step create dialog
+// -----------------------------------------------------------------------------
+
+.room-wizard {
+  .flex-col();
+  min-height: 22rem;
+
+  // -- Step title + description --
+  &__step-title {
+    font-size: @text-lg;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
+
+  &__step-desc {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    margin-bottom: @sp-5;
+  }
+
+  // -- Fields layout --
+  &__fields {
+    .flex-col();
+    gap: @sp-4;
+  }
+
+  // -- Bot selection list (step 1) --
+  &__bot-list {
+    border: 1px solid var(--color-border-primary);
+    border-radius: @radius-lg;
+    max-height: 16rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+  }
+
+  &__bot-item {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-3 @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:last-child {
+      border-bottom: none;
+    }
 
     &:hover {
       background: var(--color-hover-bg);
     }
 
+    &--disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+  }
+
+  &__bot-avatar {
+    .flex-center();
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-lg;
+    flex-shrink: 0;
+  }
+
+  &__bot-name {
+    flex: 1;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__bot-checkbox {
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--accent-500);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  &__bot-header {
+    .flex-between();
+    margin-bottom: @sp-3;
+  }
+
+  &__bot-badge {
+    .badge-base();
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    color: var(--accent-500);
+  }
+
+  &__bot-hint {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    margin-top: @sp-2;
+  }
+
+  &__empty-bots {
+    padding: @sp-6 @sp-4;
+    text-align: center;
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    border-radius: @radius-lg;
+    border: 1px dashed var(--color-border-primary);
+  }
+
+  // -- Bot info (description + model badge in step 1) --
+  &__bot-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__bot-desc {
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    line-height: @leading-snug;
+    .truncate();
+  }
+
+  &__bot-model {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 0 @sp-1;
+    border-radius: @radius-sm;
+    font-size: 10px;
+    font-weight: @font-medium;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+  }
+
+  // -- Mode selection grid (step 2) --
+  &__mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: @sp-3;
+  }
+
+  &__mode-card {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-1;
+    padding: @sp-3;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-primary);
+    cursor: pointer;
+    text-align: left;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+
     &--selected {
-      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      box-shadow: 0 0 0 1px var(--accent-500);
+
+      &:hover {
+        background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+      }
+    }
+  }
+
+  &__mode-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__mode-title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--accent-600);
+
+    .dark & {
+      color: var(--accent-400);
+    }
+
+    .room-wizard__mode-card:not(.room-wizard__mode-card--selected) & {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__mode-radio {
+    width: 1rem;
+    height: 1rem;
+    border-radius: @radius-full;
+    border: 1.5px solid var(--color-border-secondary);
+    flex-shrink: 0;
+    position: relative;
+    .transition-colors();
+
+    .room-wizard__mode-card--selected & {
+      border-color: var(--accent-500);
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 0.5rem;
+        height: 0.5rem;
+        background: var(--accent-500);
+        border-radius: @radius-full;
+      }
+    }
+  }
+
+  &__mode-desc {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    line-height: @leading-snug;
+  }
+
+  &__mode-svg {
+    width: 100%;
+    height: 2.5rem;
+    margin-top: @sp-1;
+    color: var(--color-text-tertiary);
+  }
+
+  // -- Bottom settings (cooldown + auto-respond on step 2) --
+  &__bottom-settings {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-4;
+    margin-top: @sp-4;
+    padding-top: @sp-4;
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  &__setting {
+    flex: 0 0 7rem;
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: @sp-2;
+    cursor: pointer;
+    padding-top: 1.5rem;
+  }
+
+  &__toggle-label {
+    display: block;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__toggle-desc {
+    display: block;
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    line-height: @leading-snug;
+  }
+
+  // -- Template button --
+  &__template-btn {
+    .flex-center();
+    gap: @sp-2;
+    width: 100%;
+    padding: @sp-2-5 @sp-4;
+    border-radius: @radius-xl;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--accent-500);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+      border-color: var(--accent-400);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Reaction Bar
+// -----------------------------------------------------------------------------
+
+.reaction-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: @sp-1;
+
+  &__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+    font-size: @text-xs;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 15%, transparent);
+    }
+  }
+
+  &__count {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    font-weight: @font-medium;
+  }
+
+  &__picker-wrap {
+    position: relative;
+  }
+
+  &__add {
+    .flex-center();
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: @radius-full;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      border-color: var(--color-border-secondary);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__picker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    z-index: @z-dropdown;
+    display: flex;
+    gap: 2px;
+    padding: @sp-1;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-secondary);
+    background: var(--color-bg-primary);
+    box-shadow: @shadow-lg;
+    margin-bottom: @sp-1;
+  }
+
+  &__picker-btn {
+    .flex-center();
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: @radius-md;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: @text-base;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pinned Messages Bar
+// -----------------------------------------------------------------------------
+
+.pinned-bar {
+  border-bottom: 1px solid var(--color-border-primary);
+  background: color-mix(in srgb, @yellow-500 5%, transparent);
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: @sp-1-5;
+    width: 100%;
+    padding: @sp-1-5 @sp-4;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @yellow-600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    .dark & {
+      color: @yellow-400;
+    }
+
+    &:hover {
+      background: color-mix(in srgb, @yellow-500 8%, transparent);
+    }
+  }
+
+  &__list {
+    padding: 0 @sp-4 @sp-2;
+    .flex-col();
+    gap: @sp-1;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1 @sp-2;
+    border-radius: @radius-md;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+  }
+
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    .transition-colors();
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  &__sender {
+    font-size: 10px;
+    font-weight: @font-semibold;
+    color: var(--color-text-secondary);
+  }
+
+  &__text {
+    font-size: @text-xs;
+    color: var(--color-text-primary);
+    .truncate();
+  }
+
+  &__unpin {
+    .flex-center();
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: @radius-sm;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    .transition-colors();
+
+    &:hover {
+      color: @red-400;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// View Mode Toggle
+// -----------------------------------------------------------------------------
+
+.room-view-toggle {
+  display: flex;
+  border-radius: @radius-md;
+  border: 1px solid var(--color-border-primary);
+  overflow: hidden;
+
+  &__btn {
+    .flex-center();
+    width: 1.75rem;
+    height: 1.5rem;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:not(:last-child) {
+      border-right: 1px solid var(--color-border-primary);
+    }
+
+    &:hover {
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      background: color-mix(in srgb, var(--accent-500) 20%, transparent);
       color: var(--accent-600);
 
       .dark & {
@@ -441,23 +1514,282 @@
       }
     }
   }
+}
 
-  &__bot-icon {
+// -----------------------------------------------------------------------------
+// Dashboard Cards View
+// -----------------------------------------------------------------------------
+
+.room-cards-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: @sp-4;
+  }
+}
+
+.room-card-bot {
+  .flex-col();
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__avatar {
+    .flex-center();
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-lg;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__role {
+    margin-left: auto;
+  }
+
+  &__state {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: @font-medium;
+    padding: 1px @sp-1-5;
+    border-radius: @radius-full;
+
+    &--thinking {
+      background: rgba(@yellow-500, 0.2);
+      color: @yellow-600;
+      .dark & { color: @yellow-400; }
+    }
+
+    &--responding {
+      background: color-mix(in srgb, var(--accent-500) 20%, transparent);
+      color: var(--accent-600);
+      .dark & { color: var(--accent-400); }
+    }
+  }
+
+  &__content {
+    flex: 1;
+    padding: @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    overflow-y: auto;
+    max-height: 16rem;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    font-size: @text-xs;
+    color: var(--color-text-tertiary);
+    font-style: italic;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2 @sp-3;
+    border-top: 1px solid var(--color-border-primary);
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Timeline View
+// -----------------------------------------------------------------------------
+
+.room-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: @sp-4;
+  .scrollbar-thin();
+
+  &__container {
+    position: relative;
+    min-height: 8rem;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    height: 2rem;
+    margin-bottom: @sp-1;
+  }
+
+  &__label {
+    width: 6rem;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    text-align: right;
+    flex-shrink: 0;
+    .truncate();
+  }
+
+  &__track {
+    flex: 1;
+    position: relative;
+    height: 1.25rem;
+    background: var(--color-bg-secondary);
+    border-radius: @radius-sm;
+    overflow: hidden;
+  }
+
+  &__bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: @radius-sm;
+    min-width: 4px;
+    cursor: pointer;
+    .transition-colors();
+    display: flex;
+    align-items: center;
+    padding: 0 @sp-1;
+    font-size: 9px;
+    font-weight: @font-medium;
+    color: white;
+    overflow: hidden;
+    white-space: nowrap;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &__axis {
+    display: flex;
+    justify-content: space-between;
+    padding-left: calc(6rem + @sp-2);
+    font-size: 9px;
+    color: var(--color-text-tertiary);
+    margin-top: @sp-1;
+  }
+
+  &__empty {
+    .flex-center();
+    height: 8rem;
+    font-size: @text-sm;
+    color: var(--color-text-tertiary);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Consensus / Interview status indicators
+// -----------------------------------------------------------------------------
+
+.room-panel__consensus-status,
+.room-panel__interview-status {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-1-5 @sp-4;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.room-panel__consensus-status {
+  color: var(--accent-600);
+  background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+  .dark & { color: var(--accent-400); }
+}
+
+.room-panel__interview-status {
+  color: @green-600;
+  background: rgba(@green-500, 0.1);
+  .dark & { color: @green-400; }
+
+  &--handoff {
+    color: var(--accent-600);
+    background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+    .dark & { color: var(--accent-400); }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Room Personality & Variables (Settings Dialog)
+// -----------------------------------------------------------------------------
+
+.room-settings__variables {
+  .flex-col();
+  gap: @sp-2;
+
+  &-row {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+  }
+
+  &-key,
+  &-value {
+    .input-base();
+    height: auto;
+    padding: @sp-1 @sp-2;
+    font-size: @text-sm;
+  }
+
+  &-key {
+    flex: 0 0 6rem;
+  }
+
+  &-value {
+    flex: 1;
+  }
+
+  &-remove {
     .flex-center();
     width: 1.5rem;
     height: 1.5rem;
-    border-radius: @radius-md;
+    border-radius: @radius-sm;
+    background: none;
+    border: none;
+    color: @red-400;
+    cursor: pointer;
+    flex-shrink: 0;
+    .transition-colors();
+
+    &:hover {
+      color: @red-300;
+    }
   }
 
-  &__bot-count {
-    margin-top: @sp-1;
+  &-add {
+    .button-base();
+    padding: @sp-1 @sp-2;
     font-size: @text-xs;
+    border-radius: @radius-md;
+    border: 1px dashed var(--color-border-primary);
+    background: none;
     color: var(--color-text-secondary);
-  }
+    cursor: pointer;
+    .transition-colors();
 
-  &__setting-row {
-    display: flex;
-    align-items: center;
-    gap: @sp-4;
+    &:hover {
+      background: var(--color-hover-bg);
+    }
   }
 }

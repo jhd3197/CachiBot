@@ -74,7 +74,7 @@ This document defines a complete per-bot environment variable system for the Cac
 - Docker Compose's implicit `.env` file loading for `${VAR:-}` substitution
 
 The Python backend reads environment variables via `os.getenv()` only. API keys are loaded into `os.environ` in two ways:
-1. **From the `.env` file directly** by the providers API endpoint (`/api/providers`), which reads the `.env` file with `_read_env_file()` and sets `os.environ[key] = value` when listing providers (`src/cachibot/api/routes/providers.py:124-125`)
+1. **From the `.env` file directly** by the providers API endpoint (`/api/providers`), which reads the `.env` file with `_read_env_file()` and sets `os.environ[key] = value` when listing providers (`cachibot/api/routes/providers.py:124-125`)
 2. **From the process environment** — whatever the OS/Docker/Electron sets
 
 The providers endpoint also **writes** directly to the `.env` file via `_set_env_value()` when a user updates an API key through the UI.

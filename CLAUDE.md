@@ -11,14 +11,14 @@ CachiBot is a security-focused AI agent that uses the Prompture library for stru
 ### Backend Development
 ```bash
 pip install -e ".[dev]"          # Install with dev dependencies
-cachibot server                   # Start API server (port 6392)
+cachibot server                   # Start API server (port 5870)
 cachibot "your prompt"            # Run single prompt via CLI
 cachibot -i                       # Interactive mode
 pytest                            # Run all tests
 pytest -v                         # Verbose test output
 ruff check .                      # Lint Python code
 ruff format .                     # Format Python code
-mypy src/cachibot                 # Type check
+mypy cachibot                 # Type check
 ```
 
 ### Frontend Development
@@ -30,11 +30,11 @@ npm run build                     # Production build
 npm run lint                      # ESLint
 ```
 
-The frontend dev server proxies `/api` and `/ws` to `http://127.0.0.1:6392`.
+The frontend dev server proxies `/api` and `/ws` to `http://127.0.0.1:5870`.
 
 ## Architecture
 
-### Backend (`src/cachibot/`)
+### Backend (`cachibot/`)
 - **agent.py**: Core `CachibotAgent` dataclass wrapping Prompture's Agent with callbacks, tool registration, and Python sandbox
 - **cli.py**: Typer-based CLI with `cachibot` and `cachi` entry points
 - **api/server.py**: FastAPI app with lifespan management

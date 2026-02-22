@@ -22,7 +22,7 @@ Add new REST API endpoints following CachiBot's FastAPI patterns with Pydantic m
 
 ### 1. Define Pydantic Models
 
-Create or extend models in `src/cachibot/models/<domain>.py`:
+Create or extend models in `cachibot/models/<domain>.py`:
 
 ```python
 """
@@ -74,7 +74,7 @@ class YourItemResponse(BaseModel):
 
 ### 2. Create the Route File
 
-Create `src/cachibot/api/routes/<domain>.py`:
+Create `cachibot/api/routes/<domain>.py`:
 
 ```python
 """
@@ -181,7 +181,7 @@ async def delete_item(
 
 ### 3. Register the Router
 
-Edit `src/cachibot/api/server.py`:
+Edit `cachibot/api/server.py`:
 
 ```python
 # Add import
@@ -195,7 +195,7 @@ Note: If the router already has a full prefix (e.g., `/api/bots/{bot_id}/items`)
 
 ### 4. Add the route module to `__init__.py`
 
-Make sure `src/cachibot/api/routes/__init__.py` exports the new module (or at minimum that it's importable from the routes package).
+Make sure `cachibot/api/routes/__init__.py` exports the new module (or at minimum that it's importable from the routes package).
 
 ## Conventions
 
@@ -251,10 +251,10 @@ raise HTTPException(status_code=409, detail="Item with this name already exists"
 
 ## Checklist
 
-- [ ] Pydantic models created for request/response in `src/cachibot/models/`
-- [ ] Route file created in `src/cachibot/api/routes/`
+- [ ] Pydantic models created for request/response in `cachibot/models/`
+- [ ] Route file created in `cachibot/api/routes/`
 - [ ] Router uses `APIRouter(prefix="/api/bots/{bot_id}/<domain>", tags=[...])`
 - [ ] All endpoints have `user: User = Depends(require_bot_access)`
 - [ ] Response models use camelCase field names
-- [ ] Router registered in `src/cachibot/api/server.py`
+- [ ] Router registered in `cachibot/api/server.py`
 - [ ] Route module importable from `cachibot.api.routes`

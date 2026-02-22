@@ -58,9 +58,9 @@ CachiBotV2 has **two separate automation systems** — Legacy Jobs and the Work 
 ### 2.1 Jobs System (Legacy)
 
 **Key files:**
-- `src/cachibot/models/job.py` — Pydantic model
-- `src/cachibot/storage/models/job.py` — SQLAlchemy ORM (`jobs` table)
-- `src/cachibot/storage/repository.py` — `JobRepository` (legacy)
+- `cachibot/models/job.py` — Pydantic model
+- `cachibot/storage/models/job.py` — SQLAlchemy ORM (`jobs` table)
+- `cachibot/storage/repository.py` — `JobRepository` (legacy)
 - `frontend/src/components/views/JobsView.tsx` — Frontend view
 
 **What it is:** A simple flat job model tied to a message. Fields: `id`, `status`, `message_id`, `created_at`, `started_at`, `completed_at`, `result`, `error`, `progress`.
@@ -77,14 +77,14 @@ CachiBotV2 has **two separate automation systems** — Legacy Jobs and the Work 
 ### 2.2 Works System (Active)
 
 **Key files:**
-- `src/cachibot/models/work.py` — Pydantic models for all 6 entities
-- `src/cachibot/storage/models/work.py` — SQLAlchemy ORM (6 tables)
-- `src/cachibot/storage/work_repository.py` — 6 repository classes with full CRUD
-- `src/cachibot/api/routes/work.py` — 1648 lines, ~50 REST endpoints
-- `src/cachibot/services/job_runner.py` — Async background loop (polls every 10s, max 5 concurrent)
-- `src/cachibot/services/scheduler_service.py` — Async background loop (polls every 30s)
-- `src/cachibot/plugins/work_management.py` — Agent tools (work_create, work_list, etc.)
-- `src/cachibot/plugins/job_tools.py` — Agent tools (job_create, job_status, etc. — wraps Work system)
+- `cachibot/models/work.py` — Pydantic models for all 6 entities
+- `cachibot/storage/models/work.py` — SQLAlchemy ORM (6 tables)
+- `cachibot/storage/work_repository.py` — 6 repository classes with full CRUD
+- `cachibot/api/routes/work.py` — 1648 lines, ~50 REST endpoints
+- `cachibot/services/job_runner.py` — Async background loop (polls every 10s, max 5 concurrent)
+- `cachibot/services/scheduler_service.py` — Async background loop (polls every 30s)
+- `cachibot/plugins/work_management.py` — Agent tools (work_create, work_list, etc.)
+- `cachibot/plugins/job_tools.py` — Agent tools (job_create, job_status, etc. — wraps Work system)
 
 **What it is:** A 4-level hierarchy for bot automation:
 

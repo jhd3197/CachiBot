@@ -6,7 +6,7 @@ export interface DialogProps {
   open: boolean
   onClose: () => void
   children: ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'full'
   className?: string
   closeOnBackdrop?: boolean
   closeOnEscape?: boolean

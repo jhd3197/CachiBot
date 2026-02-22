@@ -96,3 +96,4 @@ settings.json
 /desktop/node_modules
 pr.md
 /.mypy_cache
+PROMPTURE_FEATURES.md

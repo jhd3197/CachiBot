@@ -31,6 +31,7 @@ export function InputArea({
   const [mentionFilter, setMentionFilter] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendingRef = useRef(false)
 
   // Auto-resize textarea
   useEffect(() => {
@@ -81,6 +82,11 @@ export function InputArea({
   const handleSend = useCallback(() => {
     const message = input.trim()
     if (!message || isLoading || disabled || !isConnected) return
+
+    // Prevent double-sends within the same render frame
+    if (sendingRef.current) return
+    sendingRef.current = true
+    requestAnimationFrame(() => { sendingRef.current = false })
 
     onSend(message)
     setInput('')

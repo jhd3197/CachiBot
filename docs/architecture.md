@@ -600,7 +600,7 @@ Frontend mounts ToolsView
 ## 7. Adding a New Plugin
 
 ```python
-# src/cachibot/plugins/my_plugin.py
+# cachibot/plugins/my_plugin.py
 from tukuy.manifest import PluginManifest
 from tukuy.skill import skill, RiskLevel, ConfigParam, Skill
 from cachibot.plugins.base import CachibotPlugin, PluginContext
@@ -671,15 +671,15 @@ That's it. The frontend automatically:
 
 | File | What it does |
 |------|-------------|
-| `src/cachibot/plugins/base.py` | `PluginContext`, `CachibotPlugin` base class |
-| `src/cachibot/plugins/task.py` | `TaskPlugin` — always-on task completion skill |
-| `src/cachibot/plugins/file_ops.py` | `FileOpsPlugin` — file read/write/list/edit/info |
-| `src/cachibot/plugins/python_sandbox.py` | `PythonSandboxPlugin` — sandboxed code execution |
-| `src/cachibot/plugins/platform.py` | `PlatformPlugin` — Telegram & Discord integration |
-| `src/cachibot/plugins/work_management.py` | `WorkManagementPlugin` — work items & todos |
-| `src/cachibot/services/plugin_manager.py` | Capability mapping, instantiation, registry bridge |
-| `src/cachibot/agent.py` | `CachibotAgent` — orchestrates Prompture + plugins |
-| `src/cachibot/api/routes/plugins.py` | `/api/plugins` introspection endpoint |
+| `cachibot/plugins/base.py` | `PluginContext`, `CachibotPlugin` base class |
+| `cachibot/plugins/task.py` | `TaskPlugin` — always-on task completion skill |
+| `cachibot/plugins/file_ops.py` | `FileOpsPlugin` — file read/write/list/edit/info |
+| `cachibot/plugins/python_sandbox.py` | `PythonSandboxPlugin` — sandboxed code execution |
+| `cachibot/plugins/platform.py` | `PlatformPlugin` — Telegram & Discord integration |
+| `cachibot/plugins/work_management.py` | `WorkManagementPlugin` — work items & todos |
+| `cachibot/services/plugin_manager.py` | Capability mapping, instantiation, registry bridge |
+| `cachibot/agent.py` | `CachibotAgent` — orchestrates Prompture + plugins |
+| `cachibot/api/routes/plugins.py` | `/api/plugins` introspection endpoint |
 | `frontend/src/types/index.ts` | `PluginInfo`, `PluginSkillInfo`, `ConfigParam` types |
 | `frontend/src/components/views/ToolsView.tsx` | Tool discovery and management UI |
 | `frontend/src/components/dialogs/ToolConfigDialog.tsx` | Generic config form from ConfigParam[] |

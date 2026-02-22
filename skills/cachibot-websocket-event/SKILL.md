@@ -30,7 +30,7 @@ models/websocket.py                 hooks/useWebSocket.ts
 
 ## Step 1: Backend — Add Message Type
 
-Edit `src/cachibot/models/websocket.py`:
+Edit `cachibot/models/websocket.py`:
 
 ```python
 class WSMessageType(str, Enum):
@@ -229,7 +229,7 @@ export const useYourStore = create<YourState>()(
 
 ## Checklist
 
-- [ ] `WSMessageType` enum extended in `src/cachibot/models/websocket.py`
+- [ ] `WSMessageType` enum extended in `cachibot/models/websocket.py`
 - [ ] Payload model defined (if structured data)
 - [ ] Factory method added to `WSMessage` class
 - [ ] Event sent from the appropriate backend handler

@@ -12,13 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy project files
 COPY pyproject.toml README.md ./
-COPY src/ ./src/
+COPY cachibot/ ./cachibot/
 
 # Install the package
 RUN pip install --no-cache-dir -e .
 
 # Expose backend port
-EXPOSE 6392
+EXPOSE 5870
 
 # Run the server
 CMD ["cachibot server"]

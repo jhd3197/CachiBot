@@ -25,7 +25,7 @@ PIDS=()
 
 # --- watch-lint mode ---
 if [ "$MODE" = "watch-lint" ]; then
-  PY_PATH="$ROOT_DIR/src/cachibot"
+  PY_PATH="$ROOT_DIR/cachibot"
   TS_PATH="$ROOT_DIR/frontend/src"
   echo -e "${CYAN}[dev]${RESET} Watching for lint errors (Python + TypeScript)"
   echo -e "${DIM}[dev]   Python  : $PY_PATH${RESET}"
@@ -118,14 +118,20 @@ kill_port() {
   fi
 }
 
-case "$MODE" in backend|browser|desktop|all) kill_port 6392 ;; esac
+case "$MODE" in backend|browser|desktop|all) kill_port 5870 ;; esac
 case "$MODE" in frontend|browser|desktop|all) kill_port 5173 ;; esac
 
 # --- Backend ---
 case "$MODE" in backend|browser|desktop|all)
-  echo -e "${CYAN}[dev]${RESET} backend  -> ${GREEN}http://127.0.0.1:6392${RESET}"
+  echo -e "${CYAN}[dev]${RESET} backend  -> ${GREEN}http://127.0.0.1:5870${RESET}"
   cd "$ROOT_DIR"
-  cachibot server --port 6392 --reload &
+  if [ -x "$ROOT_DIR/.venv/bin/cachibot" ]; then
+    "$ROOT_DIR/.venv/bin/cachibot" server --port 5870 --reload &
+  elif [ -x "$ROOT_DIR/.venv/Scripts/cachibot.exe" ]; then
+    "$ROOT_DIR/.venv/Scripts/cachibot.exe" server --port 5870 --reload &
+  else
+    cachibot server --port 5870 --reload &
+  fi
   PIDS+=($!)
   ;; esac
 

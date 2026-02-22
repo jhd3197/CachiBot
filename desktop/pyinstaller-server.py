@@ -12,7 +12,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser(description="CachiBot Desktop Server")
-    parser.add_argument("--port", type=int, default=6392, help="Server port")
+    parser.add_argument("--port", type=int, default=5870, help="Server port")
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     args = parser.parse_args()
 

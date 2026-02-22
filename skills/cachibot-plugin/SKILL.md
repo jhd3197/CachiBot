@@ -21,7 +21,7 @@ Create new plugins that expose tools to the CachiBot agent. Plugins are capabili
 
 ### 1. Create the Plugin File
 
-Create `src/cachibot/plugins/<your_plugin>.py`:
+Create `cachibot/plugins/<your_plugin>.py`:
 
 ```python
 """
@@ -118,7 +118,7 @@ class YourPlugin(CachibotPlugin):
 
 ### 2. Export from `__init__.py`
 
-Add to `src/cachibot/plugins/__init__.py`:
+Add to `cachibot/plugins/__init__.py`:
 
 ```python
 from cachibot.plugins.your_plugin import YourPlugin
@@ -138,7 +138,7 @@ __all__ = [
 
 ### 3. Register in Plugin Manager
 
-Edit `src/cachibot/services/plugin_manager.py`:
+Edit `cachibot/services/plugin_manager.py`:
 
 **Option A — Gate under a NEW capability:**
 
@@ -222,11 +222,11 @@ Available slots: `default`, `image`, `audio`, `structured`.
 
 ## Checklist
 
-- [ ] Plugin file created in `src/cachibot/plugins/`
+- [ ] Plugin file created in `cachibot/plugins/`
 - [ ] Plugin extends `CachibotPlugin` with proper `__init__`, `manifest`, `_build_skills`, `skills`
 - [ ] Skills use `@skill` decorator with description, risk_level, config_params
-- [ ] Plugin exported in `src/cachibot/plugins/__init__.py`
-- [ ] Plugin registered in `src/cachibot/services/plugin_manager.py`
+- [ ] Plugin exported in `cachibot/plugins/__init__.py`
+- [ ] Plugin registered in `cachibot/services/plugin_manager.py`
 - [ ] If new capability: added to `BotCapabilities` in frontend types
 - [ ] If new capability: toggle added to settings view
 - [ ] Tool returns human-readable strings (not raw JSON)

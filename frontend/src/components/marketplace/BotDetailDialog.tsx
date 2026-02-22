@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Star, Download, Wrench, MessageSquare, Loader2 } from 'lucide-react'
+import { Star, Download, Wrench, MessageSquare, Loader2, CircleCheck, AlertTriangle, CircleAlert } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
@@ -10,6 +10,7 @@ import {
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installMarketplaceTemplate, type MarketplaceTemplate } from '../../api/client'
 import { useBotStore } from '../../stores/bots'
+import { useModelCompatibility } from '../../hooks/useModelCompatibility'
 import type { Bot, BotIcon } from '../../types'
 
 interface BotDetailDialogProps {
@@ -29,6 +30,7 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
   const { addBot, setActiveBot } = useBotStore()
   const [isInstalling, setIsInstalling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const compat = useModelCompatibility(template?.model)
 
   const handleInstall = async () => {
     if (!template) return
@@ -142,9 +144,49 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
           {/* Model */}
           <div className="bot-detail__section">
             <h3 className="bot-detail__section-title">Recommended Model</h3>
-            <span className="bot-detail__model-badge">
-              {template.model}
-            </span>
+            {compat.status === 'no_model' ? (
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                Uses your default model
+              </span>
+            ) : (
+              <>
+                <div className="bot-detail__model-compat">
+                  <span className="bot-detail__model-badge">
+                    {template.model}
+                  </span>
+                  {compat.status === 'compatible' && (
+                    <span className="bot-detail__model-status bot-detail__model-status--compatible">
+                      <CircleCheck size={14} />
+                      Available
+                    </span>
+                  )}
+                  {compat.status === 'alternative' && (
+                    <span className="bot-detail__model-status bot-detail__model-status--alternative">
+                      <AlertTriangle size={14} />
+                      Not available — you have {compat.alternatives.length} model{compat.alternatives.length !== 1 ? 's' : ''} from {compat.providerLabel}
+                    </span>
+                  )}
+                  {compat.status === 'unavailable' && (
+                    <span className="bot-detail__model-status bot-detail__model-status--unavailable">
+                      <CircleAlert size={14} />
+                      {compat.providerLabel || 'Provider'} not configured — will use your default model ({compat.defaultModel || 'none set'})
+                    </span>
+                  )}
+                </div>
+                {compat.status === 'alternative' && compat.alternatives.length > 0 && (
+                  <div className="bot-detail__model-alternatives">
+                    {compat.alternatives.slice(0, 5).map((alt) => (
+                      <span key={alt} className="bot-detail__tool-badge">{alt}</span>
+                    ))}
+                    {compat.alternatives.length > 5 && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-tertiary)', alignSelf: 'center' }}>
+                        +{compat.alternatives.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {error && (

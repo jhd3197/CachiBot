@@ -24,7 +24,7 @@ Database (SQLite)
 
 ## Step 1: Database Table
 
-Edit `src/cachibot/storage/database.py` — add to the `init_db()` `CREATE TABLE` block:
+Edit `cachibot/storage/database.py` — add to the `init_db()` `CREATE TABLE` block:
 
 ```sql
 -- Your entities
@@ -61,7 +61,7 @@ migrations = [
 
 ## Step 2: Repository
 
-Add to `src/cachibot/storage/repository.py` (or create a new repo file):
+Add to `cachibot/storage/repository.py` (or create a new repo file):
 
 ```python
 class YourEntityRepository:
@@ -122,7 +122,7 @@ class YourEntityRepository:
 
 ## Step 3: Pydantic Models
 
-Create `src/cachibot/models/your_entity.py`:
+Create `cachibot/models/your_entity.py`:
 
 ```python
 """Your Entity Models — Pydantic schemas for the API."""
@@ -165,7 +165,7 @@ class YourEntityResponse(BaseModel):
 
 ## Step 4: API Routes
 
-Create `src/cachibot/api/routes/your_entities.py`:
+Create `cachibot/api/routes/your_entities.py`:
 
 ```python
 """Your Entity API Routes"""
@@ -253,7 +253,7 @@ async def delete_entity(
     await repo.delete(entity_id)
 ```
 
-Register in `src/cachibot/api/server.py`:
+Register in `cachibot/api/server.py`:
 
 ```python
 from cachibot.api.routes import your_entities
@@ -386,11 +386,11 @@ export const useYourEntityStore = create<YourEntityState>()(
 ## Full Checklist
 
 ### Backend
-- [ ] Table created in `src/cachibot/storage/database.py`
-- [ ] Repository class in `src/cachibot/storage/repository.py`
-- [ ] Pydantic models in `src/cachibot/models/`
-- [ ] API routes in `src/cachibot/api/routes/`
-- [ ] Router registered in `src/cachibot/api/server.py`
+- [ ] Table created in `cachibot/storage/database.py`
+- [ ] Repository class in `cachibot/storage/repository.py`
+- [ ] Pydantic models in `cachibot/models/`
+- [ ] API routes in `cachibot/api/routes/`
+- [ ] Router registered in `cachibot/api/server.py`
 
 ### Frontend
 - [ ] TypeScript types in `frontend/src/types/index.ts`

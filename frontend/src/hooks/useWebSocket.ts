@@ -56,7 +56,7 @@ export function setPendingChatId(chatId: string | null) {
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
-  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
+  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
 
   // Use a ref to always have access to the current activeChatId without re-creating the handler
   const activeChatIdRef = useRef<string | null>(null)
@@ -84,6 +84,12 @@ export function useWebSocket() {
 
         case 'tool_start': {
           const payload = msg.payload as ToolStartPayload
+          // Persist accumulated thinking to the last assistant message before clearing
+          const tsThinking = useChatStore.getState().thinking
+          const tsChatId = activeChatIdRef.current || pendingChatId
+          if (tsThinking && tsChatId) {
+            attachThinkingToLastMessage(tsChatId, tsThinking)
+          }
           // Clear thinking when a new tool starts (model decided on action)
           setThinking(null)
           addToolCall({
@@ -311,6 +317,13 @@ export function useWebSocket() {
           const payload = msg.payload as ErrorPayload
           setError(payload.message)
           setLoading(false)
+
+          // Persist accumulated thinking before clearing
+          const errThinking = useChatStore.getState().thinking
+          const errThinkingChatId = activeChatIdRef.current || pendingChatId
+          if (errThinking && errThinkingChatId) {
+            attachThinkingToLastMessage(errThinkingChatId, errThinking)
+          }
           setThinking(null)
 
           // Attach any in-progress tool calls to the last message (same as done)
@@ -326,6 +339,13 @@ export function useWebSocket() {
 
         case 'done': {
           setLoading(false)
+
+          // Persist accumulated thinking before clearing
+          const doneThinking = useChatStore.getState().thinking
+          const doneThinkingChatId = activeChatIdRef.current || pendingChatId
+          if (doneThinking && doneThinkingChatId) {
+            attachThinkingToLastMessage(doneThinkingChatId, doneThinking)
+          }
           setThinking(null)
 
           // Attach tool calls to last assistant message before clearing
@@ -348,7 +368,7 @@ export function useWebSocket() {
         }
       }
     },
-    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage]
+    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage]
   )
 
   // Connect on mount - only runs once since handleMessage is now stable

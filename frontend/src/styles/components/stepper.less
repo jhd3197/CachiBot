@@ -207,4 +207,31 @@
   &--compact &__step--upcoming {
     background: var(--color-border-secondary);
   }
+
+  // ---------------------------------------------------------------------------
+  // Progress variant (full-width bars for wizard dialogs)
+  // ---------------------------------------------------------------------------
+  &--progress {
+    gap: @sp-2;
+  }
+
+  &__bar {
+    flex: 1;
+    height: 6px;
+    border-radius: @radius-full;
+    background: var(--color-border-secondary);
+    transition: background @transition-fast;
+
+    &.stepper__step--active {
+      background: var(--accent-500);
+    }
+
+    &.stepper__step--completed {
+      background: var(--accent-600);
+    }
+
+    &.stepper__step--upcoming {
+      background: var(--color-border-secondary);
+    }
+  }
 }

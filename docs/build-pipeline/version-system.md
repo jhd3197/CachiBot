@@ -43,13 +43,13 @@ The version displayed in the Settings page of the desktop app comes from the **P
 ### 3. Bundled Artifact: PyInstaller Binary
 
 The frozen binary (`cachibot-server.exe` / `cachibot-server`) contains:
-- `/cachibot/__init__.py` (from `--add-data "src/cachibot:cachibot"`)
+- `/cachibot/__init__.py` (from `--add-data "cachibot:cachibot"`)
 - `/cachibot/VERSION` (from `--add-data "VERSION:cachibot"`)
 - `/cachibot/frontend_dist/` (from `--add-data "frontend/dist:cachibot/frontend_dist"`)
 
 ### 4. Runtime Read: `_get_version()` in `__init__.py`
 
-**File**: `src/cachibot/__init__.py` (lines 15-38)
+**File**: `cachibot/__init__.py` (lines 15-38)
 
 ```python
 def _get_version() -> str:
@@ -86,7 +86,7 @@ def _get_version() -> str:
 {healthInfo?.version ?? '...'}
 ```
 
-The backend's `/health` endpoint (`src/cachibot/api/routes/health.py`, line 28) returns:
+The backend's `/health` endpoint (`cachibot/api/routes/health.py`, line 28) returns:
 ```python
 version: str = __version__
 ```
@@ -116,7 +116,7 @@ Possible scenarios where it still breaks:
 
 1. **Early releases before the `--add-data "VERSION:cachibot"` was added** (commit `daf1162` added it to CI on 2026-02-18, but it was already present in the `.spec` file). Releases before the VERSION file was added to the PyInstaller command would always show "0.0.0-unknown".
 
-2. **PyInstaller `--add-data` ordering**: The command adds `"src/cachibot:cachibot"` first, then `"VERSION:cachibot"`. If `src/cachibot/` somehow contained a conflicting file, it could be overwritten. Currently `src/cachibot/VERSION` does not exist in git, so this is not an issue.
+2. **PyInstaller `--add-data` ordering**: The command adds `"cachibot:cachibot"` first, then `"VERSION:cachibot"`. If `cachibot/` somehow contained a conflicting file, it could be overwritten. Currently `cachibot/VERSION` does not exist in git, so this is not an issue.
 
 3. **`_MEIPASS` temporary directory issues**: On some Windows antivirus configurations, PyInstaller's `_MEIPASS` extraction can be incomplete or delayed. The VERSION file might not be extracted before `_get_version()` runs (unlikely but possible).
 

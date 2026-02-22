@@ -332,6 +332,14 @@
     color: var(--code-text);
   }
 
+  // Tools panel — expanded tool calls below bubble
+  &__tools-panel {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-1-5;
+    margin-top: @sp-2;
+  }
+
   // Action bar — hover actions under each message
   &__actions {
     display: flex;
@@ -344,6 +352,16 @@
       opacity: 1;
       transition-delay: 0ms;
     }
+
+    // When reaction bar has active reactions, always show actions row
+    .reaction-bar:not(:empty) ~ * {
+      // handled by parent opacity
+    }
+  }
+
+  // Keep actions visible when reactions exist
+  &__actions:has(.reaction-bar .reaction-bar__pill) {
+    opacity: 1;
   }
 
   &__action-btn {
@@ -924,6 +942,48 @@
 }
 
 // -----------------------------------------------------------------------------
+// Message Thinking (Persisted thinking in message bubble)
+// -----------------------------------------------------------------------------
+
+.chat-msg-thinking {
+  margin-top: @sp-2;
+  border-radius: @radius-lg;
+  border: 1px solid color-mix(in srgb, @purple-500 20%, transparent);
+  background: color-mix(in srgb, @purple-500 6%, transparent);
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @purple-600;
+
+    .dark & {
+      color: @purple-400;
+    }
+  }
+
+  &__content {
+    padding: 0 @sp-3 @sp-2;
+    max-height: 12rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+    font-size: @text-sm;
+    font-style: italic;
+    color: @purple-500;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    .dark & {
+      color: @purple-300;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Tool Toggle — "N tool actions" button
 // -----------------------------------------------------------------------------
 
@@ -951,7 +1011,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: @sp-2;
-  margin-top: @sp-3;
+  margin-top: @sp-2;
 }
 
 // -----------------------------------------------------------------------------
@@ -1122,6 +1182,45 @@
   &__dots {
     display: flex;
     gap: @sp-1;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Typing Dots — bouncing dots inside message bubble
+// -----------------------------------------------------------------------------
+
+.chat-typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: @sp-1 @sp-0-5;
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: @radius-full;
+    background: var(--color-text-secondary);
+    opacity: 0.4;
+    animation: typing-bounce 1.4s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
   }
 }
 
@@ -1363,6 +1462,21 @@
     .dark & {
       border-top-color: @zinc-700;
       color: @zinc-400;
+    }
+  }
+
+  &__instruction {
+    margin-top: @sp-2;
+    max-height: 8rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+
+    pre {
+      font-family: @font-mono;
+      font-size: @text-xs;
+      color: var(--color-text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   }
 
