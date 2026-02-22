@@ -15,7 +15,11 @@ const PROVIDER_LABELS: Record<string, string> = {
   ollama: 'Ollama',
   lmstudio: 'LM Studio',
   azure: 'Azure OpenAI',
+  cachibot: 'CachiBot',
 }
+
+/** Providers that should appear at the top of the list. */
+const FEATURED_PROVIDERS = new Set(['cachibot'])
 
 function formatTokens(n: number | null): string | null {
   if (!n) return null
@@ -260,9 +264,19 @@ export function ModelSelect({
 
                   {!loading &&
                     Object.entries(filtered)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([provider, items]) => (
-                        <div key={provider}>
+                      .sort(([a], [b]) => {
+                        const aFeatured = FEATURED_PROVIDERS.has(a)
+                        const bFeatured = FEATURED_PROVIDERS.has(b)
+                        if (aFeatured !== bFeatured) return aFeatured ? -1 : 1
+                        return a.localeCompare(b)
+                      })
+                      .map(([provider, items]) => {
+                        const isFeatured = FEATURED_PROVIDERS.has(provider)
+                        return (
+                        <div key={provider} className={cn(
+                          'model-select__group',
+                          isFeatured && 'model-select__group--featured'
+                        )}>
                           <div className="model-select__group-header">
                             {providerLabel(provider)}
                             <span className="model-select__group-count">{items.length}</span>
@@ -310,7 +324,8 @@ export function ModelSelect({
                             )
                           })}
                         </div>
-                      ))}
+                        )
+                      })}
 
                   {!loading && totalCount === 0 && (
                     <div className="model-select__empty">

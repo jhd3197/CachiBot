@@ -33,6 +33,7 @@ PROVIDERS: dict[str, dict[str, Any]] = {
     "moonshot": {"env_key": "MOONSHOT_API_KEY", "type": "api_key"},
     "zai": {"env_key": "ZHIPU_API_KEY", "type": "api_key"},
     "modelscope": {"env_key": "MODELSCOPE_API_KEY", "type": "api_key"},
+    "cachibot": {"env_key": "CACHIBOT_API_KEY", "type": "api_key"},
     "stability": {"env_key": "STABILITY_API_KEY", "type": "api_key"},
     "elevenlabs": {"env_key": "ELEVENLABS_API_KEY", "type": "api_key"},
     "azure": {
@@ -130,11 +131,12 @@ async def update_provider(
     info = PROVIDERS[name]
     _set_env_value(info["env_key"], body.value)
 
-    # Trigger model re-discovery so new models appear immediately
+    # Clear discovery cache and re-discover so new models appear immediately
     models = []
     try:
-        from prompture import get_available_models
+        from prompture.infra import clear_discovery_cache, get_available_models
 
+        clear_discovery_cache()
         models = get_available_models()
     except Exception as exc:
         logger.warning("Model re-discovery after provider update failed: %s", exc)
@@ -161,4 +163,12 @@ async def delete_provider(
 
     info = PROVIDERS[name]
     _remove_env_value(info["env_key"])
+
+    try:
+        from prompture.infra import clear_discovery_cache
+
+        clear_discovery_cache()
+    except Exception:
+        pass
+
     return None

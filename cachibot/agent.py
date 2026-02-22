@@ -179,6 +179,7 @@ class CachibotAgent:
                     "moonshot": "moonshot_api_key",
                     "zai": "zhipu_api_key",
                     "modelscope": "modelscope_api_key",
+                    "cachibot": "cachibot_api_key",
                     "stability": "stability_api_key",
                     "elevenlabs": "elevenlabs_api_key",
                     "azure": "azure_api_key",
