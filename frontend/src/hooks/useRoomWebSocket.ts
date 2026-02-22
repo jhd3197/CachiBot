@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { RoomWebSocketClient } from '../api/room-websocket'
 import { useRoomStore } from '../stores/rooms'
 import { useAuthStore } from '../stores/auth'
-import type { RoomMessage, RoomWSMessage } from '../types'
+import type { RoomMessage, RoomWSMessage, ToolCall } from '../types'
 
 export function useRoomWebSocket(roomId: string | null) {
   const clientRef = useRef<RoomWebSocketClient | null>(null)
@@ -36,6 +36,13 @@ export function useRoomWebSocket(roomId: string | null) {
     updateMessageMetadata,
     setChainStep,
     setRouteDecision,
+    setBotThinking,
+    clearBotThinking,
+    attachThinkingToMessage,
+    appendInstructionDelta,
+    setBotActivity,
+    clearBotActivity,
+    setMessageToolCalls,
   } = useRoomStore()
 
   useEffect(() => {
@@ -59,6 +66,11 @@ export function useRoomWebSocket(roomId: string | null) {
 
     client.onMessage((msg: RoomWSMessage) => {
       const p = msg.payload
+
+      // DEBUG: log raw message for bot_done
+      if (msg.type === 'room_bot_done') {
+        console.log('[RoomWS] RAW room_bot_done:', JSON.stringify(msg))
+      }
 
       switch (msg.type) {
         case 'room_message': {
@@ -92,10 +104,22 @@ export function useRoomWebSocket(roomId: string | null) {
 
         case 'room_bot_thinking':
           setBotState(roomId, p.botId as string, 'thinking')
+          if (p.content) {
+            setBotThinking(roomId, p.botId as string, p.content as string)
+          }
           break
 
         case 'room_bot_tool_start': {
           setBotState(roomId, p.botId as string, 'responding')
+          setBotActivity(roomId, p.botId as string, p.toolName as string)
+          // Persist accumulated thinking before clearing
+          const tsBotId = p.botId as string
+          const tsMsgId = (p.messageId as string) || lastBotMessageIdRef.current[tsBotId]
+          const tsThinking = useRoomStore.getState().thinkingContent[roomId]?.[tsBotId]
+          if (tsThinking && tsMsgId) {
+            attachThinkingToMessage(roomId, tsMsgId, tsThinking)
+          }
+          clearBotThinking(roomId, p.botId as string)
           const botId = p.botId as string
           // Use messageId from payload if available, otherwise fall back to tracked ID
           const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
@@ -126,16 +150,41 @@ export function useRoomWebSocket(roomId: string | null) {
         }
 
         case 'room_bot_instruction_delta':
-          // Instruction deltas stream during tool use — no store action needed yet
+          appendInstructionDelta(roomId, p.toolId as string, p.text as string)
           break
 
         case 'room_bot_done': {
           const botId = p.botId as string
-          const msgId = lastBotMessageIdRef.current[botId]
+          const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
+          // DEBUG: trace bot_done
+          console.log('[RoomWS] bot_done payload keys=', Object.keys(p))
+          console.log('[RoomWS] bot_done msgId=', msgId, 'p.messageId=', p.messageId, 'lastRef=', lastBotMessageIdRef.current[botId])
+          console.log('[RoomWS] bot_done toolCalls count=', (p.toolCalls as unknown[])?.length ?? 'none')
+          // Persist accumulated thinking before clearing
+          const doneThinking = useRoomStore.getState().thinkingContent[roomId]?.[botId]
+          if (doneThinking && msgId) {
+            attachThinkingToMessage(roomId, msgId, doneThinking)
+          }
+          clearBotThinking(roomId, botId)
           if (msgId) {
+            // Try streaming-based finalization first
             finalizeToolCalls(roomId, msgId)
+            const msgAfterFinalize = useRoomStore.getState().messages[roomId]?.find(m => m.id === msgId)
+            console.log('[RoomWS] after finalize: toolCalls=', msgAfterFinalize?.toolCalls?.length ?? 0)
+            // Fallback: if bot_done carries tool_calls (backend always sends them),
+            // attach directly when streaming tracking missed them
+            const payloadCalls = p.toolCalls as Array<Record<string, unknown>> | undefined
+            if (payloadCalls?.length && (!msgAfterFinalize?.toolCalls || msgAfterFinalize.toolCalls.length === 0)) {
+              console.log('[RoomWS] using fallback: attaching', payloadCalls.length, 'tool calls from payload')
+              setMessageToolCalls(roomId, msgId, payloadCalls as unknown as ToolCall[])
+            }
+            const finalMsg = useRoomStore.getState().messages[roomId]?.find(m => m.id === msgId)
+            console.log('[RoomWS] final msg toolCalls=', finalMsg?.toolCalls?.length, 'content length=', finalMsg?.content.length)
+          } else {
+            console.log('[RoomWS] bot_done: NO msgId — cannot attach tool calls')
           }
           setBotState(roomId, botId, 'idle')
+          clearBotActivity(roomId, botId)
           // Clear chain step if this was the last bot
           const currentChain = useRoomStore.getState().chainStep[roomId]
           if (currentChain && currentChain.step === currentChain.totalSteps) {
@@ -216,7 +265,7 @@ export function useRoomWebSocket(roomId: string | null) {
       setIsConnected(false)
       lastBotMessageIdRef.current = {}
     }
-  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision])
+  }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision, setBotThinking, clearBotThinking, attachThinkingToMessage, appendInstructionDelta])
 
   const sendMessage = useCallback((message: string) => {
     if (!roomId) return

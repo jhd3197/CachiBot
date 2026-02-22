@@ -28,13 +28,18 @@ function extractResultMeta(text: string): string | null {
 
 interface ToolCallListProps {
   toolCalls: ToolCall[]
+  instructionDeltas?: Record<string, string>
 }
 
-export function ToolCallList({ toolCalls }: ToolCallListProps) {
+export function ToolCallList({ toolCalls, instructionDeltas }: ToolCallListProps) {
   return (
     <div className="space-y-2">
       {toolCalls.map((call) => (
-        <ToolCallItem key={call.id} call={call} />
+        <ToolCallItem
+          key={call.id}
+          call={call}
+          instructionText={instructionDeltas?.[call.id]}
+        />
       ))}
     </div>
   )
@@ -42,9 +47,10 @@ export function ToolCallList({ toolCalls }: ToolCallListProps) {
 
 interface ToolCallItemProps {
   call: ToolCall
+  instructionText?: string
 }
 
-function ToolCallItem({ call }: ToolCallItemProps) {
+function ToolCallItem({ call, instructionText }: ToolCallItemProps) {
   const isComplete = call.endTime !== undefined
   const isSuccess = call.success !== false
 
@@ -99,6 +105,13 @@ function ToolCallItem({ call }: ToolCallItemProps) {
             {JSON.stringify(call.args, null, 2).slice(0, 200)}
             {JSON.stringify(call.args, null, 2).length > 200 ? '...' : null}
           </pre>
+        </div>
+      ) : null}
+
+      {/* Instruction delta (streaming text during tool execution) */}
+      {!isComplete && instructionText ? (
+        <div className="tool-call__instruction">
+          <pre>{instructionText}</pre>
         </div>
       ) : null}
 

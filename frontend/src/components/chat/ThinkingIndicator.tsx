@@ -2,9 +2,10 @@ import { Brain } from 'lucide-react'
 
 interface ThinkingIndicatorProps {
   content: string
+  label?: string
 }
 
-export function ThinkingIndicator({ content }: ThinkingIndicatorProps) {
+export function ThinkingIndicator({ content, label = 'Thinking...' }: ThinkingIndicatorProps) {
   return (
     <div className="chat-thinking">
       <div className="chat-thinking__icon">
@@ -13,7 +14,7 @@ export function ThinkingIndicator({ content }: ThinkingIndicatorProps) {
 
       <div className="chat-thinking__body">
         <p className="chat-thinking__label">
-          Thinking...
+          {label}
         </p>
         <p className="chat-thinking__content">
           {content}

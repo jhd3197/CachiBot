@@ -1,12 +1,80 @@
 import { useState } from 'react'
-import { X, Plus, Minus, Store } from 'lucide-react'
+import { Store, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { createRoom } from '../../api/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import { ResponseModePicker } from './ResponseModePicker'
+import {
+  Dialog,
+  DialogHeader,
+  DialogContent,
+  DialogFooter,
+  DialogButton,
+  DialogStepper,
+} from '../common/Dialog'
+import { DebateSettings, RouterSettings, WaterfallSettings } from './ModeSubSettings'
+import {
+  ParallelIllustration,
+  SequentialIllustration,
+  ChainIllustration,
+  RouterIllustration,
+  DebateIllustration,
+  WaterfallIllustration,
+} from './ModeIllustrations'
 import type { RoomSettings } from '../../types'
+
+type ResponseMode = RoomSettings['response_mode']
+
+const STEPS = [
+  { id: 'details', label: 'Room Details' },
+  { id: 'bots', label: 'Invite Bots' },
+  { id: 'behavior', label: 'Response Behavior' },
+] as const
+
+const MODE_CARDS: {
+  mode: ResponseMode
+  title: string
+  description: string
+  Illustration: React.FC
+}[] = [
+  {
+    mode: 'parallel',
+    title: 'Parallel',
+    description: 'All bots respond to prompts simultaneously without waiting.',
+    Illustration: ParallelIllustration,
+  },
+  {
+    mode: 'sequential',
+    title: 'One by one',
+    description: 'Bots take turns answering sequentially, reading previous replies.',
+    Illustration: SequentialIllustration,
+  },
+  {
+    mode: 'debate',
+    title: 'Debate',
+    description: 'Bots actively argue and critique each other\u2019s viewpoints.',
+    Illustration: DebateIllustration,
+  },
+  {
+    mode: 'chain',
+    title: 'Chain',
+    description: 'Output of one bot automatically becomes the prompt for the next.',
+    Illustration: ChainIllustration,
+  },
+  {
+    mode: 'router',
+    title: 'Router',
+    description: 'An AI picks the best bot for each message.',
+    Illustration: RouterIllustration,
+  },
+  {
+    mode: 'waterfall',
+    title: 'Waterfall',
+    description: 'Bots process in sequence, stopping when the issue is resolved.',
+    Illustration: WaterfallIllustration,
+  },
+]
 
 interface CreateRoomDialogProps {
   onClose: () => void
@@ -16,27 +84,41 @@ interface CreateRoomDialogProps {
 export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialogProps) {
   const { bots } = useBotStore()
   const { addRoom, setActiveRoom } = useRoomStore()
+
+  // Wizard step
+  const [step, setStep] = useState(0)
+
+  // Step 0 — Room Details
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+
+  // Step 1 — Invite Bots
   const [selectedBotIds, setSelectedBotIds] = useState<string[]>([])
+
+  // Step 2 — Response Behavior
+  const [responseMode, setResponseMode] = useState<ResponseMode>('parallel')
   const [cooldown, setCooldown] = useState(5)
   const [autoRelevance, setAutoRelevance] = useState(true)
-  const [creating, setCreating] = useState(false)
 
-  // Response mode state
-  const [responseMode, setResponseMode] = useState<RoomSettings['response_mode']>('parallel')
-
-  // Debate mode settings
+  // Debate settings
   const [debateRounds, setDebateRounds] = useState(2)
   const [debatePositions, setDebatePositions] = useState<Record<string, string>>({})
   const [debateJudgeBotId, setDebateJudgeBotId] = useState<string | null>(null)
 
-  // Router mode settings
+  // Router settings
   const [routingStrategy, setRoutingStrategy] = useState<'llm' | 'keyword' | 'round_robin'>('llm')
   const [botKeywords, setBotKeywords] = useState<Record<string, string[]>>({})
 
-  // Waterfall mode settings
+  // Waterfall settings
   const [waterfallConditions, setWaterfallConditions] = useState<Record<string, string>>({})
+
+  const [creating, setCreating] = useState(false)
+
+  // ---- Helpers ----
+
+  const currentStepId = STEPS[step].id
+  const completedSteps = STEPS.slice(0, step).map((s) => s.id)
+  const selectedBots = bots.filter((b) => selectedBotIds.includes(b.id))
 
   const toggleBot = (botId: string) => {
     setSelectedBotIds((prev) =>
@@ -46,6 +128,32 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
           ? [...prev, botId]
           : prev
     )
+  }
+
+  const canAdvance = (): boolean => {
+    if (step === 0) return title.trim() !== ''
+    if (step === 1) return selectedBotIds.length >= 2
+    return true
+  }
+
+  const handleNext = () => {
+    if (step === 0 && !title.trim()) {
+      toast.error('Title is required')
+      return
+    }
+    if (step === 1 && selectedBotIds.length < 2) {
+      toast.error('Select at least 2 bots')
+      return
+    }
+    if (step < STEPS.length - 1) {
+      setStep(step + 1)
+    } else {
+      handleCreate()
+    }
+  }
+
+  const handleBack = () => {
+    if (step > 0) setStep(step - 1)
   }
 
   const buildSettings = (): RoomSettings => {
@@ -92,15 +200,6 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
   }
 
   const handleCreate = async () => {
-    if (!title.trim()) {
-      toast.error('Title is required')
-      return
-    }
-    if (selectedBotIds.length < 2) {
-      toast.error('Select at least 2 bots')
-      return
-    }
-
     setCreating(true)
     try {
       const room = await createRoom({
@@ -120,159 +219,243 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
     }
   }
 
-  const selectedBots = bots.filter((b) => selectedBotIds.includes(b.id))
+  // ---- Render ----
 
   return (
-    <div className="dialog__backdrop">
-      <div className="dialog__panel dialog__panel--sm">
-        {/* Header */}
-        <div className="dialog__header">
-          <h3 className="room-panel__title" style={{ fontSize: '1rem' }}>
-            Create Room
-          </h3>
-          <button onClick={onClose} className="btn-close">
-            <X size={16} />
-          </button>
-        </div>
+    <Dialog open onClose={onClose} size="lg" ariaLabel="Create Room">
+      <DialogHeader
+        title="Create Room"
+        icon={<Users className="h-5 w-5" style={{ color: 'var(--accent-500)' }} />}
+        onClose={onClose}
+      >
+        <DialogStepper
+          steps={[...STEPS]}
+          currentStep={currentStepId}
+          completedSteps={completedSteps}
+          variant="progress"
+        />
+      </DialogHeader>
 
-        {/* Body */}
-        <div className="room-settings__section">
-          {/* Browse Templates button */}
-          {onOpenMarketplace && (
-            <button
-              onClick={() => { onClose(); onOpenMarketplace() }}
-              className="btn btn--ghost btn--sm"
-              style={{
-                width: '100%',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                marginBottom: '0.5rem',
-                color: 'var(--accent-500)',
-              }}
-            >
-              <Store size={14} />
-              Browse Room Templates
-            </button>
+      <DialogContent scrollable>
+        <div className="room-wizard">
+          {/* ---- Step 0: Room Details ---- */}
+          {step === 0 && (
+            <>
+              <h3 className="room-wizard__step-title">Room Details</h3>
+              <p className="room-wizard__step-desc">
+                Give your room a name and purpose to get started.
+              </p>
+
+              <div className="room-wizard__fields">
+                {onOpenMarketplace && (
+                  <button
+                    onClick={() => { onClose(); onOpenMarketplace() }}
+                    className="room-wizard__template-btn"
+                  >
+                    <Store size={15} />
+                    Browse Room Templates
+                  </button>
+                )}
+
+                <div className="form-field">
+                  <label className="form-field__label">Room Title</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Security Review Team"
+                    className="input"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-field__label">
+                    Description <span className="room-create__optional">optional</span>
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What is the main goal of this discussion?"
+                    className="input"
+                    rows={3}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+            </>
           )}
 
-          {/* Title */}
-          <div className="form-field">
-            <label className="form-field__label">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Room name"
-              className="input"
-            />
-          </div>
+          {/* ---- Step 1: Invite Bots ---- */}
+          {step === 1 && (
+            <>
+              <h3 className="room-wizard__step-title">Invite Bots</h3>
+              <p className="room-wizard__step-desc">
+                Select between 2 and 4 AI agents to join the room.
+              </p>
 
-          {/* Description */}
-          <div className="form-field">
-            <label className="form-field__label">Description (optional)</label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's this room for?"
-              className="input"
-            />
-          </div>
+              <div className="room-wizard__bot-header">
+                <span />
+                <span className="room-wizard__bot-badge">{selectedBotIds.length}/4</span>
+              </div>
 
-          {/* Bot selection */}
-          <div className="form-field">
-            <label className="form-field__label">Select Bots (2-4)</label>
-            <div className="room-create__bot-list">
-              {bots.map((bot) => {
-                const selected = selectedBotIds.includes(bot.id)
-                return (
+              {bots.length === 0 ? (
+                <div className="room-wizard__empty-bots">
+                  No bots available. Create some bots first.
+                </div>
+              ) : (
+                <div className="room-wizard__bot-list">
+                  {bots.map((bot) => {
+                    const selected = selectedBotIds.includes(bot.id)
+                    const atLimit = selectedBotIds.length >= 4 && !selected
+                    return (
+                      <label
+                        key={bot.id}
+                        className={`room-wizard__bot-item${atLimit ? ' room-wizard__bot-item--disabled' : ''}`}
+                      >
+                        <div
+                          className="room-wizard__bot-avatar"
+                          style={{
+                            backgroundColor: (bot.color || '#666') + '18',
+                            color: bot.color || '#666',
+                          }}
+                        >
+                          <BotIconRenderer icon={bot.icon} size={16} />
+                        </div>
+                        <span className="room-wizard__bot-name">{bot.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleBot(bot.id)}
+                          disabled={atLimit}
+                          className="room-wizard__bot-checkbox"
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+
+              {selectedBotIds.length > 0 && selectedBotIds.length < 2 && (
+                <p className="room-wizard__bot-hint">Select at least one more bot</p>
+              )}
+            </>
+          )}
+
+          {/* ---- Step 2: Response Behavior ---- */}
+          {step === 2 && (
+            <>
+              <h3 className="room-wizard__step-title">Response Behavior</h3>
+              <p className="room-wizard__step-desc">
+                How should the bots interact with each other and you?
+              </p>
+
+              <div className="room-wizard__mode-grid">
+                {MODE_CARDS.map(({ mode, title: modeTitle, description: modeDesc, Illustration }) => (
                   <button
-                    key={bot.id}
-                    onClick={() => toggleBot(bot.id)}
-                    className={`room-create__bot-option${selected ? ' room-create__bot-option--selected' : ''}`}
+                    key={mode}
+                    type="button"
+                    onClick={() => setResponseMode(mode)}
+                    className={`room-wizard__mode-card${responseMode === mode ? ' room-wizard__mode-card--selected' : ''}`}
                   >
-                    <div
-                      className="room-create__bot-icon"
-                      style={{ backgroundColor: (bot.color || '#666') + '20' }}
-                    >
-                      <BotIconRenderer icon={bot.icon} size={14} />
+                    <div className="room-wizard__mode-header">
+                      <span className="room-wizard__mode-title">{modeTitle}</span>
+                      <span className="room-wizard__mode-radio" />
                     </div>
-                    <span style={{ flex: 1 }}>{bot.name}</span>
-                    {selected ? (
-                      <Minus size={14} style={{ color: 'var(--color-danger-text)' }} />
-                    ) : selectedBotIds.length < 4 ? (
-                      <Plus size={14} style={{ color: 'var(--color-text-tertiary)' }} />
-                    ) : null}
+                    <span className="room-wizard__mode-desc">{modeDesc}</span>
+                    <Illustration />
                   </button>
-                )
-              })}
-            </div>
-            <p className="room-create__bot-count">
-              {selectedBotIds.length}/4 bots selected
-            </p>
-          </div>
+                ))}
+              </div>
 
-          {/* Response Mode */}
-          <ResponseModePicker
-            responseMode={responseMode}
-            onResponseModeChange={setResponseMode}
-            selectedBots={selectedBots}
-            debateRounds={debateRounds}
-            onDebateRoundsChange={setDebateRounds}
-            debatePositions={debatePositions}
-            onDebatePositionsChange={setDebatePositions}
-            debateJudgeBotId={debateJudgeBotId}
-            onDebateJudgeBotIdChange={setDebateJudgeBotId}
-            routingStrategy={routingStrategy}
-            onRoutingStrategyChange={setRoutingStrategy}
-            botKeywords={botKeywords}
-            onBotKeywordsChange={setBotKeywords}
-            waterfallConditions={waterfallConditions}
-            onWaterfallConditionsChange={setWaterfallConditions}
-          />
+              {/* Mode-specific sub-settings */}
+              {responseMode === 'debate' && (
+                <DebateSettings
+                  bots={selectedBots}
+                  rounds={debateRounds}
+                  onRoundsChange={setDebateRounds}
+                  positions={debatePositions}
+                  onPositionsChange={setDebatePositions}
+                  judgeBotId={debateJudgeBotId}
+                  onJudgeBotIdChange={setDebateJudgeBotId}
+                />
+              )}
 
-          {/* Settings */}
-          <div className="room-create__setting-row">
-            <div style={{ flex: 1 }}>
-              <label className="form-field__label">Cooldown (seconds)</label>
-              <input
-                type="number"
-                value={cooldown}
-                onChange={(e) => setCooldown(Number(e.target.value))}
-                min={1}
-                max={30}
-                className="input"
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '1rem' }}>
-              <input
-                id="auto-relevance"
-                type="checkbox"
-                checked={autoRelevance}
-                onChange={(e) => setAutoRelevance(e.target.checked)}
-                className="consent__checkbox"
-              />
-              <label htmlFor="auto-relevance" className="form-field__help">
-                Auto-respond
-              </label>
-            </div>
-          </div>
+              {responseMode === 'router' && (
+                <RouterSettings
+                  bots={selectedBots}
+                  strategy={routingStrategy}
+                  onStrategyChange={setRoutingStrategy}
+                  keywords={botKeywords}
+                  onKeywordsChange={setBotKeywords}
+                />
+              )}
+
+              {responseMode === 'waterfall' && (
+                <WaterfallSettings
+                  bots={selectedBots}
+                  conditions={waterfallConditions}
+                  onConditionsChange={setWaterfallConditions}
+                />
+              )}
+
+              {/* Cooldown + Auto-respond */}
+              <div className="room-wizard__bottom-settings">
+                <div className="room-wizard__setting">
+                  <label className="form-field__label">Cooldown (seconds)</label>
+                  <input
+                    type="number"
+                    value={cooldown}
+                    onChange={(e) => setCooldown(Math.max(1, Math.min(30, Number(e.target.value))))}
+                    min={1}
+                    max={30}
+                    className="input"
+                  />
+                </div>
+                <label className="room-wizard__toggle">
+                  <input
+                    type="checkbox"
+                    checked={autoRelevance}
+                    onChange={(e) => setAutoRelevance(e.target.checked)}
+                    className="consent__checkbox"
+                  />
+                  <div>
+                    <span className="room-wizard__toggle-label">Auto-respond</span>
+                    <span className="room-wizard__toggle-desc">
+                      Bots respond to relevant messages automatically
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </>
+          )}
         </div>
+      </DialogContent>
 
-        {/* Footer */}
-        <div className="dialog__footer">
-          <button onClick={onClose} className="btn btn--ghost btn--sm">
+      <DialogFooter
+        leftContent={
+          <DialogButton variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={creating || selectedBotIds.length < 2 || !title.trim()}
-            className="btn btn--primary btn--sm"
-          >
-            {creating ? 'Creating...' : 'Create Room'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </DialogButton>
+        }
+      >
+        {step > 0 && (
+          <DialogButton variant="secondary" onClick={handleBack}>
+            Back
+          </DialogButton>
+        )}
+        <DialogButton
+          variant="primary"
+          onClick={handleNext}
+          disabled={!canAdvance() || creating}
+        >
+          {step < STEPS.length - 1
+            ? 'Next Step'
+            : creating
+              ? 'Creating...'
+              : 'Create Room'}
+        </DialogButton>
+      </DialogFooter>
+    </Dialog>
   )
 }

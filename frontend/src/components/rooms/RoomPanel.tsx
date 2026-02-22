@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Settings, Users, Bot, Loader2 } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
+import { useUIStore } from '../../stores/ui'
 import { useRoomWebSocket } from '../../hooks/useRoomWebSocket'
 import { getRoomMessages, getRoom } from '../../api/rooms'
 import { RoomMessageList } from '../chat/MessageList'
+import { ToolCallList } from '../chat/ToolCallList'
+import { ThinkingIndicator } from '../chat/ThinkingIndicator'
 import { InputArea } from '../chat/InputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { useAuthStore } from '../../stores/auth'
@@ -14,7 +17,8 @@ interface RoomPanelProps {
 }
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
-  const { messages, botStates, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom, chainStep, routeDecision } = useRoomStore()
+  const { messages, botStates, botActivity, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom, chainStep, routeDecision, activeToolCalls, thinkingContent, instructionDeltas } = useRoomStore()
+  const { showThinking } = useUIStore()
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -67,6 +71,23 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
     setActiveRoom(null)
   }
 
+  // All hooks must be above early returns (Rules of Hooks)
+  const activeBots = Object.entries(roomBotStates).filter(
+    ([, state]) => state !== 'idle'
+  )
+  const roomActiveToolCalls = activeToolCalls[roomId] || {}
+  const allActiveToolCalls = useMemo(
+    () => Object.values(roomActiveToolCalls).flat(),
+    [roomActiveToolCalls]
+  )
+  const roomInstructionDeltas = instructionDeltas[roomId] || {}
+  const roomBotActivity = botActivity[roomId] || {}
+  const roomThinking = thinkingContent[roomId] || {}
+  const thinkingBots = useMemo(
+    () => Object.entries(roomThinking).filter(([, text]) => text),
+    [roomThinking]
+  )
+
   if (loading) {
     return (
       <div className="room-panel__loading">
@@ -82,11 +103,6 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
       </div>
     )
   }
-
-  // Active bot statuses
-  const activeBots = Object.entries(roomBotStates).filter(
-    ([, state]) => state !== 'idle'
-  )
 
   // Is current user the creator?
   const isCreator = user?.id === room.creatorId
@@ -150,21 +166,43 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
         <div className="room-panel__status-bar">
           {activeBots.map(([botId, state]) => {
             const bot = room.bots.find((b) => b.botId === botId)
+            const activity = roomBotActivity[botId]
+            const statusText = activity
+              ? `calling ${activity}`
+              : state === 'thinking' ? 'thinking' : 'responding'
             return (
               <span
                 key={botId}
                 className={`room-panel__bot-status room-panel__bot-status--${state === 'thinking' ? 'thinking' : 'responding'}`}
               >
                 <Loader2 size={12} className="animate-spin" />
-                {bot?.botName || botId} is {state === 'thinking' ? 'thinking' : 'responding'}...
+                {bot?.botName || botId} is {statusText}...
               </span>
             )
           })}
         </div>
       )}
 
-      {/* Messages */}
-      <RoomMessageList messages={roomMessages} />
+      {/* Messages (ToolCallList + ThinkingIndicator rendered inside scroll area) */}
+      <RoomMessageList messages={roomMessages} roomId={roomId}>
+        {/* Active tool calls */}
+        {allActiveToolCalls.length > 0 && (
+          <div className="mt-4">
+            <ToolCallList toolCalls={allActiveToolCalls} instructionDeltas={roomInstructionDeltas} />
+          </div>
+        )}
+
+        {/* Thinking indicators */}
+        {showThinking && thinkingBots.map(([botId, text]) => {
+          const bot = room?.bots.find((b) => b.botId === botId)
+          const label = bot?.botName || botId
+          return (
+            <div key={botId} className="mt-4">
+              <ThinkingIndicator content={text} label={`${label} is thinking...`} />
+            </div>
+          )
+        })}
+      </RoomMessageList>
 
       {/* Typing indicators */}
       {roomTyping.length > 0 && (

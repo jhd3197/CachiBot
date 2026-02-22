@@ -11,7 +11,10 @@ interface RoomState {
   onlineUsers: Record<string, string[]> // roomId -> user IDs
   typingUsers: Record<string, { userId: string; username: string }[]> // roomId -> typing users
   botStates: Record<string, Record<string, BotRoomState>> // roomId -> { botId -> state }
+  botActivity: Record<string, Record<string, string>> // roomId -> { botId -> descriptive activity text }
   activeToolCalls: Record<string, Record<string, ToolCall[]>> // roomId -> messageId -> ToolCall[]
+  thinkingContent: Record<string, Record<string, string>> // roomId -> botId -> text (transient)
+  instructionDeltas: Record<string, Record<string, string>> // roomId -> toolId -> text (transient)
   chainStep: Record<string, { step: number; totalSteps: number; botName: string } | null>
   routeDecision: Record<string, { botName: string; reason: string } | null>
   isLoading: boolean
@@ -40,12 +43,23 @@ interface RoomState {
 
   // Bot states
   setBotState: (roomId: string, botId: string, state: BotRoomState) => void
+  setBotActivity: (roomId: string, botId: string, activity: string) => void
+  clearBotActivity: (roomId: string, botId: string) => void
 
   // Tool call tracking (transient — not persisted)
   addToolCall: (roomId: string, messageId: string, call: ToolCall) => void
   completeToolCall: (roomId: string, messageId: string, toolId: string, result: unknown, success: boolean) => void
   finalizeToolCalls: (roomId: string, messageId: string) => void
+  setMessageToolCalls: (roomId: string, messageId: string, toolCalls: ToolCall[]) => void
   updateMessageMetadata: (roomId: string, messageId: string, metadata: Record<string, unknown>) => void
+
+  // Thinking content (transient — not persisted)
+  setBotThinking: (roomId: string, botId: string, content: string) => void
+  clearBotThinking: (roomId: string, botId: string) => void
+  attachThinkingToMessage: (roomId: string, messageId: string, thinking: string) => void
+
+  // Instruction deltas (transient — not persisted)
+  appendInstructionDelta: (roomId: string, toolId: string, text: string) => void
 
   // Chain / Router
   setChainStep: (roomId: string, step: { step: number; totalSteps: number; botName: string } | null) => void
@@ -68,7 +82,10 @@ export const useRoomStore = create<RoomState>()(
       onlineUsers: {},
       typingUsers: {},
       botStates: {},
+      botActivity: {},
       activeToolCalls: {},
+      thinkingContent: {},
+      instructionDeltas: {},
       chainStep: {},
       routeDecision: {},
       isLoading: false,
@@ -196,6 +213,21 @@ export const useRoomStore = create<RoomState>()(
           },
         })),
 
+      setBotActivity: (roomId, botId, activity) =>
+        set((state) => ({
+          botActivity: {
+            ...state.botActivity,
+            [roomId]: { ...(state.botActivity[roomId] || {}), [botId]: activity },
+          },
+        })),
+
+      clearBotActivity: (roomId, botId) =>
+        set((state) => {
+          const room = { ...(state.botActivity[roomId] || {}) }
+          delete room[botId]
+          return { botActivity: { ...state.botActivity, [roomId]: room } }
+        }),
+
       addToolCall: (roomId, messageId, call) =>
         set((state) => {
           const roomCalls = state.activeToolCalls[roomId] || {}
@@ -243,10 +275,27 @@ export const useRoomStore = create<RoomState>()(
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [messageId]: _removed, ...restCalls } = roomCalls
 
+          // Clean up instruction deltas for finalized tool calls
+          const roomDeltas = { ...state.instructionDeltas[roomId] }
+          for (const tc of calls) {
+            delete roomDeltas[tc.id]
+          }
+
           return {
             messages: { ...state.messages, [roomId]: updated },
             activeToolCalls: { ...state.activeToolCalls, [roomId]: restCalls },
+            instructionDeltas: { ...state.instructionDeltas, [roomId]: roomDeltas },
           }
+        }),
+
+      setMessageToolCalls: (roomId, messageId, toolCalls) =>
+        set((state) => {
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+          const updated = [...msgs]
+          updated[idx] = { ...updated[idx], toolCalls }
+          return { messages: { ...state.messages, [roomId]: updated } }
         }),
 
       updateMessageMetadata: (roomId, messageId, metadata) =>
@@ -261,6 +310,47 @@ export const useRoomStore = create<RoomState>()(
             metadata: { ...updated[idx].metadata, ...metadata },
           }
           return { messages: { ...state.messages, [roomId]: updated } }
+        }),
+
+      setBotThinking: (roomId, botId, content) =>
+        set((state) => {
+          const existing = state.thinkingContent[roomId]?.[botId] || ''
+          return {
+            thinkingContent: {
+              ...state.thinkingContent,
+              [roomId]: { ...(state.thinkingContent[roomId] || {}), [botId]: existing + content },
+            },
+          }
+        }),
+
+      clearBotThinking: (roomId, botId) =>
+        set((state) => {
+          const roomThinking = { ...(state.thinkingContent[roomId] || {}) }
+          delete roomThinking[botId]
+          return {
+            thinkingContent: { ...state.thinkingContent, [roomId]: roomThinking },
+          }
+        }),
+
+      attachThinkingToMessage: (roomId, messageId, thinking) =>
+        set((state) => {
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+          const updated = [...msgs]
+          updated[idx] = { ...updated[idx], thinking }
+          return { messages: { ...state.messages, [roomId]: updated } }
+        }),
+
+      appendInstructionDelta: (roomId, toolId, text) =>
+        set((state) => {
+          const roomDeltas = state.instructionDeltas[roomId] || {}
+          return {
+            instructionDeltas: {
+              ...state.instructionDeltas,
+              [roomId]: { ...roomDeltas, [toolId]: (roomDeltas[toolId] || '') + text },
+            },
+          }
         }),
 
       setChainStep: (roomId, step) =>

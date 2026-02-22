@@ -1139,7 +1139,7 @@ async function fetchRemoteTemplates(
     if (search) params.set('search', search)
 
     const queryString = params.toString()
-    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/templates${queryString ? `?${queryString}` : ''}`
+    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/templates${queryString ? `?${queryString}` : ''}`
 
     const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
@@ -1172,7 +1172,7 @@ async function fetchRemoteTemplate(templateId: string): Promise<MarketplaceTempl
     const cached = getMarketplaceCache<MarketplaceTemplate>(cacheKey)
     if (cached) return cached
 
-    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/templates/${templateId}`
+    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/templates/${templateId}`
     const response = await fetch(url)
 
     if (!response.ok) return null
@@ -1197,7 +1197,7 @@ async function fetchRemoteCategories(): Promise<MarketplaceCategory[] | null> {
     const cached = getMarketplaceCache<MarketplaceCategory[]>(cacheKey)
     if (cached) return cached
 
-    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/categories`
+    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/categories`
     const response = await fetch(url)
 
     if (!response.ok) return null
@@ -1272,6 +1272,38 @@ export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]>
   // Fall back to local
   try {
     return await request('/marketplace/categories')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Get room marketplace categories.
+ * Tries remote first, falls back to local API.
+ */
+export async function getRoomMarketplaceCategories(): Promise<MarketplaceCategory[]> {
+  // Try remote first
+  if (REMOTE_MARKETPLACE_URL) {
+    try {
+      const cacheKey = 'remote_room_categories'
+      const cached = getRoomMarketplaceCache<MarketplaceCategory[]>(cacheKey)
+      if (cached) return cached
+
+      const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-categories`
+      const response = await fetch(url)
+      if (response.ok) {
+        const data: MarketplaceCategory[] = await response.json()
+        setRoomMarketplaceCache(cacheKey, data)
+        return data
+      }
+    } catch {
+      // Fall through to local
+    }
+  }
+
+  // Fall back to local
+  try {
+    return await request('/marketplace/room-categories')
   } catch {
     return []
   }
@@ -1484,7 +1516,7 @@ async function fetchRemoteRoomTemplates(
     if (responseMode) params.set('response_mode', responseMode)
 
     const queryString = params.toString()
-    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/room-templates${queryString ? `?${queryString}` : ''}`
+    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-templates${queryString ? `?${queryString}` : ''}`
 
     const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
@@ -1513,7 +1545,7 @@ async function fetchRemoteRoomTemplate(templateId: string): Promise<RoomMarketpl
     const cached = getRoomMarketplaceCache<RoomMarketplaceTemplate>(cacheKey)
     if (cached) return cached
 
-    const url = `${REMOTE_MARKETPLACE_URL}/api/v1/room-templates/${templateId}`
+    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-templates/${templateId}`
     const response = await fetch(url)
 
     if (!response.ok) return null

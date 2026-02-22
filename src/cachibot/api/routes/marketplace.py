@@ -23,6 +23,7 @@ from cachibot.data.marketplace_templates import (
     search_templates,
 )
 from cachibot.data.room_marketplace_templates import (
+    ROOM_CATEGORY_INFO,
     RoomTemplateCategory,
     get_all_room_templates,
     get_room_template_by_id,
@@ -164,13 +165,31 @@ CATEGORY_INFO: dict[str, CategoryInfo] = {
         id="support",
         name="Support & Help",
         description="Tech support and troubleshooting",
-        count=1,
+        count=2,
     ),
     "research": CategoryInfo(
         id="research",
         name="Research",
         description="Research, analysis, and knowledge gathering",
-        count=1,
+        count=2,
+    ),
+    "marketing": CategoryInfo(
+        id="marketing",
+        name="Marketing & Growth",
+        description="SEO, social media, campaigns, and ad copy",
+        count=4,
+    ),
+    "health": CategoryInfo(
+        id="health",
+        name="Health & Wellness",
+        description="Fitness, nutrition, and mindfulness",
+        count=3,
+    ),
+    "finance": CategoryInfo(
+        id="finance",
+        name="Finance & Business",
+        description="Budgeting, investing, and tax optimization",
+        count=3,
     ),
 }
 
@@ -216,7 +235,7 @@ async def _fetch_remote_templates(
             )
 
         # Build URL with query params
-        url = f"{MARKETPLACE_URL.rstrip('/')}/api/v1/templates"
+        url = f"{MARKETPLACE_URL.rstrip('/')}/marketplace/templates"
         params = {}
         if category:
             params["category"] = category
@@ -256,7 +275,7 @@ async def _fetch_remote_template(template_id: str) -> TemplateResponse | None:
         if cached:
             return TemplateResponse(**cached)  # type: ignore[arg-type]
 
-        url = f"{MARKETPLACE_URL.rstrip('/')}/api/v1/templates/{template_id}"
+        url = f"{MARKETPLACE_URL.rstrip('/')}/marketplace/templates/{template_id}"
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(url)
@@ -284,7 +303,7 @@ async def _fetch_remote_categories() -> list[CategoryInfo] | None:
         if cached and isinstance(cached, list):
             return [CategoryInfo(**c) for c in cached]
 
-        url = f"{MARKETPLACE_URL.rstrip('/')}/api/v1/categories"
+        url = f"{MARKETPLACE_URL.rstrip('/')}/marketplace/categories"
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(url)
@@ -474,6 +493,27 @@ async def get_room_template(
             bot_details.append(TemplateResponse(**bot_template))
 
     return RoomTemplateResponse.model_validate({**template, "bot_details": bot_details})
+
+
+@router.get("/room-categories", response_model=list[CategoryInfo])
+async def list_room_categories(
+    user: User = Depends(get_current_user),
+) -> list[CategoryInfo]:
+    """List all room template categories with counts."""
+    all_rooms = get_all_room_templates()
+    result: list[CategoryInfo] = []
+    for cat_id, cat_info in ROOM_CATEGORY_INFO.items():
+        count = sum(1 for t in all_rooms if t["category"] == cat_id)
+        if count > 0:
+            result.append(
+                CategoryInfo(
+                    id=cat_info["id"],
+                    name=cat_info["name"],
+                    description=cat_info["description"],
+                    count=count,
+                )
+            )
+    return result
 
 
 @router.post("/room-templates/{template_id}/install", response_model=InstallRoomResponse)

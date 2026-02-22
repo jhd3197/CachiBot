@@ -12,7 +12,7 @@ export interface DialogStepperProps {
   currentStep: string
   completedSteps?: string[]
   onStepClick?: (stepId: string) => void
-  variant?: 'horizontal' | 'vertical' | 'compact'
+  variant?: 'horizontal' | 'vertical' | 'compact' | 'progress'
   className?: string
 }
 
@@ -48,6 +48,23 @@ export function DialogStepper({
   className,
 }: DialogStepperProps) {
   const currentIndex = steps.findIndex((s) => s.id === currentStep)
+
+  if (variant === 'progress') {
+    return (
+      <div className={cn('stepper stepper--progress', className)}>
+        {steps.map((step, index) => {
+          const s = stepState(step, index, currentStep, currentIndex, completedSteps)
+          return (
+            <div
+              key={step.id}
+              className={cn('stepper__bar', s.stateClass)}
+              title={step.label}
+            />
+          )
+        })}
+      </div>
+    )
+  }
 
   if (variant === 'compact') {
     return (

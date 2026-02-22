@@ -924,6 +924,48 @@
 }
 
 // -----------------------------------------------------------------------------
+// Message Thinking (Persisted thinking in message bubble)
+// -----------------------------------------------------------------------------
+
+.chat-msg-thinking {
+  margin-top: @sp-3;
+  border-radius: @radius-lg;
+  border: 1px solid color-mix(in srgb, @purple-500 20%, transparent);
+  background: color-mix(in srgb, @purple-500 6%, transparent);
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-1-5 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: @purple-600;
+
+    .dark & {
+      color: @purple-400;
+    }
+  }
+
+  &__content {
+    padding: 0 @sp-3 @sp-2;
+    max-height: 12rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+    font-size: @text-sm;
+    font-style: italic;
+    color: @purple-500;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    .dark & {
+      color: @purple-300;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Tool Toggle — "N tool actions" button
 // -----------------------------------------------------------------------------
 
@@ -1363,6 +1405,21 @@
     .dark & {
       border-top-color: @zinc-700;
       color: @zinc-400;
+    }
+  }
+
+  &__instruction {
+    margin-top: @sp-2;
+    max-height: 8rem;
+    overflow-y: auto;
+    .scrollbar-thin();
+
+    pre {
+      font-family: @font-mono;
+      font-size: @text-xs;
+      color: var(--color-text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   }
 
