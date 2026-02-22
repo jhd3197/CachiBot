@@ -28,7 +28,7 @@ structured list of fix actions.
 
 | Agent         | Scope                                                  |
 |---------------|--------------------------------------------------------|
-| **backend**   | Findings from Tina, Marcus, Priya, Carlos, Oscar that touch `src/cachibot/` |
+| **backend**   | Findings from Tina, Marcus, Priya, Carlos, Oscar that touch `cachibot/` |
 | **frontend**  | Findings from Tina, Zoe, Luna that touch `frontend/src/` |
 | **data**      | Findings from Carlos (storage/db layer)                |
 | **tests**     | Findings from Derek (test coverage gaps)               |
@@ -108,7 +108,7 @@ For each group, spawn a Task agent (`subagent_type: general-purpose`) with:
 
 After each wave completes:
 
-1. Verify no lint errors remain (`ruff check src/cachibot/` and `cd frontend && npm run lint`).
+1. Verify no lint errors remain (`ruff check cachibot/` and `cd frontend && npm run lint`).
 2. If lint fails, spawn a fix agent for the failing files before continuing.
 3. Stage all changed files and create one commit per wave:
    ```

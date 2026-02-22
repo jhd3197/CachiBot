@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { copyToClipboard } from '../../lib/utils'
 import {
   Plus,
   Trash2,
@@ -107,8 +108,8 @@ function ApiKeysPanel({ botId }: { botId: string }) {
     }
   }
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
+  const handleCopy = (text: string, id: string) => {
+    copyToClipboard(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -135,7 +136,7 @@ function ApiKeysPanel({ botId }: { botId: string }) {
               {newKey.key}
             </code>
             <button
-              onClick={() => { copyToClipboard(newKey.key, 'new-key'); toast.success('Copied!') }}
+              onClick={() => { handleCopy(newKey.key, 'new-key'); toast.success('Copied!') }}
               className="btn btn--secondary"
             >
               {copiedId === 'new-key' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -315,8 +316,8 @@ function ApiDocsPanel({ botId: _botId }: { botId: string }) {
   const modelName = bot?.models?.default || bot?.model || 'unknown'
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
+  const handleCopy = (text: string, id: string) => {
+    copyToClipboard(text)
     setCopiedId(id)
     toast.success('Copied!')
     setTimeout(() => setCopiedId(null), 2000)
@@ -383,7 +384,7 @@ console.log(response.choices[0].message.content);`
             {baseUrl}
           </code>
           <button
-            onClick={() => copyToClipboard(baseUrl, 'base-url')}
+            onClick={() => handleCopy(baseUrl, 'base-url')}
             className="btn btn--secondary btn--sm"
           >
             {copiedId === 'base-url' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -422,7 +423,7 @@ console.log(response.choices[0].message.content);`
             <div className="flex items-center justify-between bg-[var(--color-bg-secondary)] px-3 py-1.5">
               <span className="text-xs font-medium text-[var(--color-text-secondary)]">{ex.label}</span>
               <button
-                onClick={() => copyToClipboard(ex.code, ex.id)}
+                onClick={() => handleCopy(ex.code, ex.id)}
                 className="flex items-center gap-1 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               >
                 {copiedId === ex.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}

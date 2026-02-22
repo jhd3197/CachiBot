@@ -84,7 +84,7 @@ The release pipeline (`publish.yml`) uses **git tags** as the real source of tru
 
 ### 2.4 How the Python Backend Resolves Its Version
 
-The resolution chain in `src/cachibot/__init__.py` is:
+The resolution chain in `cachibot/__init__.py` is:
 
 1. `importlib.metadata.version("cachibot")` -- works for pip installs (reads from package metadata)
 2. `cachibot/VERSION` file -- works for wheel installs (bundled by hatch) and PyInstaller (bundled via `--add-data`)

@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { copyToClipboard } from '../../lib/utils'
 import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react'
 import * as connectionsApi from '../../api/connections'
 import type { Connection, ConnectionPlatform, PlatformMeta, CustomPlatformSpec } from '../../api/connections'
@@ -96,8 +97,8 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     }
   }, [formPlatform, customSpec])
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const handleCopy = (text: string) => {
+    copyToClipboard(text)
     setCopiedText(text)
     setTimeout(() => setCopiedText(null), 2000)
   }
@@ -443,7 +444,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            copyToClipboard(`${window.location.origin}/api/webhooks/custom/${connection.id}`)
+                            handleCopy(`${window.location.origin}/api/webhooks/custom/${connection.id}`)
                           }}
                           className="rounded p-0.5 text-[var(--color-text-secondary)] hover:text-cachi-400"
                           title="Copy webhook URL"

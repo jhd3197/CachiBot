@@ -25,7 +25,7 @@ PIDS=()
 
 # --- watch-lint mode ---
 if [ "$MODE" = "watch-lint" ]; then
-  PY_PATH="$ROOT_DIR/src/cachibot"
+  PY_PATH="$ROOT_DIR/cachibot"
   TS_PATH="$ROOT_DIR/frontend/src"
   echo -e "${CYAN}[dev]${RESET} Watching for lint errors (Python + TypeScript)"
   echo -e "${DIM}[dev]   Python  : $PY_PATH${RESET}"

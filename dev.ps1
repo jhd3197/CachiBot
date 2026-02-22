@@ -19,7 +19,7 @@ $procs = @()
 
 # --- watch-lint mode ---
 if ($Mode -eq "watch-lint") {
-    $pyPath = "$Root\src\cachibot"
+    $pyPath = "$Root\cachibot"
     $tsPath = "$Root\frontend\src"
     Write-Host "[dev] Watching for lint + type + test errors (Python + TypeScript)" -ForegroundColor Cyan
     Write-Host "[dev]   Python  : $pyPath" -ForegroundColor DarkGray
@@ -187,11 +187,11 @@ $startElectron = $Mode -in "desktop", "all"
 # --- Clear __pycache__ to avoid stale bytecode ---
 if ($startBackend) {
     Write-Host "[dev] Clearing __pycache__..." -ForegroundColor DarkGray
-    Get-ChildItem -Path "$Root\src" -Recurse -Directory -Filter __pycache__ |
+    Get-ChildItem -Path "$Root\cachibot" -Recurse -Directory -Filter __pycache__ |
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove debug log artifact if leftover
-    $debugLog = "$Root\src\cachibot\api\room_ws_debug.log"
+    $debugLog = "$Root\cachibot\api\room_ws_debug.log"
     if (Test-Path $debugLog) { Remove-Item $debugLog -Force }
 }
 
@@ -235,7 +235,7 @@ if ($startBackend) {
     $pipFixCmd = 'pip uninstall cachibot -y; pip install -e ".[dev]"'
     try {
         $installPath = & python -c "import cachibot; print(cachibot.__path__[0])" 2>&1
-        $expectedPath = "$Root\src\cachibot"
+        $expectedPath = "$Root\cachibot"
         if ($LASTEXITCODE -ne 0) {
             Write-Host '[dev] WARNING: cachibot could not be imported — install may be broken' -ForegroundColor Red
             Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow

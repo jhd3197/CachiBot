@@ -81,7 +81,7 @@ All hooks (`useMemo`) are above early returns to satisfy Rules of Hooks.
 - Accepts optional `label` prop (defaults to `"Thinking..."`)
 - Rooms pass `label={`${botName} is thinking...`}` for multi-bot context
 
-### Backend Model (`src/cachibot/models/room_websocket.py`)
+### Backend Model (`cachibot/models/room_websocket.py`)
 
 `bot_thinking()` now accepts optional `content: str | None = None`:
 
@@ -94,7 +94,7 @@ def bot_thinking(cls, room_id, bot_id, bot_name, content=None):
     return cls(type=ROOM_BOT_THINKING, payload=payload)
 ```
 
-### Backend Handler (`src/cachibot/api/room_websocket.py`)
+### Backend Handler (`cachibot/api/room_websocket.py`)
 
 In `run_room_bot`, added `has_tool_calls` flag (mirrors the chat pattern in `websocket.py`):
 

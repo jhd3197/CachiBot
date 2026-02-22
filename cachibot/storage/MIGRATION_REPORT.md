@@ -25,23 +25,23 @@ CachiBot's data layer was fully migrated from **SQLite (aiosqlite)** to **Postgr
 
 | File | Purpose |
 |------|---------|
-| `src/cachibot/storage/db.py` | New PostgreSQL engine, Base, session factory, init/close lifecycle |
-| `src/cachibot/storage/models/__init__.py` | Exports all 25 ORM models + Base |
-| `src/cachibot/storage/models/base.py` | `TimestampMixin`, `BotScopedMixin` |
-| `src/cachibot/storage/models/bot.py` | `Bot`, `BotOwnership` ORM models |
-| `src/cachibot/storage/models/chat.py` | `Chat` ORM model |
-| `src/cachibot/storage/models/connection.py` | `BotConnection` ORM model |
-| `src/cachibot/storage/models/contact.py` | `BotContact` ORM model |
-| `src/cachibot/storage/models/job.py` | `Job` ORM model |
-| `src/cachibot/storage/models/knowledge.py` | `BotInstruction`, `BotDocument`, `DocChunk` (with pgvector `Vector(384)`) |
-| `src/cachibot/storage/models/message.py` | `Message`, `BotMessage` ORM models |
-| `src/cachibot/storage/models/room.py` | `Room`, `RoomMember`, `RoomBot`, `RoomMessage` ORM models |
-| `src/cachibot/storage/models/skill.py` | `Skill`, `BotSkill` ORM models |
-| `src/cachibot/storage/models/user.py` | `User` ORM model |
-| `src/cachibot/storage/models/work.py` | `Function`, `Schedule`, `Work`, `Task`, `WorkJob`, `Todo` ORM models |
-| `src/cachibot/storage/alembic/env.py` | Alembic environment with async asyncpg support |
-| `src/cachibot/storage/alembic/versions/001_initial_schema.py` | Initial migration creating all 25 tables + pgvector extension |
-| `alembic.ini` | Alembic configuration pointing to `src/cachibot/storage/alembic` |
+| `cachibot/storage/db.py` | New PostgreSQL engine, Base, session factory, init/close lifecycle |
+| `cachibot/storage/models/__init__.py` | Exports all 25 ORM models + Base |
+| `cachibot/storage/models/base.py` | `TimestampMixin`, `BotScopedMixin` |
+| `cachibot/storage/models/bot.py` | `Bot`, `BotOwnership` ORM models |
+| `cachibot/storage/models/chat.py` | `Chat` ORM model |
+| `cachibot/storage/models/connection.py` | `BotConnection` ORM model |
+| `cachibot/storage/models/contact.py` | `BotContact` ORM model |
+| `cachibot/storage/models/job.py` | `Job` ORM model |
+| `cachibot/storage/models/knowledge.py` | `BotInstruction`, `BotDocument`, `DocChunk` (with pgvector `Vector(384)`) |
+| `cachibot/storage/models/message.py` | `Message`, `BotMessage` ORM models |
+| `cachibot/storage/models/room.py` | `Room`, `RoomMember`, `RoomBot`, `RoomMessage` ORM models |
+| `cachibot/storage/models/skill.py` | `Skill`, `BotSkill` ORM models |
+| `cachibot/storage/models/user.py` | `User` ORM model |
+| `cachibot/storage/models/work.py` | `Function`, `Schedule`, `Work`, `Task`, `WorkJob`, `Todo` ORM models |
+| `cachibot/storage/alembic/env.py` | Alembic environment with async asyncpg support |
+| `cachibot/storage/alembic/versions/001_initial_schema.py` | Initial migration creating all 25 tables + pgvector extension |
+| `alembic.ini` | Alembic configuration pointing to `cachibot/storage/alembic` |
 | `docker-compose.yml` | PostgreSQL + pgvector container, backend, frontend services |
 | `.env.example` | `DATABASE_URL` template |
 | `scripts/init_pgvector.sql` | PostgreSQL initialization script for pgvector |
@@ -51,14 +51,14 @@ CachiBot's data layer was fully migrated from **SQLite (aiosqlite)** to **Postgr
 
 | File | What Changed |
 |------|-------------|
-| `src/cachibot/storage/__init__.py` | Updated exports to import from `db.py` and all 4 repository modules |
-| `src/cachibot/storage/database.py` | Converted to backward-compatibility wrapper delegating to `db.py` |
-| `src/cachibot/storage/repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (9 repositories) |
-| `src/cachibot/storage/work_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (6 repositories) |
-| `src/cachibot/storage/room_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (4 repositories) |
-| `src/cachibot/storage/user_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (2 repositories) |
-| `src/cachibot/services/vector_store.py` | Migrated from in-memory cosine similarity to pgvector `cosine_distance()` |
-| `src/cachibot/config.py` | Added `DatabaseConfig` dataclass with pool settings |
+| `cachibot/storage/__init__.py` | Updated exports to import from `db.py` and all 4 repository modules |
+| `cachibot/storage/database.py` | Converted to backward-compatibility wrapper delegating to `db.py` |
+| `cachibot/storage/repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (9 repositories) |
+| `cachibot/storage/work_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (6 repositories) |
+| `cachibot/storage/room_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (4 repositories) |
+| `cachibot/storage/user_repository.py` | Rewritten: raw aiosqlite SQL replaced with SQLAlchemy ORM queries (2 repositories) |
+| `cachibot/services/vector_store.py` | Migrated from in-memory cosine similarity to pgvector `cosine_distance()` |
+| `cachibot/config.py` | Added `DatabaseConfig` dataclass with pool settings |
 | `pyproject.toml` | Added `sqlalchemy[asyncio]`, `asyncpg`, `alembic`, `pgvector`; removed `aiosqlite`, `sqlite-vec` |
 
 ---
@@ -69,7 +69,7 @@ CachiBot's data layer was fully migrated from **SQLite (aiosqlite)** to **Postgr
 
 #### C1. `RoomMessageRepository.get_messages()` -- `before` parameter type mismatch
 
-**File**: `src/cachibot/storage/room_repository.py`, line ~299
+**File**: `cachibot/storage/room_repository.py`, line ~299
 **Problem**: The `before` parameter is typed as `str | None`, but is compared against `RoomMessageModel.timestamp` which is a `DateTime(timezone=True)` column. The comparison `RoomMessageModel.timestamp < before` will cause a runtime type error or incorrect comparison when a string is passed.
 
 ```python
@@ -90,8 +90,8 @@ async def get_messages(
 
 #### C2. `db.py` ignores `Config.database` settings
 
-**File**: `src/cachibot/storage/db.py`, lines 49-57
-**File**: `src/cachibot/config.py`, lines 145-166
+**File**: `cachibot/storage/db.py`, lines 49-57
+**File**: `cachibot/config.py`, lines 145-166
 **Problem**: The database engine in `db.py` is created at **module import time** by reading environment variables directly via `_get_database_url()`. The `DatabaseConfig` class in `config.py` has `pool_size`, `max_overflow`, `pool_recycle`, and `echo` settings that are **never consumed** by `db.py`. The engine hardcodes `pool_size=10, max_overflow=20, pool_recycle=3600, echo=False`.
 
 ```python
@@ -172,7 +172,7 @@ All tests in classes `TestVectorStoreSerialization`, `TestCosineSimilarity`, and
 
 #### W2. `server.py` imports from deprecated backward-compatibility wrapper
 
-**File**: `src/cachibot/api/server.py`, line 51
+**File**: `cachibot/api/server.py`, line 51
 **Problem**: The server imports `init_db` and `close_db` from the deprecated wrapper:
 
 ```python
@@ -191,7 +191,7 @@ from cachibot.storage.db import close_db, init_db
 
 #### W3. `work_repository.py` uses `.isoformat()` for JSONB log entry
 
-**File**: `src/cachibot/storage/work_repository.py`, line 860
+**File**: `cachibot/storage/work_repository.py`, line 860
 **Problem**: One line uses `datetime.utcnow().isoformat()` when constructing a timestamp string inside a JSONB log entry:
 
 ```python
@@ -234,7 +234,7 @@ These are documentation-only and do not affect runtime behavior. The migration s
 
 #### I2. No residual `json.dumps` / `json.loads` in storage layer
 
-Verified: Zero occurrences of `json.dumps` or `json.loads` in `src/cachibot/storage/`. All JSON serialization is handled by SQLAlchemy's `JSONB` column type.
+Verified: Zero occurrences of `json.dumps` or `json.loads` in `cachibot/storage/`. All JSON serialization is handled by SQLAlchemy's `JSONB` column type.
 
 ---
 
@@ -279,7 +279,7 @@ Verified: `storage/models/__init__.py` exports all 25 models plus `Base`. The Al
 
 #### I8. `BotResponse.from_bot()` uses `.isoformat()` for JSON serialization to frontend
 
-**File**: `src/cachibot/models/bot.py`
+**File**: `cachibot/models/bot.py`
 **Status**: Correct usage. This is API response serialization, not a database write. The only difference is that timezone-aware datetimes from PostgreSQL will produce `+00:00` suffix in the output (e.g., `2026-02-14T10:30:00+00:00` vs the old `2026-02-14T10:30:00`). Frontend callers should handle both formats.
 
 ---

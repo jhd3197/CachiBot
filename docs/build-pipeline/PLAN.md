@@ -29,7 +29,7 @@
 | **P2** | electron-updater repo name case mismatch ("cachibot" vs "CachiBot") | Change to `"CachiBot"` in desktop/package.json publish config | 10 min | Not started |
 | **P2** | Update errors invisible to user -- only logged to console | Add `update:error` IPC event to surface errors in renderer | 1 hour | Not started |
 | **P2** | Frontend built 4 times per release (redundant) | Build once, share as artifact across jobs | 2 hours | Not started |
-| **P2** | mypy not run in CI despite being configured | Add `mypy src/cachibot` step to ci.yml | 30 min | Not started |
+| **P2** | mypy not run in CI despite being configured | Add `mypy cachibot` step to ci.yml | 30 min | Not started |
 | **P2** | Inconsistent `actions/setup-python` versions (v4 vs v5) | Standardize all to `@v5` | 15 min | Not started |
 | **P3** | Non-Windows backend shutdown may orphan uvicorn workers | Use process groups on Linux/macOS | 1 hour | Not started |
 | **P3** | `sendSync` for app version blocks renderer | Replace with async approach or preload constant | 1 hour | Not started |
@@ -254,7 +254,7 @@ frontend:
 
 The pip update endpoints (`/api/update/apply`) are still accessible in Electron mode. Running `pip install` inside a PyInstaller binary would fail unpredictably.
 
-**File:** `src/cachibot/api/routes/update.py`
+**File:** `cachibot/api/routes/update.py`
 
 Add a guard to `apply_update()`:
 ```python
@@ -307,7 +307,7 @@ The `desktop/package.json` mac config does not specify `arch`. Since `macos-late
 - Standardize all `actions/setup-python` to `@v5`
 - Add concurrency groups to `publish.yml` and `dev.yml`
 - Remove `npm ci || npm install` fallback -- use `npm ci` only
-- Add `mypy src/cachibot` to ci.yml
+- Add `mypy cachibot` to ci.yml
 - Add `--clean` flag to PyInstaller CI invocations
 - Clean `__pycache__` before PyInstaller builds
 

@@ -30,7 +30,7 @@ uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 **File:** `cachibot-server.spec` (root of repo)
 
 The spec file configures:
-- **datas:** Bundles `src/cachibot` as `cachibot`, `frontend/dist` as `cachibot/frontend_dist`, and `VERSION` as `cachibot/VERSION`
+- **datas:** Bundles `cachibot` as `cachibot`, `frontend/dist` as `cachibot/frontend_dist`, and `VERSION` as `cachibot/VERSION`
 - **hiddenimports:** `uvicorn.logging`, `uvicorn.loops.auto`, `uvicorn.protocols.http.auto`, `uvicorn.protocols.websockets.auto`, `uvicorn.lifespan.on`, `asyncpg`, `aiosqlite`, `sqlite_vec`, `fastembed`, `cachibot.api.routes`, `cachibot.plugins`, `cachibot.services`, `cachibot.storage`
 - **UPX:** Enabled (`upx=True`) for compression
 - **Console mode:** `console=True` (the binary is a headless server)
@@ -198,9 +198,9 @@ This does NOT recursively include submodules. PyInstaller's `--hidden-import` on
 
 #### M3. Both cpython-311 and cpython-312 .pyc Files Bundled
 
-**Evidence:** The Analysis TOC shows both `.cpython-311.pyc` and `.cpython-312.pyc` files being included for every module in the `--add-data src/cachibot:cachibot` directive.
+**Evidence:** The Analysis TOC shows both `.cpython-311.pyc` and `.cpython-312.pyc` files being included for every module in the `--add-data cachibot:cachibot` directive.
 
-Since the CI builds with Python 3.12, the `.cpython-311.pyc` files are **dead weight**. The `--add-data` for `src/cachibot` copies the raw source tree, including all `__pycache__` directories.
+Since the CI builds with Python 3.12, the `.cpython-311.pyc` files are **dead weight**. The `--add-data` for `cachibot` copies the raw source tree, including all `__pycache__` directories.
 
 **Fix:** Either clean `__pycache__` before building, or use a more targeted data inclusion that excludes `.pyc` files.
 
@@ -339,7 +339,7 @@ publish.yml (on push to main)
 
 ### P2 (Medium priority -- nice to have)
 
-8. **Clean `__pycache__`** from `src/cachibot` before building to avoid bundling stale `.pyc` files.
+8. **Clean `__pycache__`** from `cachibot` before building to avoid bundling stale `.pyc` files.
 
 9. **Enable `--strip`** on Linux and macOS builds for smaller binaries.
 

@@ -70,7 +70,7 @@ from cachibot.storage.db import close_db, init_db
 # 1. Bundled in the package (pip install case): cachibot/frontend_dist/
 _BUNDLED_DIST = Path(__file__).parent.parent / "frontend_dist"
 # 2. Development repo (editable install / local dev): repo_root/frontend/dist/
-_DEV_DIST = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+_DEV_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 FRONTEND_DIST = _BUNDLED_DIST if (_BUNDLED_DIST / "index.html").exists() else _DEV_DIST
 
