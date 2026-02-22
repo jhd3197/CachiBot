@@ -61,6 +61,7 @@ export function RoomMessageList({ messages, roomId, children }: RoomMessageListP
   const bots = useBotStore((s) => s.bots)
   const { accentColor, customHex } = useUIStore()
   const roomActiveToolCalls = useRoomStore((s) => roomId ? s.activeToolCalls[roomId] : undefined)
+  const roomBotStates = useRoomStore((s) => roomId ? s.botStates[roomId] : undefined)
 
   const userColor = accentColor === 'custom'
     ? generatePalette(customHex)[600]
@@ -90,6 +91,9 @@ export function RoomMessageList({ messages, roomId, children }: RoomMessageListP
           const bot = msg.senderType === 'bot' ? bots.find((b) => b.id === msg.senderId) : undefined
           // Merge finalized tool calls with active (in-flight) tool calls
           const toolCalls = msg.toolCalls ?? roomActiveToolCalls?.[msg.id] ?? undefined
+          // Bot is still streaming if it's in thinking/responding state
+          const botState = msg.senderType === 'bot' && roomBotStates ? roomBotStates[msg.senderId] : undefined
+          const isBotStreaming = botState === 'thinking' || botState === 'responding'
 
           return (
             <MessageBubble
@@ -109,6 +113,7 @@ export function RoomMessageList({ messages, roomId, children }: RoomMessageListP
               botColor={bot?.color}
               userColor={userColor}
               showSenderName
+              isStreaming={isBotStreaming}
             />
           )
         })}
