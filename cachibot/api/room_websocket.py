@@ -855,7 +855,9 @@ async def room_websocket_endpoint(
                                 )
                                 orchestrator.mark_done(interviewer_id)
 
-                        assert interview_bot_id is not None
+                        if interview_bot_id is None:
+                            logger.warning("No interview bot available for room %s", room_id)
+                            continue
                         interview_task = asyncio.create_task(
                             _run_interview_step(interview_bot_id, message_text, config)
                         )
