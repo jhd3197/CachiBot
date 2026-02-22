@@ -416,6 +416,7 @@ export interface Config {
   sandbox: SandboxConfig
   display: DisplayConfig
   workspacePath: string
+  timezone: string
 }
 
 // Model types
@@ -596,10 +597,9 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'schedules' | 'automations' | 'voice' | 'tools' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'tasks' | 'work' | 'automations' | 'voice' | 'tools' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
-export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
-export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'
+export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
 export type AppView = 'dashboard' | 'admin-logs' | 'settings'
 
 // =============================================================================

@@ -13,13 +13,18 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useBotStore, useScheduleStore } from '../../stores/bots'
-import { useUIStore } from '../../stores/ui'
 import { cn } from '../../lib/utils'
 import type { Schedule, ScheduleType } from '../../types'
 
+type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
+
+/**
+ * @deprecated Schedules are now managed via AutomationsView.
+ * This view is kept for backwards compatibility but is no longer routed to.
+ */
 export function SchedulesView() {
   const { getActiveBot } = useBotStore()
-  const { scheduleSection } = useUIStore()
+  const [scheduleSection] = useState<ScheduleSection>('all')
 
   const activeBot = getActiveBot()
   if (!activeBot) return null
@@ -161,7 +166,7 @@ function ScheduleListSection({ botId, filter }: { botId: string; filter: 'all' |
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CreateScheduleSection({ botId: _botId }: { botId: string }) {
-  const { setScheduleSection } = useUIStore()
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -177,7 +182,7 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
     e.preventDefault()
     // TODO: Implement create schedule API call
     console.log('Create schedule:', formData)
-    setScheduleSection('all')
+    navigate(-1)
   }
 
   return (
@@ -322,7 +327,7 @@ function CreateScheduleSection({ botId: _botId }: { botId: string }) {
           <div className="schedule-form-actions">
             <button
               type="button"
-              onClick={() => setScheduleSection('all')}
+              onClick={() => navigate(-1)}
               className="schedule-btn-cancel"
             >
               Cancel

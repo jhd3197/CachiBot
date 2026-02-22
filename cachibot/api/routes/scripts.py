@@ -589,6 +589,37 @@ async def rollback_to_version(
 # =============================================================================
 
 
+@router.get("/timeline")
+async def get_bot_timeline(
+    bot_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(require_bot_access),
+) -> list[dict[str, object]]:
+    """Get all timeline events for a bot (across all source types)."""
+    events = await timeline_repo.get_by_bot(bot_id, limit=limit, offset=offset)
+    return [
+        {
+            "id": e.id,
+            "botId": e.bot_id,
+            "sourceType": e.source_type,
+            "sourceId": e.source_id,
+            "eventType": e.event_type,
+            "eventAt": e.event_at.isoformat(),
+            "actorType": e.actor_type,
+            "actorId": e.actor_id,
+            "actorName": e.actor_name,
+            "title": e.title,
+            "description": e.description,
+            "diff": e.diff,
+            "executionLogId": e.execution_log_id,
+            "versionNumber": e.version_number,
+            "commitMessage": e.commit_message,
+        }
+        for e in events
+    ]
+
+
 @router.get("/timeline/{source_type}/{source_id}")
 async def get_timeline(
     bot_id: str,

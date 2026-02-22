@@ -18,6 +18,8 @@ import {
   X,
   Eye,
   EyeOff,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import * as devApi from '../../api/developer'
@@ -308,16 +310,218 @@ function CreateApiKeyDialog({
 // API DOCS PANEL
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ApiDocsPanel({ botId: _botId }: { botId: string }) {
+interface ApiEndpoint {
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  path: string
+  description: string
+}
+
+interface ApiCategory {
+  id: string
+  label: string
+  endpoints: ApiEndpoint[]
+}
+
+const API_CATEGORIES: ApiCategory[] = [
+  {
+    id: 'chats',
+    label: 'Chats',
+    endpoints: [
+      { method: 'GET', path: '/chats', description: 'List chats' },
+      { method: 'GET', path: '/chats/{chat_id}', description: 'Get chat' },
+      { method: 'GET', path: '/chats/{chat_id}/messages', description: 'Get messages' },
+      { method: 'DELETE', path: '/chats/{chat_id}', description: 'Delete chat' },
+      { method: 'POST', path: '/chats/{chat_id}/_archive', description: 'Archive chat' },
+      { method: 'POST', path: '/chats/{chat_id}/_unarchive', description: 'Unarchive chat' },
+    ],
+  },
+  {
+    id: 'work',
+    label: 'Work',
+    endpoints: [
+      { method: 'GET', path: '/work', description: 'List work items' },
+      { method: 'GET', path: '/work/active', description: 'Get active work' },
+      { method: 'POST', path: '/work', description: 'Create work' },
+      { method: 'GET', path: '/work/{work_id}', description: 'Get work' },
+      { method: 'PATCH', path: '/work/{work_id}', description: 'Update work' },
+      { method: 'POST', path: '/work/{work_id}/start', description: 'Start work' },
+      { method: 'POST', path: '/work/{work_id}/complete', description: 'Complete work' },
+      { method: 'POST', path: '/work/{work_id}/fail', description: 'Fail work' },
+      { method: 'POST', path: '/work/{work_id}/cancel', description: 'Cancel work' },
+      { method: 'DELETE', path: '/work/{work_id}', description: 'Delete work' },
+    ],
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    endpoints: [
+      { method: 'GET', path: '/work/{work_id}/tasks', description: 'List tasks' },
+      { method: 'GET', path: '/work/{work_id}/tasks/ready', description: 'Get ready tasks' },
+      { method: 'POST', path: '/work/{work_id}/tasks', description: 'Create task' },
+      { method: 'GET', path: '/tasks/{task_id}', description: 'Get task' },
+      { method: 'PATCH', path: '/tasks/{task_id}', description: 'Update task' },
+      { method: 'POST', path: '/tasks/{task_id}/start', description: 'Start task' },
+      { method: 'POST', path: '/tasks/{task_id}/complete', description: 'Complete task' },
+      { method: 'POST', path: '/tasks/{task_id}/fail', description: 'Fail task' },
+      { method: 'DELETE', path: '/tasks/{task_id}', description: 'Delete task' },
+    ],
+  },
+  {
+    id: 'todos',
+    label: 'Todos',
+    endpoints: [
+      { method: 'GET', path: '/todos', description: 'List todos' },
+      { method: 'GET', path: '/todos/open', description: 'Get open todos' },
+      { method: 'POST', path: '/todos', description: 'Create todo' },
+      { method: 'GET', path: '/todos/{todo_id}', description: 'Get todo' },
+      { method: 'PATCH', path: '/todos/{todo_id}', description: 'Update todo' },
+      { method: 'POST', path: '/todos/{todo_id}/done', description: 'Mark done' },
+      { method: 'POST', path: '/todos/{todo_id}/dismiss', description: 'Dismiss' },
+      { method: 'POST', path: '/todos/{todo_id}/convert', description: 'Convert to work' },
+      { method: 'DELETE', path: '/todos/{todo_id}', description: 'Delete todo' },
+    ],
+  },
+  {
+    id: 'functions',
+    label: 'Functions',
+    endpoints: [
+      { method: 'GET', path: '/functions', description: 'List functions' },
+      { method: 'POST', path: '/functions', description: 'Create function' },
+      { method: 'GET', path: '/functions/{function_id}', description: 'Get function' },
+      { method: 'PATCH', path: '/functions/{function_id}', description: 'Update function' },
+      { method: 'DELETE', path: '/functions/{function_id}', description: 'Delete function' },
+      { method: 'POST', path: '/functions/{function_id}/run', description: 'Run function' },
+    ],
+  },
+  {
+    id: 'schedules',
+    label: 'Schedules',
+    endpoints: [
+      { method: 'GET', path: '/schedules', description: 'List schedules' },
+      { method: 'POST', path: '/schedules', description: 'Create schedule' },
+      { method: 'GET', path: '/schedules/{schedule_id}', description: 'Get schedule' },
+      { method: 'PATCH', path: '/schedules/{schedule_id}', description: 'Update schedule' },
+      { method: 'POST', path: '/schedules/{schedule_id}/toggle', description: 'Toggle on/off' },
+      { method: 'DELETE', path: '/schedules/{schedule_id}', description: 'Delete schedule' },
+    ],
+  },
+  {
+    id: 'contacts',
+    label: 'Contacts',
+    endpoints: [
+      { method: 'GET', path: '/contacts', description: 'List contacts' },
+      { method: 'POST', path: '/contacts', description: 'Create contact' },
+      { method: 'GET', path: '/contacts/{contact_id}', description: 'Get contact' },
+      { method: 'PUT', path: '/contacts/{contact_id}', description: 'Update contact' },
+      { method: 'DELETE', path: '/contacts/{contact_id}', description: 'Delete contact' },
+    ],
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge',
+    endpoints: [
+      { method: 'GET', path: '/knowledge/notes', description: 'List notes' },
+      { method: 'POST', path: '/knowledge/notes', description: 'Create note' },
+      { method: 'GET', path: '/knowledge/notes/{note_id}', description: 'Get note' },
+      { method: 'PUT', path: '/knowledge/notes/{note_id}', description: 'Update note' },
+      { method: 'DELETE', path: '/knowledge/notes/{note_id}', description: 'Delete note' },
+      { method: 'POST', path: '/knowledge/search', description: 'Search knowledge' },
+      { method: 'GET', path: '/knowledge/stats', description: 'Get stats' },
+    ],
+  },
+  {
+    id: 'scripts',
+    label: 'Scripts',
+    endpoints: [
+      { method: 'GET', path: '/scripts', description: 'List scripts' },
+      { method: 'POST', path: '/scripts', description: 'Create script' },
+      { method: 'GET', path: '/scripts/{script_id}', description: 'Get script' },
+      { method: 'PATCH', path: '/scripts/{script_id}', description: 'Update script' },
+      { method: 'DELETE', path: '/scripts/{script_id}', description: 'Delete script' },
+      { method: 'POST', path: '/scripts/{script_id}/run', description: 'Run script' },
+      { method: 'POST', path: '/scripts/{script_id}/activate', description: 'Activate' },
+      { method: 'POST', path: '/scripts/{script_id}/disable', description: 'Disable' },
+    ],
+  },
+  {
+    id: 'executions',
+    label: 'Executions',
+    endpoints: [
+      { method: 'GET', path: '/executions', description: 'List executions' },
+      { method: 'GET', path: '/executions/running', description: 'Running executions' },
+      { method: 'GET', path: '/executions/stats', description: 'Execution stats' },
+      { method: 'GET', path: '/executions/{exec_id}', description: 'Get execution' },
+      { method: 'POST', path: '/executions/{exec_id}/cancel', description: 'Cancel execution' },
+    ],
+  },
+]
+
+function methodBadgeClasses(method: ApiEndpoint['method']): string {
+  switch (method) {
+    case 'GET':
+      return 'bg-blue-500/10 text-blue-600'
+    case 'POST':
+      return 'bg-cachi-500/10 text-cachi-600'
+    case 'PUT':
+    case 'PATCH':
+      return 'bg-amber-500/10 text-amber-600'
+    case 'DELETE':
+      return 'bg-red-500/10 text-red-600'
+  }
+}
+
+function CollapsibleCategory({ category }: { category: ApiCategory }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-hover-bg)] transition-colors"
+      >
+        {expanded ? (
+          <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
+        )}
+        <span className="flex-1 text-sm font-medium text-[var(--color-text-primary)]">
+          {category.label}
+        </span>
+        <span className="text-xs text-[var(--color-text-secondary)]">
+          {category.endpoints.length} endpoints
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-[var(--color-border)] px-3 py-2 space-y-1.5">
+          {category.endpoints.map((ep, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 text-[var(--color-text-secondary)]"
+            >
+              <span
+                className={`inline-block w-14 rounded px-1.5 py-0.5 text-center text-xs font-mono ${methodBadgeClasses(ep.method)}`}
+              >
+                {ep.method}
+              </span>
+              <code className="text-xs">{ep.path}</code>
+              <span className="ml-auto text-xs opacity-60 hidden sm:inline">{ep.description}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ApiDocsPanel({ botId }: { botId: string }) {
   const { getActiveBot } = useBotStore()
   const bot = getActiveBot()
-  // In production the backend serves the frontend (same origin).
-  // In dev the Vite server runs on a different port — use the backend directly.
   const apiOrigin = import.meta.env.DEV ? 'http://127.0.0.1:5870' : window.location.origin
   const baseUrl = `${apiOrigin}/v1`
+  const botApiBase = `${apiOrigin}/api/bots/${botId}`
   const modelName = bot?.models?.default || bot?.model || 'unknown'
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [openaiExpanded, setOpenaiExpanded] = useState(false)
 
   const handleCopy = (text: string, id: string) => {
     copyToClipboard(text)
@@ -395,18 +599,19 @@ console.log(response.choices[0].message.content);`
         </div>
       </div>
 
-      {/* Endpoints */}
+      {/* Bot API Base */}
       <div>
-        <label className="settings-label">Endpoints</label>
-        <div className="space-y-1.5 text-sm">
-          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-            <span className="rounded bg-cachi-500/10 px-1.5 py-0.5 text-xs font-mono text-cachi-600">POST</span>
-            <code>/v1/chat/completions</code>
-          </div>
-          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-            <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs font-mono text-blue-600">GET</span>
-            <code>/v1/models</code>
-          </div>
+        <label className="settings-label">Bot API Base</label>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 rounded bg-[var(--color-bg-secondary)] px-3 py-2 text-sm font-mono text-[var(--color-text-primary)]">
+            {botApiBase}
+          </code>
+          <button
+            onClick={() => handleCopy(botApiBase, 'bot-api-base')}
+            className="btn btn--secondary btn--sm"
+          >
+            {copiedId === 'bot-api-base' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
@@ -416,6 +621,52 @@ console.log(response.choices[0].message.content);`
         <code className="block rounded bg-[var(--color-bg-secondary)] px-3 py-2 text-sm font-mono text-[var(--color-text-primary)]">
           {modelName}
         </code>
+      </div>
+
+      {/* API Endpoints */}
+      <div className="space-y-2">
+        <label className="settings-label">Endpoints</label>
+
+        {/* OpenAI Compatible */}
+        <div className="rounded-lg border border-[var(--color-border)] overflow-hidden">
+          <button
+            onClick={() => setOpenaiExpanded(!openaiExpanded)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-hover-bg)] transition-colors"
+          >
+            {openaiExpanded ? (
+              <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            )}
+            <span className="flex-1 text-sm font-medium text-[var(--color-text-primary)]">
+              OpenAI Compatible
+            </span>
+            <span className="text-xs text-[var(--color-text-secondary)]">2 endpoints</span>
+          </button>
+          {openaiExpanded && (
+            <div className="border-t border-[var(--color-border)] px-3 py-2 space-y-1.5">
+              <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
+                <span className={`inline-block w-14 rounded px-1.5 py-0.5 text-center text-xs font-mono ${methodBadgeClasses('POST')}`}>
+                  POST
+                </span>
+                <code className="text-xs">/v1/chat/completions</code>
+                <span className="ml-auto text-xs opacity-60 hidden sm:inline">Chat completions</span>
+              </div>
+              <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
+                <span className={`inline-block w-14 rounded px-1.5 py-0.5 text-center text-xs font-mono ${methodBadgeClasses('GET')}`}>
+                  GET
+                </span>
+                <code className="text-xs">/v1/models</code>
+                <span className="ml-auto text-xs opacity-60 hidden sm:inline">List models</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bot API categories */}
+        {API_CATEGORIES.map((cat) => (
+          <CollapsibleCategory key={cat.id} category={cat} />
+        ))}
       </div>
 
       {/* Code Examples */}
