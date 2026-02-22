@@ -52,12 +52,18 @@
 
 **CachiBot 三者兼得。** 创建专业机器人、部署到任何消息平台、在协作房间中运行，以及自动化工作流——一切都通过可视化仪表板完成，完全透明地了解你的智能体在做什么。
 
-<p align="center">
-  <img src="../assets/dashboard.jpeg" alt="仪表板" width="800" />
-</p>
+![arepa-war](https://github.com/user-attachments/assets/5996fc02-0c4c-4a61-a998-f007189494fd)
 
 <p align="center">
-  <img src="../assets/chat.png" alt="聊天界面" width="800" />
+  <a href="https://youtu.be/G8JEhkcRxD8">
+    <img src="https://img.shields.io/badge/YouTube-观看演示-red?style=for-the-badge&logo=youtube&logoColor=white" alt="在YouTube上观看" />
+  </a>
+  <a href="https://cachibot.ai/marketplace/rooms/great-arepa-war?utm_source=github&utm_medium=readme&utm_campaign=arepa_war_room">
+    <img src="https://img.shields.io/badge/CachiBot-查看房间-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="在CachiBot上查看" />
+  </a>
+  <a href="https://dev.to/juandenis/ai-settles-the-ultimate-venezuelan-vs-colombian-arepa-debate-2ngm">
+    <img src="https://img.shields.io/badge/Dev.to-阅读文章-0A0A0A?style=for-the-badge&logo=devdotto&logoColor=white" alt="在Dev.to上阅读" />
+  </a>
 </p>
 
 ## 安装

@@ -52,12 +52,18 @@ A maioria das plataformas de IA te força a escolher: interfaces de chatbot sem 
 
 **CachiBot te dá os três.** Crie bots especializados, implante-os em qualquer plataforma de mensagens, execute-os em salas colaborativas e automatize workflows — tudo a partir de um painel visual com total transparência sobre o que seus agentes estão fazendo.
 
-<p align="center">
-  <img src="../assets/dashboard.jpeg" alt="Painel" width="800" />
-</p>
+![arepa-war](https://github.com/user-attachments/assets/5996fc02-0c4c-4a61-a998-f007189494fd)
 
 <p align="center">
-  <img src="../assets/chat.png" alt="Interface de Chat" width="800" />
+  <a href="https://youtu.be/G8JEhkcRxD8">
+    <img src="https://img.shields.io/badge/YouTube-Assistir_Demo-red?style=for-the-badge&logo=youtube&logoColor=white" alt="Assistir no YouTube" />
+  </a>
+  <a href="https://cachibot.ai/marketplace/rooms/great-arepa-war?utm_source=github&utm_medium=readme&utm_campaign=arepa_war_room">
+    <img src="https://img.shields.io/badge/CachiBot-Ver_Sala-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Ver o Chat no CachiBot" />
+  </a>
+  <a href="https://dev.to/juandenis/ai-settles-the-ultimate-venezuelan-vs-colombian-arepa-debate-2ngm">
+    <img src="https://img.shields.io/badge/Dev.to-Ler_Artigo-0A0A0A?style=for-the-badge&logo=devdotto&logoColor=white" alt="Ler no Dev.to" />
+  </a>
 </p>
 
 ## Instalação

@@ -55,7 +55,17 @@ Most AI platforms force you to choose: chatbot UIs with no automation, workflow 
 
 ![arepa-war](https://github.com/user-attachments/assets/5996fc02-0c4c-4a61-a998-f007189494fd)
 
-[Watch on YouTube](https://youtu.be/G8JEhkcRxD8) | [View the Chat on CachiBot](https://cachibot.ai/marketplace/rooms/great-arepa-war?utm_source=github&utm_medium=readme&utm_campaign=arepa_war_room)
+<p align="center">
+  <a href="https://youtu.be/G8JEhkcRxD8">
+    <img src="https://img.shields.io/badge/YouTube-Watch_Demo-red?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch on YouTube" />
+  </a>
+  <a href="https://cachibot.ai/marketplace/rooms/great-arepa-war?utm_source=github&utm_medium=readme&utm_campaign=arepa_war_room">
+    <img src="https://img.shields.io/badge/CachiBot-View_Room-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="View the Chat on CachiBot" />
+  </a>
+  <a href="https://dev.to/juandenis/ai-settles-the-ultimate-venezuelan-vs-colombian-arepa-debate-2ngm">
+    <img src="https://img.shields.io/badge/Dev.to-Read_Article-0A0A0A?style=for-the-badge&logo=devdotto&logoColor=white" alt="Read on Dev.to" />
+  </a>
+</p>
 
 ## Install
 
