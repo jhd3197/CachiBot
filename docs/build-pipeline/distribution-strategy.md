@@ -35,7 +35,7 @@ The pip package is a **full-stack distribution**: it includes the Python backend
 | Auto-update | electron-updater via GitHub Releases |
 | CI workflow | `publish.yml` jobs `build-backend` + `build-desktop` |
 
-The Electron app is a **wrapper**: it spawns the PyInstaller-compiled backend binary, waits for port 6392, then loads the UI from the backend's HTTP server. The Electron shell provides native window chrome, system tray, and auto-updates.
+The Electron app is a **wrapper**: it spawns the PyInstaller-compiled backend binary, waits for port 5870, then loads the UI from the backend's HTTP server. The Electron shell provides native window chrome, system tray, and auto-updates.
 
 ### 1.3 What Both Channels Deliver
 
@@ -104,11 +104,11 @@ The resolution chain in `src/cachibot/__init__.py` is:
 
 ### 3.1 Port Conflicts
 
-Both pip and Electron use **port 6392** for the backend server. If a user has:
+Both pip and Electron use **port 5870** for the backend server. If a user has:
 - A pip-installed `cachibot server` running, AND
 - Launches the Electron app
 
-...the Electron app's backend will fail to bind to 6392. The Electron app will show a "Backend Error" dialog.
+...the Electron app's backend will fail to bind to 5870. The Electron app will show a "Backend Error" dialog.
 
 **Severity: High.** This is the most likely real-world conflict.
 
@@ -296,7 +296,7 @@ No breaking changes. Auto-update via electron-updater continues to work. Changes
 1. **Fix version single source of truth** -- Make `pyproject.toml` read dynamically from `VERSION`
 2. **Gate pip self-update behind desktop flag** -- Disable `/api/update/apply` when `CACHIBOT_DESKTOP=true`
 3. **Frontend update UI branching** -- Show correct update path based on `desktop` flag from health endpoint
-4. **Port conflict handling** -- Electron should detect if port 6392 is already in use and either warn or use a different port
+4. **Port conflict handling** -- Electron should detect if port 5870 is already in use and either warn or use a different port
 5. **Document the two channels** -- README, website, installer welcome screen
 
 ---

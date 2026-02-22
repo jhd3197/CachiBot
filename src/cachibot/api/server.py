@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from cachibot.services.pid_guard import kill_stale_server, remove_pid_file, write_pid_file
 
     kill_stale_server()
-    _pid_port = int(os.environ.get("_CACHIBOT_PORT", "6392"))
+    _pid_port = int(os.environ.get("_CACHIBOT_PORT", "5870"))
     write_pid_file(port=_pid_port)
 
     # Startup — initialize database
@@ -340,7 +340,7 @@ def create_app(
 
 def run_server(
     host: str = "127.0.0.1",
-    port: int = 6392,
+    port: int = 5870,
     workspace: Path | None = None,
     reload: bool = False,
 ) -> None:

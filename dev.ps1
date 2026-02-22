@@ -169,7 +169,7 @@ $startFrontend = $Mode -in "frontend", "browser", "desktop", "all"
 
 # --- Kill stale processes on required ports ---
 $ports = @()
-if ($startBackend)  { $ports += 6392 }
+if ($startBackend)  { $ports += 5870 }
 if ($startFrontend) { $ports += 5173 }
 
 foreach ($port in $ports) {
@@ -234,9 +234,9 @@ if ($startBackend) {
 # --- Backend ---
 if ($startBackend) {
     Write-Host "[dev] backend  -> " -ForegroundColor Cyan -NoNewline
-    Write-Host "http://127.0.0.1:6392" -ForegroundColor Green
+    Write-Host "http://127.0.0.1:5870" -ForegroundColor Green
     $procs += Start-Process -NoNewWindow -PassThru -FilePath "cachibot" `
-        -ArgumentList "server","--port","6392","--reload"
+        -ArgumentList "server","--port","5870","--reload"
 }
 
 # --- Frontend (Vite) ---

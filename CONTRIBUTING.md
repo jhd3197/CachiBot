@@ -99,8 +99,8 @@ bash dev.sh watch-lint     # watch Python + TS files, lint on changes
 If you prefer to run things in separate terminals:
 
 ```bash
-# Terminal 1 — Backend (port 6392)
-cachibot server --port 6392 --reload
+# Terminal 1 — Backend (port 5870)
+cachibot server --port 5870 --reload
 
 # Terminal 2 — Frontend (port 5173, proxies API to backend)
 cd frontend && npm run dev
@@ -111,7 +111,7 @@ cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
 
 ### What each mode does
 
-| Mode | Backend (6392) | Vite (5173) | Electron | Use case |
+| Mode | Backend (5870) | Vite (5173) | Electron | Use case |
 |------|:-:|:-:|:-:|------|
 | `browser` | x | x | | Frontend/backend work, open browser to localhost:5173 |
 | `backend` | x | | | API-only work, testing endpoints |

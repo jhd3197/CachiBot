@@ -41,7 +41,7 @@ __author__ = "jhd3197"
 __all__ = ["CachibotAgent", "Agent", "Config", "__version__"]
 
 
-def run_server(host: str = "127.0.0.1", port: int = 6392) -> None:
+def run_server(host: str = "127.0.0.1", port: int = 5870) -> None:
     """Run the Cachibot API server."""
     from cachibot.api.server import run_server as _run_server
 
