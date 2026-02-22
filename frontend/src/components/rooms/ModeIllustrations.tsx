@@ -145,3 +145,79 @@ export function WaterfallIllustration() {
     </SvgWrap>
   )
 }
+
+/** Auto round-robin: each message goes to the next bot in rotation */
+export function RelayIllustration() {
+  return (
+    <SvgWrap>
+      <ArrowDef />
+      {/* User node */}
+      <Circle cx={10} cy={20} r={5} fill={ACCENT} />
+      {/* Arrow to a single bot (highlighted) */}
+      <Arrow x1={16} y1={20} x2={38} y2={20} color={ACCENT} />
+      <Circle cx={44} cy={20} r={5} fill={ACCENT} />
+      {/* Circular rotation indicator around 3 bot slots */}
+      <Circle cx={60} cy={10} r={3} fill={MUTED} />
+      <Circle cx={70} cy={20} r={3} fill={MUTED} />
+      <Circle cx={60} cy={30} r={3} fill={MUTED} />
+      {/* Rotation arc */}
+      <path d="M 63 10 Q 72 10, 70 17" stroke={ACCENT} strokeWidth={1} fill="none" />
+      <path d="M 70 23 Q 72 30, 63 30" stroke={ACCENT} strokeWidth={1} fill="none" />
+      <path d="M 57 30 Q 52 25, 57 10" stroke={ACCENT} strokeWidth={1} fill="none" />
+    </SvgWrap>
+  )
+}
+
+/** All bots respond hidden, then a synthesizer bot merges responses */
+export function ConsensusIllustration() {
+  return (
+    <SvgWrap>
+      <ArrowDef />
+      {/* User node */}
+      <Circle cx={8} cy={20} r={4} fill={ACCENT} />
+      {/* Fan out to hidden bots */}
+      <Arrow x1={13} y1={20} x2={26} y2={8} />
+      <Arrow x1={13} y1={20} x2={26} y2={20} />
+      <Arrow x1={13} y1={20} x2={26} y2={32} />
+      {/* Hidden bot nodes (dashed outlines) */}
+      <circle cx={31} cy={8} r={4} fill="none" stroke={MUTED} strokeWidth={1} strokeDasharray="2 1.5" />
+      <circle cx={31} cy={20} r={4} fill="none" stroke={MUTED} strokeWidth={1} strokeDasharray="2 1.5" />
+      <circle cx={31} cy={32} r={4} fill="none" stroke={MUTED} strokeWidth={1} strokeDasharray="2 1.5" />
+      {/* Converge to synthesizer */}
+      <Arrow x1={36} y1={8} x2={54} y2={20} color={ACCENT} />
+      <Arrow x1={36} y1={20} x2={54} y2={20} color={ACCENT} />
+      <Arrow x1={36} y1={32} x2={54} y2={20} color={ACCENT} />
+      {/* Synthesizer node (larger, accent) */}
+      <Circle cx={60} cy={20} r={5} fill={ACCENT} />
+      {/* Result arrow */}
+      <Arrow x1={66} y1={20} x2={76} y2={20} color={ACCENT} />
+    </SvgWrap>
+  )
+}
+
+/** One bot interviews the user, then hands off to specialists */
+export function InterviewIllustration() {
+  return (
+    <SvgWrap>
+      <ArrowDef />
+      {/* User */}
+      <Circle cx={8} cy={20} r={4} fill={ACCENT} />
+      {/* Interviewer bot */}
+      <Circle cx={26} cy={20} r={5} fill={MUTED} />
+      {/* Back-and-forth arrows (interview) */}
+      <Arrow x1={13} y1={17} x2={20} y2={17} color={ACCENT} />
+      <Arrow x1={20} y1={23} x2={13} y2={23} color={ACCENT} />
+      {/* Question marks */}
+      <text x={26} y={13} textAnchor="middle" fontSize={6} fill={ACCENT} fontWeight={600}>?</text>
+      {/* Handoff arrow */}
+      <line x1={32} y1={20} x2={46} y2={20} stroke={ACCENT} strokeWidth={1.5} strokeDasharray="3 2" />
+      {/* Specialist bots fan out */}
+      <Arrow x1={48} y1={20} x2={60} y2={10} color={ACCENT} />
+      <Arrow x1={48} y1={20} x2={60} y2={20} color={ACCENT} />
+      <Arrow x1={48} y1={20} x2={60} y2={30} color={ACCENT} />
+      <Circle cx={65} cy={10} r={4} fill={MUTED} />
+      <Circle cx={65} cy={20} r={4} fill={MUTED} />
+      <Circle cx={65} cy={30} r={4} fill={MUTED} />
+    </SvgWrap>
+  )
+}

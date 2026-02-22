@@ -59,6 +59,23 @@ export async function copyToClipboard(text: string): Promise<void> {
  * SHA-256 hash a password before sending it over the network.
  * Uses the Web Crypto API (available in all modern browsers).
  */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function downloadJson(data: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const encoded = new TextEncoder().encode(password)
   const digest = await crypto.subtle.digest('SHA-256', encoded)

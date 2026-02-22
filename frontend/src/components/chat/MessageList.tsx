@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useRoomStore } from '../../stores/rooms'
 import { MessageBubble } from './MessageBubble'
+import { pinMessage, unpinMessage, addBookmark, removeBookmark } from '../../api/rooms'
 import type { ChatMessage, RoomMessage } from '../../types'
 
 // =============================================================================
@@ -62,6 +63,39 @@ export function RoomMessageList({ messages, roomId, children }: RoomMessageListP
   const { accentColor, customHex } = useUIStore()
   const roomActiveToolCalls = useRoomStore((s) => roomId ? s.activeToolCalls[roomId] : undefined)
   const roomBotStates = useRoomStore((s) => roomId ? s.botStates[roomId] : undefined)
+  const pinnedMessages = useRoomStore((s) => roomId ? s.pinnedMessages[roomId] : undefined)
+  const bookmarkedIds = useRoomStore((s) => roomId ? s.bookmarkedMessageIds[roomId] : undefined)
+  const { removePinnedMessage: removePin, addBookmarkedId, removeBookmarkedId } = useRoomStore()
+
+  const pinnedSet = new Set(pinnedMessages?.map((p) => p.messageId) || [])
+
+  const handlePin = useCallback(async (messageId: string) => {
+    if (!roomId) return
+    const isPinned = pinnedSet.has(messageId)
+    try {
+      if (isPinned) {
+        await unpinMessage(roomId, messageId)
+        removePin(roomId, messageId)
+      } else {
+        await pinMessage(roomId, messageId)
+        // WS broadcast will add it to store
+      }
+    } catch { /* handled by WS */ }
+  }, [roomId, pinnedSet, removePin])
+
+  const handleBookmark = useCallback(async (messageId: string) => {
+    if (!roomId) return
+    const isBookmarked = bookmarkedIds?.has(messageId) ?? false
+    try {
+      if (isBookmarked) {
+        await removeBookmark(roomId, messageId)
+        removeBookmarkedId(roomId, messageId)
+      } else {
+        await addBookmark(roomId, messageId)
+        addBookmarkedId(roomId, messageId)
+      }
+    } catch { /* handled */ }
+  }, [roomId, bookmarkedIds, addBookmarkedId, removeBookmarkedId])
 
   const userColor = accentColor === 'custom'
     ? generatePalette(customHex)[600]
@@ -108,12 +142,18 @@ export function RoomMessageList({ messages, roomId, children }: RoomMessageListP
                 toolCalls,
                 metadata: msg.metadata,
                 thinking: msg.thinking,
+                reactions: msg.reactions,
               }}
               botIcon={bot?.icon}
               botColor={bot?.color}
               userColor={userColor}
               showSenderName
               isStreaming={isBotStreaming}
+              roomId={roomId}
+              onPin={() => handlePin(msg.id)}
+              onBookmark={() => handleBookmark(msg.id)}
+              isPinned={pinnedSet.has(msg.id)}
+              isBookmarked={bookmarkedIds?.has(msg.id) ?? false}
             />
           )
         })}

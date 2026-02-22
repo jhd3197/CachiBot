@@ -11,7 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
 from cachibot.models.room import (
+    ALLOWED_EMOJIS,
+    VALID_ACTION_TYPES,
+    VALID_TRIGGER_TYPES,
     AddBotRequest,
+    AddReactionRequest,
+    CreateRoomAutomationRequest,
     CreateRoomRequest,
     InviteMemberRequest,
     Room,
@@ -22,13 +27,18 @@ from cachibot.models.room import (
     RoomMessageResponse,
     RoomResponse,
     UpdateBotRoleRequest,
+    UpdateRoomAutomationRequest,
     UpdateRoomRequest,
 )
 from cachibot.storage.repository import BotRepository
 from cachibot.storage.room_repository import (
+    RoomAutomationRepository,
+    RoomBookmarkRepository,
     RoomBotRepository,
     RoomMemberRepository,
     RoomMessageRepository,
+    RoomPinRepository,
+    RoomReactionRepository,
     RoomRepository,
 )
 from cachibot.storage.user_repository import UserRepository
@@ -39,6 +49,10 @@ room_repo = RoomRepository()
 member_repo = RoomMemberRepository()
 bot_repo = RoomBotRepository()
 message_repo = RoomMessageRepository()
+reaction_repo = RoomReactionRepository()
+pin_repo = RoomPinRepository()
+bookmark_repo = RoomBookmarkRepository()
+automation_repo = RoomAutomationRepository()
 user_repo = UserRepository()
 backend_bot_repo = BotRepository()
 
@@ -172,6 +186,18 @@ async def update_room(
             orch.cooldown_seconds = data.settings.cooldown_seconds
             orch.auto_relevance = data.settings.auto_relevance
             orch.response_mode = data.settings.response_mode
+            orch.room_system_prompt = data.settings.system_prompt
+            orch.room_variables = dict(data.settings.variables)
+
+        # Broadcast variable updates to connected clients
+        if data.settings.variables:
+            from cachibot.api.room_websocket import room_manager
+            from cachibot.models.room_websocket import RoomWSMessage
+
+            await room_manager.broadcast_to_room(
+                room_id,
+                RoomWSMessage.variable_update(room_id, data.settings.variables),
+            )
 
     members = await member_repo.get_members(room_id)
     bots = await bot_repo.get_bots(room_id)
@@ -390,4 +416,299 @@ async def get_room_messages(
         raise HTTPException(status_code=403, detail="Not a room member")
 
     messages = await message_repo.get_messages(room_id, limit=limit, before=before)
-    return [RoomMessageResponse.from_message(m) for m in messages]
+
+    # Bulk-load reactions for all messages
+    msg_ids = [m.id for m in messages]
+    reactions_map = await reaction_repo.get_reactions_bulk(msg_ids)
+
+    return [
+        RoomMessageResponse.from_message(m, reactions=reactions_map.get(m.id, []))
+        for m in messages
+    ]
+
+
+# =============================================================================
+# REACTIONS
+# =============================================================================
+
+
+@router.post("/{room_id}/messages/{message_id}/reactions", status_code=201)
+async def add_reaction(
+    room_id: str,
+    message_id: str,
+    data: AddReactionRequest,
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    """Add an emoji reaction to a message."""
+    if data.emoji not in ALLOWED_EMOJIS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid emoji. Allowed: {', '.join(ALLOWED_EMOJIS)}",
+        )
+
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    reaction_id = str(uuid.uuid4())
+    added = await reaction_repo.add_reaction(reaction_id, room_id, message_id, user.id, data.emoji)
+    if not added:
+        raise HTTPException(status_code=409, detail="Reaction already exists")
+
+    # Broadcast via WS
+    from cachibot.api.room_websocket import room_manager
+    from cachibot.models.room_websocket import RoomWSMessage
+
+    await room_manager.broadcast_to_room(
+        room_id,
+        RoomWSMessage.reaction_add(room_id, message_id, user.id, data.emoji),
+    )
+
+    return {"id": reaction_id, "emoji": data.emoji}
+
+
+@router.delete("/{room_id}/messages/{message_id}/reactions", status_code=204)
+async def remove_reaction(
+    room_id: str,
+    message_id: str,
+    emoji: str,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Remove an emoji reaction from a message."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    removed = await reaction_repo.remove_reaction(room_id, message_id, user.id, emoji)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+
+    # Broadcast via WS
+    from cachibot.api.room_websocket import room_manager
+    from cachibot.models.room_websocket import RoomWSMessage
+
+    await room_manager.broadcast_to_room(
+        room_id,
+        RoomWSMessage.reaction_remove(room_id, message_id, user.id, emoji),
+    )
+
+
+# =============================================================================
+# PINNED MESSAGES
+# =============================================================================
+
+
+@router.post("/{room_id}/pins/{message_id}", status_code=201)
+async def pin_message(
+    room_id: str,
+    message_id: str,
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    """Pin a message in the room."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    pin_id = str(uuid.uuid4())
+    pinned = await pin_repo.pin_message(pin_id, room_id, message_id, user.id)
+    if not pinned:
+        raise HTTPException(status_code=409, detail="Message already pinned")
+
+    # Broadcast via WS
+    from cachibot.api.room_websocket import room_manager
+    from cachibot.models.room_websocket import RoomWSMessage
+
+    await room_manager.broadcast_to_room(
+        room_id,
+        RoomWSMessage.pin_add(room_id, message_id, user.id),
+    )
+
+    return {"id": pin_id, "messageId": message_id}
+
+
+@router.delete("/{room_id}/pins/{message_id}", status_code=204)
+async def unpin_message(
+    room_id: str,
+    message_id: str,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Unpin a message from the room."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    unpinned = await pin_repo.unpin_message(room_id, message_id)
+    if not unpinned:
+        raise HTTPException(status_code=404, detail="Pin not found")
+
+    # Broadcast via WS
+    from cachibot.api.room_websocket import room_manager
+    from cachibot.models.room_websocket import RoomWSMessage
+
+    await room_manager.broadcast_to_room(
+        room_id,
+        RoomWSMessage.pin_remove(room_id, message_id),
+    )
+
+
+@router.get("/{room_id}/pins")
+async def get_pinned_messages(
+    room_id: str,
+    user: User = Depends(get_current_user),
+) -> list[dict[str, str]]:
+    """Get all pinned messages for a room."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    pins = await pin_repo.get_pinned_messages(room_id)
+    return [pin.model_dump() for pin in pins]
+
+
+# =============================================================================
+# BOOKMARKS
+# =============================================================================
+
+
+@router.post("/{room_id}/bookmarks/{message_id}", status_code=201)
+async def add_bookmark(
+    room_id: str,
+    message_id: str,
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    """Bookmark a message (personal, not shared)."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+
+    bookmark_id = str(uuid.uuid4())
+    added = await bookmark_repo.add_bookmark(bookmark_id, room_id, message_id, user.id)
+    if not added:
+        raise HTTPException(status_code=409, detail="Already bookmarked")
+
+    return {"id": bookmark_id, "messageId": message_id}
+
+
+@router.delete("/{room_id}/bookmarks/{message_id}", status_code=204)
+async def remove_bookmark(
+    room_id: str,
+    message_id: str,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Remove a bookmark."""
+    removed = await bookmark_repo.remove_bookmark(user.id, message_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Bookmark not found")
+
+
+@router.get("/bookmarks")
+async def get_bookmarks(
+    room_id: str | None = None,
+    user: User = Depends(get_current_user),
+) -> list[dict[str, str]]:
+    """Get all bookmarks for the current user."""
+    bookmarks = await bookmark_repo.get_bookmarks(user.id, room_id=room_id)
+    return [bm.model_dump() for bm in bookmarks]
+
+
+# =============================================================================
+# AUTOMATIONS
+# =============================================================================
+
+
+@router.get("/{room_id}/automations")
+async def get_automations(
+    room_id: str,
+    user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Get all automations for a room."""
+    if not await member_repo.is_member(room_id, user.id):
+        raise HTTPException(status_code=403, detail="Not a room member")
+    automations = await automation_repo.get_automations(room_id)
+    return [a.model_dump() for a in automations]
+
+
+@router.post("/{room_id}/automations", status_code=201)
+async def create_automation(
+    room_id: str,
+    req: CreateRoomAutomationRequest,
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Create a new automation for a room."""
+    room = await room_repo.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.creator_id != user.id:
+        raise HTTPException(
+            status_code=403, detail="Only the room creator can manage automations"
+        )
+    if req.trigger_type not in VALID_TRIGGER_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid trigger_type. Must be one of: {VALID_TRIGGER_TYPES}",
+        )
+    if req.action_type not in VALID_ACTION_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action_type. Must be one of: {VALID_ACTION_TYPES}",
+        )
+
+    auto = await automation_repo.create(
+        automation_id=str(uuid.uuid4()),
+        room_id=room_id,
+        name=req.name,
+        trigger_type=req.trigger_type,
+        trigger_config=req.trigger_config,
+        action_type=req.action_type,
+        action_config=req.action_config,
+        created_by=user.id,
+    )
+    return auto.model_dump()
+
+
+@router.patch("/{room_id}/automations/{automation_id}")
+async def update_automation(
+    room_id: str,
+    automation_id: str,
+    req: UpdateRoomAutomationRequest,
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Update an automation."""
+    room = await room_repo.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.creator_id != user.id:
+        raise HTTPException(
+            status_code=403, detail="Only the room creator can manage automations"
+        )
+
+    if req.trigger_type and req.trigger_type not in VALID_TRIGGER_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid trigger_type")
+    if req.action_type and req.action_type not in VALID_ACTION_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid action_type")
+
+    updated = await automation_repo.update(
+        automation_id,
+        name=req.name,
+        enabled=req.enabled,
+        trigger_type=req.trigger_type,
+        trigger_config=req.trigger_config,
+        action_type=req.action_type,
+        action_config=req.action_config,
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return updated.model_dump()
+
+
+@router.delete("/{room_id}/automations/{automation_id}", status_code=204)
+async def delete_automation(
+    room_id: str,
+    automation_id: str,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Delete an automation."""
+    room = await room_repo.get_room(room_id)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if room.creator_id != user.id:
+        raise HTTPException(
+            status_code=403, detail="Only the room creator can manage automations"
+        )
+    deleted = await automation_repo.delete(automation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Automation not found")

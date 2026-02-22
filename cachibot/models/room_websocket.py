@@ -39,6 +39,22 @@ class RoomWSMessageType(str, Enum):
     ROOM_WATERFALL_SKIPPED = "room_waterfall_skipped"
     ROOM_WATERFALL_STOPPED = "room_waterfall_stopped"
 
+    # Social features
+    ROOM_REACTION_ADD = "room_reaction_add"
+    ROOM_REACTION_REMOVE = "room_reaction_remove"
+    ROOM_PIN_ADD = "room_pin_add"
+    ROOM_PIN_REMOVE = "room_pin_remove"
+    ROOM_VARIABLE_UPDATE = "room_variable_update"
+
+    # New response modes
+    ROOM_CONSENSUS_SYNTHESIZING = "room_consensus_synthesizing"
+    ROOM_CONSENSUS_COMPLETE = "room_consensus_complete"
+    ROOM_INTERVIEW_QUESTION = "room_interview_question"
+    ROOM_INTERVIEW_HANDOFF = "room_interview_handoff"
+
+    # Automations
+    ROOM_AUTOMATION_TRIGGERED = "room_automation_triggered"
+
 
 class RoomWSMessage(BaseModel):
     """Generic room WebSocket message wrapper."""
@@ -356,4 +372,139 @@ class RoomWSMessage(BaseModel):
         return cls(
             type=RoomWSMessageType.ROOM_WATERFALL_STOPPED,
             payload={"roomId": room_id, "stoppedAtBotName": stopped_at_bot_name},
+        )
+
+    # ----- Social features -----
+
+    @classmethod
+    def reaction_add(
+        cls,
+        room_id: str,
+        message_id: str,
+        user_id: str,
+        emoji: str,
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_REACTION_ADD,
+            payload={
+                "roomId": room_id,
+                "messageId": message_id,
+                "userId": user_id,
+                "emoji": emoji,
+            },
+        )
+
+    @classmethod
+    def reaction_remove(
+        cls,
+        room_id: str,
+        message_id: str,
+        user_id: str,
+        emoji: str,
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_REACTION_REMOVE,
+            payload={
+                "roomId": room_id,
+                "messageId": message_id,
+                "userId": user_id,
+                "emoji": emoji,
+            },
+        )
+
+    @classmethod
+    def pin_add(
+        cls,
+        room_id: str,
+        message_id: str,
+        pinned_by: str,
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_PIN_ADD,
+            payload={
+                "roomId": room_id,
+                "messageId": message_id,
+                "pinnedBy": pinned_by,
+            },
+        )
+
+    @classmethod
+    def pin_remove(
+        cls,
+        room_id: str,
+        message_id: str,
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_PIN_REMOVE,
+            payload={
+                "roomId": room_id,
+                "messageId": message_id,
+            },
+        )
+
+    @classmethod
+    def variable_update(cls, room_id: str, variables: dict[str, str]) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_VARIABLE_UPDATE,
+            payload={"roomId": room_id, "variables": variables},
+        )
+
+    # ----- Consensus mode -----
+
+    @classmethod
+    def consensus_synthesizing(
+        cls, room_id: str, bot_id: str, bot_name: str, response_count: int
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_CONSENSUS_SYNTHESIZING,
+            payload={
+                "roomId": room_id,
+                "botId": bot_id,
+                "botName": bot_name,
+                "responseCount": response_count,
+            },
+        )
+
+    @classmethod
+    def consensus_complete(cls, room_id: str, response_count: int) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_CONSENSUS_COMPLETE,
+            payload={"roomId": room_id, "responseCount": response_count},
+        )
+
+    # ----- Interview mode -----
+
+    @classmethod
+    def interview_question(
+        cls, room_id: str, question_num: int, max_questions: int
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_INTERVIEW_QUESTION,
+            payload={
+                "roomId": room_id,
+                "questionNum": question_num,
+                "maxQuestions": max_questions,
+            },
+        )
+
+    @classmethod
+    def interview_handoff(cls, room_id: str, reason: str) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_INTERVIEW_HANDOFF,
+            payload={"roomId": room_id, "reason": reason},
+        )
+
+    # ----- Automations -----
+
+    @classmethod
+    def automation_triggered(
+        cls, room_id: str, automation_name: str, trigger_type: str
+    ) -> "RoomWSMessage":
+        return cls(
+            type=RoomWSMessageType.ROOM_AUTOMATION_TRIGGERED,
+            payload={
+                "roomId": room_id,
+                "automationName": automation_name,
+                "triggerType": trigger_type,
+            },
         )

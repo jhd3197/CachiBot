@@ -14,7 +14,10 @@ import {
   Image,
   Volume2,
   Brain,
+  Pin,
+  Bookmark,
 } from 'lucide-react'
+import { ReactionBar as ReactionBarLazy } from '../rooms/ReactionBar'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
@@ -305,6 +308,7 @@ export interface MessageBubbleProps {
     metadata?: Record<string, unknown>
     replyToId?: string
     thinking?: string
+    reactions?: Array<{ emoji: string; count: number; userIds: string[] }>
   }
   botIcon?: BotIcon
   botColor?: string
@@ -314,6 +318,11 @@ export interface MessageBubbleProps {
   isStreaming?: boolean      // true while bot is still generating
   onReply?: () => void      // Chat only (omit to hide Reply btn)
   onRetry?: () => void      // Future use
+  onPin?: () => void        // Room only: pin this message
+  onBookmark?: () => void   // Room only: bookmark this message
+  isPinned?: boolean
+  isBookmarked?: boolean
+  roomId?: string           // Room context for reactions
 }
 
 export function MessageBubble({
@@ -326,6 +335,11 @@ export function MessageBubble({
   isStreaming,
   onReply,
   onRetry,
+  onPin,
+  onBookmark,
+  isPinned,
+  isBookmarked,
+  roomId,
 }: MessageBubbleProps) {
   const { isUser, isSystem } = message
   const [copied, setCopied] = useState(false)
@@ -621,7 +635,30 @@ export function MessageBubble({
               Retry
             </button>
           )}
+          {onPin && (
+            <button
+              onClick={onPin}
+              className={cn('chat-message__action-btn', isPinned && 'chat-message__action-btn--active')}
+            >
+              <Pin className="h-3 w-3" />
+              {isPinned ? 'Unpin' : 'Pin'}
+            </button>
+          )}
+          {onBookmark && (
+            <button
+              onClick={onBookmark}
+              className={cn('chat-message__action-btn', isBookmarked && 'chat-message__action-btn--active')}
+            >
+              <Bookmark className="h-3 w-3" />
+              {isBookmarked ? 'Saved' : 'Save'}
+            </button>
+          )}
         </div>
+
+        {/* Reaction bar (rooms only) */}
+        {roomId && message.reactions && (
+          <ReactionBarLazy roomId={roomId} messageId={message.id} reactions={message.reactions} />
+        )}
       </div>
     </div>
   )

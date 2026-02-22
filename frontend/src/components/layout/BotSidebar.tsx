@@ -28,6 +28,7 @@ import {
   Key,
   Code2,
   X,
+  Download,
 } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -39,7 +40,7 @@ import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSectio
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
-import { cn } from '../../lib/utils'
+import { cn, downloadJson, slugify } from '../../lib/utils'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import type { BotView, Chat, Task } from '../../types'
 
@@ -424,6 +425,23 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
                         {chat.pinned ? 'Unpin' : 'Pin'}
                       </button>
 
+                      <button
+                        onClick={() => {
+                          const msgs = useChatStore.getState().getMessages(chat.id)
+                          const date = new Date().toISOString().slice(0, 10)
+                          downloadJson({
+                            chat: { id: chat.id, title: chat.title, botId: chat.botId, createdAt: chat.createdAt, updatedAt: chat.updatedAt },
+                            messages: msgs,
+                            exportedAt: new Date().toISOString(),
+                          }, `chat-${slugify(chat.title)}-${date}.json`)
+                          setMenuOpen(null)
+                        }}
+                        className="context-menu__item"
+                      >
+                        <Download className="h-4 w-4" />
+                        Export JSON
+                      </button>
+
                       {chat.platform ? (
                         <>
                           <button
@@ -508,25 +526,62 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
         ) : (
           <div className="space-y-1">
             {botRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => handleRoomClick(room.id)}
-                className={cn(
-                  'sidebar-chat-item',
-                  activeRoomId === room.id && 'sidebar-chat-item--active'
-                )}
-              >
-                <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
-                <div className="min-w-0 flex-1">
-                  <div className="sidebar-chat-item__title-row">
-                    <span className="sidebar-chat-item__name">{room.title}</span>
-                    <span className="sidebar-chat-item__time">{formatRelativeTime(room.updatedAt)}</span>
+              <div key={room.id} className="group relative">
+                <button
+                  onClick={() => handleRoomClick(room.id)}
+                  className={cn(
+                    'sidebar-chat-item',
+                    activeRoomId === room.id && 'sidebar-chat-item--active'
+                  )}
+                >
+                  <DoorOpen className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
+                  <div className="min-w-0 flex-1">
+                    <div className="sidebar-chat-item__title-row">
+                      <span className="sidebar-chat-item__name">{room.title}</span>
+                      <span className="sidebar-chat-item__time">{formatRelativeTime(room.updatedAt)}</span>
+                    </div>
+                    <p className="sidebar-chat-item__preview">
+                      {room.bots.length} bots · {room.messageCount ?? 0} msgs
+                    </p>
                   </div>
-                  <p className="sidebar-chat-item__preview">
-                    {room.bots.length} bots · {room.messageCount ?? 0} msgs
-                  </p>
-                </div>
-              </button>
+                </button>
+
+                {/* Context menu trigger */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(menuOpen === room.id ? null : room.id)
+                  }}
+                  className={cn(
+                    'sidebar-chat-item__menu-btn',
+                    menuOpen === room.id && 'sidebar-chat-item__menu-btn--open'
+                  )}
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+
+                {/* Context menu */}
+                {menuOpen === room.id && (
+                  <div className="context-menu absolute right-0 top-8 z-10 w-48">
+                    <button
+                      onClick={() => {
+                        const msgs = useRoomStore.getState().messages[room.id] || []
+                        const date = new Date().toISOString().slice(0, 10)
+                        downloadJson({
+                          room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
+                          messages: msgs,
+                          exportedAt: new Date().toISOString(),
+                        }, `room-${slugify(room.title)}-${date}.json`)
+                        setMenuOpen(null)
+                      }}
+                      className="context-menu__item"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export JSON
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

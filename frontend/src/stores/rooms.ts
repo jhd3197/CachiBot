@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Room, RoomMessage, ToolCall } from '../types'
+import type { Room, RoomMessage, ToolCall, PinnedMessage, BookmarkedMessage } from '../types'
 
 export type BotRoomState = 'idle' | 'thinking' | 'responding'
 
@@ -17,6 +17,13 @@ interface RoomState {
   instructionDeltas: Record<string, Record<string, string>> // roomId -> toolId -> text (transient)
   chainStep: Record<string, { step: number; totalSteps: number; botName: string } | null>
   routeDecision: Record<string, { botName: string; reason: string } | null>
+  pinnedMessages: Record<string, PinnedMessage[]> // roomId -> pinned messages
+  bookmarkedMessageIds: Record<string, Set<string>> // roomId -> message IDs
+  bookmarks: BookmarkedMessage[]
+  viewMode: Record<string, 'chat' | 'cards' | 'timeline'>
+  botTimeline: Record<string, Array<{ botId: string; botName: string; startTime: number; endTime: number; tokens: number }>>
+  consensusState: Record<string, { phase: 'collecting' | 'synthesizing'; collected: number; total: number; synthesizerName?: string } | null>
+  interviewState: Record<string, { questionCount: number; maxQuestions: number; handoffTriggered: boolean } | null>
   isLoading: boolean
   error: string | null
 
@@ -65,6 +72,33 @@ interface RoomState {
   setChainStep: (roomId: string, step: { step: number; totalSteps: number; botName: string } | null) => void
   setRouteDecision: (roomId: string, decision: { botName: string; reason: string } | null) => void
 
+  // Reactions
+  addReactionToMessage: (roomId: string, messageId: string, emoji: string, userId: string) => void
+  removeReactionFromMessage: (roomId: string, messageId: string, emoji: string, userId: string) => void
+
+  // Pins
+  setPinnedMessages: (roomId: string, pins: PinnedMessage[]) => void
+  addPinnedMessage: (roomId: string, pin: PinnedMessage) => void
+  removePinnedMessage: (roomId: string, messageId: string) => void
+
+  // Bookmarks
+  setBookmarks: (bookmarks: BookmarkedMessage[]) => void
+  addBookmarkedId: (roomId: string, messageId: string) => void
+  removeBookmarkedId: (roomId: string, messageId: string) => void
+
+  // View mode
+  setViewMode: (roomId: string, mode: 'chat' | 'cards' | 'timeline') => void
+
+  // Timeline
+  addTimelineEntry: (roomId: string, entry: { botId: string; botName: string; startTime: number; endTime: number; tokens: number }) => void
+  resetTimeline: (roomId: string) => void
+
+  // Consensus
+  setConsensusState: (roomId: string, state: { phase: 'collecting' | 'synthesizing'; collected: number; total: number; synthesizerName?: string } | null) => void
+
+  // Interview
+  setInterviewState: (roomId: string, state: { questionCount: number; maxQuestions: number; handoffTriggered: boolean } | null) => void
+
   // Selectors
   getRoomsForBot: (botId: string) => Room[]
 
@@ -88,6 +122,13 @@ export const useRoomStore = create<RoomState>()(
       instructionDeltas: {},
       chainStep: {},
       routeDecision: {},
+      pinnedMessages: {},
+      bookmarkedMessageIds: {},
+      bookmarks: [],
+      viewMode: {},
+      botTimeline: {},
+      consensusState: {},
+      interviewState: {},
       isLoading: false,
       error: null,
 
@@ -361,6 +402,121 @@ export const useRoomStore = create<RoomState>()(
       setRouteDecision: (roomId, decision) =>
         set((state) => ({
           routeDecision: { ...state.routeDecision, [roomId]: decision },
+        })),
+
+      // Reactions
+      addReactionToMessage: (roomId, messageId, emoji, userId) =>
+        set((state) => {
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+          const updated = [...msgs]
+          const reactions = [...(updated[idx].reactions || [])]
+          const existing = reactions.findIndex((r) => r.emoji === emoji)
+          if (existing >= 0) {
+            const r = reactions[existing]
+            if (!r.userIds.includes(userId)) {
+              reactions[existing] = { ...r, count: r.count + 1, userIds: [...r.userIds, userId] }
+            }
+          } else {
+            reactions.push({ emoji, count: 1, userIds: [userId] })
+          }
+          updated[idx] = { ...updated[idx], reactions }
+          return { messages: { ...state.messages, [roomId]: updated } }
+        }),
+
+      removeReactionFromMessage: (roomId, messageId, emoji, userId) =>
+        set((state) => {
+          const msgs = state.messages[roomId] || []
+          const idx = msgs.findIndex((m) => m.id === messageId)
+          if (idx < 0) return state
+          const updated = [...msgs]
+          let reactions = [...(updated[idx].reactions || [])]
+          const existing = reactions.findIndex((r) => r.emoji === emoji)
+          if (existing >= 0) {
+            const r = reactions[existing]
+            const newUserIds = r.userIds.filter((id) => id !== userId)
+            if (newUserIds.length === 0) {
+              reactions = reactions.filter((_, i) => i !== existing)
+            } else {
+              reactions[existing] = { ...r, count: newUserIds.length, userIds: newUserIds }
+            }
+          }
+          updated[idx] = { ...updated[idx], reactions }
+          return { messages: { ...state.messages, [roomId]: updated } }
+        }),
+
+      // Pins
+      setPinnedMessages: (roomId, pins) =>
+        set((state) => ({
+          pinnedMessages: { ...state.pinnedMessages, [roomId]: pins },
+        })),
+
+      addPinnedMessage: (roomId, pin) =>
+        set((state) => ({
+          pinnedMessages: {
+            ...state.pinnedMessages,
+            [roomId]: [pin, ...(state.pinnedMessages[roomId] || [])],
+          },
+        })),
+
+      removePinnedMessage: (roomId, messageId) =>
+        set((state) => ({
+          pinnedMessages: {
+            ...state.pinnedMessages,
+            [roomId]: (state.pinnedMessages[roomId] || []).filter((p) => p.messageId !== messageId),
+          },
+        })),
+
+      // Bookmarks
+      setBookmarks: (bookmarks) => set({ bookmarks }),
+
+      addBookmarkedId: (roomId, messageId) =>
+        set((state) => {
+          const current = state.bookmarkedMessageIds[roomId] || new Set()
+          const updated = new Set(current)
+          updated.add(messageId)
+          return { bookmarkedMessageIds: { ...state.bookmarkedMessageIds, [roomId]: updated } }
+        }),
+
+      removeBookmarkedId: (roomId, messageId) =>
+        set((state) => {
+          const current = state.bookmarkedMessageIds[roomId] || new Set()
+          const updated = new Set(current)
+          updated.delete(messageId)
+          return { bookmarkedMessageIds: { ...state.bookmarkedMessageIds, [roomId]: updated } }
+        }),
+
+      // View mode
+      setViewMode: (roomId, mode) =>
+        set((state) => ({
+          viewMode: { ...state.viewMode, [roomId]: mode },
+        })),
+
+      // Timeline
+      addTimelineEntry: (roomId, entry) =>
+        set((state) => ({
+          botTimeline: {
+            ...state.botTimeline,
+            [roomId]: [...(state.botTimeline[roomId] || []), entry],
+          },
+        })),
+
+      resetTimeline: (roomId) =>
+        set((state) => ({
+          botTimeline: { ...state.botTimeline, [roomId]: [] },
+        })),
+
+      // Consensus
+      setConsensusState: (roomId, consensusState) =>
+        set((state) => ({
+          consensusState: { ...state.consensusState, [roomId]: consensusState },
+        })),
+
+      // Interview
+      setInterviewState: (roomId, interviewState) =>
+        set((state) => ({
+          interviewState: { ...state.interviewState, [roomId]: interviewState },
         })),
 
       getRoomsForBot: (botId) =>

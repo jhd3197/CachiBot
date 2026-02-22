@@ -1,7 +1,5 @@
 import type { Bot, RoomSettings } from '../../types'
-import { DebateSettings } from './ModeSubSettings'
-import { RouterSettings } from './ModeSubSettings'
-import { WaterfallSettings } from './ModeSubSettings'
+import { DebateSettings, RouterSettings, WaterfallSettings, ConsensusSettings, InterviewSettings } from './ModeSubSettings'
 
 type ResponseMode = RoomSettings['response_mode']
 
@@ -12,6 +10,9 @@ const MODE_INFO: Record<ResponseMode, { label: string; description: string }> = 
   router: { label: 'Router', description: 'An AI picks the best bot for each message' },
   debate: { label: 'Debate', description: 'Bots argue different positions with structured rounds' },
   waterfall: { label: 'Waterfall', description: 'Bots respond in sequence, stopping when resolved' },
+  relay: { label: 'Relay', description: 'Each message goes to the next bot in rotation' },
+  consensus: { label: 'Consensus', description: 'All bots respond hidden, then a synthesizer merges into one answer' },
+  interview: { label: 'Interview', description: 'One bot interviews for context, then hands off to specialists' },
 }
 
 interface ResponseModePickerProps {
@@ -36,6 +37,20 @@ interface ResponseModePickerProps {
   // Waterfall settings
   waterfallConditions: Record<string, string>
   onWaterfallConditionsChange: (conditions: Record<string, string>) => void
+
+  // Consensus settings
+  consensusSynthesizerBotId: string | null
+  onConsensusSynthesizerBotIdChange: (botId: string | null) => void
+  consensusShowIndividual: boolean
+  onConsensusShowIndividualChange: (show: boolean) => void
+
+  // Interview settings
+  interviewBotId: string | null
+  onInterviewBotIdChange: (botId: string | null) => void
+  interviewMaxQuestions: number
+  onInterviewMaxQuestionsChange: (n: number) => void
+  interviewHandoffTrigger: 'auto' | 'manual' | 'keyword'
+  onInterviewHandoffTriggerChange: (trigger: 'auto' | 'manual' | 'keyword') => void
 }
 
 export function ResponseModePicker({
@@ -54,6 +69,16 @@ export function ResponseModePicker({
   onBotKeywordsChange,
   waterfallConditions,
   onWaterfallConditionsChange,
+  consensusSynthesizerBotId,
+  onConsensusSynthesizerBotIdChange,
+  consensusShowIndividual,
+  onConsensusShowIndividualChange,
+  interviewBotId,
+  onInterviewBotIdChange,
+  interviewMaxQuestions,
+  onInterviewMaxQuestionsChange,
+  interviewHandoffTrigger,
+  onInterviewHandoffTriggerChange,
 }: ResponseModePickerProps) {
   return (
     <div className="form-field">
@@ -100,6 +125,28 @@ export function ResponseModePicker({
           bots={selectedBots}
           conditions={waterfallConditions}
           onConditionsChange={onWaterfallConditionsChange}
+        />
+      )}
+
+      {responseMode === 'consensus' && (
+        <ConsensusSettings
+          bots={selectedBots}
+          synthesizerBotId={consensusSynthesizerBotId}
+          onSynthesizerBotIdChange={onConsensusSynthesizerBotIdChange}
+          showIndividual={consensusShowIndividual}
+          onShowIndividualChange={onConsensusShowIndividualChange}
+        />
+      )}
+
+      {responseMode === 'interview' && (
+        <InterviewSettings
+          bots={selectedBots}
+          interviewBotId={interviewBotId}
+          onInterviewBotIdChange={onInterviewBotIdChange}
+          maxQuestions={interviewMaxQuestions}
+          onMaxQuestionsChange={onInterviewMaxQuestionsChange}
+          handoffTrigger={interviewHandoffTrigger}
+          onHandoffTriggerChange={onInterviewHandoffTriggerChange}
         />
       )}
     </div>

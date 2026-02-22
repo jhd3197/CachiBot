@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cachibot.storage.db import Base
@@ -16,7 +16,16 @@ from cachibot.storage.db import Base
 if TYPE_CHECKING:
     from cachibot.storage.models.user import User
 
-__all__ = ["Room", "RoomMember", "RoomBot", "RoomMessage"]
+__all__ = [
+    "Room",
+    "RoomMember",
+    "RoomBot",
+    "RoomMessage",
+    "RoomMessageReaction",
+    "RoomPinnedMessage",
+    "RoomBookmark",
+    "RoomAutomation",
+]
 
 
 class Room(Base):
@@ -139,3 +148,116 @@ class RoomMessage(Base):
 
     # Relationships
     room: Mapped[Room] = relationship("Room", back_populates="messages")
+    reactions: Mapped[list[RoomMessageReaction]] = relationship(
+        "RoomMessageReaction", back_populates="message", cascade="all, delete-orphan"
+    )
+
+
+class RoomMessageReaction(Base):
+    """Emoji reaction on a room message."""
+
+    __tablename__ = "room_message_reactions"
+    __table_args__ = (
+        Index("idx_reactions_message", "message_id"),
+        Index("idx_reactions_room", "room_id"),
+        sa.UniqueConstraint("room_id", "message_id", "user_id", "emoji", name="uq_reaction"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    room_id: Mapped[str] = mapped_column(
+        String, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False
+    )
+    message_id: Mapped[str] = mapped_column(
+        String, ForeignKey("room_messages.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    emoji: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # Relationships
+    message: Mapped[RoomMessage] = relationship("RoomMessage", back_populates="reactions")
+
+
+class RoomPinnedMessage(Base):
+    """Pinned message in a room."""
+
+    __tablename__ = "room_pinned_messages"
+    __table_args__ = (
+        Index("idx_pins_room", "room_id"),
+        sa.UniqueConstraint("room_id", "message_id", name="uq_pin"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    room_id: Mapped[str] = mapped_column(
+        String, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False
+    )
+    message_id: Mapped[str] = mapped_column(
+        String, ForeignKey("room_messages.id", ondelete="CASCADE"), nullable=False
+    )
+    pinned_by: Mapped[str] = mapped_column(String, nullable=False)
+    pinned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RoomBookmark(Base):
+    """Personal bookmark on a room message (user-scoped)."""
+
+    __tablename__ = "room_bookmarks"
+    __table_args__ = (
+        Index("idx_bookmarks_user", "user_id"),
+        Index("idx_bookmarks_room", "room_id"),
+        sa.UniqueConstraint("user_id", "message_id", name="uq_bookmark"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    room_id: Mapped[str] = mapped_column(
+        String, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False
+    )
+    message_id: Mapped[str] = mapped_column(
+        String, ForeignKey("room_messages.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class RoomAutomation(Base):
+    """Automation rule for a room (trigger + action)."""
+
+    __tablename__ = "room_automations"
+    __table_args__ = (
+        Index("idx_automations_room", "room_id"),
+        Index("idx_automations_trigger", "trigger_type"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    room_id: Mapped[str] = mapped_column(
+        String, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
+    trigger_type: Mapped[str] = mapped_column(String, nullable=False)
+    trigger_config: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
+    action_type: Mapped[str] = mapped_column(String, nullable=False)
+    action_config: Mapped[dict[str, Any]] = mapped_column(
+        sa.JSON, nullable=False, server_default="{}"
+    )
+    created_by: Mapped[str] = mapped_column(String, nullable=False)
+    trigger_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # Relationships
+    room: Mapped[Room] = relationship("Room")

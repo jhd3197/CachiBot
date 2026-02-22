@@ -11,7 +11,11 @@ from typing import Any
 from sqlalchemy import delete, func, select, update
 
 from cachibot.models.room import (
+    BookmarkedMessage,
+    PinnedMessage,
+    ReactionSummary,
     Room,
+    RoomAutomationResponse,
     RoomBot,
     RoomMember,
     RoomMemberRole,
@@ -25,6 +29,12 @@ from cachibot.storage.models.room import (
     Room as RoomModel,
 )
 from cachibot.storage.models.room import (
+    RoomAutomation as RoomAutomationModel,
+)
+from cachibot.storage.models.room import (
+    RoomBookmark as RoomBookmarkModel,
+)
+from cachibot.storage.models.room import (
     RoomBot as RoomBotModel,
 )
 from cachibot.storage.models.room import (
@@ -32,6 +42,12 @@ from cachibot.storage.models.room import (
 )
 from cachibot.storage.models.room import (
     RoomMessage as RoomMessageModel,
+)
+from cachibot.storage.models.room import (
+    RoomMessageReaction as RoomMessageReactionModel,
+)
+from cachibot.storage.models.room import (
+    RoomPinnedMessage as RoomPinnedMessageModel,
 )
 from cachibot.storage.models.user import User as UserModel
 
@@ -355,4 +371,394 @@ class RoomMessageRepository:
             content=row.content,
             metadata=row.meta if row.meta else {},
             timestamp=row.timestamp,
+        )
+
+
+class RoomReactionRepository:
+    """Repository for message reactions."""
+
+    async def add_reaction(
+        self, reaction_id: str, room_id: str, message_id: str, user_id: str, emoji: str
+    ) -> bool:
+        """Add a reaction. Returns False if already exists."""
+        async with db.ensure_initialized()() as session:
+            # Check for existing
+            existing = await session.execute(
+                select(RoomMessageReactionModel.id).where(
+                    RoomMessageReactionModel.room_id == room_id,
+                    RoomMessageReactionModel.message_id == message_id,
+                    RoomMessageReactionModel.user_id == user_id,
+                    RoomMessageReactionModel.emoji == emoji,
+                )
+            )
+            if existing.scalar_one_or_none() is not None:
+                return False
+            obj = RoomMessageReactionModel(
+                id=reaction_id,
+                room_id=room_id,
+                message_id=message_id,
+                user_id=user_id,
+                emoji=emoji,
+            )
+            session.add(obj)
+            await session.commit()
+            return True
+
+    async def remove_reaction(
+        self, room_id: str, message_id: str, user_id: str, emoji: str
+    ) -> bool:
+        """Remove a reaction. Returns True if deleted."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                delete(RoomMessageReactionModel).where(
+                    RoomMessageReactionModel.room_id == room_id,
+                    RoomMessageReactionModel.message_id == message_id,
+                    RoomMessageReactionModel.user_id == user_id,
+                    RoomMessageReactionModel.emoji == emoji,
+                )
+            )
+            await session.commit()
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+
+    async def get_reactions_bulk(
+        self, message_ids: list[str]
+    ) -> dict[str, list[ReactionSummary]]:
+        """Get reactions for multiple messages, grouped by message ID.
+
+        Returns a dict of messageId -> list[ReactionSummary].
+        """
+        if not message_ids:
+            return {}
+
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                select(
+                    RoomMessageReactionModel.message_id,
+                    RoomMessageReactionModel.emoji,
+                    RoomMessageReactionModel.user_id,
+                )
+                .where(RoomMessageReactionModel.message_id.in_(message_ids))
+                .order_by(RoomMessageReactionModel.created_at)
+            )
+            rows = result.all()
+
+        # Group by (message_id, emoji)
+        grouped: dict[str, dict[str, list[str]]] = {}
+        for msg_id, emoji, uid in rows:
+            if msg_id not in grouped:
+                grouped[msg_id] = {}
+            if emoji not in grouped[msg_id]:
+                grouped[msg_id][emoji] = []
+            grouped[msg_id][emoji].append(uid)
+
+        out: dict[str, list[ReactionSummary]] = {}
+        for msg_id, emoji_map in grouped.items():
+            out[msg_id] = [
+                ReactionSummary(emoji=emoji, count=len(uids), userIds=uids)
+                for emoji, uids in emoji_map.items()
+            ]
+        return out
+
+
+class RoomPinRepository:
+    """Repository for pinned messages."""
+
+    async def pin_message(
+        self, pin_id: str, room_id: str, message_id: str, pinned_by: str
+    ) -> bool:
+        """Pin a message. Returns False if already pinned."""
+        async with db.ensure_initialized()() as session:
+            existing = await session.execute(
+                select(RoomPinnedMessageModel.id).where(
+                    RoomPinnedMessageModel.room_id == room_id,
+                    RoomPinnedMessageModel.message_id == message_id,
+                )
+            )
+            if existing.scalar_one_or_none() is not None:
+                return False
+            obj = RoomPinnedMessageModel(
+                id=pin_id,
+                room_id=room_id,
+                message_id=message_id,
+                pinned_by=pinned_by,
+            )
+            session.add(obj)
+            await session.commit()
+            return True
+
+    async def unpin_message(self, room_id: str, message_id: str) -> bool:
+        """Unpin a message. Returns True if deleted."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                delete(RoomPinnedMessageModel).where(
+                    RoomPinnedMessageModel.room_id == room_id,
+                    RoomPinnedMessageModel.message_id == message_id,
+                )
+            )
+            await session.commit()
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+
+    async def get_pinned_messages(self, room_id: str) -> list[PinnedMessage]:
+        """Get all pinned messages for a room with message details."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                select(
+                    RoomPinnedMessageModel.id,
+                    RoomPinnedMessageModel.room_id,
+                    RoomPinnedMessageModel.message_id,
+                    RoomPinnedMessageModel.pinned_by,
+                    RoomPinnedMessageModel.pinned_at,
+                    RoomMessageModel.sender_name,
+                    RoomMessageModel.content,
+                    RoomMessageModel.timestamp,
+                )
+                .outerjoin(
+                    RoomMessageModel,
+                    RoomPinnedMessageModel.message_id == RoomMessageModel.id,
+                )
+                .where(RoomPinnedMessageModel.room_id == room_id)
+                .order_by(RoomPinnedMessageModel.pinned_at.desc())
+            )
+            rows = result.all()
+
+        return [
+            PinnedMessage(
+                id=row[0],
+                roomId=row[1],
+                messageId=row[2],
+                pinnedBy=row[3],
+                pinnedAt=row[4].isoformat() if row[4] else "",
+                senderName=row[5] or "",
+                content=(row[6] or "")[:200],
+                timestamp=row[7].isoformat() if row[7] else "",
+            )
+            for row in rows
+        ]
+
+
+class RoomBookmarkRepository:
+    """Repository for user bookmarks."""
+
+    async def add_bookmark(
+        self, bookmark_id: str, room_id: str, message_id: str, user_id: str
+    ) -> bool:
+        """Add a bookmark. Returns False if already bookmarked."""
+        async with db.ensure_initialized()() as session:
+            existing = await session.execute(
+                select(RoomBookmarkModel.id).where(
+                    RoomBookmarkModel.user_id == user_id,
+                    RoomBookmarkModel.message_id == message_id,
+                )
+            )
+            if existing.scalar_one_or_none() is not None:
+                return False
+            obj = RoomBookmarkModel(
+                id=bookmark_id,
+                room_id=room_id,
+                message_id=message_id,
+                user_id=user_id,
+            )
+            session.add(obj)
+            await session.commit()
+            return True
+
+    async def remove_bookmark(self, user_id: str, message_id: str) -> bool:
+        """Remove a bookmark. Returns True if deleted."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                delete(RoomBookmarkModel).where(
+                    RoomBookmarkModel.user_id == user_id,
+                    RoomBookmarkModel.message_id == message_id,
+                )
+            )
+            await session.commit()
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+
+    async def get_bookmarks(
+        self, user_id: str, room_id: str | None = None
+    ) -> list[BookmarkedMessage]:
+        """Get bookmarks for a user, optionally filtered by room."""
+        async with db.ensure_initialized()() as session:
+            stmt = (
+                select(
+                    RoomBookmarkModel.id,
+                    RoomBookmarkModel.room_id,
+                    RoomBookmarkModel.message_id,
+                    RoomBookmarkModel.created_at,
+                    RoomMessageModel.sender_name,
+                    RoomMessageModel.content,
+                    RoomMessageModel.timestamp,
+                )
+                .outerjoin(
+                    RoomMessageModel,
+                    RoomBookmarkModel.message_id == RoomMessageModel.id,
+                )
+                .where(RoomBookmarkModel.user_id == user_id)
+            )
+            if room_id:
+                stmt = stmt.where(RoomBookmarkModel.room_id == room_id)
+            stmt = stmt.order_by(RoomBookmarkModel.created_at.desc())
+
+            result = await session.execute(stmt)
+            rows = result.all()
+
+        return [
+            BookmarkedMessage(
+                id=row[0],
+                roomId=row[1],
+                messageId=row[2],
+                createdAt=row[3].isoformat() if row[3] else "",
+                senderName=row[4] or "",
+                content=(row[5] or "")[:200],
+                timestamp=row[6].isoformat() if row[6] else "",
+            )
+            for row in rows
+        ]
+
+
+# =============================================================================
+# AUTOMATIONS
+# =============================================================================
+
+
+class RoomAutomationRepository:
+    """Repository for room automations (trigger + action rules)."""
+
+    async def create(
+        self,
+        automation_id: str,
+        room_id: str,
+        name: str,
+        trigger_type: str,
+        trigger_config: dict[str, Any],
+        action_type: str,
+        action_config: dict[str, Any],
+        created_by: str,
+    ) -> RoomAutomationResponse:
+        """Create a new automation."""
+        async with db.ensure_initialized()() as session:
+            obj = RoomAutomationModel(
+                id=automation_id,
+                room_id=room_id,
+                name=name,
+                trigger_type=trigger_type,
+                trigger_config=trigger_config,
+                action_type=action_type,
+                action_config=action_config,
+                created_by=created_by,
+            )
+            session.add(obj)
+            await session.commit()
+            await session.refresh(obj)
+            return self._to_response(obj)
+
+    async def get_automations(
+        self, room_id: str
+    ) -> list[RoomAutomationResponse]:
+        """Get all automations for a room."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                select(RoomAutomationModel)
+                .where(RoomAutomationModel.room_id == room_id)
+                .order_by(RoomAutomationModel.created_at)
+            )
+            rows = result.scalars().all()
+        return [self._to_response(r) for r in rows]
+
+    async def get_automation(
+        self, automation_id: str
+    ) -> RoomAutomationResponse | None:
+        """Get a single automation by ID."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                select(RoomAutomationModel).where(
+                    RoomAutomationModel.id == automation_id
+                )
+            )
+            obj = result.scalar_one_or_none()
+        return self._to_response(obj) if obj else None
+
+    async def update(
+        self,
+        automation_id: str,
+        **kwargs: Any,
+    ) -> RoomAutomationResponse | None:
+        """Update automation fields."""
+        async with db.ensure_initialized()() as session:
+            fields: dict[str, Any] = {}
+            for key in (
+                "name",
+                "enabled",
+                "trigger_type",
+                "trigger_config",
+                "action_type",
+                "action_config",
+            ):
+                if key in kwargs and kwargs[key] is not None:
+                    fields[key] = kwargs[key]
+            if not fields:
+                return await self.get_automation(automation_id)
+            fields["updated_at"] = datetime.now(tz=timezone.utc)
+            await session.execute(
+                update(RoomAutomationModel)
+                .where(RoomAutomationModel.id == automation_id)
+                .values(**fields)
+            )
+            await session.commit()
+        return await self.get_automation(automation_id)
+
+    async def delete(self, automation_id: str) -> bool:
+        """Delete an automation. Returns True if deleted."""
+        async with db.ensure_initialized()() as session:
+            result = await session.execute(
+                delete(RoomAutomationModel).where(
+                    RoomAutomationModel.id == automation_id
+                )
+            )
+            await session.commit()
+            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+
+    async def increment_trigger_count(self, automation_id: str) -> None:
+        """Increment the trigger count for an automation."""
+        async with db.ensure_initialized()() as session:
+            await session.execute(
+                update(RoomAutomationModel)
+                .where(RoomAutomationModel.id == automation_id)
+                .values(
+                    trigger_count=RoomAutomationModel.trigger_count + 1,
+                    updated_at=datetime.now(tz=timezone.utc),
+                )
+            )
+            await session.commit()
+
+    async def get_enabled_by_trigger(
+        self, trigger_type: str, room_id: str | None = None
+    ) -> list[RoomAutomationResponse]:
+        """Get enabled automations by trigger type."""
+        async with db.ensure_initialized()() as session:
+            stmt = select(RoomAutomationModel).where(
+                RoomAutomationModel.enabled.is_(True),
+                RoomAutomationModel.trigger_type == trigger_type,
+            )
+            if room_id:
+                stmt = stmt.where(RoomAutomationModel.room_id == room_id)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+        return [self._to_response(r) for r in rows]
+
+    @staticmethod
+    def _to_response(obj: RoomAutomationModel) -> RoomAutomationResponse:
+        return RoomAutomationResponse(
+            id=obj.id,
+            roomId=obj.room_id,
+            name=obj.name,
+            enabled=obj.enabled,
+            triggerType=obj.trigger_type,
+            triggerConfig=obj.trigger_config,
+            actionType=obj.action_type,
+            actionConfig=obj.action_config,
+            createdBy=obj.created_by,
+            triggerCount=obj.trigger_count,
+            createdAt=obj.created_at.isoformat() if obj.created_at else "",
+            updatedAt=obj.updated_at.isoformat() if obj.updated_at else "",
         )
