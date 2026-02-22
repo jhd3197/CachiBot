@@ -124,7 +124,7 @@ cd desktop && set ELECTRON_DEV_URL=http://localhost:5173 && npx electron .
 
 ```
 CachiBot/
-├── src/cachibot/          # Python backend (FastAPI)
+├── cachibot/          # Python backend (FastAPI)
 │   ├── agent.py           #   Core agent with tool registration
 │   ├── cli.py             #   CLI entry point (cachibot / cachi)
 │   ├── api/               #   REST + WebSocket endpoints
@@ -164,7 +164,7 @@ ruff format src/           # Format
 cd frontend && npm run lint
 
 # Type checking
-mypy src/cachibot
+mypy cachibot
 ```
 
 ## Code Style
@@ -202,7 +202,7 @@ def process_file(path: str, encoding: str = "utf-8") -> str:
 
 Tools are the actions CachiBot can take. To add a new tool:
 
-1. Create a new file in `src/cachibot/tools/`
+1. Create a new file in `cachibot/tools/`
 2. Inherit from `BaseTool`
 3. Implement the `execute` method
 4. Register in `agent.py`

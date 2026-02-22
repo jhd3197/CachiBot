@@ -37,6 +37,25 @@ export function darkenColor(hex: string, percent: number): string {
 }
 
 /**
+ * Copy text to clipboard with fallback for restricted contexts (e.g. Electron).
+ * Uses the Clipboard API when available, otherwise falls back to execCommand.
+ */
+export async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+}
+
+/**
  * SHA-256 hash a password before sending it over the network.
  * Uses the Web Crypto API (available in all modern browsers).
  */

@@ -19,7 +19,7 @@ import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
-import { cn, darkenColor } from '../../lib/utils'
+import { cn, copyToClipboard, darkenColor } from '../../lib/utils'
 import type { ChatMessage, ToolCall, BotIcon, BotModels } from '../../types'
 
 // =============================================================================
@@ -359,7 +359,7 @@ export function MessageBubble({
   const displayContent = !isUser ? stripCiteMarkers(message.content) : message.content
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.content)
+    copyToClipboard(message.content)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

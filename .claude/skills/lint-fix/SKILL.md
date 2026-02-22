@@ -14,16 +14,16 @@ pass. Handles Python (ruff + mypy) and TypeScript (eslint) together.
 
 Run **all four checks in parallel** and collect their output:
 
-1. `ruff check src/cachibot/` — lint errors (E501, F841, etc.)
-2. `ruff format --check src/cachibot/` — formatting drift
-3. `mypy src/cachibot/` — type errors (only in `src/cachibot/`, NOT transitive errors
+1. `ruff check cachibot/` — lint errors (E501, F841, etc.)
+2. `ruff format --check cachibot/` — formatting drift
+3. `mypy cachibot/` — type errors (only in `cachibot/`, NOT transitive errors
    from prompture or other installed packages)
 4. `cd frontend && npx eslint src/` — TypeScript lint (errors only, warnings are informational)
 
 Parse each tool's output into a list of `{ tool, file, line, code, message }` findings.
 
 **Important:** When parsing mypy output, **discard** any finding whose file path is
-outside `src/cachibot/` (e.g., errors in installed packages like `prompture`). Also
+outside `cachibot/` (e.g., errors in installed packages like `prompture`). Also
 discard `import-not-found` errors for `prompture.*` and `tukuy.*` modules — those are
 expected when the editable installs are out of sync and are not CachiBot bugs.
 
@@ -33,8 +33,8 @@ If zero findings remain after filtering, tell the user everything is clean and s
 
 Run the auto-fixers first to knock out the easy ones:
 
-1. `ruff check --fix src/cachibot/` — auto-fix simple lint issues
-2. `ruff format src/cachibot/` — reformat any drifted files
+1. `ruff check --fix cachibot/` — auto-fix simple lint issues
+2. `ruff format cachibot/` — reformat any drifted files
 3. `cd frontend && npx eslint src/ --fix` — auto-fix simple TS issues
 
 ### Phase 2 — Fix Remaining Violations

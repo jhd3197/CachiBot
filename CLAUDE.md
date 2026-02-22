@@ -18,7 +18,7 @@ pytest                            # Run all tests
 pytest -v                         # Verbose test output
 ruff check .                      # Lint Python code
 ruff format .                     # Format Python code
-mypy src/cachibot                 # Type check
+mypy cachibot                 # Type check
 ```
 
 ### Frontend Development
@@ -34,7 +34,7 @@ The frontend dev server proxies `/api` and `/ws` to `http://127.0.0.1:5870`.
 
 ## Architecture
 
-### Backend (`src/cachibot/`)
+### Backend (`cachibot/`)
 - **agent.py**: Core `CachibotAgent` dataclass wrapping Prompture's Agent with callbacks, tool registration, and Python sandbox
 - **cli.py**: Typer-based CLI with `cachibot` and `cachi` entry points
 - **api/server.py**: FastAPI app with lifespan management
