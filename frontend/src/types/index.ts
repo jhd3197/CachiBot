@@ -258,6 +258,18 @@ export interface BotStats {
   completedTasks: number
 }
 
+// Rail ordering types
+export interface BotGroup {
+  id: string
+  name: string
+  collapsed: boolean
+  botIds: string[]  // ordered bot IDs within this group
+}
+
+export type RailItem =
+  | { type: 'bot'; botId: string }
+  | { type: 'group'; groupId: string }
+
 // =============================================================================
 // CHAT TYPES
 // =============================================================================

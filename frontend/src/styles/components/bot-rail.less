@@ -82,6 +82,98 @@
       background: var(--accent-600);
       color: white;
     }
+
+    &--dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+  }
+
+  // Group container
+  &__group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  // Group folder button — dashed border circle
+  &__group-btn {
+    position: relative;
+    .flex-center();
+    height: 3rem;
+    width: 3rem;
+    border-radius: 24px;
+    border: 2px dashed rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--color-text-secondary);
+    transition: all @transition-normal;
+    cursor: pointer;
+
+    .dark & {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    &:hover {
+      border-radius: 16px;
+      border-color: var(--accent-500);
+      background: color-mix(in srgb, var(--accent-500) 10%, transparent);
+      color: var(--accent-500);
+    }
+
+    &--active {
+      border-color: var(--accent-500);
+      border-style: solid;
+      color: var(--accent-500);
+    }
+  }
+
+  // Chevron inside group button
+  &__group-chevron {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    height: 0.75rem;
+    width: 0.75rem;
+    transition: transform @transition-fast;
+
+    &--collapsed {
+      transform: rotate(-90deg);
+    }
+  }
+
+  // Badge showing bot count
+  &__group-count {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 3px;
+    border-radius: @radius-full;
+    background: var(--accent-600);
+    color: white;
+    font-size: 10px;
+    font-weight: @font-bold;
+    .flex-center();
+    border: 2px solid var(--color-bg-app);
+    line-height: 1;
+  }
+
+  // Nested bot list within an expanded group
+  &__group-items {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @sp-1;
+    padding-left: 4px;
+    border-left: 2px solid rgba(0, 0, 0, 0.08);
+    margin-left: 0;
+
+    .dark & {
+      border-left-color: rgba(255, 255, 255, 0.08);
+    }
   }
 
   // Active indicator bar — left edge with optional glow
@@ -184,6 +276,44 @@
 
     .dark & {
       background: @zinc-700;
+    }
+  }
+
+  // Inline name input inside context menu
+  &__context-input {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    padding: @sp-1 @sp-2;
+  }
+
+  &__context-input-field {
+    flex: 1;
+    min-width: 0;
+    padding: @sp-1 @sp-2;
+    font-size: @text-sm;
+    font-family: @font-sans;
+    border: 1px solid var(--color-border-primary);
+    border-radius: @radius-md;
+    background: var(--input-bg);
+    color: var(--input-text);
+    outline: none;
+
+    &:focus {
+      border-color: var(--accent-500);
+    }
+  }
+
+  &__context-input-ok {
+    .button-base();
+    .button-variant(primary);
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    height: auto;
+    border-radius: @radius-md;
+
+    &:disabled {
+      opacity: 0.4;
     }
   }
 }
