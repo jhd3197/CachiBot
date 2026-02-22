@@ -420,9 +420,7 @@ class RoomReactionRepository:
             await session.commit()
             return bool(result.rowcount > 0)  # type: ignore[attr-defined]
 
-    async def get_reactions_bulk(
-        self, message_ids: list[str]
-    ) -> dict[str, list[ReactionSummary]]:
+    async def get_reactions_bulk(self, message_ids: list[str]) -> dict[str, list[ReactionSummary]]:
         """Get reactions for multiple messages, grouped by message ID.
 
         Returns a dict of messageId -> list[ReactionSummary].
@@ -463,9 +461,7 @@ class RoomReactionRepository:
 class RoomPinRepository:
     """Repository for pinned messages."""
 
-    async def pin_message(
-        self, pin_id: str, room_id: str, message_id: str, pinned_by: str
-    ) -> bool:
+    async def pin_message(self, pin_id: str, room_id: str, message_id: str, pinned_by: str) -> bool:
         """Pin a message. Returns False if already pinned."""
         async with db.ensure_initialized()() as session:
             existing = await session.execute(
@@ -652,9 +648,7 @@ class RoomAutomationRepository:
             await session.refresh(obj)
             return self._to_response(obj)
 
-    async def get_automations(
-        self, room_id: str
-    ) -> list[RoomAutomationResponse]:
+    async def get_automations(self, room_id: str) -> list[RoomAutomationResponse]:
         """Get all automations for a room."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
@@ -665,15 +659,11 @@ class RoomAutomationRepository:
             rows = result.scalars().all()
         return [self._to_response(r) for r in rows]
 
-    async def get_automation(
-        self, automation_id: str
-    ) -> RoomAutomationResponse | None:
+    async def get_automation(self, automation_id: str) -> RoomAutomationResponse | None:
         """Get a single automation by ID."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                select(RoomAutomationModel).where(
-                    RoomAutomationModel.id == automation_id
-                )
+                select(RoomAutomationModel).where(RoomAutomationModel.id == automation_id)
             )
             obj = result.scalar_one_or_none()
         return self._to_response(obj) if obj else None
@@ -711,9 +701,7 @@ class RoomAutomationRepository:
         """Delete an automation. Returns True if deleted."""
         async with db.ensure_initialized()() as session:
             result = await session.execute(
-                delete(RoomAutomationModel).where(
-                    RoomAutomationModel.id == automation_id
-                )
+                delete(RoomAutomationModel).where(RoomAutomationModel.id == automation_id)
             )
             await session.commit()
             return bool(result.rowcount > 0)  # type: ignore[attr-defined]

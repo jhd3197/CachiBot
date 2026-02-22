@@ -246,9 +246,7 @@ class RoomOrchestrator:
         variables_block = ""
         if self.room_variables:
             var_lines = "\n".join(f"  {k} = {v}" for k, v in self.room_variables.items())
-            variables_block = (
-                f"\n--- ROOM VARIABLES ---\n{var_lines}\n--- END ROOM VARIABLES ---\n"
-            )
+            variables_block = f"\n--- ROOM VARIABLES ---\n{var_lines}\n--- END ROOM VARIABLES ---\n"
 
         return (
             f"\n\n--- ROOM CONTEXT ---\n"

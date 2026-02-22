@@ -20,6 +20,9 @@ export function useRoomWebSocket(roomId: string | null) {
   // Track current bot message ID per bot (botId → messageId)
   const lastBotMessageIdRef = useRef<Record<string, string>>({})
 
+  // Track bot start times for timeline (botId → timestamp)
+  const botStartTimeRef = useRef<Record<string, number>>({})
+
   // Rapid double-send guard
   const lastSentRef = useRef<{ content: string; time: number }>({ content: '', time: 0 })
 
@@ -112,6 +115,10 @@ export function useRoomWebSocket(roomId: string | null) {
 
         case 'room_bot_thinking':
           setBotState(roomId, p.botId as string, 'thinking')
+          // Track start time for timeline
+          if (!botStartTimeRef.current[p.botId as string]) {
+            botStartTimeRef.current[p.botId as string] = Date.now()
+          }
           if (p.content) {
             setBotThinking(roomId, p.botId as string, p.content as string)
           }
@@ -193,6 +200,22 @@ export function useRoomWebSocket(roomId: string | null) {
           }
           setBotState(roomId, botId, 'idle')
           clearBotActivity(roomId, botId)
+          // Record timeline entry
+          const startTime = botStartTimeRef.current[botId]
+          if (startTime) {
+            const endTime = Date.now()
+            const usage = msgId
+              ? useRoomStore.getState().messages[roomId]?.find(m => m.id === msgId)?.metadata
+              : undefined
+            addTimelineEntry(roomId, {
+              botId,
+              botName: (p.botName as string) || botId,
+              startTime,
+              endTime,
+              tokens: (usage?.tokens as number) || 0,
+            })
+            delete botStartTimeRef.current[botId]
+          }
           // Clear chain step if this was the last bot
           const currentChain = useRoomStore.getState().chainStep[roomId]
           if (currentChain && currentChain.step === currentChain.totalSteps) {
@@ -339,6 +362,7 @@ export function useRoomWebSocket(roomId: string | null) {
       clientRef.current = null
       setIsConnected(false)
       lastBotMessageIdRef.current = {}
+      botStartTimeRef.current = {}
     }
   }, [roomId, addMessage, setBotState, setTyping, addOnlineUser, removeOnlineUser, setError, addToolCall, completeToolCall, finalizeToolCalls, updateMessageMetadata, setChainStep, setRouteDecision, setBotThinking, clearBotThinking, attachThinkingToMessage, appendInstructionDelta, addReactionToMessage, removeReactionFromMessage, addPinnedMessage, removePinnedMessage, setConsensusState, setInterviewState, addTimelineEntry, resetTimeline])
 

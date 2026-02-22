@@ -68,13 +68,8 @@
       "icon": "../assets/icon.png",
       "artifactName": "CachiBot-${version}-mac.${ext}",
       "category": "public.app-category.developer-tools",
-      "hardenedRuntime": true,
-      "notarize": true,
-      "gatekeeperAssess": false,
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist"
+      "identity": null
     },
-    "afterSign": "notarize.js",
     "linux": {
       "target": [
         { "target": "AppImage", "arch": ["x64"] },

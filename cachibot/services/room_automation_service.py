@@ -31,17 +31,13 @@ class RoomAutomationEngine:
         fired: list[tuple[RoomAutomationResponse, str]] = []
 
         # Check on_message triggers
-        on_msg = await automation_repo.get_enabled_by_trigger(
-            "on_message", room_id
-        )
+        on_msg = await automation_repo.get_enabled_by_trigger("on_message", room_id)
         for auto in on_msg:
             fired.append((auto, auto.actionType))
             await automation_repo.increment_trigger_count(auto.id)
 
         # Check on_keyword triggers
-        on_kw = await automation_repo.get_enabled_by_trigger(
-            "on_keyword", room_id
-        )
+        on_kw = await automation_repo.get_enabled_by_trigger("on_keyword", room_id)
         msg_lower = message.lower()
         for auto in on_kw:
             keywords = auto.triggerConfig.get("keywords", [])

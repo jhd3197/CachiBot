@@ -23,7 +23,7 @@ async def _extract_with_retry(
     last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
-            return await extract_with_model(
+            return await extract_with_model(  # type: ignore[no-any-return]
                 model_cls,
                 text,
                 model_name,

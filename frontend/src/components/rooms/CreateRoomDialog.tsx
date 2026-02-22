@@ -13,15 +13,7 @@ import {
   DialogButton,
   DialogStepper,
 } from '../common/Dialog'
-import { DebateSettings, RouterSettings, WaterfallSettings } from './ModeSubSettings'
-import {
-  ParallelIllustration,
-  SequentialIllustration,
-  ChainIllustration,
-  RouterIllustration,
-  DebateIllustration,
-  WaterfallIllustration,
-} from './ModeIllustrations'
+import { ModeCardGrid } from './ModeCardGrid'
 import type { RoomSettings } from '../../types'
 
 type ResponseMode = RoomSettings['response_mode']
@@ -31,50 +23,6 @@ const STEPS = [
   { id: 'bots', label: 'Invite Bots' },
   { id: 'behavior', label: 'Response Behavior' },
 ] as const
-
-const MODE_CARDS: {
-  mode: ResponseMode
-  title: string
-  description: string
-  Illustration: React.FC
-}[] = [
-  {
-    mode: 'parallel',
-    title: 'Parallel',
-    description: 'All bots respond to prompts simultaneously without waiting.',
-    Illustration: ParallelIllustration,
-  },
-  {
-    mode: 'sequential',
-    title: 'One by one',
-    description: 'Bots take turns answering sequentially, reading previous replies.',
-    Illustration: SequentialIllustration,
-  },
-  {
-    mode: 'debate',
-    title: 'Debate',
-    description: 'Bots actively argue and critique each other\u2019s viewpoints.',
-    Illustration: DebateIllustration,
-  },
-  {
-    mode: 'chain',
-    title: 'Chain',
-    description: 'Output of one bot automatically becomes the prompt for the next.',
-    Illustration: ChainIllustration,
-  },
-  {
-    mode: 'router',
-    title: 'Router',
-    description: 'An AI picks the best bot for each message.',
-    Illustration: RouterIllustration,
-  },
-  {
-    mode: 'waterfall',
-    title: 'Waterfall',
-    description: 'Bots process in sequence, stopping when the issue is resolved.',
-    Illustration: WaterfallIllustration,
-  },
-]
 
 interface CreateRoomDialogProps {
   onClose: () => void
@@ -111,6 +59,17 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
 
   // Waterfall settings
   const [waterfallConditions, setWaterfallConditions] = useState<Record<string, string>>({})
+
+  // Consensus settings
+  const [consensusSynthesizerBotId, setConsensusSynthesizerBotId] = useState<string | null>(null)
+  const [consensusShowIndividual, setConsensusShowIndividual] = useState(false)
+
+  // Interview settings
+  const [interviewBotId, setInterviewBotId] = useState<string | null>(null)
+  const [interviewMaxQuestions, setInterviewMaxQuestions] = useState(5)
+  const [interviewHandoffTrigger, setInterviewHandoffTrigger] = useState<
+    'auto' | 'manual' | 'keyword'
+  >('auto')
 
   const [creating, setCreating] = useState(false)
 
@@ -196,6 +155,21 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
       settings.waterfall_conditions = conditions
     }
 
+    if (responseMode === 'consensus') {
+      if (consensusSynthesizerBotId) {
+        settings.consensus_synthesizer_bot_id = consensusSynthesizerBotId
+      }
+      settings.consensus_show_individual = consensusShowIndividual
+    }
+
+    if (responseMode === 'interview') {
+      if (interviewBotId) {
+        settings.interview_bot_id = interviewBotId
+      }
+      settings.interview_max_questions = interviewMaxQuestions
+      settings.interview_handoff_trigger = interviewHandoffTrigger
+    }
+
     return settings
   }
 
@@ -219,10 +193,13 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
     }
   }
 
+  // Helper to truncate a string
+  const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max) + '...' : s)
+
   // ---- Render ----
 
   return (
-    <Dialog open onClose={onClose} size="lg" ariaLabel="Create Room">
+    <Dialog open onClose={onClose} size="xl" ariaLabel="Create Room">
       <DialogHeader
         title="Create Room"
         icon={<Users className="h-5 w-5" style={{ color: 'var(--accent-500)' }} />}
@@ -322,7 +299,17 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
                         >
                           <BotIconRenderer icon={bot.icon} size={16} />
                         </div>
-                        <span className="room-wizard__bot-name">{bot.name}</span>
+                        <div className="room-wizard__bot-info">
+                          <span className="room-wizard__bot-name">{bot.name}</span>
+                          {bot.description && (
+                            <span className="room-wizard__bot-desc">
+                              {truncate(bot.description, 60)}
+                            </span>
+                          )}
+                          {bot.model && (
+                            <span className="room-wizard__bot-model">{bot.model}</span>
+                          )}
+                        </div>
                         <input
                           type="checkbox"
                           checked={selected}
@@ -350,54 +337,33 @@ export function CreateRoomDialog({ onClose, onOpenMarketplace }: CreateRoomDialo
                 How should the bots interact with each other and you?
               </p>
 
-              <div className="room-wizard__mode-grid">
-                {MODE_CARDS.map(({ mode, title: modeTitle, description: modeDesc, Illustration }) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setResponseMode(mode)}
-                    className={`room-wizard__mode-card${responseMode === mode ? ' room-wizard__mode-card--selected' : ''}`}
-                  >
-                    <div className="room-wizard__mode-header">
-                      <span className="room-wizard__mode-title">{modeTitle}</span>
-                      <span className="room-wizard__mode-radio" />
-                    </div>
-                    <span className="room-wizard__mode-desc">{modeDesc}</span>
-                    <Illustration />
-                  </button>
-                ))}
-              </div>
-
-              {/* Mode-specific sub-settings */}
-              {responseMode === 'debate' && (
-                <DebateSettings
-                  bots={selectedBots}
-                  rounds={debateRounds}
-                  onRoundsChange={setDebateRounds}
-                  positions={debatePositions}
-                  onPositionsChange={setDebatePositions}
-                  judgeBotId={debateJudgeBotId}
-                  onJudgeBotIdChange={setDebateJudgeBotId}
-                />
-              )}
-
-              {responseMode === 'router' && (
-                <RouterSettings
-                  bots={selectedBots}
-                  strategy={routingStrategy}
-                  onStrategyChange={setRoutingStrategy}
-                  keywords={botKeywords}
-                  onKeywordsChange={setBotKeywords}
-                />
-              )}
-
-              {responseMode === 'waterfall' && (
-                <WaterfallSettings
-                  bots={selectedBots}
-                  conditions={waterfallConditions}
-                  onConditionsChange={setWaterfallConditions}
-                />
-              )}
+              <ModeCardGrid
+                selectedMode={responseMode}
+                onSelectMode={setResponseMode}
+                bots={selectedBots}
+                debateRounds={debateRounds}
+                onDebateRoundsChange={setDebateRounds}
+                debatePositions={debatePositions}
+                onDebatePositionsChange={setDebatePositions}
+                debateJudgeBotId={debateJudgeBotId}
+                onDebateJudgeBotIdChange={setDebateJudgeBotId}
+                routingStrategy={routingStrategy}
+                onRoutingStrategyChange={setRoutingStrategy}
+                botKeywords={botKeywords}
+                onBotKeywordsChange={setBotKeywords}
+                waterfallConditions={waterfallConditions}
+                onWaterfallConditionsChange={setWaterfallConditions}
+                consensusSynthesizerBotId={consensusSynthesizerBotId}
+                onConsensusSynthesizerBotIdChange={setConsensusSynthesizerBotId}
+                consensusShowIndividual={consensusShowIndividual}
+                onConsensusShowIndividualChange={setConsensusShowIndividual}
+                interviewBotId={interviewBotId}
+                onInterviewBotIdChange={setInterviewBotId}
+                interviewMaxQuestions={interviewMaxQuestions}
+                onInterviewMaxQuestionsChange={setInterviewMaxQuestions}
+                interviewHandoffTrigger={interviewHandoffTrigger}
+                onInterviewHandoffTriggerChange={setInterviewHandoffTrigger}
+              />
 
               {/* Cooldown + Auto-respond */}
               <div className="room-wizard__bottom-settings">

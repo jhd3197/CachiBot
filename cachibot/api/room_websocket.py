@@ -601,9 +601,7 @@ async def room_websocket_endpoint(
 
                 elif orchestrator.response_mode == "consensus" and len(respondents) >= 2:
                     # Consensus mode: all bots respond hidden, then synthesizer merges
-                    async def _run_consensus(
-                        bots_to_run: list[str], msg: str, cfg: Config
-                    ) -> None:
+                    async def _run_consensus(bots_to_run: list[str], msg: str, cfg: Config) -> None:
                         settings = room.settings
                         orchestrator.reset_consensus_state()
 
@@ -692,16 +690,12 @@ async def room_websocket_endpoint(
                                 orchestrator.mark_responding(synth_id)
                                 await room_manager.send_to_room(
                                     room_id,
-                                    RoomWSMessage.bot_thinking(
-                                        room_id, synth_id, synth_bot.name
-                                    ),
+                                    RoomWSMessage.bot_thinking(room_id, synth_id, synth_bot.name),
                                 )
                                 msg_repo_c = RoomMessageRepository()
                                 recent = await msg_repo_c.get_messages(room_id, limit=50)
-                                synth_prompt = (
-                                    orchestrator.build_consensus_synthesis_context(
-                                        synth_id, msg, recent
-                                    )
+                                synth_prompt = orchestrator.build_consensus_synthesis_context(
+                                    synth_id, msg, recent
                                 )
                                 await run_room_bot(
                                     room_id=room_id,
@@ -736,14 +730,12 @@ async def room_websocket_endpoint(
                     consensus_task = asyncio.create_task(
                         _run_consensus(respondents, message_text, config)
                     )
-                    room_manager.bot_tasks.setdefault(room_id, {})["_consensus"] = (
-                        consensus_task
-                    )
+                    room_manager.bot_tasks.setdefault(room_id, {})["_consensus"] = consensus_task
 
                 elif orchestrator.response_mode == "interview":
                     # Interview mode: interviewer asks questions, then hands off
                     settings = room.settings
-                    interview_bot_id = settings.interview_bot_id
+                    interview_bot_id: str | None = settings.interview_bot_id
                     if not interview_bot_id or interview_bot_id not in orchestrator.bot_configs:
                         # Default to first non-observer bot
                         for bid in orchestrator.bot_configs:
@@ -807,9 +799,7 @@ async def room_websocket_endpoint(
                                 orchestrator.mark_responding(interviewer_id)
                                 await room_manager.send_to_room(
                                     room_id,
-                                    RoomWSMessage.bot_thinking(
-                                        room_id, interviewer_id, b.name
-                                    ),
+                                    RoomWSMessage.bot_thinking(room_id, interviewer_id, b.name),
                                 )
                                 msg_repo_i = RoomMessageRepository()
                                 recent = await msg_repo_i.get_messages(room_id, limit=50)
@@ -865,12 +855,13 @@ async def room_websocket_endpoint(
                                 )
                                 orchestrator.mark_done(interviewer_id)
 
+                        assert interview_bot_id is not None
                         interview_task = asyncio.create_task(
                             _run_interview_step(interview_bot_id, message_text, config)
                         )
-                        room_manager.bot_tasks.setdefault(room_id, {})[
-                            "_interview"
-                        ] = interview_task
+                        room_manager.bot_tasks.setdefault(room_id, {})["_interview"] = (
+                            interview_task
+                        )
 
                 elif orchestrator.response_mode == "sequential" and len(respondents) > 1:
                     # Sequential: run bots one-by-one in a wrapper task
