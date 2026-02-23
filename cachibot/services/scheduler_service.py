@@ -102,7 +102,9 @@ class SchedulerService:
 
         elif schedule.schedule_type == ScheduleType.INTERVAL:
             if schedule.interval_seconds:
-                next_run = datetime.now(ZoneInfo(self.timezone)) + timedelta(seconds=schedule.interval_seconds)
+                next_run = datetime.now(ZoneInfo(self.timezone)) + timedelta(
+                    seconds=schedule.interval_seconds
+                )
                 await self._schedule_repo.update_next_run(schedule.id, next_run)
 
         elif schedule.schedule_type == ScheduleType.CRON:
