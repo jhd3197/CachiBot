@@ -21,7 +21,6 @@ import {
   Blocks,
   CheckCircle2,
   History,
-  Pause,
   Eraser,
   Mic,
   DoorOpen,
@@ -33,10 +32,10 @@ import {
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { useBotStore, useChatStore, useTaskStore, useWorkStore, useScheduleStore } from '../../stores/bots'
+import { useBotStore, useChatStore, useTaskStore, useWorkStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { getRooms } from '../../api/rooms'
-import { useUIStore, type SettingsSection, type WorkSection, type ScheduleSection, type AutomationSection } from '../../stores/ui'
+import { useUIStore, type SettingsSection, type WorkSection, type AutomationSection } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
@@ -49,15 +48,12 @@ type MinAccessLevel = 'viewer' | 'operator' | 'editor'
 const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
   { id: 'chats', label: 'Chats', icon: MessageSquare, minLevel: 'viewer' },
   { id: 'rooms', label: 'Rooms', icon: DoorOpen, minLevel: 'viewer' },
-  { id: 'tasks', label: 'Tasks', icon: CheckSquare, minLevel: 'viewer' },
   { id: 'work', label: 'Work', icon: FolderKanban, minLevel: 'operator' },
-  { id: 'schedules', label: 'Schedules', icon: CalendarClock, minLevel: 'operator' },
+  { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
 ]
 
 const gearMenuItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
-  { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
   { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor' },
-  { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator' },
   { id: 'developer', label: 'Developer', icon: Code2, minLevel: 'editor' },
   { id: 'settings', label: 'Settings', icon: Settings, minLevel: 'editor' },
 ]
@@ -175,6 +171,15 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
               >
                 <Search className="h-4 w-4" />
               </button>
+              {userRank >= LEVEL_RANK['operator'] && (
+                <button
+                  onClick={() => handleNavClick('voice')}
+                  title="Voice"
+                  className={cn('nav-btn', activeView === 'voice' && 'nav-btn--active')}
+                >
+                  <Mic className="h-4 w-4" />
+                </button>
+              )}
               <div className="relative">
                 <button
                   onClick={toggleMenu('gear')}
@@ -204,6 +209,15 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
             >
               <Search className="h-4 w-4" />
             </button>
+            {userRank >= LEVEL_RANK['operator'] && (
+              <button
+                onClick={() => handleNavClick('voice')}
+                title="Voice"
+                className={cn('nav-btn', activeView === 'voice' && 'nav-btn--active')}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={toggleMenu('gear')}
@@ -235,9 +249,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
       <div className="bot-sidebar__content">
         {activeView === 'chats' && <ChatList botId={activeBot.id} mode="chats" onNavigate={onNavigate} />}
         {activeView === 'rooms' && <ChatList botId={activeBot.id} mode="rooms" onNavigate={onNavigate} />}
-        {activeView === 'tasks' && <TaskList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
-        {activeView === 'work' && <WorkSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
-        {activeView === 'schedules' && <SchedulesSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
+        {activeView === 'work' && <WorkSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} onNavigate={onNavigate} />}
         {activeView === 'automations' && <AutomationsSectionsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'tools' && <ToolsList botId={activeBot.id} collapsed={sidebarCollapsed} />}
         {activeView === 'developer' && <DeveloperSectionsList collapsed={sidebarCollapsed} />}
@@ -647,7 +659,8 @@ function GlobalSearchDialog({
         onNavigate(`/${activeBotId}/rooms/${result.id}`)
         break
       case 'task':
-        onNavigate(`/${activeBotId}/tasks`)
+        useUIStore.getState().setWorkSection('quick-tasks')
+        onNavigate(`/${activeBotId}/work`)
         break
     }
   }
@@ -932,13 +945,35 @@ const workSections: { id: WorkSection; label: string; icon: React.ComponentType<
   { id: 'active', label: 'Active', icon: Play },
   { id: 'completed', label: 'Completed', icon: CheckCircle2 },
   { id: 'history', label: 'History', icon: History },
+  { id: 'quick-tasks', label: 'Quick Tasks', icon: CheckSquare },
 ]
 
-function WorkSectionsList({ botId, collapsed }: { botId: string; collapsed: boolean }) {
+function WorkSectionsList({ botId, collapsed, onNavigate }: { botId: string; collapsed: boolean; onNavigate?: () => void }) {
   const { workSection, setWorkSection } = useUIStore()
   const { getWorkByBot, getActiveWork } = useWorkStore()
+  const { getTasksByBot } = useTaskStore()
   const allWork = getWorkByBot(botId)
   const activeWork = getActiveWork(botId)
+  const tasks = getTasksByBot(botId)
+
+  // Show TaskList inline when quick-tasks is selected
+  if (workSection === 'quick-tasks') {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex items-center gap-1 p-3 pb-0">
+          <button
+            onClick={() => setWorkSection('overview')}
+            className="nav-btn"
+            title="Back to Work sections"
+          >
+            <FolderKanban className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-medium text-[var(--color-text-secondary)]">Quick Tasks</span>
+        </div>
+        <TaskList botId={botId} collapsed={collapsed} onNavigate={onNavigate} />
+      </div>
+    )
+  }
 
   if (collapsed) {
     return (
@@ -969,6 +1004,7 @@ function WorkSectionsList({ botId, collapsed }: { botId: string; collapsed: bool
           if (section.id === 'active') count = activeWork.length
           if (section.id === 'completed') count = allWork.filter((w) => w.status === 'completed').length
           if (section.id === 'history') count = allWork.length
+          if (section.id === 'quick-tasks') count = tasks.filter((t) => t.status === 'todo').length
 
           return (
             <button
@@ -995,77 +1031,6 @@ function WorkSectionsList({ botId, collapsed }: { botId: string; collapsed: bool
 }
 
 // =============================================================================
-// SCHEDULES SECTIONS LIST (navigation for Schedules view - like SettingsList)
-// =============================================================================
-
-const scheduleSections: { id: ScheduleSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'all', label: 'All Schedules', icon: CalendarClock },
-  { id: 'enabled', label: 'Enabled', icon: Play },
-  { id: 'disabled', label: 'Disabled', icon: Pause },
-  { id: 'create', label: 'Create New', icon: Plus },
-]
-
-function SchedulesSectionsList({ botId, collapsed }: { botId: string; collapsed: boolean }) {
-  const { scheduleSection, setScheduleSection } = useUIStore()
-  const { getSchedulesByBot, getEnabledSchedules } = useScheduleStore()
-  const allSchedules = getSchedulesByBot(botId)
-  const enabledSchedules = getEnabledSchedules(botId)
-
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center gap-1 p-2">
-        {scheduleSections.map((section) => (
-          <button
-            key={section.id}
-            onClick={() => setScheduleSection(section.id)}
-            className={cn(
-              'sidebar-section-btn-icon',
-              scheduleSection === section.id && 'sidebar-section-btn-icon--active sidebar-section-btn--purple'
-            )}
-            title={section.label}
-          >
-            <section.icon className="h-5 w-5" />
-          </button>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-full flex-col p-3">
-      <div className="space-y-1">
-        {scheduleSections.map((section) => {
-          // Show count badges for relevant sections
-          let count: number | undefined
-          if (section.id === 'all') count = allSchedules.length
-          if (section.id === 'enabled') count = enabledSchedules.length
-          if (section.id === 'disabled') count = allSchedules.length - enabledSchedules.length
-
-          return (
-            <button
-              key={section.id}
-              onClick={() => setScheduleSection(section.id)}
-              className={cn(
-                'sidebar-section-btn',
-                scheduleSection === section.id && 'sidebar-section-btn--active sidebar-section-btn--purple'
-              )}
-            >
-              <section.icon className="h-5 w-5" />
-              <span className="label">{section.label}</span>
-              {count !== undefined && count > 0 && (
-                <span className="sidebar-section-btn__count">
-                  {count}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
 // AUTOMATIONS SECTIONS LIST
 // =============================================================================
 
@@ -1074,6 +1039,7 @@ const automationSections: { id: AutomationSection; label: string; icon: React.Co
   { id: 'functions', label: 'Functions', icon: FolderKanban },
   { id: 'scripts', label: 'Scripts', icon: Code2 },
   { id: 'schedules', label: 'Schedules', icon: CalendarClock },
+  { id: 'timeline', label: 'Timeline', icon: History },
 ]
 
 function AutomationsSectionsList({ collapsed }: { botId: string; collapsed: boolean }) {

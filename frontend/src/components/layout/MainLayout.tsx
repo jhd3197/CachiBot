@@ -6,13 +6,11 @@ import { BotSidebar } from './BotSidebar'
 import {
   ChatView,
   RoomsView,
-  TasksView,
   ToolsView,
   SettingsView,
   DashboardView,
   AppSettingsView,
   WorkView,
-  SchedulesView,
   VoiceView,
   AutomationsView,
   ScriptEditorView,
@@ -86,15 +84,24 @@ export function MainLayout() {
   const viewMap: Record<string, BotView> = {
     chats: 'chats',
     rooms: 'rooms',
-    tasks: 'tasks',
     work: 'work',
-    schedules: 'schedules',
     automations: 'automations',
     voice: 'voice',
     tools: 'tools',
     settings: 'settings',
   }
   const botView = viewSegment ? viewMap[viewSegment] : null
+
+  // Redirect legacy URLs
+  useEffect(() => {
+    if (viewSegment === 'schedules' && urlBotId) {
+      navigate(`/${urlBotId}/automations`, { replace: true })
+    }
+    if (viewSegment === 'tasks' && urlBotId) {
+      useUIStore.getState().setWorkSection('quick-tasks')
+      navigate(`/${urlBotId}/work`, { replace: true })
+    }
+  }, [viewSegment, urlBotId, navigate])
 
   // Sync URL to store state
   useEffect(() => {
@@ -209,6 +216,7 @@ export function MainLayout() {
             style: configData.display.style as 'detailed' | 'compact',
           },
           workspacePath: configData.workspace_path,
+          timezone: configData.timezone || 'UTC',
         }
 
         setConfig(config)
@@ -264,12 +272,8 @@ export function MainLayout() {
         return <ChatView />
       case 'rooms':
         return <RoomsView />
-      case 'tasks':
-        return <TasksView />
       case 'work':
         return <WorkView />
-      case 'schedules':
-        return <SchedulesView />
       case 'automations': {
         // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView
         const automationSubPath = pathParts[2]

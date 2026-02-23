@@ -453,6 +453,36 @@
     color: var(--color-text-tertiary);
   }
 
+  &__dot--future {
+    background: none;
+    border: 2px dashed currentColor;
+  }
+
+  &__item--future {
+    opacity: 0.7;
+  }
+
+  &__now-marker {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    padding: @sp-2 @sp-4;
+
+    &__line {
+      flex: 1;
+      height: 1px;
+      background: var(--accent-500);
+    }
+
+    &__label {
+      font-size: @text-xs;
+      font-weight: @font-semibold;
+      color: var(--accent-500);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  }
+
   &__loading {
     .flex-center();
     padding: @sp-12 0;
