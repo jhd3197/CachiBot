@@ -85,15 +85,13 @@ cachibot.toml
 *.key
 .env*
 
-nul
 error.log
 website/*
 settings.local.json
 .marketing/
 .reviews/
 settings.json
-/feedback_connection
 /desktop/node_modules
 .pr/
-/.mypy_cache
-PROMPTURE_FEATURES.md
+.mypy_cache/
+.ruff_cache/
