@@ -298,8 +298,8 @@ function createWindow() {
 
 function createSplashWindow() {
   const splash = new BrowserWindow({
-    width: 400,
-    height: 300,
+    width: 420,
+    height: 340,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -307,34 +307,13 @@ function createSplashWindow() {
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });
 
-  splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body {
-          margin: 0; display: flex; align-items: center; justify-content: center;
-          height: 100vh; background: #09090b; color: #a1a1aa; font-family: system-ui;
-          flex-direction: column; gap: 16px; border-radius: 12px;
-          -webkit-app-region: drag;
-        }
-        .title { font-size: 28px; font-weight: 700; color: #10b981; }
-        .subtitle { font-size: 14px; opacity: 0.7; }
-        .spinner {
-          width: 32px; height: 32px; border: 3px solid #27272a;
-          border-top-color: #10b981; border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      </style>
-    </head>
-    <body>
-      <div class="title">CachiBot</div>
-      <div class="spinner"></div>
-      <div class="subtitle">Starting the armored agent...</div>
-    </body>
-    </html>
-  `)}`);
+  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+  const iconUrl = `file://${iconPath.replace(/\\/g, '/')}`;
+  const version = require('./package.json').version;
+
+  splash.loadFile(path.join(__dirname, 'splash.html'), {
+    query: { icon: iconUrl, version },
+  });
 
   return splash;
 }

@@ -62,7 +62,7 @@ class NotesPlugin(CachibotPlugin):
             """
             import json
             import uuid
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             from cachibot.models.knowledge import BotNote, NoteSource
             from cachibot.storage.repository import NotesRepository
@@ -73,7 +73,7 @@ class NotesPlugin(CachibotPlugin):
 
             try:
                 repo = NotesRepository()
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 note = BotNote(
                     id=str(uuid.uuid4()),
                     bot_id=bot_id,

@@ -6,7 +6,7 @@ Handles BotFather-like slash commands for both web and platform interfaces.
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from cachibot.config import Config
@@ -79,8 +79,8 @@ class CommandProcessor:
             command=command,
             current_step=0,
             collected_data={},
-            created_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(minutes=FLOW_TIMEOUT_MINUTES),
+            created_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=FLOW_TIMEOUT_MINUTES),
         )
         self._flows[key] = flow
         return flow
@@ -424,7 +424,7 @@ class CommandProcessor:
 
         try:
             # Create the bot
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             try:
                 default_model = Config.load().agent.model
             except Exception:

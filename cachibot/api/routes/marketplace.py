@@ -8,7 +8,7 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -397,7 +397,7 @@ async def install_template(
 
     # Generate new bot ID
     bot_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Resolve model: use template's model if set, otherwise app default
     template_model = template_data.get("model", "")
@@ -557,7 +557,7 @@ async def install_room_template(
         else:
             # Install the bot template
             bot_id = str(uuid.uuid4())
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             template_model = bot_template.get("model", "")
             if not template_model:
@@ -640,7 +640,7 @@ async def install_room_template(
     member_repo = RoomMemberRepository()
     room_bot_repo = RoomBotRepository()
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     room = Room(
         id=str(uuid.uuid4()),
         title=template["name"],

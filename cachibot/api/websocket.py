@@ -9,7 +9,7 @@ import copy
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -101,7 +101,8 @@ async def _resolve_bot_env(
             provider = effective_model.split("/", 1)[0].lower()
             api_key = resolved.provider_keys.get(provider)
             if api_key:
-                driver = build_driver_with_key(effective_model, api_key=api_key)
+                extras = resolved.provider_extras.get(provider, {})
+                driver = build_driver_with_key(effective_model, api_key=api_key, **extras)
 
         return resolved, driver
     except Exception:
@@ -379,7 +380,7 @@ async def run_agent(
                 chat_id=chat_id,
                 role="user",
                 content=message,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 reply_to_id=reply_to_id,
             )
             await repo.save_bot_message(user_msg)
@@ -438,7 +439,7 @@ async def run_agent(
                 chat_id=chat_id,
                 role="assistant",
                 content=response_text,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 reply_to_id=bot_reply_to,
             )
             await repo.save_bot_message(assistant_msg)

@@ -1,11 +1,11 @@
 ---
 name: create-pr
-description: Generate a pull request title and description from the current branch's commits. Writes a warm, personality-driven summary paragraph and detailed technical bullets.
+description: Generate a pull request title and description from the current branch's commits. Produces a concise summary, optional feature highlights, and collapsible technical details.
 ---
 
 # Create PR Description
 
-Generate a pull request title and description with personality — the kind that makes someone smile while learning exactly what changed.
+Generate a pull request title and description that's scannable, informative, and has just enough personality to feel human.
 
 ## Instructions
 
@@ -26,23 +26,53 @@ git diff main..HEAD
 
 If the full diff is too large, diff individual areas (backend routes, frontend, storage, etc.) in batches. You must understand **what the code actually does**, not just which files were touched.
 
-### 2. Write `pr.md`
+### 2. Write the PR file
 
-Write a `pr.md` file at the repository root with this structure:
+Write the file to `.pr/YYYY-MM-DD.md` (using today's date). Create the `.pr/` directory if it doesn't exist. If a file for today's date already exists, append a counter: `YYYY-MM-DD-2.md`, `YYYY-MM-DD-3.md`, etc.
 
-```markdown
+The structure depends on whether the PR introduces user-facing features or is purely internal (refactors, bug fixes, infra).
+
+#### When the PR has user-facing features:
+
+~~~markdown
 # <Title>
 
-## Summary
+<2-3 sentence summary>
 
-<A single flowing paragraph — warm, conversational, technically precise. Tell the story of what this PR does and why it matters. Weave in the key changes naturally. Think "engineer telling a friend about their week" not "changelog". Name actual classes, functions, and patterns but keep it readable as prose.>
+### Highlights
 
-## Technical details
+- Highlight 1
+- Highlight 2
+- ...
+
+<details>
+<summary>Technical changes</summary>
 
 - Detail 1
 - Detail 2
 - ...
-```
+
+</details>
+~~~
+
+#### When the PR is purely internal (no user-facing features):
+
+~~~markdown
+# <Title>
+
+<2-3 sentence summary>
+
+<details>
+<summary>Technical changes</summary>
+
+- Detail 1
+- Detail 2
+- ...
+
+</details>
+~~~
+
+Omit the Highlights section entirely for internal-only PRs — don't force it.
 
 ### Style Rules
 
@@ -50,23 +80,28 @@ Write a `pr.md` file at the repository root with this structure:
 - Imperative mood, start with a verb (Add, Fix, Refactor, etc.)
 - Summarize the entire PR scope — not just one commit
 
-#### Summary paragraph
-- **One flowing paragraph**, not bullets. This is a narrative.
-- **Start with personality.** Open with something that makes the reader smile — a cheerful greeting, a silly observation, a lighthearted joke, a warm "hope your day is going well" vibe. Not forced, just human. Examples of the energy (don't copy these literally, make up your own each time):
+#### Summary
+- **2-3 sentences max.** This is the elevator pitch, not the full story.
+- **Open with a touch of personality.** One line that makes the reader smile — a wry observation, a lighthearted remark, a playful metaphor. Not forced, just human. Examples of the energy (don't copy these literally, invent your own each time):
   - "This one's mostly about cleaning house."
   - "Turns out the type checker was right to complain."
   - A playful metaphor about what the code was doing wrong
   - A wry observation about the state of things before this PR
-- **Stay technically precise inside the warmth.** Name the actual things — "`get_or_create_chat` had a race condition", not "fixed some database stuff". The personality is in *how* you describe the real changes, not in being vague.
-- **Cover all major change areas** in the paragraph — security, architecture, bug fixes, refactors, new features. Weave them into the story naturally.
-- **Keep it engaging end-to-end.** Don't front-load all the fun and then go dry. Sprinkle personality throughout — a vivid verb here, a dry quip there, an analogy that makes a complex change click.
+- **Then say what the PR does at a high level.** Name the main change areas (new feature, refactor target, bug fixed) but don't enumerate every file. The personality is in *how* you describe the changes, not in being vague.
+- **Do not repeat what Highlights or Technical changes already cover.** The summary is the "why" and the big picture; details live below.
 
-#### Technical details
+#### Highlights (only when applicable)
+- One bullet per user-facing feature, behavior change, or notable improvement.
+- Write from the user's perspective — what they'll notice, not internal implementation.
+- Plain language, no code references. "Schedules now respect your configured timezone" not "`SchedulerService` gains a `timezone` attribute".
+- 3-7 bullets is the sweet spot. If you can only think of 1-2, fold them into the summary and skip this section.
+
+#### Technical changes (inside the accordion)
 - One bullet per discrete change. Be specific — name files, classes, functions, patterns.
-- Format: `backtick code references` for identifiers, plain text for descriptions
+- Format: `backtick code references` for identifiers, plain text for descriptions.
 - Every meaningful change in the diff must have a bullet. If a change touches security (CORS, auth, SQL injection), error handling, accessibility, or concurrency, it gets its own bullet — do not bury these.
 - Bullets should describe the mechanism, not just the intent. "Race condition in `get_or_create_chat` fixed by moving creation inside the lookup session" is good. "Fix database issues" is not.
-- Order: roughly group related changes together (all typing fixes, all security hardening, all API changes, etc.)
+- Group related changes together (all typing fixes, all security hardening, all API changes, etc.)
 
 #### General
 - **No test plan section.** Do not include "Test plan" or "Testing".

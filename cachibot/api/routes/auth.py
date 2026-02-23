@@ -3,7 +3,7 @@
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -168,7 +168,7 @@ async def setup_initial_admin(request: SetupRequest) -> LoginResponse:
 
     # Create admin user
     auth_service = get_auth_service()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     user = UserInDB(
         id=str(uuid.uuid4()),
@@ -263,7 +263,7 @@ async def login(request: LoginRequest) -> LoginResponse:
             is_active=user.is_active,
             created_at=user.created_at,
             created_by=user.created_by,
-            last_login=datetime.utcnow(),
+            last_login=datetime.now(timezone.utc),
         ),
     )
 
@@ -392,7 +392,7 @@ async def create_user(
         )
 
     # Create user
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     user = UserInDB(
         id=str(uuid.uuid4()),
         email=request.email.lower(),

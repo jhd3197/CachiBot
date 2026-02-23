@@ -4,7 +4,7 @@ Endpoints for managing multi-agent rooms, membership, bots, and transcripts.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -80,7 +80,7 @@ async def create_room(
                 detail=f"Bot {bid} not found",
             )
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     room = Room(
         id=str(uuid.uuid4()),
         title=data.title,
@@ -257,7 +257,7 @@ async def invite_member(
         user_id=target_user.id,
         username=target_user.username,
         role=RoomMemberRole.MEMBER,
-        joined_at=datetime.utcnow(),
+        joined_at=datetime.now(timezone.utc),
     )
     await member_repo.add_member(member)
 
@@ -320,7 +320,7 @@ async def add_bot(
         room_id=room_id,
         bot_id=data.bot_id,
         bot_name=bot.name,
-        added_at=datetime.utcnow(),
+        added_at=datetime.now(timezone.utc),
     )
     await bot_repo.add_bot(rb)
 

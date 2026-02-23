@@ -6,7 +6,7 @@ CRUD endpoints for managing bot platform connections.
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -125,7 +125,7 @@ async def create_connection(
     if errors:
         raise HTTPException(status_code=400, detail="; ".join(errors))
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     connection = BotConnection(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -178,7 +178,7 @@ async def update_connection(
         updated_config = {**connection.config, **body.config}
         connection.config = updated_config
 
-    connection.updated_at = datetime.utcnow()
+    connection.updated_at = datetime.now(timezone.utc)
     await repo.update_connection(connection)
     return ConnectionResponse.from_connection(connection)
 

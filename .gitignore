@@ -94,6 +94,6 @@ settings.local.json
 settings.json
 /feedback_connection
 /desktop/node_modules
-pr.md
+.pr/
 /.mypy_cache
 PROMPTURE_FEATURES.md
