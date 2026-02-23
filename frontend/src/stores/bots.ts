@@ -166,6 +166,17 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: 'cachibot-bots',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>
+        if (version === 0) {
+          // Migrate legacy 'tasks' view to 'work'
+          if (state.activeView === 'tasks') {
+            state.activeView = 'work'
+          }
+        }
+        return state as unknown as BotState
+      },
     }
   )
 )
