@@ -15,6 +15,7 @@ import { useBotStore, useWorkStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { cn } from '../../lib/utils'
 import type { Work, WorkStatus } from '../../types'
+import { TasksView } from './TasksView'
 
 export function WorkView() {
   const { getActiveBot } = useBotStore()
@@ -29,6 +30,7 @@ export function WorkView() {
       {workSection === 'active' && <WorkListSection botId={activeBot.id} filter="active" />}
       {workSection === 'completed' && <WorkListSection botId={activeBot.id} filter="completed" />}
       {workSection === 'history' && <WorkListSection botId={activeBot.id} filter="all" />}
+      {workSection === 'quick-tasks' && <TasksView />}
     </div>
   )
 }

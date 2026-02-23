@@ -29,6 +29,7 @@ DRIVER_MAP: dict[str, tuple[str, str]] = {
     "zai": ("prompture.drivers.async_zai_driver", "AsyncZaiDriver"),
     "zhipu": ("prompture.drivers.async_zai_driver", "AsyncZaiDriver"),
     "modelscope": ("prompture.drivers.async_modelscope_driver", "AsyncModelScopeDriver"),
+    "cachibot": ("prompture.drivers.async_cachibot_driver", "AsyncCachiBotDriver"),
     "azure": ("prompture.drivers.async_azure_driver", "AsyncAzureDriver"),
     "ollama": ("prompture.drivers.async_ollama_driver", "AsyncOllamaDriver"),
     "lmstudio": ("prompture.drivers.async_lmstudio_driver", "AsyncLMStudioDriver"),

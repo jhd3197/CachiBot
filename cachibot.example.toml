@@ -1,6 +1,10 @@
 # Cachibot Configuration Example
 # Copy to ~/.cachibot.toml or ./cachibot.toml in your workspace
 
+# Instance timezone (IANA name, e.g. "America/New_York", "Europe/London")
+# Used for scheduling — cron expressions evaluate in this timezone
+# timezone = "UTC"
+
 [agent]
 # Model to use (format: provider/model-name)
 # Options: moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514, openai/gpt-4o, ollama/llama3.1:8b

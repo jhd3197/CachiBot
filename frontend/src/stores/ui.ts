@@ -5,9 +5,8 @@ export type Theme = 'light' | 'dark' | 'system'
 export type PresetColor = 'green' | 'pink' | 'blue' | 'purple' | 'orange' | 'red' | 'cyan' | 'yellow' | 'teal' | 'indigo' | 'rose' | 'amber' | 'lime'
 export type AccentColor = PresetColor | 'custom'
 export type SettingsSection = 'general' | 'knowledge' | 'skills' | 'connections' | 'environment' | 'developer' | 'danger'
-export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
-export type ScheduleSection = 'all' | 'enabled' | 'disabled' | 'create'
-export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules'
+export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
+export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
 
 // Accent color palettes (Tailwind-style)
 export const accentColors: Record<PresetColor, { name: string; palette: Record<string, string> }> = {
@@ -168,7 +167,6 @@ interface UIState {
   showCost: boolean
   settingsSection: SettingsSection
   workSection: WorkSection
-  scheduleSection: ScheduleSection
   automationSection: AutomationSection
 
   // Actions
@@ -188,7 +186,6 @@ interface UIState {
   setShowCost: (show: boolean) => void
   setSettingsSection: (section: SettingsSection) => void
   setWorkSection: (section: WorkSection) => void
-  setScheduleSection: (section: ScheduleSection) => void
   setAutomationSection: (section: AutomationSection) => void
 }
 
@@ -208,7 +205,6 @@ export const useUIStore = create<UIState>()(
       showCost: true,
       settingsSection: 'general',
       workSection: 'overview',
-      scheduleSection: 'all',
       automationSection: 'all',
 
       setTheme: (theme) => set({ theme }),
@@ -232,7 +228,6 @@ export const useUIStore = create<UIState>()(
       setShowCost: (showCost) => set({ showCost }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setWorkSection: (workSection) => set({ workSection }),
-      setScheduleSection: (scheduleSection) => set({ scheduleSection }),
       setAutomationSection: (automationSection) => set({ automationSection }),
     }),
     {

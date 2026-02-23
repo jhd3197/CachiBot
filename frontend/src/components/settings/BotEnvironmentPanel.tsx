@@ -36,6 +36,7 @@ const PROVIDER_KEYS = [
   { key: 'MOONSHOT_API_KEY', label: 'Moonshot', type: 'api_key' },
   { key: 'ZHIPU_API_KEY', label: 'ZAI (Zhipu)', type: 'api_key' },
   { key: 'MODELSCOPE_API_KEY', label: 'ModelScope', type: 'api_key' },
+  { key: 'CACHIBOT_API_KEY', label: 'CachiBot', type: 'api_key' },
   { key: 'STABILITY_API_KEY', label: 'Stability AI', type: 'api_key' },
   { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs', type: 'api_key' },
   { key: 'AZURE_API_KEY', label: 'Azure', type: 'api_key' },

@@ -1,6 +1,6 @@
 """Configuration endpoints."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from cachibot.api.auth import get_current_user
 from cachibot.config import Config
@@ -54,6 +54,7 @@ async def get_configuration(
             style=config.display.style,
         ),
         workspace_path=str(config.workspace_path),
+        timezone=config.timezone,
     )
 
 
@@ -79,5 +80,13 @@ async def update_configuration(
         config.display.show_thinking = update.show_thinking
     if update.show_cost is not None:
         config.display.show_cost = update.show_cost
+    if update.timezone is not None:
+        from zoneinfo import ZoneInfo
+
+        try:
+            ZoneInfo(update.timezone)
+        except (KeyError, Exception):
+            raise HTTPException(status_code=400, detail=f"Invalid timezone: {update.timezone}")
+        config.timezone = update.timezone
 
     return await get_configuration(request)

@@ -143,6 +143,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Start the scheduler service (polls for due schedules & reminders)
     scheduler = get_scheduler_service()
+    try:
+        from cachibot.config import Config
+
+        _config = Config.load(workspace=app.state.workspace)
+        scheduler.timezone = _config.timezone
+    except Exception:
+        pass
     await scheduler.start()
 
     # Start the job runner service (executes Work tasks as background Jobs)
