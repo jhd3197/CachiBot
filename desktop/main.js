@@ -652,6 +652,8 @@ app.whenReady().then(async () => {
   if (externalBackend) {
     // Dev mode: skip backend startup/wait, Vite proxy handles API calls
     console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
+    // Brief pause so the splash screen is visible
+    await new Promise((r) => setTimeout(r, 1500));
   } else {
     // Kill any orphaned server process from a previous crash
     await killStalePidFile();
