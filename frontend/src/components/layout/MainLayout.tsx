@@ -6,7 +6,6 @@ import { BotSidebar } from './BotSidebar'
 import {
   ChatView,
   RoomsView,
-  TasksView,
   ToolsView,
   SettingsView,
   DashboardView,
@@ -85,7 +84,6 @@ export function MainLayout() {
   const viewMap: Record<string, BotView> = {
     chats: 'chats',
     rooms: 'rooms',
-    tasks: 'tasks',
     work: 'work',
     automations: 'automations',
     voice: 'voice',
@@ -94,10 +92,14 @@ export function MainLayout() {
   }
   const botView = viewSegment ? viewMap[viewSegment] : null
 
-  // Redirect legacy /schedules URLs to /automations
+  // Redirect legacy URLs
   useEffect(() => {
     if (viewSegment === 'schedules' && urlBotId) {
       navigate(`/${urlBotId}/automations`, { replace: true })
+    }
+    if (viewSegment === 'tasks' && urlBotId) {
+      useUIStore.getState().setWorkSection('quick-tasks')
+      navigate(`/${urlBotId}/work`, { replace: true })
     }
   }, [viewSegment, urlBotId, navigate])
 
@@ -270,8 +272,6 @@ export function MainLayout() {
         return <ChatView />
       case 'rooms':
         return <RoomsView />
-      case 'tasks':
-        return <TasksView />
       case 'work':
         return <WorkView />
       case 'automations': {

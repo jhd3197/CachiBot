@@ -5,7 +5,7 @@ export type Theme = 'light' | 'dark' | 'system'
 export type PresetColor = 'green' | 'pink' | 'blue' | 'purple' | 'orange' | 'red' | 'cyan' | 'yellow' | 'teal' | 'indigo' | 'rose' | 'amber' | 'lime'
 export type AccentColor = PresetColor | 'custom'
 export type SettingsSection = 'general' | 'knowledge' | 'skills' | 'connections' | 'environment' | 'developer' | 'danger'
-export type WorkSection = 'overview' | 'active' | 'completed' | 'history'
+export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
 
 // Accent color palettes (Tailwind-style)
