@@ -5,7 +5,7 @@ Handles password hashing and JWT token management.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import bcrypt
@@ -69,7 +69,7 @@ class AuthService:
         extra_claims: dict[str, Any] | None = None,
     ) -> str:
         """Create a JWT access token."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expires = now + timedelta(minutes=self.config.access_token_expire_minutes)
 
         payload = {
@@ -91,7 +91,7 @@ class AuthService:
 
     def create_refresh_token(self, user_id: str) -> str:
         """Create a JWT refresh token."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expires = now + timedelta(days=self.config.refresh_token_expire_days)
 
         payload = {
@@ -155,7 +155,7 @@ class AuthService:
         """Get the expiry time of a token."""
         payload = self.decode_token_unverified(token)
         if payload and "exp" in payload:
-            return datetime.utcfromtimestamp(payload["exp"])
+            return datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
         return None
 
     # ===== Platform Launch Tokens (cloud mode) =====
@@ -172,7 +172,7 @@ class AuthService:
         if not self._platform_config or not self._platform_config.website_jwt_secret:
             raise ValueError("Platform JWT secret not configured")
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         payload = {
             "sub": email,
             "website_user_id": website_user_id,

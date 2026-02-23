@@ -248,10 +248,15 @@ export function useWebSocket() {
           const currentBot = useBotStore.getState().getActiveBot()
           const chatId = activeChatIdRef.current || pendingChatId
 
+          // Determine model from perModel breakdown (authoritative source from Prompture)
+          // Falls back to bot store model only when perModel is empty
+          const perModelKeys = Object.keys(payload.perModel || {})
+          const model = perModelKeys.length > 0 ? perModelKeys[0] : (currentBot?.model || 'unknown')
+
           // Record to dashboard usage stats
           useUsageStore.getState().recordUsage({
             botId: currentBotId || 'unknown',
-            model: currentBot?.model || 'unknown',
+            model,
             tokens: payload.totalTokens,
             cost: payload.totalCost,
           })
@@ -263,7 +268,7 @@ export function useWebSocket() {
               promptTokens: payload.promptTokens,
               completionTokens: payload.completionTokens,
               cost: payload.totalCost,
-              model: currentBot?.model,
+              model,
               iterations: payload.iterations,
               elapsedMs: payload.elapsedMs,
               tokensPerSecond: payload.tokensPerSecond,

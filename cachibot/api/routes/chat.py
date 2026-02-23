@@ -1,7 +1,7 @@
 """Chat endpoints."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
 
@@ -40,7 +40,7 @@ async def send_message(
             id=message_id,
             role=MessageRole.USER,
             content=chat_request.message,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
     )
 

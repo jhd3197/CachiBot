@@ -1,6 +1,6 @@
 """Automation system Pydantic models: Scripts, Versions, Execution Logs, Timeline."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -86,8 +86,8 @@ class Script(BaseModel):
     status: ScriptStatus = Field(default=ScriptStatus.DRAFT)
     current_version: int = Field(default=1)
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: str = Field(default="user")
     timeout_seconds: int = Field(default=300)
     max_memory_mb: int = Field(default=256)
@@ -111,7 +111,7 @@ class ScriptVersion(BaseModel):
     approved: bool = Field(default=False)
     approved_by: str | None = Field(default=None)
     approved_at: datetime | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # =============================================================================
@@ -125,7 +125,7 @@ class ExecutionLogLine(BaseModel):
     id: str = Field(description="Unique log line ID")
     execution_log_id: str = Field(description="Parent execution log")
     seq: int = Field(description="Sequence number for ordering")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     level: LogLevel = Field(default=LogLevel.INFO)
     content: str = Field(description="Log content")
     data: dict[str, Any] | None = Field(default=None)
@@ -143,7 +143,7 @@ class ExecutionLog(BaseModel):
     user_id: str | None = Field(default=None)
     chat_id: str | None = Field(default=None)
     trigger: TriggerType = Field(default=TriggerType.MANUAL)
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finished_at: datetime | None = Field(default=None)
     duration_ms: int | None = Field(default=None)
     status: ExecutionStatus = Field(default=ExecutionStatus.RUNNING)
@@ -176,7 +176,7 @@ class TimelineEvent(BaseModel):
     event_type: str = Field(
         description="Event: created, edited, version, execution, enabled, disabled, deleted"
     )
-    event_at: datetime = Field(default_factory=datetime.utcnow)
+    event_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     actor_type: str = Field(default="user")
     actor_id: str | None = Field(default=None)
     actor_name: str | None = Field(default=None)
@@ -214,7 +214,7 @@ class ExecutionDailySummary(BaseModel):
     total_credits: float = 0.0
     total_tokens: int = 0
     error_types: dict[str, int] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # =============================================================================

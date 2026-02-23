@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useBotStore, useChatStore, useJobStore, useTaskStore } from '../../stores/bots'
 import { useUsageStore } from '../../stores/connections'
+import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { cn } from '../../lib/utils'
 
@@ -25,21 +26,31 @@ export function DashboardView() {
   const { jobs } = useJobStore()
   const { tasks } = useTaskStore()
   const { stats } = useUsageStore()
+  const { rooms, messages: roomMessages } = useRoomStore()
 
-  // Calculate totals
-  const totalMessages = Object.values(messages).reduce((acc, msgs) => acc + msgs.length, 0)
+  // Calculate totals (include both regular chat and room messages)
+  const chatMessageCount = Object.values(messages).reduce((acc, msgs) => acc + msgs.length, 0)
+  const roomMessageCount = Object.values(roomMessages).reduce((acc, msgs) => acc + msgs.length, 0)
+  const totalMessages = chatMessageCount + roomMessageCount
   const activeJobs = jobs.filter((j) => j.status === 'running').length
   const completedTasks = tasks.filter((t) => t.status === 'done').length
   const pendingTasks = tasks.filter((t) => t.status === 'todo').length
   const totalChats = chats.length
+  const totalConnections = totalChats + rooms.length
 
   // Bot stats
   const botStats = bots.map((bot) => {
     const botChats = chats.filter((c) => c.botId === bot.id)
-    const botMessages = botChats.reduce(
+    const botChatMessages = botChats.reduce(
       (acc, chat) => acc + (messages[chat.id]?.length || 0),
       0
     )
+    // Count room messages where this bot is a sender
+    const botRoomMessages = Object.values(roomMessages).reduce(
+      (acc, msgs) => acc + msgs.filter((m) => m.senderId === bot.id).length,
+      0
+    )
+    const botRooms = rooms.filter((r) => r.bots.some((b) => b.botId === bot.id))
     const botJobs = jobs.filter((j) => j.botId === bot.id)
     const botTasks = tasks.filter((t) => t.botId === bot.id)
     const usage = stats.byBot[bot.id] || { tokens: 0, cost: 0, messages: 0 }
@@ -47,12 +58,12 @@ export function DashboardView() {
     return {
       bot,
       chats: botChats.length,
-      messages: botMessages,
+      messages: botChatMessages + botRoomMessages,
       jobs: botJobs.length,
       activeJobs: botJobs.filter((j) => j.status === 'running').length,
       tasks: botTasks.length,
       completedTasks: botTasks.filter((t) => t.status === 'done').length,
-      connections: botChats.length, // Use chats as connections
+      connections: botChats.length + botRooms.length,
       tokens: usage.tokens,
       cost: usage.cost,
     }
@@ -101,7 +112,7 @@ export function DashboardView() {
               icon={MessageSquare}
               label="Total Messages"
               value={totalMessages.toLocaleString()}
-              subValue={`${chats.length} chats`}
+              subValue={`${totalChats} chats · ${rooms.length} rooms`}
               color="blue"
             />
             <StatCard
@@ -141,8 +152,8 @@ export function DashboardView() {
             <StatCard
               icon={Plug}
               label="Connections"
-              value={totalChats}
-              subValue={`${bots.length} bots`}
+              value={totalConnections}
+              subValue={`${totalChats} chats · ${rooms.length} rooms`}
               color="cyan"
               small
             />

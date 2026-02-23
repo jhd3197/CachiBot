@@ -27,12 +27,24 @@ logger = logging.getLogger(__name__)
 # Mapping from provider name to the os.environ key used by global config
 _PROVIDER_ENV_KEYS: dict[str, str] = {name: info["env_key"] for name, info in PROVIDERS.items()}
 
+# Extra provider env vars beyond the primary API key.
+# Maps uppercase env var name → (provider, driver constructor kwarg name).
+_PROVIDER_EXTRA_ENV_KEYS: dict[str, tuple[str, str]] = {
+    "AZURE_API_ENDPOINT": ("azure", "endpoint"),
+    "AZURE_DEPLOYMENT_ID": ("azure", "deployment_id"),
+    "AZURE_CLAUDE_API_KEY": ("azure", "claude_api_key"),
+    "AZURE_CLAUDE_ENDPOINT": ("azure", "claude_endpoint"),
+    "AZURE_MISTRAL_API_KEY": ("azure", "mistral_api_key"),
+    "AZURE_MISTRAL_ENDPOINT": ("azure", "mistral_endpoint"),
+}
+
 
 @dataclass
 class ResolvedEnvironment:
     """The fully-resolved configuration for a specific bot + request."""
 
     provider_keys: dict[str, str] = field(default_factory=dict)
+    provider_extras: dict[str, dict[str, str]] = field(default_factory=dict)
     model: str = ""
     temperature: float = 0.6
     max_tokens: int = 4096
@@ -113,6 +125,13 @@ class BotEnvironmentService:
             value = os.environ.get(env_key)
             if value:
                 env.provider_keys[provider_name] = value
+                env.sources[env_key.lower()] = "global"
+
+        # Load provider extra config (endpoints, per-backend keys) from os.environ
+        for env_key, (provider, extra_name) in _PROVIDER_EXTRA_ENV_KEYS.items():
+            value = os.environ.get(env_key)
+            if value:
+                env.provider_extras.setdefault(provider, {})[extra_name] = value
                 env.sources[env_key.lower()] = "global"
 
         # Load agent defaults from config
@@ -211,8 +230,13 @@ class BotEnvironmentService:
         for key, value in overrides.items():
             upper_key = key.upper()
 
+            # Check if it's a provider extra (endpoint, backend-specific key)
+            if upper_key in _PROVIDER_EXTRA_ENV_KEYS:
+                provider, extra_name = _PROVIDER_EXTRA_ENV_KEYS[upper_key]
+                base.provider_extras.setdefault(provider, {})[extra_name] = value
+                base.sources[upper_key.lower()] = source
             # Check if it's a provider API key
-            if upper_key in env_key_to_provider:
+            elif upper_key in env_key_to_provider:
                 provider = env_key_to_provider[upper_key]
                 base.provider_keys[provider] = value
                 base.sources[upper_key.lower()] = source

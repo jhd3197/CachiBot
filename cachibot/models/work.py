@@ -1,6 +1,6 @@
 """Work management models: Functions, Schedules, Work, Tasks, Jobs, Todos."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -125,8 +125,8 @@ class BotFunction(BaseModel):
 
     # Metadata
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Stats
     run_count: int = Field(default=0)
@@ -171,8 +171,8 @@ class Schedule(BaseModel):
     catch_up: bool = Field(default=False, description="Run missed executions on startup")
 
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     next_run_at: datetime | None = Field(default=None)
     last_run_at: datetime | None = Field(default=None)
     run_count: int = Field(default=0)
@@ -206,7 +206,7 @@ class Work(BaseModel):
     progress: float = Field(default=0.0, ge=0.0, le=1.0, description="0.0-1.0 derived from tasks")
 
     # Timing
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
     due_at: datetime | None = Field(default=None)
@@ -254,7 +254,7 @@ class Task(BaseModel):
     timeout_seconds: int | None = Field(default=None)
 
     # Timing
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
 
@@ -283,7 +283,7 @@ class Job(BaseModel):
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
 
     # Timing
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
 
@@ -298,7 +298,7 @@ class Job(BaseModel):
 class JobLog(BaseModel):
     """A log entry for a job."""
 
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     level: str = Field(default="info", description="debug, info, warn, error")
     message: str = Field(description="Log message")
     data: Any | None = Field(default=None, description="Additional data")
@@ -325,7 +325,7 @@ class Todo(BaseModel):
     priority: Priority = Field(default=Priority.NORMAL)
 
     # Timing
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: datetime | None = Field(default=None)
     remind_at: datetime | None = Field(default=None, description="Optional reminder time")
 

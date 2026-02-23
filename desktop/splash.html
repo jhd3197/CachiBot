@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      height: 100vh;
+      background: #09090b;
+      color: #a1a1aa;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      overflow: hidden;
+      -webkit-app-region: drag;
+      user-select: none;
+      position: relative;
+    }
+
+    /* Subtle radial glow behind the icon */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%);
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      z-index: 1;
+    }
+
+    .icon {
+      width: 110px;
+      height: 110px;
+      margin-bottom: 8px;
+      animation: fadeIn 0.6s ease-out;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+    }
+
+    .app-name {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #e4e4e7;
+      animation: fadeIn 0.6s ease-out 0.15s both;
+    }
+
+    .version {
+      font-size: 11px;
+      font-weight: 500;
+      color: #52525b;
+      letter-spacing: 1px;
+      animation: fadeIn 0.6s ease-out 0.3s both;
+    }
+
+    /* Bottom section pinned to the bottom */
+    .bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0 32px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.6s ease-out 0.45s both;
+    }
+
+    /* Progress bar track */
+    .progress-track {
+      width: 100%;
+      height: 2px;
+      background: #18181b;
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    /* Indeterminate progress bar */
+    .progress-bar {
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, #10b981, transparent);
+      border-radius: 1px;
+      animation: progress 1.8s ease-in-out infinite;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: #52525b;
+      transition: opacity 0.3s ease;
+    }
+
+    .status-text.fade {
+      opacity: 0;
+    }
+
+    .tagline {
+      font-size: 10px;
+      color: #3f3f46;
+      letter-spacing: 0.5px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes progress {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <img class="icon" id="icon" alt="CachiBot">
+    <div class="app-name">CachiBot</div>
+    <div class="version" id="version"></div>
+  </div>
+
+  <div class="bottom">
+    <div class="progress-track">
+      <div class="progress-bar"></div>
+    </div>
+    <div class="status-row">
+      <span class="status-text" id="status">Initializing...</span>
+      <span class="tagline">The armored agent</span>
+    </div>
+  </div>
+
+  <script>
+    // Read query params passed from main process
+    const params = new URLSearchParams(window.location.search);
+    const iconPath = params.get('icon');
+    const version = params.get('version');
+
+    if (iconPath) document.getElementById('icon').src = iconPath;
+    if (version) document.getElementById('version').textContent = 'v' + version;
+
+    // Cycle through status messages
+    const messages = [
+      'Initializing...',
+      'Starting backend server...',
+      'Loading security modules...',
+      'Preparing workspace...',
+      'Almost ready...',
+    ];
+
+    let index = 0;
+    const statusEl = document.getElementById('status');
+
+    setInterval(() => {
+      statusEl.classList.add('fade');
+      setTimeout(() => {
+        index = (index + 1) % messages.length;
+        statusEl.textContent = messages[index];
+        statusEl.classList.remove('fade');
+      }, 300);
+    }, 3000);
+  </script>
+</body>
+</html>

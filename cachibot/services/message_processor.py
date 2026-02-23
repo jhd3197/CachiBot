@@ -8,7 +8,7 @@ import copy
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from prompture.exceptions import BudgetExceededError
@@ -284,7 +284,7 @@ class MessageProcessor:
             chat_id=chat_id,
             role="user",
             content=message,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata=metadata,
         )
         await self._knowledge_repo.save_bot_message(user_msg)
@@ -411,6 +411,10 @@ class MessageProcessor:
 
             # Save assistant response to history with usage metadata
             assistant_msg_id = str(uuid.uuid4())
+            # Use per_model keys from Prompture for the actual model used,
+            # falling back to effective_model (resolved from bot config + app default)
+            per_model = run_usage.get("per_model", {})
+            actual_model = next(iter(per_model)) if per_model else effective_model or bot.model
             usage_metadata: dict[str, Any] = {
                 "tokens": run_usage.get("total_tokens", 0),
                 "promptTokens": run_usage.get("prompt_tokens", 0),
@@ -420,7 +424,7 @@ class MessageProcessor:
                 "tokensPerSecond": run_usage.get("tokens_per_second", 0.0),
                 "callCount": run_usage.get("call_count", 0),
                 "errors": run_usage.get("errors", 0),
-                "model": bot.model,
+                "model": actual_model,
                 "platform": platform,
             }
             if tool_calls:
@@ -432,7 +436,7 @@ class MessageProcessor:
                 chat_id=chat_id,
                 role="assistant",
                 content=response_text,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 metadata=usage_metadata,
             )
             await self._knowledge_repo.save_bot_message(assistant_msg)
