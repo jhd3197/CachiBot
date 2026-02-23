@@ -414,9 +414,7 @@ class MessageProcessor:
             # Use per_model keys from Prompture for the actual model used,
             # falling back to effective_model (resolved from bot config + app default)
             per_model = run_usage.get("per_model", {})
-            actual_model = (
-                next(iter(per_model)) if per_model else effective_model or bot.model
-            )
+            actual_model = next(iter(per_model)) if per_model else effective_model or bot.model
             usage_metadata: dict[str, Any] = {
                 "tokens": run_usage.get("total_tokens", 0),
                 "promptTokens": run_usage.get("prompt_tokens", 0),
