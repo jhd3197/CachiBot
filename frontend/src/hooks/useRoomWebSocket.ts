@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { RoomWebSocketClient } from '../api/room-websocket'
 import { useRoomStore } from '../stores/rooms'
+import { useUsageStore } from '../stores/connections'
 import { useAuthStore } from '../stores/auth'
 import type { RoomMessage, RoomWSMessage, ToolCall } from '../types'
 
@@ -257,11 +258,25 @@ export function useRoomWebSocket(roomId: string | null) {
         case 'room_usage': {
           const botId = p.botId as string
           const msgId = (p.messageId as string) || lastBotMessageIdRef.current[botId]
+          const tokens = ((p.totalTokens ?? p.tokens) as number) || 0
+          const cost = ((p.totalCost ?? p.cost) as number) || 0
+          const model = (p.model as string) || 'unknown'
+
+          // Record to dashboard usage stats (same as regular chat WebSocket)
+          if (tokens > 0 || cost > 0) {
+            useUsageStore.getState().recordUsage({
+              botId,
+              model,
+              tokens,
+              cost,
+            })
+          }
+
           if (msgId) {
             updateMessageMetadata(roomId, msgId, {
-              model: p.model,
-              tokens: p.totalTokens ?? p.tokens,
-              cost: p.totalCost ?? p.cost,
+              model,
+              tokens,
+              cost,
               promptTokens: p.promptTokens,
               completionTokens: p.completionTokens,
               elapsedMs: p.elapsedMs,
