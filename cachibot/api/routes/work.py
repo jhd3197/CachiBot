@@ -5,7 +5,7 @@ Endpoints for managing work, tasks, jobs, todos, functions, and schedules.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -589,7 +589,7 @@ async def create_function(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> FunctionResponse:
     """Create a new function."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     fn = BotFunction(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -684,7 +684,7 @@ async def update_function(
             for p in request.parameters
         ]
 
-    fn.updated_at = datetime.utcnow()
+    fn.updated_at = datetime.now(timezone.utc)
     await function_repo.update(fn)
     return FunctionResponse.from_function(fn)
 
@@ -714,7 +714,7 @@ async def run_function(
     if fn is None or fn.bot_id != bot_id:
         raise HTTPException(status_code=404, detail="Function not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     work_id = str(uuid.uuid4())
 
     # Create work from function
@@ -787,7 +787,7 @@ async def create_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Create a new schedule."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     schedule = Schedule(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -861,7 +861,7 @@ async def update_schedule(
     if request.catchUp is not None:
         schedule.catch_up = request.catchUp
 
-    schedule.updated_at = datetime.utcnow()
+    schedule.updated_at = datetime.now(timezone.utc)
     await schedule_repo.update(schedule)
     return ScheduleResponse.from_schedule(schedule)
 
@@ -945,7 +945,7 @@ async def create_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> WorkResponse:
     """Create new work."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     work_id = str(uuid.uuid4())
 
     work = Work(
@@ -1086,7 +1086,7 @@ async def complete_work(
         raise HTTPException(status_code=404, detail="Work not found")
 
     work.status = WorkStatus.COMPLETED
-    work.completed_at = datetime.utcnow()
+    work.completed_at = datetime.now(timezone.utc)
     work.progress = 1.0
     if result:
         work.result = result
@@ -1212,7 +1212,7 @@ async def create_task(
         existing_tasks = await task_repo.get_by_work(work_id)
         order = max((t.order for t in existing_tasks), default=0) + 1
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     task = Task(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -1302,7 +1302,7 @@ async def start_task(
     attempt = len(existing_jobs) + 1
 
     # Create job
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     job = Job(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -1530,7 +1530,7 @@ async def create_todo(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TodoResponse:
     """Create a new todo."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     todo = Todo(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -1637,7 +1637,7 @@ async def convert_todo_to_work(
     if todo is None or todo.bot_id != bot_id:
         raise HTTPException(status_code=404, detail="Todo not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     work = Work(
         id=str(uuid.uuid4()),
         bot_id=bot_id,

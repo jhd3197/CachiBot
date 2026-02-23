@@ -7,7 +7,7 @@ Endpoints for uploading, listing, and deleting bot documents.
 import hashlib
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
@@ -140,7 +140,7 @@ async def upload_document(
         file_size=len(content),
         chunk_count=0,
         status=DocumentStatus.PROCESSING,
-        uploaded_at=datetime.utcnow(),
+        uploaded_at=datetime.now(timezone.utc),
     )
     await repo.save_document(doc)
 

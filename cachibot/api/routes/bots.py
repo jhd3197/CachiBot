@@ -5,7 +5,7 @@ CRUD endpoints for syncing bot configuration from frontend.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -364,7 +364,7 @@ async def export_bot(
 
     return BotExportFormat(
         version="1.0",
-        exportedAt=datetime.utcnow().isoformat() + "Z",
+        exportedAt=datetime.now(timezone.utc).isoformat(),
         bot={
             "name": bot.name,
             "description": bot.description,
@@ -412,7 +412,7 @@ async def import_bot(
     import uuid
 
     new_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Create the bot
     bot = Bot(

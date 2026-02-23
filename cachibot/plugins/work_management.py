@@ -97,7 +97,7 @@ class WorkManagementPlugin(CachibotPlugin):
             """
             import json
             import uuid
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             from cachibot.models.work import Priority, Task, TaskStatus, Work, WorkStatus
             from cachibot.storage.work_repository import TaskRepository, WorkRepository
@@ -119,7 +119,7 @@ class WorkManagementPlugin(CachibotPlugin):
                     priority=Priority(priority) if priority else Priority.NORMAL,
                     status=WorkStatus.PENDING,
                     progress=0.0,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     context={},
                     tags=[],
                 )
@@ -139,7 +139,7 @@ class WorkManagementPlugin(CachibotPlugin):
                             priority=Priority.NORMAL,
                             retry_count=0,
                             max_retries=3,
-                            created_at=datetime.utcnow(),
+                            created_at=datetime.now(timezone.utc),
                         )
                         await task_repo.save(task)
                         created_tasks.append({"id": task.id, "title": task.title})
@@ -339,7 +339,7 @@ class WorkManagementPlugin(CachibotPlugin):
             import json
             import re
             import uuid
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             from cachibot.models.work import Priority, Todo, TodoStatus
             from cachibot.storage.work_repository import TodoRepository
@@ -361,7 +361,7 @@ class WorkManagementPlugin(CachibotPlugin):
                         if time_match:
                             h, m = int(time_match.group(1)), int(time_match.group(2))
                             s = int(time_match.group(3)) if time_match.group(3) else 0
-                            now = datetime.utcnow()
+                            now = datetime.now(timezone.utc)
                             remind_datetime = now.replace(hour=h, minute=m, second=s, microsecond=0)
                             if remind_datetime <= now:
                                 # Time already passed today, schedule for tomorrow
@@ -384,7 +384,7 @@ class WorkManagementPlugin(CachibotPlugin):
                     notes=notes or None,
                     status=TodoStatus.OPEN,
                     priority=Priority(priority) if priority else Priority.NORMAL,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     remind_at=remind_datetime,
                     tags=[],
                 )
@@ -569,7 +569,7 @@ class WorkManagementPlugin(CachibotPlugin):
             import json
             import re
             import uuid
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
 
             from cachibot.models.work import Schedule, ScheduleType
             from cachibot.storage.work_repository import ScheduleRepository
@@ -589,7 +589,7 @@ class WorkManagementPlugin(CachibotPlugin):
                     if time_match:
                         h, m = int(time_match.group(1)), int(time_match.group(2))
                         s = int(time_match.group(3)) if time_match.group(3) else 0
-                        now = datetime.utcnow()
+                        now = datetime.now(timezone.utc)
                         run_at_dt = now.replace(hour=h, minute=m, second=s, microsecond=0)
                         if run_at_dt <= now:
                             run_at_dt += timedelta(days=1)
@@ -606,13 +606,13 @@ class WorkManagementPlugin(CachibotPlugin):
                 if interval_seconds < 60:
                     return "Error: Minimum interval is 60 seconds"
                 run_at_dt = None
-                next_run_at = datetime.utcnow() + timedelta(seconds=interval_seconds)
+                next_run_at = datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)
             elif cron_expression:
                 schedule_type = ScheduleType.CRON
                 try:
                     from croniter import croniter
 
-                    cron = croniter(cron_expression, datetime.utcnow())
+                    cron = croniter(cron_expression, datetime.now(timezone.utc))
                     next_run_at = cron.get_next(datetime)
                 except (ValueError, KeyError) as e:
                     return f"Error: Invalid cron expression: {e}"
@@ -622,7 +622,7 @@ class WorkManagementPlugin(CachibotPlugin):
 
             try:
                 schedule_repo = ScheduleRepository()
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 schedule = Schedule(
                     id=str(uuid.uuid4()),
                     bot_id=bot_id,
