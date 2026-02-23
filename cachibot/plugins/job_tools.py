@@ -76,7 +76,7 @@ class JobToolsPlugin(CachibotPlugin):
             """
             import json
             import uuid
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             from cachibot.models.work import Priority, Task, TaskStatus, Work, WorkStatus
             from cachibot.storage.work_repository import TaskRepository, WorkRepository
@@ -99,7 +99,7 @@ class JobToolsPlugin(CachibotPlugin):
                     priority=Priority(priority) if priority else Priority.NORMAL,
                     status=WorkStatus.PENDING,
                     progress=0.0,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     context={},
                     tags=["job"],
                 )
@@ -119,7 +119,7 @@ class JobToolsPlugin(CachibotPlugin):
                             priority=Priority.NORMAL,
                             retry_count=0,
                             max_retries=3,
-                            created_at=datetime.utcnow(),
+                            created_at=datetime.now(timezone.utc),
                         )
                         await task_repo.save(task)
                         created_tasks.append({"id": task.id, "title": task.title})

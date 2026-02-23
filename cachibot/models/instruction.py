@@ -1,6 +1,6 @@
 """Pydantic models for custom instructions."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -26,8 +26,8 @@ class InstructionModel(BaseModel):
     is_active: bool = True
     category: str = "custom"
     tags: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class InstructionVersionModel(BaseModel):
@@ -46,7 +46,7 @@ class InstructionVersionModel(BaseModel):
     few_shot_examples: list[dict[str, Any]] | None = None
     author: str
     commit_message: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class CreateInstructionRequest(BaseModel):

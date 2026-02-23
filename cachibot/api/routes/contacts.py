@@ -5,7 +5,7 @@ CRUD endpoints for managing bot contacts.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -79,7 +79,7 @@ async def create_contact(
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Contact name is required")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     contact = Contact(
         id=str(uuid.uuid4()),
         bot_id=bot_id,
@@ -122,7 +122,7 @@ async def update_contact(
 
     contact.name = body.name.strip()
     contact.details = body.details
-    contact.updated_at = datetime.utcnow()
+    contact.updated_at = datetime.now(timezone.utc)
 
     await repo.update_contact(contact)
     return ContactResponse.from_contact(contact)

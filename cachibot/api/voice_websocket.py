@@ -10,7 +10,7 @@ import copy
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
@@ -96,7 +96,7 @@ async def _run_voice_pipeline(
             chat_id=session.chat_id,
             role="user",
             content=transcript_text,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata={"source": "voice"},
         )
         await repo.save_bot_message(user_msg)
@@ -210,7 +210,7 @@ async def _run_voice_pipeline(
             chat_id=session.chat_id,
             role="assistant",
             content=response_text,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata={"source": "voice"},
         )
         await repo.save_bot_message(assistant_msg)

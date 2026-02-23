@@ -7,7 +7,7 @@ import asyncio
 import copy
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -244,7 +244,7 @@ async def room_websocket_endpoint(
                     sender_id=user.id,
                     sender_name=user.username,
                     content=message_text,
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                 )
                 await msg_repo.save_message(user_msg)
 
@@ -1183,7 +1183,7 @@ async def run_room_bot(
                                 "id": event.data.get("id", ""),
                                 "tool": event.data["name"],
                                 "args": event.data.get("arguments", {}),
-                                "startTime": int(datetime.utcnow().timestamp() * 1000),
+                                "startTime": int(datetime.now(timezone.utc).timestamp() * 1000),
                             }
                         )
                         await room_manager.send_to_room(
@@ -1205,7 +1205,7 @@ async def run_room_bot(
                             if tc["id"] == tool_id:
                                 tc["result"] = str(event.data.get("result", ""))
                                 tc["success"] = event.data.get("success", True)
-                                tc["endTime"] = int(datetime.utcnow().timestamp() * 1000)
+                                tc["endTime"] = int(datetime.now(timezone.utc).timestamp() * 1000)
                                 break
                         await room_manager.send_to_room(
                             room_id,
@@ -1235,7 +1235,7 @@ async def run_room_bot(
                 sender_name=bot.name,
                 content=full_response,
                 metadata=metadata,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
             await msg_repo.save_message(bot_msg)
 

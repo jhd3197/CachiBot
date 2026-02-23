@@ -39,7 +39,14 @@ PROVIDERS: dict[str, dict[str, Any]] = {
     "azure": {
         "env_key": "AZURE_API_KEY",
         "type": "api_key",
-        "extra_keys": ["AZURE_API_ENDPOINT", "AZURE_DEPLOYMENT_ID"],
+        "extra_keys": [
+            "AZURE_API_ENDPOINT",
+            "AZURE_DEPLOYMENT_ID",
+            "AZURE_CLAUDE_API_KEY",
+            "AZURE_CLAUDE_ENDPOINT",
+            "AZURE_MISTRAL_API_KEY",
+            "AZURE_MISTRAL_ENDPOINT",
+        ],
     },
     "ollama": {
         "env_key": "OLLAMA_ENDPOINT",

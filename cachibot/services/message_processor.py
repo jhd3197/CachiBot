@@ -8,7 +8,7 @@ import copy
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from prompture.exceptions import BudgetExceededError
@@ -284,7 +284,7 @@ class MessageProcessor:
             chat_id=chat_id,
             role="user",
             content=message,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             metadata=metadata,
         )
         await self._knowledge_repo.save_bot_message(user_msg)
@@ -432,7 +432,7 @@ class MessageProcessor:
                 chat_id=chat_id,
                 role="assistant",
                 content=response_text,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 metadata=usage_metadata,
             )
             await self._knowledge_repo.save_bot_message(assistant_msg)
