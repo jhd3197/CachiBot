@@ -284,6 +284,13 @@ export function ModelSelect({
                           {items.map((m) => {
                             const isSelected = value === m.id
                             const ctx = formatTokens(m.context_window)
+                            const modIn = m.modalities_input ?? []
+                            const modOut = m.modalities_output ?? []
+                            const hasVision = modIn.includes('image') || m.supports_vision
+                            const hasAudioIn = modIn.includes('audio')
+                            const hasVideoIn = modIn.includes('video')
+                            const hasImgGen = modOut.includes('image') || m.supports_image_generation
+                            const hasAudioOut = modOut.includes('audio') || m.supports_audio
                             return (
                               <button
                                 key={m.id}
@@ -306,9 +313,34 @@ export function ModelSelect({
                                       {ctx}
                                     </span>
                                   )}
-                                  {m.supports_vision && (
+                                  {hasVision && (
                                     <span className="model-select__badge model-select__badge--vision">
                                       vision
+                                    </span>
+                                  )}
+                                  {hasAudioIn && (
+                                    <span className="model-select__badge model-select__badge--audio-in">
+                                      audio
+                                    </span>
+                                  )}
+                                  {hasVideoIn && (
+                                    <span className="model-select__badge model-select__badge--video">
+                                      video
+                                    </span>
+                                  )}
+                                  {hasImgGen && (
+                                    <span className="model-select__badge model-select__badge--img-gen">
+                                      img gen
+                                    </span>
+                                  )}
+                                  {hasAudioOut && (
+                                    <span className="model-select__badge model-select__badge--audio-out">
+                                      tts
+                                    </span>
+                                  )}
+                                  {m.supports_tool_use && (
+                                    <span className="model-select__badge model-select__badge--tools">
+                                      tools
                                     </span>
                                   )}
                                   {m.is_reasoning && (
