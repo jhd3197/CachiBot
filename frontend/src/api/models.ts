@@ -18,6 +18,8 @@ export interface ModelInfo {
   supports_image_generation: boolean
   supports_audio: boolean
   is_reasoning: boolean
+  modalities_input: string[]
+  modalities_output: string[]
   pricing: {
     input: number | null
     output: number | null

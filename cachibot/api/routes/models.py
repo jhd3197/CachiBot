@@ -36,6 +36,8 @@ class ModelInfo(BaseModel):
     supports_image_generation: bool = Field(default=False, description="Supports image generation")
     supports_audio: bool = Field(default=False, description="Supports audio (TTS/STT)")
     is_reasoning: bool = Field(default=False, description="Is a reasoning model")
+    modalities_input: list[str] = Field(default_factory=list, description="Input modalities")
+    modalities_output: list[str] = Field(default_factory=list, description="Output modalities")
     pricing: dict[str, Any] | None = Field(default=None, description="Pricing per 1M tokens")
 
 
@@ -167,6 +169,8 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
             supports_image_generation=is_image_gen,
             supports_audio=is_audio,
             is_reasoning=bool(caps.get("is_reasoning")),
+            modalities_input=list(caps.get("modalities_input") or ()),
+            modalities_output=list(caps.get("modalities_output") or ()),
             pricing=pricing,
         )
 
