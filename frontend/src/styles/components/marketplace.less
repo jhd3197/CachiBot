@@ -254,6 +254,7 @@
 
 .bot-card {
   .flex-col();
+  min-width: 0;
   border-radius: @radius-xl;
   border: 1px solid var(--color-border-primary);
   background: var(--color-bg-secondary);
@@ -271,6 +272,7 @@
     display: flex;
     align-items: flex-start;
     gap: @sp-3;
+    min-width: 0;
   }
 
   &__icon {
@@ -289,7 +291,6 @@
   &__title {
     font-weight: @font-semibold;
     color: var(--color-text-primary);
-    .truncate();
   }
 
   &__author {
@@ -307,9 +308,11 @@
 
   &__tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: @sp-1;
-    margin-top: @sp-3;
+    margin: @sp-3 0;
+    overflow: hidden;
   }
 
   &__tag {
@@ -318,6 +321,8 @@
     padding: @sp-0-5 @sp-2;
     font-size: 10px;
     color: var(--color-text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
 
     .dark & {
       background: @zinc-800;
@@ -327,13 +332,15 @@
   &__overflow {
     font-size: 10px;
     color: var(--color-text-tertiary);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   &__footer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: @sp-4;
+    gap: @sp-4;
+    margin-top: auto;
     padding-top: @sp-3;
     border-top: 1px solid var(--color-border-primary);
   }

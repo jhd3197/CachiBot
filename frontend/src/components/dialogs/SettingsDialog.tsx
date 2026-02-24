@@ -17,6 +17,7 @@ import {
   Briefcase,
   Image,
   AudioLines,
+  Cpu,
   Sparkles,
 } from 'lucide-react'
 import { Button } from '../common/Button'
@@ -196,6 +197,7 @@ const CAPABILITY_META: Record<string, { label: string; description: string; icon
   workManagement: { label: 'Work Management', description: 'Create and manage work items, tasks, and background jobs', icon: Briefcase },
   imageGeneration: { label: 'Image Generation', description: 'Generate images via DALL-E, Imagen, Stability AI', icon: Image },
   audioGeneration: { label: 'Audio Generation', description: 'Text-to-speech and speech-to-text via OpenAI, ElevenLabs', icon: AudioLines },
+  codingAgent: { label: 'Coding Agents', description: 'Spawn Claude Code, Codex, or Gemini CLI to autonomously write code', icon: Cpu },
 }
 
 function PlatformToolsTab() {

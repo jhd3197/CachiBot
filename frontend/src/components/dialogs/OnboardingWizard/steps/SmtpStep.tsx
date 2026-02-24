@@ -100,69 +100,61 @@ export function SmtpStep() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Email Configuration</h3>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-          Configure SMTP to enable email notifications and alerts.{' '}
-          <span className="text-[var(--color-text-secondary)]">This step is optional — you can set it up later.</span>
-        </p>
-      </div>
-
-      <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 dark:border-[var(--color-border-primary)] dark:bg-[var(--card-bg)] p-4">
+      <div className="space-y-3 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)] p-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">SMTP Host</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">SMTP Host</label>
             <input
               type="text"
               value={host}
               onChange={(e) => { setHost(e.target.value); markDirty() }}
               placeholder="smtp.gmail.com"
-              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Port</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">Port</label>
             <input
               type="text"
               value={port}
               onChange={(e) => { setPort(e.target.value); markDirty() }}
               placeholder="587"
-              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Username</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => { setUsername(e.target.value); markDirty() }}
               placeholder="user@example.com"
-              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">Password</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); markDirty() }}
               placeholder="••••••••"
-              className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+              className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">From Address</label>
+          <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">From Address</label>
           <input
             type="email"
             value={fromAddress}
             onChange={(e) => { setFromAddress(e.target.value); markDirty() }}
             placeholder="noreply@example.com"
-            className="h-9 w-full rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+            className="h-9 w-full rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
           />
         </div>
 
@@ -171,7 +163,7 @@ export function SmtpStep() {
             onClick={() => { setUseTls(!useTls); markDirty() }}
             className={cn(
               'relative h-5 w-9 rounded-full transition-colors',
-              useTls ? 'bg-accent-600' : 'bg-zinc-300 dark:bg-zinc-600'
+              useTls ? 'bg-accent-600' : 'bg-zinc-300 dark:bg-zinc-700'
             )}
           >
             <span
@@ -181,12 +173,12 @@ export function SmtpStep() {
               )}
             />
           </button>
-          <span className="text-sm text-zinc-700 dark:text-[var(--color-text-primary)]">Use TLS</span>
+          <span className="text-sm text-[var(--color-text-primary)]">Use TLS</span>
         </div>
 
         {/* Send test email */}
-        <div className="border-t border-zinc-300 dark:border-[var(--color-border-secondary)] pt-3">
-          <label className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+        <div className="border-t border-[var(--color-border-secondary)] pt-3">
+          <label className="mb-1 block text-xs font-medium text-[var(--label-text)]">
             Send Test Email To <span className="text-[var(--color-text-tertiary)]">(optional)</span>
           </label>
           <div className="flex gap-2">
@@ -195,7 +187,7 @@ export function SmtpStep() {
               value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
               placeholder="you@example.com"
-              className="h-9 flex-1 rounded-lg border border-zinc-300 bg-white dark:border-[var(--color-border-secondary)] dark:bg-[var(--color-bg-secondary)] px-3 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-accent-500"
+              className="h-9 flex-1 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
             />
           </div>
         </div>
@@ -205,8 +197,8 @@ export function SmtpStep() {
           <div className={cn(
             'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
             testResult.success
-              ? 'bg-green-500/10 text-green-400'
-              : 'bg-red-500/10 text-red-400'
+              ? 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]'
+              : 'bg-[var(--color-danger-bg)] text-[var(--color-danger-text)]'
           )}>
             {testResult.success ? (
               <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -219,7 +211,7 @@ export function SmtpStep() {
 
         {/* Dirty warning */}
         {dirty && hasFormValues && (
-          <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+          <div className="flex items-center gap-2 rounded-lg bg-[var(--color-warning-bg)] px-3 py-2 text-xs text-[var(--color-warning-text)]">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>Unsaved changes — test and save before continuing.</span>
           </div>
@@ -229,7 +221,7 @@ export function SmtpStep() {
           <button
             onClick={handleTest}
             disabled={testing || !host}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)] transition-colors hover:bg-zinc-200 dark:hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-secondary)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {testing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -251,7 +243,7 @@ export function SmtpStep() {
 
       {/* Configured indicator */}
       {smtpConfigured && !dirty && (
-        <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-400">
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--color-success-bg)] px-3 py-2 text-sm text-[var(--color-success-text)]">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>SMTP configured successfully</span>
         </div>

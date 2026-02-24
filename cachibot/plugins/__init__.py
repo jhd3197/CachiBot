@@ -21,6 +21,7 @@ from tukuy.plugins.web import WebPlugin
 
 from cachibot.plugins.audio_generation import AudioGenerationPlugin
 from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.coding_agent import CodingAgentPlugin
 from cachibot.plugins.file_ops import FileOpsPlugin
 from cachibot.plugins.image_generation import ImageGenerationPlugin
 from cachibot.plugins.instruction_management import InstructionManagementPlugin
@@ -45,6 +46,7 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     "job_tools": JobToolsPlugin,
     "image_generation": ImageGenerationPlugin,
     "audio_generation": AudioGenerationPlugin,
+    "coding_agent": CodingAgentPlugin,
     # Tukuy built-in plugins (scoped via SecurityContext)
     "git": GitPlugin,
     "shell": ShellPlugin,
@@ -63,6 +65,7 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
 __all__ = [
     "AudioGenerationPlugin",
     "CachibotPlugin",
+    "CodingAgentPlugin",
     "PluginContext",
     "CACHIBOT_PLUGINS",
     "KnowledgePlugin",

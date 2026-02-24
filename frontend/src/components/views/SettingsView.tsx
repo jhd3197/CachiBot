@@ -529,6 +529,17 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
               )}
             </div>
           )}
+
+          {/* Coding Agent toggle (hidden if globally disabled) */}
+          {!isCapabilityDisabled('codingAgent') && (
+            <CapabilityToggle
+              icon={<Cpu className="h-4 w-4" />}
+              label="Coding Agents"
+              description="Spawn Claude Code, Codex, or Gemini CLI to autonomously write code"
+              enabled={!!activeBot?.capabilities?.codingAgent}
+              onToggle={(v) => toggleCapability('codingAgent', v)}
+            />
+          )}
         </div>
       </div>
 

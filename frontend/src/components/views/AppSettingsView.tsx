@@ -916,7 +916,16 @@ function formatModelPrice(rate: number | null) {
 }
 
 function ModelsSettings() {
-  const { groups, defaultModel, loading, updateDefaultModel, refresh } = useModelsStore()
+  const {
+    groups,
+    embeddingGroups,
+    defaultModel,
+    defaultEmbeddingModel,
+    loading,
+    updateDefaultModel,
+    updateDefaultEmbeddingModel,
+    refresh,
+  } = useModelsStore()
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
@@ -927,6 +936,13 @@ function ModelsSettings() {
   const handleDefaultModelChange = async (model: string) => {
     if (model) {
       await updateDefaultModel(model)
+    }
+  }
+
+  const handleEmbeddingModelChange = async (model: string) => {
+    if (model) {
+      await updateDefaultEmbeddingModel(model)
+      toast.success('Embedding model updated')
     }
   }
 
@@ -970,6 +986,25 @@ function ModelsSettings() {
         </div>
       </Section>
 
+      {/* Embedding model */}
+      <Section icon={Database} title="Embedding Model">
+        <div className="space-y-4">
+          <Field label="Document Embedding Model">
+            <ModelSelect
+              value={defaultEmbeddingModel}
+              onChange={handleEmbeddingModelChange}
+              placeholder="Select embedding model..."
+              className="w-full"
+              groups={embeddingGroups}
+              filter={(m) => m.supports_embedding}
+            />
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+              Used for knowledge base document indexing and retrieval. Changing this model requires re-indexing existing documents.
+            </p>
+          </Field>
+        </div>
+      </Section>
+
       {/* Available models - collapsible providers */}
       <Section icon={Brain} title="Available Models">
         <div className="space-y-3">
@@ -981,7 +1016,7 @@ function ModelsSettings() {
               placeholder="Search models..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="settings-input w-full pl-10 pr-8"
+              className="settings-input settings-input--search w-full"
             />
             {search && (
               <button

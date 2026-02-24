@@ -10,6 +10,7 @@ from cachibot.models.config import (
     ConfigResponse,
     ConfigUpdate,
     DisplayConfigResponse,
+    KnowledgeConfigResponse,
     SandboxConfigResponse,
 )
 
@@ -53,6 +54,9 @@ async def get_configuration(
             show_cost=config.display.show_cost,
             style=config.display.style,
         ),
+        knowledge=KnowledgeConfigResponse(
+            embedding_model=config.knowledge.embedding_model,
+        ),
         workspace_path=str(config.workspace_path),
         timezone=config.timezone,
     )
@@ -80,6 +84,12 @@ async def update_configuration(
         config.display.show_thinking = update.show_thinking
     if update.show_cost is not None:
         config.display.show_cost = update.show_cost
+    if update.embedding_model is not None:
+        config.knowledge.embedding_model = update.embedding_model
+        # Reset vector store singleton so it picks up the new model
+        import cachibot.services.vector_store as vs_module
+
+        vs_module._vector_store = None
     if update.timezone is not None:
         from zoneinfo import ZoneInfo
 

@@ -212,6 +212,7 @@ export interface BotCapabilities {
   workManagement: boolean     // work_create, work_list, work_update, todo_create, todo_list, todo_done
   imageGeneration: boolean    // generate_image (DALL-E, Imagen, Stability AI)
   audioGeneration: boolean    // generate_audio, transcribe_audio (TTS/STT)
+  codingAgent: boolean        // coding_agent (Claude Code, Codex, Gemini CLI)
 }
 
 export interface Bot {
