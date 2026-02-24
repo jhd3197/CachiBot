@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api/api_client.dart';
@@ -39,4 +41,19 @@ final wsServiceProvider = Provider<WebSocketService>((ref) {
 
   ref.onDispose(() => service.dispose());
   return service;
+});
+
+/// Exposes the WebSocket connection state as a provider.
+final wsConnectionProvider = StateProvider<bool>((ref) {
+  final ws = ref.watch(wsServiceProvider);
+  final isConnected = ws.isConnected;
+
+  // Listen for connection state changes
+  late final StreamSubscription<bool> sub;
+  sub = ws.connectionState.listen((connected) {
+    ref.controller.state = connected;
+  });
+  ref.onDispose(() => sub.cancel());
+
+  return isConnected;
 });

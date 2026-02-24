@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
+import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/settings/settings_screen.dart';
@@ -38,6 +39,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/bot/:botId',
+            builder: (context, state) => ChatListScreen(
+              botId: state.pathParameters['botId']!,
+            ),
           ),
           GoRoute(
             path: '/chat/:botId',

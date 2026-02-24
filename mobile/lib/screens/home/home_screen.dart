@@ -164,7 +164,7 @@ class _BotCard extends StatelessWidget {
           Icons.chevron_right,
           color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
         ),
-        onTap: () => context.go('/chat/${bot.id}'),
+        onTap: () => context.go('/bot/${bot.id}'),
       ),
     );
   }

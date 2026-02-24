@@ -618,6 +618,35 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   ))}
                 </select>
               </div>
+              <div className="settings-coding-agents__default">
+                <label className="text-xs text-[var(--color-text-secondary)]">Timeout per task</label>
+                <select
+                  value={
+                    (activeBot?.toolConfigs?.coding_agent?.timeoutSeconds as number)
+                    || 600
+                  }
+                  onChange={(e) => {
+                    if (!activeBot) return
+                    const current = activeBot.toolConfigs || {}
+                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), timeoutSeconds: Number(e.target.value) } }
+                    updateBot(activeBot.id, { toolConfigs: toolCfg })
+                  }}
+                  className="settings-coding-agents__select"
+                >
+                  {/* Seconds: 10s steps up to 60s */}
+                  {[10, 20, 30, 40, 50, 60].map((s) => (
+                    <option key={s} value={s}>{s}s</option>
+                  ))}
+                  {/* Minutes: 2–60 min */}
+                  {[2, 3, 5, 10, 15, 20, 30, 45, 60].map((m) => (
+                    <option key={`m${m}`} value={m * 60}>{m} min</option>
+                  ))}
+                  {/* Hours: 2–24h */}
+                  {[2, 3, 4, 6, 8, 12, 18, 24].map((h) => (
+                    <option key={`h${h}`} value={h * 3600}>{h}h</option>
+                  ))}
+                </select>
+              </div>
               <p className="settings-coding-agents__hint">
                 Type <code>@claude</code>, <code>@codex</code>, or <code>@gemini</code> in chat to invoke a coding agent.
               </p>

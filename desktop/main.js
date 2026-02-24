@@ -259,7 +259,7 @@ function createWindow() {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     titleBarOverlay: false,
     frame: process.platform === 'darwin',
-    backgroundColor: '#09090b', // zinc-950
+    backgroundColor: '#ffffff',
     show: false,
   });
 

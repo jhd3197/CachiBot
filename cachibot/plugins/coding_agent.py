@@ -66,15 +66,21 @@ _CLI_SPECS: dict[CodingCLI, dict[str, str | Callable[..., list[str]]]] = {
 
 
 def _resolve_binary(name: str) -> str | None:
-    """Find a CLI binary, checking .cmd/.ps1/.bat on Windows."""
-    path = shutil.which(name)
-    if path:
-        return path
+    """Find a CLI binary, preferring .cmd/.ps1/.bat on Windows.
+
+    On Windows, npm-installed CLIs produce an extensionless stub file alongside
+    the real ``.cmd`` wrapper.  ``shutil.which()`` may find the stub first, but
+    it isn't a valid Win32 executable.  We therefore check ``.cmd`` *before*
+    falling back to the bare name so the correct wrapper is always used.
+    """
     if platform.system() == "Windows":
         for ext in (".cmd", ".ps1", ".bat"):
             path = shutil.which(name + ext)
             if path:
                 return path
+    path = shutil.which(name)
+    if path:
+        return path
     return None
 
 
@@ -242,9 +248,9 @@ class CodingAgentPlugin(CachibotPlugin):
                     display_name="Timeout",
                     type="number",
                     default=600,
-                    min=30,
-                    max=1800,
-                    step=30,
+                    min=10,
+                    max=86400,
+                    step=10,
                     unit="seconds",
                 ),
                 ConfigParam(

@@ -7,7 +7,18 @@
   .flex-center();
   min-height: 100vh;
   padding: @sp-4;
-  background: var(--color-bg-app);
+  background: #ffffff;
+
+  // Force light-mode colors regardless of system theme
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #808080;
+  --color-text-tertiary: #AAAAAA;
+  --color-bg-secondary: #F5F5F5;
+  --color-bg-app: #ffffff;
+  --color-border-primary: #E5E5E5;
+  --card-bg: #FFFFFF;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --card-shadow: @shadow-sm;
 }
 
 .layout-split {
@@ -60,13 +71,11 @@
   }
 
   &__logo-icon {
-    .flex-center();
-    display: inline-flex;
+    display: block;
     width: 4rem;
     height: 4rem;
-    border-radius: @radius-2xl;
-    background: linear-gradient(135deg, var(--accent-500), var(--accent-600));
-    margin-bottom: @sp-4;
+    margin: 0 auto @sp-4;
+    object-fit: contain;
   }
 
   &__title {
