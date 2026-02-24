@@ -37,6 +37,42 @@ class WSEvent {
   static const String approval = 'approval';
 }
 
+/// Approval request received from the server.
+class ApprovalRequest {
+  const ApprovalRequest({
+    required this.id,
+    required this.tool,
+    required this.action,
+    this.riskLevel = 'UNKNOWN',
+    this.reasons = const [],
+    this.code,
+  });
+
+  final String id;
+  final String tool;
+  final String action;
+  final String riskLevel;
+  final List<String> reasons;
+  final String? code;
+
+  factory ApprovalRequest.fromPayload(Map<String, dynamic> payload) {
+    final details = (payload['details'] as Map<String, dynamic>?) ?? {};
+    final rawReasons = details['reasons'];
+    final reasons = rawReasons is List
+        ? rawReasons.map((e) => e.toString()).toList()
+        : <String>[];
+
+    return ApprovalRequest(
+      id: payload['id'] as String,
+      tool: payload['tool'] as String,
+      action: payload['action'] as String? ?? '',
+      riskLevel: (details['riskLevel'] as String?) ?? 'UNKNOWN',
+      reasons: reasons,
+      code: details['code'] as String?,
+    );
+  }
+}
+
 class ToolCall {
   const ToolCall({
     required this.id,

@@ -24,6 +24,9 @@ class WebSocketService {
   final _eventController = StreamController<WSEvent>.broadcast();
   Stream<WSEvent> get events => _eventController.stream;
 
+  final _connectionController = StreamController<bool>.broadcast();
+  Stream<bool> get connectionState => _connectionController.stream;
+
   bool _intentionalClose = false;
   int _reconnectAttempts = 0;
   static const _maxReconnectAttempts = 5;
@@ -52,6 +55,8 @@ class WebSocketService {
       await _channel!.ready;
       _reconnectAttempts = 0;
 
+      _connectionController.add(true);
+
       _subscription = _channel!.stream.listen(
         _onData,
         onError: _onError,
@@ -59,6 +64,7 @@ class WebSocketService {
       );
     } catch (e) {
       _channel = null;
+      _connectionController.add(false);
       _scheduleReconnect();
     }
   }
@@ -87,6 +93,7 @@ class WebSocketService {
     _subscription?.cancel();
     _subscription = null;
     _channel = null;
+    _connectionController.add(false);
   }
 
   void _scheduleReconnect() {
@@ -151,5 +158,6 @@ class WebSocketService {
   Future<void> dispose() async {
     disconnect();
     await _eventController.close();
+    await _connectionController.close();
   }
 }

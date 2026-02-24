@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat.dart';
+import '../models/usage.dart';
 import '../models/ws_message.dart';
 import 'service_providers.dart';
 
@@ -17,6 +18,10 @@ class ChatState {
     this.streamingContent = '',
     this.streamingMessageId,
     this.errorMessage,
+    this.usageInfo,
+    this.pendingApproval,
+    this.instructionDeltaContent = '',
+    this.modelFallbackMessage,
   });
 
   final String? activeBotId;
@@ -28,6 +33,10 @@ class ChatState {
   final String streamingContent;
   final String? streamingMessageId;
   final String? errorMessage;
+  final UsageInfo? usageInfo;
+  final ApprovalRequest? pendingApproval;
+  final String instructionDeltaContent;
+  final String? modelFallbackMessage;
 
   ChatState copyWith({
     String? activeBotId,
@@ -39,9 +48,16 @@ class ChatState {
     String? streamingContent,
     String? streamingMessageId,
     String? errorMessage,
+    UsageInfo? usageInfo,
+    ApprovalRequest? pendingApproval,
+    String? instructionDeltaContent,
+    String? modelFallbackMessage,
     bool clearError = false,
     bool clearActiveChatId = false,
     bool clearStreamingMessageId = false,
+    bool clearUsageInfo = false,
+    bool clearPendingApproval = false,
+    bool clearModelFallback = false,
   }) {
     return ChatState(
       activeBotId: activeBotId ?? this.activeBotId,
@@ -56,6 +72,15 @@ class ChatState {
           ? null
           : (streamingMessageId ?? this.streamingMessageId),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      usageInfo: clearUsageInfo ? null : (usageInfo ?? this.usageInfo),
+      pendingApproval: clearPendingApproval
+          ? null
+          : (pendingApproval ?? this.pendingApproval),
+      instructionDeltaContent:
+          instructionDeltaContent ?? this.instructionDeltaContent,
+      modelFallbackMessage: clearModelFallback
+          ? null
+          : (modelFallbackMessage ?? this.modelFallbackMessage),
     );
   }
 }
@@ -124,7 +149,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
       thinkingContent: '',
       streamingContent: '',
       activeToolCalls: [],
+      instructionDeltaContent: '',
       clearError: true,
+      clearUsageInfo: true,
+      clearPendingApproval: true,
+      clearModelFallback: true,
     );
 
     final ws = _ref.read(wsServiceProvider);
@@ -144,6 +173,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void sendApproval(String id, bool approved) {
     final ws = _ref.read(wsServiceProvider);
     ws.sendApproval(id, approved);
+    state = state.copyWith(clearPendingApproval: true);
+  }
+
+  /// Clear the model fallback message after it has been shown.
+  void clearModelFallback() {
+    state = state.copyWith(clearModelFallback: true);
   }
 
   void _handleEvent(WSEvent event) {
@@ -160,6 +195,14 @@ class ChatNotifier extends StateNotifier<ChatState> {
         _onDone(event.payload);
       case WSEvent.error:
         _onError(event.payload);
+      case WSEvent.instructionDelta:
+        _onInstructionDelta(event.payload);
+      case WSEvent.usage:
+        _onUsage(event.payload);
+      case WSEvent.approvalNeeded:
+        _onApprovalNeeded(event.payload);
+      case WSEvent.modelFallback:
+        _onModelFallback(event.payload);
     }
   }
 
@@ -195,7 +238,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
       return tc;
     }).toList();
 
-    state = state.copyWith(activeToolCalls: updatedCalls);
+    // Clear instruction delta on tool end
+    state = state.copyWith(
+      activeToolCalls: updatedCalls,
+      instructionDeltaContent: '',
+    );
   }
 
   void _onMessage(Map<String, dynamic> payload) {
@@ -228,6 +275,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void _onDone(Map<String, dynamic> payload) {
     // Finalize the streamed message
     if (state.streamingContent.isNotEmpty || state.activeToolCalls.isNotEmpty) {
+      final metadata = <String, dynamic>{};
+      if (state.usageInfo != null) {
+        metadata['usage'] = state.usageInfo!.toJson();
+      }
+
       final finalMsg = ChatMessage(
         id: state.streamingMessageId ??
             'msg-${DateTime.now().millisecondsSinceEpoch}',
@@ -235,6 +287,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         role: 'assistant',
         content: state.streamingContent,
         timestamp: DateTime.now(),
+        metadata: metadata,
         toolCalls: List.of(state.activeToolCalls),
         thinking: state.thinkingContent.isNotEmpty
             ? state.thinkingContent
@@ -250,7 +303,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         thinkingContent: '',
         streamingContent: '',
         activeToolCalls: [],
+        instructionDeltaContent: '',
         clearStreamingMessageId: true,
+        clearPendingApproval: true,
         activeChatId: replyToId != null && state.activeChatId == null
             ? null // keep null; chatId comes from message events
             : state.activeChatId,
@@ -261,7 +316,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
         thinkingContent: '',
         streamingContent: '',
         activeToolCalls: [],
+        instructionDeltaContent: '',
         clearStreamingMessageId: true,
+        clearPendingApproval: true,
       );
     }
   }
@@ -272,6 +329,32 @@ class ChatNotifier extends StateNotifier<ChatState> {
       isLoading: false,
       errorMessage: message,
     );
+  }
+
+  void _onInstructionDelta(Map<String, dynamic> payload) {
+    final text = payload['text'] as String? ?? '';
+    state = state.copyWith(
+      instructionDeltaContent: state.instructionDeltaContent + text,
+    );
+  }
+
+  void _onUsage(Map<String, dynamic> payload) {
+    final usage = UsageInfo.fromJson(payload);
+    state = state.copyWith(usageInfo: usage);
+  }
+
+  void _onApprovalNeeded(Map<String, dynamic> payload) {
+    final request = ApprovalRequest.fromPayload(payload);
+    state = state.copyWith(pendingApproval: request);
+  }
+
+  void _onModelFallback(Map<String, dynamic> payload) {
+    final oldModel = payload['oldModel'] as String? ?? '';
+    final newModel = payload['newModel'] as String? ?? '';
+    final reason = payload['reason'] as String? ?? '';
+    final message = 'Model switched: $oldModel → $newModel'
+        '${reason.isNotEmpty ? ' ($reason)' : ''}';
+    state = state.copyWith(modelFallbackMessage: message);
   }
 
   void clear() {

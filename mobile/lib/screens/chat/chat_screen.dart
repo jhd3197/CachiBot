@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
+import '../../widgets/chat/approval_dialog.dart';
 import '../../widgets/chat/message_bubble.dart';
+import '../../widgets/common/connection_indicator.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
@@ -72,9 +74,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     });
 
+    // Approval dialog listener
+    ref.listen<ChatState>(chatProvider, (prev, next) {
+      if (next.pendingApproval != null && prev?.pendingApproval == null) {
+        _showApproval(next.pendingApproval!);
+      }
+    });
+
+    // Model fallback snackbar listener
+    ref.listen<ChatState>(chatProvider, (prev, next) {
+      if (next.modelFallbackMessage != null &&
+          prev?.modelFallbackMessage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.modelFallbackMessage!),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        ref.read(chatProvider.notifier).clearModelFallback();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chat'),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: ConnectionIndicator(),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -97,6 +126,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showApproval(approval) async {
+    final approved = await showApprovalDialog(context, approval);
+    if (approved != null) {
+      ref.read(chatProvider.notifier).sendApproval(approval.id, approved);
+    }
   }
 
   Widget _buildMessageList(ChatState state, ThemeData theme) {
@@ -155,35 +191,58 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       children.add(
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: state.activeToolCalls.map((call) {
-              return Chip(
-                avatar: call.isRunning
-                    ? SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: theme.colorScheme.primary,
-                        ),
-                      )
-                    : Icon(
-                        (call.success ?? true)
-                            ? Icons.check_circle
-                            : Icons.error,
-                        size: 16,
-                        color: (call.success ?? true)
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.error,
-                      ),
-                label:
-                    Text(call.tool, style: theme.textTheme.labelSmall),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              );
-            }).toList(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: state.activeToolCalls.map((call) {
+                  return Chip(
+                    avatar: call.isRunning
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: theme.colorScheme.primary,
+                            ),
+                          )
+                        : Icon(
+                            (call.success ?? true)
+                                ? Icons.check_circle
+                                : Icons.error,
+                            size: 16,
+                            color: (call.success ?? true)
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.error,
+                          ),
+                    label: Text(
+                      call.tool,
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                  );
+                }).toList(),
+              ),
+              // Instruction delta text during tool execution
+              if (state.instructionDeltaContent.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4),
+                  child: Text(
+                    state.instructionDeltaContent,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface
+                          .withValues(alpha: 0.5),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );

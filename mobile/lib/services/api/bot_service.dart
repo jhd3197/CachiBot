@@ -42,4 +42,20 @@ class BotService {
         .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<void> deleteChat(String botId, String chatId) async {
+    await _client.dio.delete('/api/bots/$botId/chats/$chatId');
+  }
+
+  Future<void> archiveChat(String botId, String chatId) async {
+    await _client.dio.post('/api/bots/$botId/chats/$chatId/_archive');
+  }
+
+  Future<void> unarchiveChat(String botId, String chatId) async {
+    await _client.dio.post('/api/bots/$botId/chats/$chatId/_unarchive');
+  }
+
+  Future<void> clearChatMessages(String botId, String chatId) async {
+    await _client.dio.post('/api/bots/$botId/chats/$chatId/_clear-messages');
+  }
 }
