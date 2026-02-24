@@ -133,6 +133,19 @@ class KnowledgeConfig:
 
 
 @dataclass
+class CodingAgentsConfig:
+    """Coding agent CLI configuration."""
+
+    default_agent: str = "claude"
+    timeout_seconds: int = 300
+    max_turns: int = 25
+    max_output_length: int = 50000
+    claude_path: str = ""
+    codex_path: str = ""
+    gemini_path: str = ""
+
+
+@dataclass
 class AuthConfig:
     """Authentication configuration."""
 
@@ -211,6 +224,7 @@ class Config:
     workspace: WorkspaceConfig = field(default_factory=WorkspaceConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
+    coding_agents: CodingAgentsConfig = field(default_factory=CodingAgentsConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
@@ -323,6 +337,21 @@ class Config:
         # Embedding model
         if embedding_model := os.getenv("CACHIBOT_EMBEDDING_MODEL"):
             self.knowledge.embedding_model = embedding_model
+
+        # Coding agent settings
+        if ca_default := os.getenv("CACHIBOT_CODING_AGENT_DEFAULT"):
+            self.coding_agents.default_agent = ca_default
+        if ca_timeout := os.getenv("CACHIBOT_CODING_AGENT_TIMEOUT"):
+            try:
+                self.coding_agents.timeout_seconds = int(ca_timeout)
+            except ValueError:
+                pass
+        if claude_path := os.getenv("CACHIBOT_CLAUDE_PATH"):
+            self.coding_agents.claude_path = claude_path
+        if codex_path := os.getenv("CACHIBOT_CODEX_PATH"):
+            self.coding_agents.codex_path = codex_path
+        if gemini_path := os.getenv("CACHIBOT_GEMINI_PATH"):
+            self.coding_agents.gemini_path = gemini_path
 
         # Database URL (highest priority override)
         if database_url := os.getenv("CACHIBOT_DATABASE_URL") or os.getenv("DATABASE_URL"):
@@ -444,6 +473,22 @@ class Config:
                 self.knowledge.embedding_model = knowledge_data["embedding_model"]
             if "max_history_messages" in knowledge_data:
                 self.knowledge.max_history_messages = knowledge_data["max_history_messages"]
+
+        if ca_data := data.get("coding_agents"):
+            if "default_agent" in ca_data:
+                self.coding_agents.default_agent = ca_data["default_agent"]
+            if "timeout_seconds" in ca_data:
+                self.coding_agents.timeout_seconds = ca_data["timeout_seconds"]
+            if "max_turns" in ca_data:
+                self.coding_agents.max_turns = ca_data["max_turns"]
+            if "max_output_length" in ca_data:
+                self.coding_agents.max_output_length = ca_data["max_output_length"]
+            if "claude_path" in ca_data:
+                self.coding_agents.claude_path = ca_data["claude_path"]
+            if "codex_path" in ca_data:
+                self.coding_agents.codex_path = ca_data["codex_path"]
+            if "gemini_path" in ca_data:
+                self.coding_agents.gemini_path = ca_data["gemini_path"]
 
         if auth_data := data.get("auth"):
             if "jwt_secret" in auth_data:

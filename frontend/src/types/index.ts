@@ -430,6 +430,23 @@ export interface ModelInfo {
 }
 
 // =============================================================================
+// CODING AGENT TYPES
+// =============================================================================
+
+export interface CodingAgentInfo {
+  id: string
+  name: string
+  available: boolean
+  binary: string
+  custom_path: boolean
+}
+
+export interface CodingAgentsResponse {
+  agents: CodingAgentInfo[]
+  default_agent: string
+}
+
+// =============================================================================
 // WEBSOCKET TYPES
 // =============================================================================
 

@@ -66,6 +66,7 @@ async def _run_coding_cli(
     timeout: int = 300,
     max_turns: int = 25,
     max_output: int = 50000,
+    binary_override: str = "",
 ) -> str:
     """Spawn a coding CLI subprocess and return its output.
 
@@ -76,12 +77,13 @@ async def _run_coding_cli(
         timeout: Max seconds before killing the process.
         max_turns: Max agent turns (passed to CLIs that support it).
         max_output: Truncate output beyond this many characters.
+        binary_override: Custom binary path (skips PATH lookup if set).
 
     Returns:
         The agent's stdout output, or an error message.
     """
     spec = _CLI_SPECS[cli]
-    binary = str(spec["binary"])
+    binary = binary_override or str(spec["binary"])
 
     if not shutil.which(binary):
         return f"Error: '{binary}' is not installed or not on PATH."
@@ -153,6 +155,13 @@ class CodingAgentPlugin(CachibotPlugin):
             risk_level=RiskLevel.DANGEROUS,
             config_params=[
                 ConfigParam(
+                    name="defaultAgent",
+                    display_name="Default Agent",
+                    type="select",
+                    default="claude",
+                    options=["claude", "codex", "gemini"],
+                ),
+                ConfigParam(
                     name="timeoutSeconds",
                     display_name="Timeout",
                     type="number",
@@ -183,26 +192,40 @@ class CodingAgentPlugin(CachibotPlugin):
                 ),
             ],
         )
-        async def coding_agent(task: str, agent: str = "claude") -> str:
+        async def coding_agent(task: str, agent: str = "") -> str:
             """Spawn a coding agent to autonomously complete a development task.
 
             Args:
                 task: Description of the coding task to complete.
                 agent: Which coding agent to use — "claude", "codex", or "gemini".
+                       Defaults to the configured default agent.
 
             Returns:
                 The agent's output after completing (or failing) the task.
             """
+            cfg = ctx.tool_configs.get("coding_agent", {})
+            ca_config = ctx.config.coding_agents
+
+            # Resolve agent: explicit arg > tool config > global config
+            resolved_agent = agent or cfg.get("defaultAgent", "") or ca_config.default_agent
+
             try:
-                cli = CodingCLI(agent)
+                cli = CodingCLI(resolved_agent)
             except ValueError:
                 available = ", ".join(c.value for c in CodingCLI)
-                return f"Unknown agent '{agent}'. Available: {available}"
+                return f"Unknown agent '{resolved_agent}'. Available: {available}"
 
-            cfg = ctx.tool_configs.get("coding_agent", {})
-            timeout = cfg.get("timeoutSeconds", 300)
-            max_turns = cfg.get("maxTurns", 25)
-            max_output = cfg.get("maxOutputLength", 50000)
+            timeout = cfg.get("timeoutSeconds", ca_config.timeout_seconds)
+            max_turns = cfg.get("maxTurns", ca_config.max_turns)
+            max_output = cfg.get("maxOutputLength", ca_config.max_output_length)
+
+            # Resolve binary path: config path > auto-detect
+            path_map = {
+                CodingCLI.CLAUDE: ca_config.claude_path,
+                CodingCLI.CODEX: ca_config.codex_path,
+                CodingCLI.GEMINI: ca_config.gemini_path,
+            }
+            binary_override = path_map.get(cli, "")
 
             return await _run_coding_cli(
                 cli=cli,
@@ -211,6 +234,7 @@ class CodingAgentPlugin(CachibotPlugin):
                 timeout=timeout,
                 max_turns=max_turns,
                 max_output=max_output,
+                binary_override=binary_override,
             )
 
         return {"coding_agent": coding_agent.__skill__}

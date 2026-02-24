@@ -78,6 +78,13 @@ export async function checkHealth(): Promise<HealthInfo> {
   return request('/health')
 }
 
+// Coding agents discovery
+import type { CodingAgentsResponse } from '../types'
+
+export async function getCodingAgents(): Promise<CodingAgentsResponse> {
+  return request('/coding-agents')
+}
+
 // Config
 export async function getConfig(): Promise<{
   agent: {

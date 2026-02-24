@@ -796,3 +796,127 @@
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+// Coding Agents — status panel (inside General settings)
+// -----------------------------------------------------------------------------
+
+.settings-coding-agents {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-4;
+
+  .dark & {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-secondary);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    margin-bottom: @sp-3;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: @sp-2;
+    margin-bottom: @sp-3;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    border-radius: @radius-lg;
+    padding: @sp-2 @sp-3;
+    background: var(--color-bg-app);
+
+    .dark & {
+      background: var(--color-bg-primary);
+    }
+  }
+
+  &__status {
+    flex-shrink: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__name {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+  }
+
+  &__binary {
+    font-size: @text-xs;
+    font-family: @font-mono;
+    color: var(--color-text-secondary);
+    .truncate();
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    border-radius: @radius-full;
+    background: color-mix(in srgb, var(--accent-500) 15%, transparent);
+    padding: @sp-0-5 @sp-2;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--accent-500);
+  }
+
+  &__default {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: @sp-3;
+    margin-bottom: @sp-2;
+  }
+
+  &__select {
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-app);
+    padding: @sp-1-5 @sp-3;
+    font-size: @text-sm;
+    color: var(--color-text-primary);
+    outline: none;
+
+    .dark & {
+      background: var(--color-bg-primary);
+      border-color: var(--color-border-secondary);
+    }
+
+    &:focus {
+      border-color: var(--accent-500);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-500) 12%, transparent);
+    }
+  }
+
+  &__hint {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+
+    code {
+      border-radius: @radius-sm;
+      background: var(--color-bg-app);
+      padding: 1px @sp-1;
+      font-family: @font-mono;
+
+      .dark & {
+        background: var(--color-bg-primary);
+      }
+    }
+  }
+}

@@ -30,6 +30,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Instruction block appended to the system prompt when the codingAgent
+# capability is enabled, telling the LLM how to handle @agent mentions.
+CODING_AGENT_MENTION_INSTRUCTIONS = """
+
+## Coding Agent @Mentions
+When the user @mentions a coding agent in their message (e.g. @claude, @codex, @gemini), \
+you MUST invoke the `coding_agent` tool with the matching `agent` parameter and pass the \
+user's request as the `task`. For example, if the user writes "@claude refactor this file", \
+call coding_agent(task="refactor this file", agent="claude"). If only "@" is used without a \
+specific agent name, use the default agent (omit the agent parameter).
+"""
+
 
 class ConnectionManager:
     """Manages WebSocket connections."""
@@ -67,6 +79,19 @@ manager = ConnectionManager()
 def get_ws_manager() -> ConnectionManager:
     """Get the WebSocket connection manager singleton."""
     return manager
+
+
+def _inject_coding_agent_instructions(
+    prompt: str | None,
+    capabilities: dict[str, Any] | None,
+    disabled_caps: set[str],
+) -> str | None:
+    """Append @mention usage instructions when codingAgent is enabled."""
+    if not capabilities or not capabilities.get("codingAgent"):
+        return prompt
+    if "codingAgent" in disabled_caps:
+        return prompt
+    return (prompt or "") + CODING_AGENT_MENTION_INSTRUCTIONS
 
 
 async def _resolve_bot_env(
@@ -303,6 +328,12 @@ async def websocket_endpoint(
                         pass
 
                 disabled_caps = await load_disabled_capabilities()
+
+                # Inject @mention instructions when codingAgent capability is on
+                enhanced_prompt = _inject_coding_agent_instructions(
+                    enhanced_prompt, capabilities, disabled_caps
+                )
+
                 agent = CachibotAgent(
                     config=agent_config,
                     system_prompt_override=enhanced_prompt,
