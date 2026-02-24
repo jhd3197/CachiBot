@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Wrench, Check, X, Loader2 } from 'lucide-react'
 import type { ToolCall } from '../../types'
 import { cn } from '../../lib/utils'
@@ -54,6 +55,16 @@ function ToolCallItem({ call, instructionText }: ToolCallItemProps) {
   const isComplete = call.endTime !== undefined
   const isSuccess = call.success !== false
 
+  // Live elapsed timer
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (isComplete) return
+    const interval = setInterval(() => {
+      setElapsed((Date.now() - call.startTime) / 1000)
+    }, 100)
+    return () => clearInterval(interval)
+  }, [isComplete, call.startTime])
+
   const resultStr = call.result != null ? String(call.result) : ''
   const imageUri = isComplete && isSuccess ? extractImageDataUri(resultStr) : null
   const audioUri = isComplete && isSuccess && !imageUri ? extractAudioDataUri(resultStr) : null
@@ -91,11 +102,11 @@ function ToolCallItem({ call, instructionText }: ToolCallItemProps) {
         </div>
 
         {/* Duration */}
-        {isComplete && (
-          <span className="tool-call__duration">
-            {((call.endTime! - call.startTime) / 1000).toFixed(1)}s
-          </span>
-        )}
+        <span className="tool-call__duration">
+          {isComplete
+            ? `${((call.endTime! - call.startTime) / 1000).toFixed(1)}s`
+            : `${elapsed.toFixed(1)}s`}
+        </span>
       </div>
 
       {/* Arguments preview */}

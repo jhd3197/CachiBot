@@ -457,6 +457,7 @@ export type WSMessageType =
   | 'thinking'
   | 'tool_start'
   | 'tool_end'
+  | 'instruction_delta'
   | 'message'
   | 'platform_message'
   | 'scheduled_notification'

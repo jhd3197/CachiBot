@@ -30,6 +30,7 @@ class PluginContext:
     chat_id: str | None = None
     tool_configs: dict[str, Any] = field(default_factory=dict)
     bot_models: dict[str, Any] | None = None
+    on_tool_output: Callable[[str, str], Any] | None = None
 
 
 class CachibotPlugin(TransformerPlugin):  # type: ignore[misc]

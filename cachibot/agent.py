@@ -130,6 +130,7 @@ class CachibotAgent:
             chat_id=self.chat_id,
             tool_configs=self.tool_configs or {},
             bot_models=self.bot_models,
+            on_tool_output=self.on_instruction_delta,
         )
 
         # Build skill_config with llm_backend for instruction execution
