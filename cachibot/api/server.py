@@ -25,6 +25,8 @@ from cachibot.api.routes import (
     bots,
     chat,
     chats,
+    coding_agents,
+    commands,
     config,
     connections,
     contacts,
@@ -38,6 +40,7 @@ from cachibot.api.routes import (
     instructions,
     knowledge,
     marketplace,
+    mobile_pair,
     models,
     openai_compat,
     platform_tools,
@@ -225,13 +228,19 @@ def create_app(
     # Store workspace in app state
     app.state.workspace = workspace or Path.cwd()
 
-    # CORS middleware
+    # CORS middleware — include LAN IPs so mobile and other local devices work
+    from cachibot.api.routes.mobile_pair import _get_lan_ips
+
     origins = cors_origins or [
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",  # Alternative dev server
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
     ]
+    port_env = os.environ.get("_CACHIBOT_PORT", "5870")
+    for ip in _get_lan_ips():
+        origins.append(f"http://{ip}:{port_env}")
+        origins.append(f"http://{ip}:5173")
 
     app.add_middleware(
         CORSMiddleware,
@@ -243,10 +252,13 @@ def create_app(
 
     # Register routes
     app.include_router(auth.router, prefix="/api", tags=["auth"])
+    app.include_router(mobile_pair.router, prefix="/api", tags=["mobile-pairing"])
     app.include_router(health.router, prefix="/api", tags=["health"])
     app.include_router(models.router, prefix="/api", tags=["models"])
     app.include_router(providers.router, prefix="/api", tags=["providers"])
     app.include_router(config.router, prefix="/api", tags=["config"])
+    app.include_router(coding_agents.router, prefix="/api", tags=["coding-agents"])
+    app.include_router(commands.router, tags=["commands"])
     app.include_router(update.router, prefix="/api", tags=["update"])
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
@@ -346,7 +358,7 @@ def create_app(
 
 
 def run_server(
-    host: str = "127.0.0.1",
+    host: str = "0.0.0.0",
     port: int = 5870,
     workspace: Path | None = None,
     reload: bool = False,

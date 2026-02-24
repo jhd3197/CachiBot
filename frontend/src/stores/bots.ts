@@ -191,6 +191,7 @@ interface ChatState {
   messages: Record<string, ChatMessage[]> // chatId -> messages
   thinking: string | null
   toolCalls: ToolCall[]
+  instructionDeltas: Record<string, string>
   isLoading: boolean
   error: string | null
   replyToMessage: ChatMessage | null
@@ -225,6 +226,7 @@ interface ChatState {
   appendThinking: (content: string) => void
   addToolCall: (call: Omit<ToolCall, 'startTime'>) => void
   updateToolCall: (id: string, result: unknown, success: boolean) => void
+  appendInstructionDelta: (toolCallId: string, text: string) => void
   clearToolCalls: () => void
   attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
   attachThinkingToLastMessage: (chatId: string, thinking: string) => void
@@ -240,6 +242,7 @@ export const useChatStore = create<ChatState>()(
       messages: {},
       thinking: null,
       toolCalls: [],
+      instructionDeltas: {},
       isLoading: false,
       error: null,
       replyToMessage: null,
@@ -487,7 +490,15 @@ export const useChatStore = create<ChatState>()(
           ),
         })),
 
-      clearToolCalls: () => set({ toolCalls: [] }),
+      appendInstructionDelta: (toolCallId, text) =>
+        set((state) => ({
+          instructionDeltas: {
+            ...state.instructionDeltas,
+            [toolCallId]: (state.instructionDeltas[toolCallId] || '') + text,
+          },
+        })),
+
+      clearToolCalls: () => set({ toolCalls: [], instructionDeltas: {} }),
 
       attachToolCallsToLastMessage: (chatId, toolCalls) =>
         set((state) => {

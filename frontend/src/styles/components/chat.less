@@ -1289,6 +1289,10 @@
   &:hover {
     background: var(--color-hover-bg);
   }
+
+  &--selected {
+    background: var(--color-hover-bg);
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -1507,6 +1511,54 @@
       .dark & {
         color: @zinc-400;
       }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Command Source Badges
+// -----------------------------------------------------------------------------
+
+.chat-command-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 @sp-1-5;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  border-radius: @radius-full;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+
+  &--user_skill {
+    background: fade(@purple-500, 15%);
+    color: @purple-500;
+
+    .dark & {
+      background: fade(@purple-400, 20%);
+      color: @purple-400;
+    }
+  }
+
+  &--bot_instruction {
+    background: fade(@blue-500, 15%);
+    color: @blue-500;
+
+    .dark & {
+      background: fade(@blue-400, 20%);
+      color: @blue-400;
+    }
+  }
+
+  &--cli {
+    background: fade(@green-500, 15%);
+    color: @green-500;
+
+    .dark & {
+      background: fade(@green-400, 20%);
+      color: @green-400;
     }
   }
 }

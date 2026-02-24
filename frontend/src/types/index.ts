@@ -212,6 +212,7 @@ export interface BotCapabilities {
   workManagement: boolean     // work_create, work_list, work_update, todo_create, todo_list, todo_done
   imageGeneration: boolean    // generate_image (DALL-E, Imagen, Stability AI)
   audioGeneration: boolean    // generate_audio, transcribe_audio (TTS/STT)
+  codingAgent: boolean        // coding_agent (Claude Code, Codex, Gemini CLI)
 }
 
 export interface Bot {
@@ -429,6 +430,23 @@ export interface ModelInfo {
 }
 
 // =============================================================================
+// CODING AGENT TYPES
+// =============================================================================
+
+export interface CodingAgentInfo {
+  id: string
+  name: string
+  available: boolean
+  binary: string
+  custom_path: boolean
+}
+
+export interface CodingAgentsResponse {
+  agents: CodingAgentInfo[]
+  default_agent: string
+}
+
+// =============================================================================
 // WEBSOCKET TYPES
 // =============================================================================
 
@@ -439,6 +457,7 @@ export type WSMessageType =
   | 'thinking'
   | 'tool_start'
   | 'tool_end'
+  | 'instruction_delta'
   | 'message'
   | 'platform_message'
   | 'scheduled_notification'
@@ -643,6 +662,23 @@ export interface SkillDefinition {
   instructions: string
   source: SkillSource
   filepath?: string
+}
+
+// =============================================================================
+// COMMAND TYPES
+// =============================================================================
+
+export interface CommandDescriptor {
+  prefix: string
+  name: string
+  display_name: string
+  description: string
+  source: string  // "user_skill" | "bot_instruction" | "cli"
+  execution_mode: 'native' | 'passthrough'
+  instructions?: string
+  cli_binary?: string
+  tags: string[]
+  icon?: string
 }
 
 // =============================================================================

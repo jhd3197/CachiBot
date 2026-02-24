@@ -8,6 +8,7 @@
 
   <p>
     <a href="../README.md">English</a> ·
+    <a href="https://codewiki.google/github.com/jhd3197/cachibot">CodeWiki</a> ·
     <a href="README.es.md">Español</a> ·
     中文版 ·
     <a href="README.pt.md">Português</a>
@@ -24,9 +25,9 @@
     <a href="https://pypi.org/project/cachibot"><img src="https://img.shields.io/pypi/dm/cachibot.svg" alt="下载量" /></a>
     <a href="https://github.com/jhd3197/CachiBot/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="许可证" /></a>
     <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python" /></a>
-    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-18+-61DAFB.svg" alt="React" /></a>
+    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB.svg" alt="React" /></a>
     <a href="https://github.com/jhd3197/CachiBot/stargazers"><img src="https://img.shields.io/github/stars/jhd3197/CachiBot?style=social" alt="Stars" /></a>
-    <a href="https://discord.gg/Xzw45fGhqq"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
+    <a href="https://discord.gg/V9bKwYVJ"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
   </p>
 
   <p>
@@ -34,12 +35,12 @@
   </p>
 
   <p>
-    <a href="#-安装">安装</a> ·
-    <a href="#-功能特性">功能特性</a> ·
-    <a href="#-架构">架构</a> ·
-    <a href="#-安全性">安全性</a> ·
-    <a href="#-贡献">贡献</a> ·
-    <a href="https://discord.gg/Xzw45fGhqq">Discord</a>
+    <a href="#安装">安装</a> ·
+    <a href="#功能特性">功能特性</a> ·
+    <a href="#支持的提供商">提供商</a> ·
+    <a href="#安全性">安全性</a> ·
+    <a href="#贡献">贡献</a> ·
+    <a href="https://discord.gg/V9bKwYVJ">Discord</a>
   </p>
 
 </div>
@@ -96,6 +97,16 @@ cachibot server
 
 打开 **http://localhost:5870** — 前端已打包并自动提供服务。无需单独的构建步骤。
 
+### Docker
+
+```bash
+docker compose up
+```
+
+### 桌面应用
+
+从 [GitHub Releases](https://github.com/jhd3197/CachiBot/releases) 下载适合你平台的安装包。提供 NSIS 安装程序（Windows）、DMG（macOS）和 AppImage/DEB/RPM（Linux）。支持自动更新。
+
 ### 配置 API 密钥
 
 你可以直接在仪表板界面中配置 API 密钥——无需设置环境变量。只需打开设置面板，在那里添加你的密钥即可。
@@ -115,6 +126,12 @@ export MOONSHOT_API_KEY="your-key"     # Kimi
 cachibot server                    # 启动仪表板
 cachibot "总结这个项目"              # 运行单个任务
 cachibot                           # 交互模式
+cachibot --model claude/sonnet     # 覆盖模型
+cachibot --workspace ./my-project  # 设置工作空间
+cachibot --approve                 # 每个操作都需要批准
+cachibot --verbose                 # 显示推理过程
+cachibot diagnose                  # 检查安装健康状态
+cachibot repair                    # 修复损坏的安装
 cachi server                       # 短别名
 ```
 
@@ -122,39 +139,75 @@ cachi server                       # 短别名
 
 ### 多智能体平台
 
-- **无限专业机器人** — 创建具有自定义系统提示词、工具选择和模型路由的机器人
-- **协作房间** — 让 2-4 个机器人实时协作解决复杂任务
-- **机器人市场** — 常见用例的预建模板（代码审查、数据分析、写作、客服）
+- **无限专业机器人** — 创建具有自定义系统提示词、按机器人模型路由、能力开关和按提供商隔离 API 密钥的机器人
+- **协作房间** — 多个机器人协同运行，支持 9 种响应模式：并行、顺序、链式、路由、辩论、瀑布、接力、共识和访谈
+- **机器人市场** — 常见用例的预建机器人和房间模板，可从仪表板安装
+
+### 基于能力的插件系统
+
+每个机器人都有一组能力开关，控制可用的工具。插件根据这些开关动态加载，由 [Tukuy](https://github.com/jhd3197/Tukuy) 驱动：
+
+| 能力 | 工具 |
+|------|------|
+| 代码执行 | 具有 AST 风险分析的沙箱化 Python |
+| 文件操作 | 读取、写入、编辑、列表、信息——限定在工作空间内 |
+| Git 操作 | Status、diff、log、commit、branch |
+| Shell 访问 | 具有安全限制的 Shell 命令 |
+| 网络访问 | 获取 URL、网络搜索、HTTP 请求 |
+| 数据操作 | SQLite 查询、zip/tar 压缩 |
+| 工作管理 | 任务、待办、作业、函数、调度 |
+| 图像生成 | DALL-E、Google Imagen、Stability AI、Grok |
+| 音频生成 | OpenAI TTS、ElevenLabs、Whisper 转录 |
+| 编程智能体 | 启动 Claude Code、OpenAI Codex 或 Gemini CLI 作为子智能体 |
+| 知识库 | 在上传的文档和笔记中进行语义搜索 |
+| 自定义指令 | LLM 驱动的指令包（分析、写作、开发） |
 
 ### 平台集成
 
-通过内置适配器将机器人部署到 **7 个消息平台**：
+通过内置适配器将机器人部署到 **7 个消息平台**。连接存储加密、服务器重启后自动重连、并进行健康监控：
 
 Telegram · Discord · Slack · Microsoft Teams · WhatsApp · Viber · LINE
 
-### 多模态 AI
+### 知识库 & RAG
 
-- **语音对话** — 通过实时语音转文本和文本转语音与你的机器人对话
-- **图像生成** — DALL-E、Google Imagen、Stability AI、Grok
-- **音频合成** — OpenAI TTS、ElevenLabs
-- **12+ LLM 提供商** — Claude、GPT-4、Kimi、Gemini、Ollama、Groq 等
+- 上传文档（PDF、TXT、MD、DOCX）——自动分块和嵌入
+- 向量相似性搜索，可配置分块大小、重叠和相关性阈值
+- 嵌入提供商：OpenAI、Ollama 或本地 FastEmbed（无需 API 密钥）
+- 自由文本笔记作为额外知识来源
+- 存储：SQLite 余弦相似性或 PostgreSQL pgvector
 
-### 50+ 内置工具
+### 工作管理与自动化
 
-由 [Tukuy](https://github.com/jhd3197/Tukuy) 插件驱动：
+- **工作项** — 顶级单元，带状态跟踪（待处理、进行中、已完成、失败、已取消、已暂停）
+- **任务** — 工作项内的步骤，具有依赖跟踪和自动阻塞/解除阻塞
+- **作业** — 后台智能体执行，由作业运行服务管理，通过 WebSocket 实时更新进度
+- **待办** — 轻量级清单项目
+- **函数** — 可复用的任务模板，具有类型化参数和步骤级依赖
+- **调度** — Cron、间隔、一次性或事件触发的函数执行
+- **脚本** — Python 脚本，具有版本历史、Monaco 编辑器和独立的执行沙箱
 
-- 文件操作、沙箱化 Python 执行、网络搜索
-- 带向量搜索和文档上传的知识库
-- 任务管理、调度（cron、间隔、事件触发）、后台作业
-- Git 操作、HTTP 请求、SQL 查询
-- 可复用函数，具有步骤级依赖和重试
+### 语音对话
+
+通过专用语音界面与你的机器人实时进行语音转文本和文本转语音对话。
+
+### OpenAI 兼容 API
+
+CachiBot 暴露 `/v1/chat/completions` 和 `/v1/models` 端点，外部工具如 Cursor 或 VS Code 扩展可以像使用 OpenAI 模型一样使用你的机器人。通过开发者面板的 `cb-*` API 密钥进行认证。支持 SSE 流式传输。
 
 ### 安全与控制
 
 - **可视化审批流程** — 在危险操作执行前批准或拒绝
-- **沙箱化执行** — Python 在隔离环境中运行，具有基于 AST 的风险分析
+- **沙箱化执行** — Python 在隔离环境中运行，具有基于 AST 的风险评分（安全 / 中等 / 危险）
 - **工作空间隔离** — 所有文件访问限定在工作空间内
-- **完整审计追踪** — 每个操作都被记录并在仪表板中可见
+- **加密凭据** — 平台连接密钥使用 AES 加密存储
+- **完整审计追踪** — 每个操作都记录了时间、Token 使用量和成本
+
+### 认证与访问控制
+
+- 基于 JWT 的认证，具有访问令牌和刷新令牌
+- 自托管模式，通过设置向导进行本地用户管理
+- 用户角色（管理员、用户），具有机器人所有权和基于组的访问控制
+- 认证端点的速率限制
 
 ## 你能构建什么？
 
@@ -163,47 +216,7 @@ Telegram · Discord · Slack · Microsoft Teams · WhatsApp · Viber · LINE
 - **语音助手** — 通过 STT/TTS 与机器人对话，免手动管理任务和提醒
 - **内容管线** — 研究机器人 + 写作机器人 + 图像生成器端到端制作博客文章
 - **DevOps 智能体** — 监控代码仓库、运行沙箱脚本、按计划发送 Slack 告警
-
-## 架构
-
-```mermaid
-graph TB
-    subgraph Frontend["React 仪表板"]
-        Bots[机器人 & 房间]
-        Chats[聊天 & 语音]
-        Work[作业、任务 & 调度]
-        KB[知识库]
-        Market[市场]
-    end
-
-    subgraph Backend["FastAPI 后端"]
-        Agent["Prompture 智能体"]
-        Plugins["Tukuy 插件系统"]
-        Sandbox["Python 沙箱"]
-        Auth["认证 & RBAC"]
-        Scheduler["调度服务"]
-    end
-
-    subgraph Providers["AI 提供商"]
-        LLM["LLMs (Claude, GPT-4, Kimi, Ollama, Groq, ...)"]
-        ImgGen["图像生成 (DALL-E, Imagen, Stability)"]
-        Audio["音频 (Whisper, ElevenLabs)"]
-    end
-
-    subgraph Platforms["平台集成"]
-        TG[Telegram]
-        DC[Discord]
-        SL[Slack]
-        TM[Teams]
-        WA[WhatsApp]
-        VB[Viber]
-        LN[LINE]
-    end
-
-    Frontend -- "WebSocket / REST" --> Backend
-    Backend --> Providers
-    Backend --> Platforms
-```
+- **编程助手** — 启动 Claude Code 或 Codex 处理复杂编程任务的机器人
 
 ## 支持的提供商
 
@@ -216,8 +229,15 @@ CachiBot 使用 [Prompture](https://github.com/jhd3197/Prompture) 进行模型�
 | Moonshot | Kimi K2.5 | `MOONSHOT_API_KEY` |
 | Google | Gemini Pro, Flash | `GOOGLE_API_KEY` |
 | Groq | Llama 3, Mixtral | `GROQ_API_KEY` |
-| Grok/xAI | Grok-2 | `GROK_API_KEY` |
+| Grok / xAI | Grok-2 | `GROK_API_KEY` |
+| OpenRouter | OpenRouter 上的任何模型 | `OPENROUTER_API_KEY` |
+| Azure OpenAI | GPT-4, GPT-4o | `AZURE_OPENAI_API_KEY` |
+| ZhipuAI | GLM-4 | `ZHIPUAI_API_KEY` |
+| ModelScope | Qwen | `MODELSCOPE_API_KEY` |
+| Stability AI | Stable Diffusion（图像生成） | `STABILITY_API_KEY` |
+| ElevenLabs | 语音合成 | `ELEVENLABS_API_KEY` |
 | Ollama | 任何本地模型 | *（无需密钥）* |
+| LM Studio | 任何本地模型 | *（无需密钥）* |
 
 所有密钥也可以通过仪表板界面配置，无需设置环境变量。
 
@@ -239,22 +259,11 @@ Python 代码在受限环境中运行：
 
 无论配置如何，这些操作始终不被允许：`subprocess`、`os.system`、`ctypes`、`socket`、`ssl`、`importlib`、`eval`、`exec`、`pickle`、`marshal`。
 
-## 路线图
+## 配置
 
-- [x] 具有实时监控的可视化仪表板
-- [x] 带市场模板的多机器人管理
-- [x] 具有 AST 风险分析的沙箱化 Python 执行
-- [x] 多提供商 LLM 支持（12+ 提供商）
-- [x] 带向量搜索和文档上传的知识库
-- [x] 7 个平台集成（Telegram、Discord、Slack、Teams、WhatsApp、Viber、LINE）
-- [x] 具有 50+ 工具的插件系统（通过 Tukuy）
-- [x] 多智能体协作房间
-- [x] 语音对话（STT/TTS）
-- [x] 图像和音频生成
-- [x] 具有 cron/间隔/事件调度的后台作业
-- [x] 工作管理（任务、待办、函数）
-- [x] 认证和基于角色的访问控制
-- [ ] 移动伴侣应用
+CachiBot 支持分层配置：环境变量覆盖工作空间 TOML，工作空间 TOML 覆盖用户 `~/.cachibot.toml`，用户配置覆盖默认值。所有选项请参阅 [`cachibot.example.toml`](../cachibot.example.toml)。
+
+关键配置节：`[agent]`（模型、温度、最大迭代次数）、`[sandbox]`（允许的导入、超时）、`[knowledge]`（分块大小、嵌入模型、相似性阈值）、`[coding_agents]`（默认智能体、超时、CLI 路径）、`[database]`（SQLite 或 PostgreSQL URL）、`[auth]`（JWT 设置）。
 
 ## 贡献
 
@@ -288,7 +297,7 @@ bash dev.sh watch-lint   # lint 监视器（保存时运行 ruff + ESLint）
   <a href="https://cachibot.ai">
     <img src="https://img.shields.io/badge/Website-cachibot.ai-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="网站" />
   </a>
-  <a href="https://discord.gg/Xzw45fGhqq">
+  <a href="https://discord.gg/V9bKwYVJ">
     <img src="https://img.shields.io/badge/Discord-加入社区-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
   </a>
   <a href="https://github.com/jhd3197/CachiBot/issues">

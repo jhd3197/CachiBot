@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../../stores/auth'
 import { checkSetupRequired, getAuthMode, login } from '../../api/auth'
@@ -96,9 +96,7 @@ export function LoginPage() {
       <div className="layout-auth">
         <div className="login">
           <div className="login__logo">
-            <div className="login__logo-icon">
-              <Shield size={32} style={{ color: 'white' }} />
-            </div>
+            <img src="/icon.png" alt="CachiBot" className="login__logo-icon" />
             <h1 className="login__title">CachiBot</h1>
             <p className="login__subtitle">Sign in to continue</p>
           </div>
@@ -129,9 +127,7 @@ export function LoginPage() {
       <div className="login">
         {/* Logo */}
         <div className="login__logo">
-          <div className="login__logo-icon">
-            <Shield size={32} style={{ color: 'white' }} />
-          </div>
+          <img src="/icon.png" alt="CachiBot" className="login__logo-icon" />
           <h1 className="login__title">CachiBot</h1>
           <p className="login__subtitle">Sign in to continue</p>
         </div>

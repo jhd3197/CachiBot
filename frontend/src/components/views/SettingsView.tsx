@@ -21,7 +21,11 @@ import {
   Layers,
   Mic,
   Plus,
+  CheckCircle,
+  XCircle,
+  Terminal,
 } from 'lucide-react'
+import { getCodingAgents } from '../../api/client'
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { useUIStore } from '../../stores/ui'
@@ -44,7 +48,7 @@ import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
-import type { Bot as BotType, BotModels, SkillDefinition } from '../../types'
+import type { Bot as BotType, BotModels, SkillDefinition, CodingAgentInfo } from '../../types'
 
 const COLOR_OPTIONS = [
   '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899',
@@ -257,6 +261,30 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
   const { isCapabilityDisabled } = usePlatformToolsStore()
   const { voiceSettings, updateVoiceSettings } = useVoiceStore()
   const activeBot = getActiveBot()
+
+  // Coding agents discovery state
+  const [codingAgents, setCodingAgents] = useState<CodingAgentInfo[]>([])
+  const [codingAgentsDefault, setCodingAgentsDefault] = useState('')
+  const codingAgentEnabled = !!activeBot?.capabilities?.codingAgent
+
+  useEffect(() => {
+    if (!codingAgentEnabled) {
+      setCodingAgents([])
+      return
+    }
+    let cancelled = false
+    getCodingAgents()
+      .then((res) => {
+        if (!cancelled) {
+          setCodingAgents(res.agents)
+          setCodingAgentsDefault(res.default_agent)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCodingAgents([])
+      })
+    return () => { cancelled = true }
+  }, [codingAgentEnabled])
 
   const toggleCapability = (key: string, value: boolean) => {
     if (!activeBot) return
@@ -527,6 +555,101 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Coding Agent toggle (hidden if globally disabled) */}
+          {!isCapabilityDisabled('codingAgent') && (
+            <CapabilityToggle
+              icon={<Cpu className="h-4 w-4" />}
+              label="Coding Agents"
+              description="Spawn Claude Code, Codex, or Gemini CLI to autonomously write code"
+              enabled={!!activeBot?.capabilities?.codingAgent}
+              onToggle={(v) => toggleCapability('codingAgent', v)}
+            />
+          )}
+
+          {/* Coding Agents status panel (shown when enabled) */}
+          {codingAgentEnabled && codingAgents.length > 0 && (
+            <div className="settings-coding-agents">
+              <div className="settings-coding-agents__header">
+                <Terminal className="h-4 w-4" />
+                <span>Available Coding Agents</span>
+              </div>
+              <div className="settings-coding-agents__list">
+                {codingAgents.map((agent) => (
+                  <div key={agent.id} className="settings-coding-agents__item">
+                    <div className="settings-coding-agents__status">
+                      {agent.available
+                        ? <CheckCircle className="h-4 w-4 text-green-500" />
+                        : <XCircle className="h-4 w-4 text-red-400" />}
+                    </div>
+                    <div className="settings-coding-agents__info">
+                      <span className="settings-coding-agents__name">{agent.name}</span>
+                      <span className="settings-coding-agents__binary">
+                        {agent.custom_path ? agent.binary : agent.id}
+                      </span>
+                    </div>
+                    {agent.id === codingAgentsDefault && (
+                      <span className="settings-coding-agents__badge">default</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="settings-coding-agents__default">
+                <label className="text-xs text-[var(--color-text-secondary)]">Default agent for @mentions</label>
+                <select
+                  value={
+                    (activeBot?.toolConfigs?.coding_agent?.defaultAgent as string)
+                    || codingAgentsDefault
+                  }
+                  onChange={(e) => {
+                    if (!activeBot) return
+                    const current = activeBot.toolConfigs || {}
+                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), defaultAgent: e.target.value } }
+                    updateBot(activeBot.id, { toolConfigs: toolCfg })
+                  }}
+                  className="settings-coding-agents__select"
+                >
+                  {codingAgents.map((a) => (
+                    <option key={a.id} value={a.id} disabled={!a.available}>
+                      {a.name}{!a.available ? ' (not installed)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-coding-agents__default">
+                <label className="text-xs text-[var(--color-text-secondary)]">Timeout per task</label>
+                <select
+                  value={
+                    (activeBot?.toolConfigs?.coding_agent?.timeoutSeconds as number)
+                    || 600
+                  }
+                  onChange={(e) => {
+                    if (!activeBot) return
+                    const current = activeBot.toolConfigs || {}
+                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), timeoutSeconds: Number(e.target.value) } }
+                    updateBot(activeBot.id, { toolConfigs: toolCfg })
+                  }}
+                  className="settings-coding-agents__select"
+                >
+                  {/* Seconds: 10s steps up to 60s */}
+                  {[10, 20, 30, 40, 50, 60].map((s) => (
+                    <option key={s} value={s}>{s}s</option>
+                  ))}
+                  {/* Minutes: 2–60 min */}
+                  {[2, 3, 5, 10, 15, 20, 30, 45, 60].map((m) => (
+                    <option key={`m${m}`} value={m * 60}>{m} min</option>
+                  ))}
+                  {/* Hours: 2–24h */}
+                  {[2, 3, 4, 6, 8, 12, 18, 24].map((h) => (
+                    <option key={`h${h}`} value={h * 3600}>{h}h</option>
+                  ))}
+                </select>
+              </div>
+              <p className="settings-coding-agents__hint">
+                Type <code>@claude</code>, <code>@codex</code>, or <code>@gemini</code> in chat to invoke a coding agent.
+              </p>
             </div>
           )}
         </div>

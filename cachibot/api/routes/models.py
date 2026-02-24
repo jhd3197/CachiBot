@@ -35,7 +35,13 @@ class ModelInfo(BaseModel):
     )
     supports_image_generation: bool = Field(default=False, description="Supports image generation")
     supports_audio: bool = Field(default=False, description="Supports audio (TTS/STT)")
+    supports_embedding: bool = Field(default=False, description="Supports text embedding")
     is_reasoning: bool = Field(default=False, description="Is a reasoning model")
+    modalities_input: list[str] = Field(default_factory=list, description="Input modalities")
+    modalities_output: list[str] = Field(default_factory=list, description="Output modalities")
+    embedding_dimensions: int | None = Field(
+        default=None, description="Embedding vector dimensions"
+    )
     pricing: dict[str, Any] | None = Field(default=None, description="Pricing per 1M tokens")
 
 
@@ -60,6 +66,7 @@ class DefaultModelUpdate(BaseModel):
 # Name-based pattern matching for models not yet in models.dev or Prompture's pricing dicts
 _IMAGE_PATTERNS = ("image", "dall-e", "imagen", "stable-diffusion", "stable-image", "sdxl", "sd3")
 _AUDIO_PATTERNS = ("tts", "whisper", "eleven_", "scribe")
+_EMBEDDING_PATTERNS = ("embed", "embedding", "bge-", "nomic-embed", "e5-", "minilm")
 
 
 @router.get("/models", response_model=ModelsResponse)
@@ -68,9 +75,9 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     Get all available models from configured providers.
 
     Uses Prompture's model discovery with ``include_capabilities=True`` to get
-    models and their modalities in a single call.  Image-generation and audio
-    capability flags are derived from ``modalities_output`` (from models.dev)
-    plus the dedicated Prompture discovery helpers as a supplement.
+    models and their modalities in a single call.  Image-generation, audio, and
+    embedding capability flags are derived from dedicated Prompture discovery
+    helpers plus name-based pattern matching.
     """
     groups: dict[str, list[ModelInfo]] = {}
 
@@ -85,7 +92,7 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     except Exception as exc:
         logger.warning("Model discovery failed: %s", exc)
 
-    # --- Supplemental: dedicated image/audio discovery (catches driver-specific models) ---
+    # --- Supplemental: dedicated image/audio/embedding discovery ---
     image_gen_ids: set[str] = set()
     try:
         from prompture.infra import get_available_image_gen_models
@@ -99,6 +106,17 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
         from prompture.infra import get_available_audio_models
 
         audio_ids = set(get_available_audio_models())
+    except (ImportError, Exception):
+        pass
+
+    embedding_ids: set[str] = set()
+    embedding_dims: dict[str, int] = {}
+    try:
+        from prompture.drivers.embedding_base import EMBEDDING_MODEL_DIMENSIONS
+        from prompture.infra import get_available_embedding_models
+
+        embedding_ids = set(get_available_embedding_models())
+        embedding_dims = EMBEDDING_MODEL_DIMENSIONS
     except (ImportError, Exception):
         pass
 
@@ -142,6 +160,12 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
             or model_id in audio_ids
             or any(p in name_lower for p in _AUDIO_PATTERNS)
         )
+        is_embedding = model_id in embedding_ids or any(
+            p in name_lower for p in _EMBEDDING_PATTERNS
+        )
+
+        # Resolve embedding dimensions
+        emb_dims = embedding_dims.get(raw_id) if is_embedding else None
 
         # Fetch pricing if available
         pricing = None
@@ -166,7 +190,11 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
             supports_structured_output=bool(caps.get("supports_structured_output")),
             supports_image_generation=is_image_gen,
             supports_audio=is_audio,
+            supports_embedding=is_embedding,
             is_reasoning=bool(caps.get("is_reasoning")),
+            modalities_input=list(caps.get("modalities_input") or ()),
+            modalities_output=list(caps.get("modalities_output") or ()),
+            embedding_dimensions=emb_dims,
             pricing=pricing,
         )
 
@@ -186,6 +214,21 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
         provider = aud_id.split("/", 1)[0] if "/" in aud_id else "unknown"
         groups.setdefault(provider, []).append(
             ModelInfo(id=aud_id, provider=provider, supports_audio=True)
+        )
+        seen_ids.add(aud_id)
+
+    # --- Append embedding-only models not already in results ---
+    for emb_id in sorted(embedding_ids - seen_ids):
+        provider = emb_id.split("/", 1)[0] if "/" in emb_id else "unknown"
+        model_part = emb_id.split("/", 1)[1] if "/" in emb_id else emb_id
+        dims = embedding_dims.get(model_part)
+        groups.setdefault(provider, []).append(
+            ModelInfo(
+                id=emb_id,
+                provider=provider,
+                supports_embedding=True,
+                embedding_dimensions=dims,
+            )
         )
 
     # Sort models within each group
@@ -221,5 +264,74 @@ async def set_default_model(
         raise HTTPException(status_code=400, detail="Invalid model ID")
 
     set_env_value(key, value)
+
+    return {"ok": True, "model": value}
+
+
+# ── Embedding Model Endpoints ─────────────────────────────────────────────
+
+
+class EmbeddingModelInfo(BaseModel):
+    """Information about an available embedding model."""
+
+    id: str = Field(description="Model identifier (provider/model-id)")
+    provider: str = Field(description="Provider name")
+    dimensions: int | None = Field(default=None, description="Embedding vector dimensions")
+
+
+@router.get("/models/embedding")
+async def get_embedding_models(
+    user: User = Depends(get_current_user),
+) -> list[EmbeddingModelInfo]:
+    """Get available embedding models with dimensions."""
+    models: list[EmbeddingModelInfo] = []
+
+    try:
+        from prompture.drivers.embedding_base import EMBEDDING_MODEL_DIMENSIONS
+        from prompture.infra import get_available_embedding_models
+
+        for model_str in get_available_embedding_models():
+            parts = model_str.split("/", 1)
+            provider = parts[0]
+            model_id = parts[1] if len(parts) > 1 else parts[0]
+            dims = EMBEDDING_MODEL_DIMENSIONS.get(model_id)
+            models.append(EmbeddingModelInfo(id=model_str, provider=provider, dimensions=dims))
+    except (ImportError, Exception) as exc:
+        logger.warning("Embedding model discovery failed: %s", exc)
+
+    return models
+
+
+@router.get("/models/embedding/default", response_model=DefaultModelResponse)
+async def get_default_embedding_model(
+    user: User = Depends(get_current_user),
+) -> DefaultModelResponse:
+    """Get the current default embedding model from config."""
+    from cachibot.config import Config
+
+    config = Config.load()
+    return DefaultModelResponse(model=config.knowledge.embedding_model)
+
+
+@router.put("/models/embedding/default", response_model=dict)
+async def set_default_embedding_model(
+    body: DefaultModelUpdate,
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Set the default embedding model.
+
+    Updates the CACHIBOT_EMBEDDING_MODEL env var so the change persists.
+    """
+    value = body.model
+    if any(c in value for c in ("\n", "\r", "\0")):
+        raise HTTPException(status_code=400, detail="Invalid model ID")
+
+    set_env_value("CACHIBOT_EMBEDDING_MODEL", value)
+
+    # Reset the singleton so it picks up the new model on next use
+
+    import cachibot.services.vector_store as vs_module
+
+    vs_module._vector_store = None
 
     return {"ok": True, "model": value}

@@ -33,14 +33,20 @@ if ($Mode -eq "watch-lint") {
         Write-Host "Running linters..." -ForegroundColor Cyan
         Write-Host ""
 
-        # --- Python: ruff check ---
+        # --- Python: ruff check (auto-fix) ---
         Write-Host "  ruff check      " -ForegroundColor Cyan -NoNewline
         $out = & ruff check $pyPath 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "ok" -ForegroundColor Green
         } else {
-            Write-Host "fail" -ForegroundColor Red
-            $out | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            $fixOut = & ruff check --fix --unsafe-fixes $pyPath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $fixed = ($out | Select-String "^\[").Count
+                Write-Host "fixed $fixed issues" -ForegroundColor Yellow
+            } else {
+                Write-Host "fail" -ForegroundColor Red
+                $fixOut | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            }
         }
 
         # --- Python: ruff format (auto-fix) ---

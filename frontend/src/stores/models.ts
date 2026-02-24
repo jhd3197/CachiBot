@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import { getModels, getDefaultModel, setDefaultModel, type ModelsGrouped, type ModelInfo } from '../api/models'
+import {
+  getModels,
+  getDefaultModel,
+  setDefaultModel,
+  getDefaultEmbeddingModel,
+  setDefaultEmbeddingModel,
+  type ModelsGrouped,
+  type ModelInfo,
+} from '../api/models'
 
 /** Filter a ModelsGrouped object to only models matching a predicate. */
 function filterGroups(groups: ModelsGrouped, predicate: (m: ModelInfo) => boolean): ModelsGrouped {
@@ -15,7 +23,9 @@ interface ModelsState {
   groups: ModelsGrouped
   imageGroups: ModelsGrouped
   audioGroups: ModelsGrouped
+  embeddingGroups: ModelsGrouped
   defaultModel: string
+  defaultEmbeddingModel: string
   loading: boolean
   error: string | null
 
@@ -25,13 +35,16 @@ interface ModelsState {
   // Actions
   refresh: () => Promise<void>
   updateDefaultModel: (model: string) => Promise<void>
+  updateDefaultEmbeddingModel: (model: string) => Promise<void>
 }
 
 export const useModelsStore = create<ModelsState>((set, get) => ({
   groups: {},
   imageGroups: {},
   audioGroups: {},
+  embeddingGroups: {},
   defaultModel: '',
+  defaultEmbeddingModel: '',
   loading: true,
   error: null,
 
@@ -42,15 +55,18 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null })
     try {
-      const [groups, defaultModel] = await Promise.all([
+      const [groups, defaultModel, defaultEmbeddingModel] = await Promise.all([
         getModels(),
         getDefaultModel(),
+        getDefaultEmbeddingModel(),
       ])
       set({
         groups,
         imageGroups: filterGroups(groups, (m) => m.supports_image_generation),
         audioGroups: filterGroups(groups, (m) => m.supports_audio),
+        embeddingGroups: filterGroups(groups, (m) => m.supports_embedding),
         defaultModel,
+        defaultEmbeddingModel,
         loading: false,
       })
     } catch (err) {
@@ -68,6 +84,17 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to update default model',
+      })
+    }
+  },
+
+  updateDefaultEmbeddingModel: async (model: string) => {
+    try {
+      await setDefaultEmbeddingModel(model)
+      set({ defaultEmbeddingModel: model })
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to update embedding model',
       })
     }
   },

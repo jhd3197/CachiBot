@@ -1,5 +1,6 @@
 import { Star, Download, Users } from 'lucide-react'
 import { BotIconRenderer } from '../common/BotIconRenderer'
+import { useTruncate } from '../../hooks/useTruncate'
 import type { RoomMarketplaceTemplate } from '../../types'
 import type { BotIcon } from '../../types'
 
@@ -25,6 +26,8 @@ function formatDownloads(n: number): string {
 }
 
 export function RoomCard({ template, onClick }: RoomCardProps) {
+  const { ref: titleRef, display: titleText } = useTruncate(template.name)
+
   return (
     <button onClick={onClick} className="bot-card">
       {/* Header */}
@@ -39,8 +42,8 @@ export function RoomCard({ template, onClick }: RoomCardProps) {
             color={template.color}
           />
         </div>
-        <div className="bot-card__info">
-          <h3 className="bot-card__title">{template.name}</h3>
+        <div className="bot-card__info" ref={titleRef as React.RefObject<HTMLDivElement>}>
+          <h3 className="bot-card__title" title={template.name}>{titleText}</h3>
           <p className="bot-card__author">{MODE_LABELS[template.response_mode] || template.response_mode} mode</p>
         </div>
       </div>

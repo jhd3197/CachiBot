@@ -48,6 +48,7 @@ type MinAccessLevel = 'viewer' | 'operator' | 'editor'
 const navItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
   { id: 'chats', label: 'Chats', icon: MessageSquare, minLevel: 'viewer' },
   { id: 'rooms', label: 'Rooms', icon: DoorOpen, minLevel: 'viewer' },
+  { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator' },
   { id: 'work', label: 'Work', icon: FolderKanban, minLevel: 'operator' },
   { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator' },
 ]
@@ -171,15 +172,6 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
               >
                 <Search className="h-4 w-4" />
               </button>
-              {userRank >= LEVEL_RANK['operator'] && (
-                <button
-                  onClick={() => handleNavClick('voice')}
-                  title="Voice"
-                  className={cn('nav-btn', activeView === 'voice' && 'nav-btn--active')}
-                >
-                  <Mic className="h-4 w-4" />
-                </button>
-              )}
               <div className="relative">
                 <button
                   onClick={toggleMenu('gear')}
@@ -209,15 +201,6 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
             >
               <Search className="h-4 w-4" />
             </button>
-            {userRank >= LEVEL_RANK['operator'] && (
-              <button
-                onClick={() => handleNavClick('voice')}
-                title="Voice"
-                className={cn('nav-btn', activeView === 'voice' && 'nav-btn--active')}
-              >
-                <Mic className="h-4 w-4" />
-              </button>
-            )}
             <div className="relative">
               <button
                 onClick={toggleMenu('gear')}
