@@ -1,5 +1,6 @@
 import '../../models/bot.dart';
 import '../../models/chat.dart';
+import '../../models/server_info.dart';
 import 'api_client.dart';
 
 class BotService {
@@ -57,5 +58,11 @@ class BotService {
 
   Future<void> clearChatMessages(String botId, String chatId) async {
     await _client.dio.post('/api/bots/$botId/chats/$chatId/_clear-messages');
+  }
+
+  /// Fetch server health / version info.
+  Future<ServerInfo> getHealth() async {
+    final response = await _client.dio.get('/api/health');
+    return ServerInfo.fromJson(response.data as Map<String, dynamic>);
   }
 }

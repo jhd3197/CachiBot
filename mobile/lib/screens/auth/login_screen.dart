@@ -224,6 +224,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Text(_isSetupMode ? 'Create Account' : 'Sign In'),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // QR Code pairing button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: authState.isLoading
+                        ? null
+                        : () => context.go('/qr-pair'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan QR Code'),
+                  ),
+                ),
               ],
             ),
           ),

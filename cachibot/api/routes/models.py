@@ -39,7 +39,9 @@ class ModelInfo(BaseModel):
     is_reasoning: bool = Field(default=False, description="Is a reasoning model")
     modalities_input: list[str] = Field(default_factory=list, description="Input modalities")
     modalities_output: list[str] = Field(default_factory=list, description="Output modalities")
-    embedding_dimensions: int | None = Field(default=None, description="Embedding vector dimensions")
+    embedding_dimensions: int | None = Field(
+        default=None, description="Embedding vector dimensions"
+    )
     pricing: dict[str, Any] | None = Field(default=None, description="Pricing per 1M tokens")
 
 
@@ -158,9 +160,8 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
             or model_id in audio_ids
             or any(p in name_lower for p in _AUDIO_PATTERNS)
         )
-        is_embedding = (
-            model_id in embedding_ids
-            or any(p in name_lower for p in _EMBEDDING_PATTERNS)
+        is_embedding = model_id in embedding_ids or any(
+            p in name_lower for p in _EMBEDDING_PATTERNS
         )
 
         # Resolve embedding dimensions
@@ -328,7 +329,6 @@ async def set_default_embedding_model(
     set_env_value("CACHIBOT_EMBEDDING_MODEL", value)
 
     # Reset the singleton so it picks up the new model on next use
-    from cachibot.services.vector_store import _vector_store
 
     import cachibot.services.vector_store as vs_module
 

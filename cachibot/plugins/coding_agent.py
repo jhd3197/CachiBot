@@ -325,9 +325,9 @@ class CodingAgentPlugin(CachibotPlugin):
                     _ctx_on_tool_output = ctx.on_tool_output
 
                     def _on_output(text: str) -> None:
-                        loop.call_soon_threadsafe(  # type: ignore[union-attr]
+                        loop.call_soon_threadsafe(
                             asyncio.ensure_future,
-                            _ctx_on_tool_output(tool_id, text),  # type: ignore[arg-type]
+                            _ctx_on_tool_output(tool_id, text),
                         )
 
             try:
@@ -342,9 +342,7 @@ class CodingAgentPlugin(CachibotPlugin):
                     on_output=_on_output,
                 )
             except Exception as exc:
-                logger.error(
-                    "coding_agent(%s) failed: %s", cli.value, exc, exc_info=True
-                )
+                logger.error("coding_agent(%s) failed: %s", cli.value, exc, exc_info=True)
                 return f"Error running {cli.value} ({type(exc).__name__}): {exc}"
 
         return {"coding_agent": coding_agent.__skill__}

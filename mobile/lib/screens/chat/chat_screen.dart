@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/service_providers.dart';
 import '../../widgets/chat/approval_dialog.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/common/connection_indicator.dart';
@@ -107,6 +108,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          // Offline / reconnecting banner
+          _OfflineBanner(),
+
           // Message list
           Expanded(
             child: state.messages.isEmpty &&
@@ -375,6 +379,41 @@ class _ChatInput extends StatelessWidget {
                   ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OfflineBanner extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isConnected = ref.watch(wsConnectionProvider);
+
+    if (isConnected) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.amber.shade700,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Reconnecting... Cached messages shown',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ],
       ),
     );
   }

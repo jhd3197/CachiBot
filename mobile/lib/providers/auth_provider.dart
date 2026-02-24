@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user.dart';
 import 'service_providers.dart';
+import 'theme_provider.dart';
 
 class AuthState {
   const AuthState({
@@ -11,6 +12,7 @@ class AuthState {
     this.isLoading = false,
     this.setupRequired,
     this.errorMessage,
+    this.requiresBiometric = false,
   });
 
   final User? user;
@@ -18,6 +20,7 @@ class AuthState {
   final bool isLoading;
   final bool? setupRequired;
   final String? errorMessage;
+  final bool requiresBiometric;
 
   AuthState copyWith({
     User? user,
@@ -28,6 +31,7 @@ class AuthState {
     bool clearError = false,
     bool clearUser = false,
     bool clearSetupRequired = false,
+    bool? requiresBiometric,
   }) {
     return AuthState(
       user: clearUser ? null : (user ?? this.user),
@@ -36,9 +40,12 @@ class AuthState {
       setupRequired:
           clearSetupRequired ? null : (setupRequired ?? this.setupRequired),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      requiresBiometric: requiresBiometric ?? this.requiresBiometric,
     );
   }
 }
+
+const _biometricPrefKey = 'biometric_lock_enabled';
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._ref) : super(const AuthState());
@@ -173,15 +180,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final authService = _ref.read(authServiceProvider);
       final user = await authService.getCurrentUser();
 
+      // Check if biometric lock is enabled
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final biometricEnabled = prefs.getBool(_biometricPrefKey) ?? false;
+
       state = AuthState(
         user: user,
         isAuthenticated: true,
+        requiresBiometric: biometricEnabled,
       );
     } catch (_) {
       // Token invalid or server unreachable — stay logged out
       await storage.clearTokens();
       state = const AuthState();
     }
+  }
+
+  /// Clear biometric requirement after successful authentication.
+  void clearBiometricRequirement() {
+    state = state.copyWith(requiresBiometric: false);
+  }
+
+  /// Toggle biometric lock preference.
+  Future<void> setBiometricLock(bool enabled) async {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    await prefs.setBool(_biometricPrefKey, enabled);
+  }
+
+  /// Check if biometric lock is currently enabled in preferences.
+  bool get isBiometricEnabled {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    return prefs.getBool(_biometricPrefKey) ?? false;
   }
 
   Future<void> logout() async {
