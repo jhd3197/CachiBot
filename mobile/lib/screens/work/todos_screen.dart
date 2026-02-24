@@ -422,7 +422,7 @@ class _TodoCard extends StatelessWidget {
                     ),
                     if (todo.remindAt != null) ...[
                       const SizedBox(width: 8),
-                      Icon(Icons.alarm, size: 12, color: Colors.orange),
+                      const Icon(Icons.alarm, size: 12, color: Colors.orange),
                       const SizedBox(width: 2),
                       Text(
                         formatRelativeTime(todo.remindAt!),

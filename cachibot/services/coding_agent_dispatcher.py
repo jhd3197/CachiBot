@@ -76,7 +76,7 @@ class CodingSession:
     start_time: float = field(default_factory=time.time)
     output_lines: list[str] = field(default_factory=list)
     _cancel: threading.Event = field(default_factory=threading.Event)
-    _proc: subprocess.Popen | None = field(default=None, repr=False)
+    _proc: subprocess.Popen[bytes] | None = field(default=None, repr=False)
 
     @property
     def elapsed_str(self) -> str:

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,7 +36,6 @@ class CachiBotApp extends ConsumerStatefulWidget {
 
 class _CachiBotAppState extends ConsumerState<CachiBotApp> {
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
-  String? _pendingSharedText;
 
   @override
   void initState() {
@@ -77,7 +75,8 @@ class _CachiBotAppState extends ConsumerState<CachiBotApp> {
           file.type == SharedMediaType.url) {
         // Shared text: navigate to recent chats with text pre-filled
         // User can pick a bot/chat from there
-        _pendingSharedText = file.path;
+        // TODO: pass shared text to the chat screen
+
         router.go('/chats');
         break;
       } else if (file.type == SharedMediaType.file) {

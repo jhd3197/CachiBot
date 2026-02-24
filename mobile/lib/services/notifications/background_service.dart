@@ -16,7 +16,6 @@ class BackgroundNotificationService {
       BackgroundNotificationService._();
 
   StreamSubscription<dynamic>? _eventSub;
-  WebSocketService? _ws;
   bool _isActive = false;
   int _notificationId = 1000;
 
@@ -28,7 +27,6 @@ class BackgroundNotificationService {
   /// Start listening to WebSocket events for background notifications.
   Future<void> start(WebSocketService ws) async {
     if (_isActive) return;
-    _ws = ws;
     _isActive = true;
 
     _eventSub = ws.events.listen(_handleEvent);

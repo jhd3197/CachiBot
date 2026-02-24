@@ -47,7 +47,11 @@ class NtfyService {
 
       _isListening = true;
 
-      _sseSub = response.data?.stream
+      final stream = response.data?.stream;
+      if (stream == null) return false;
+
+      _sseSub = stream
+          .cast<List<int>>()
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen(
