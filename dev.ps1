@@ -6,10 +6,10 @@
 #   .\dev.ps1 frontend         # frontend only (Vite dev server)
 #   .\dev.ps1 desktop          # backend + frontend + Electron
 #   .\dev.ps1 all              # backend + frontend + browser + Electron
-#   .\dev.ps1 watch-lint       # watch Python + TS files and lint on changes
+#   .\dev.ps1 validate          # watch Python + TS + Dart files and validate on changes
 
 param(
-    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "watch-lint")]
+    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "validate")]
     [string]$Mode = "browser"
 )
 
@@ -17,13 +17,15 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $procs = @()
 
-# --- watch-lint mode ---
-if ($Mode -eq "watch-lint") {
+# --- validate mode ---
+if ($Mode -eq "validate") {
     $pyPath = "$Root\cachibot"
     $tsPath = "$Root\frontend\src"
-    Write-Host "[dev] Watching for lint + type + test errors (Python + TypeScript)" -ForegroundColor Cyan
+    $dartPath = "$Root\mobile\lib"
+    Write-Host "[dev] Watching for lint + type + test errors (Python + TypeScript + Dart)" -ForegroundColor Cyan
     Write-Host "[dev]   Python  : $pyPath" -ForegroundColor DarkGray
     Write-Host "[dev]   Frontend: $tsPath" -ForegroundColor DarkGray
+    Write-Host "[dev]   Mobile  : $dartPath" -ForegroundColor DarkGray
     Write-Host "[dev] Press Ctrl+C to stop." -ForegroundColor DarkGray
     Write-Host ""
 
@@ -94,6 +96,24 @@ if ($Mode -eq "watch-lint") {
             $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
+        # --- Flutter: analyze ---
+        Write-Host "  flutter analyze " -ForegroundColor Cyan -NoNewline
+        Push-Location "$Root\mobile"
+        $out = & flutter analyze 2>&1
+        $exitCode = $LASTEXITCODE
+        Pop-Location
+        if ($exitCode -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            $issueCount = ($out | Select-String "(\d+) issues? found").Matches.Groups[1].Value
+            if ($issueCount) {
+                Write-Host "fail ($issueCount issues)" -ForegroundColor Red
+            } else {
+                Write-Host "fail" -ForegroundColor Red
+            }
+            $out | Where-Object { $_ -match "(info|warning|error) •" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
         # --- Python: pytest ---
         Write-Host "  pytest          " -ForegroundColor Cyan -NoNewline
         $out = & pytest --tb=short -q 2>&1
@@ -134,6 +154,13 @@ if ($Mode -eq "watch-lint") {
                               [System.IO.NotifyFilters]::CreationTime
     $tsWatcher.EnableRaisingEvents = $true
 
+    $dartWatcher = [System.IO.FileSystemWatcher]::new($dartPath, "*.dart")
+    $dartWatcher.IncludeSubdirectories = $true
+    $dartWatcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor
+                                [System.IO.NotifyFilters]::FileName -bor
+                                [System.IO.NotifyFilters]::CreationTime
+    $dartWatcher.EnableRaisingEvents = $true
+
     # Shared state for debouncing
     $lastRun = [datetime]::MinValue
 
@@ -150,6 +177,9 @@ if ($Mode -eq "watch-lint") {
     Register-ObjectEvent $tsWatcher Changed -Action $handler | Out-Null
     Register-ObjectEvent $tsWatcher Created -Action $handler | Out-Null
     Register-ObjectEvent $tsWatcher Renamed -Action $handler | Out-Null
+    Register-ObjectEvent $dartWatcher Changed -Action $handler | Out-Null
+    Register-ObjectEvent $dartWatcher Created -Action $handler | Out-Null
+    Register-ObjectEvent $dartWatcher Renamed -Action $handler | Out-Null
 
     try {
         while ($true) {
@@ -164,6 +194,7 @@ if ($Mode -eq "watch-lint") {
     } finally {
         $pyWatcher.Dispose()
         $tsWatcher.Dispose()
+        $dartWatcher.Dispose()
         Get-EventSubscriber | Unregister-Event
         Write-Host "[dev] Watcher stopped." -ForegroundColor Green
     }
