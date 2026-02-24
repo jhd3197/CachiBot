@@ -162,7 +162,8 @@ async def _run_coding_cli(
 
         chunks: list[str] = []
         try:
-            assert proc.stdout is not None  # noqa: S101
+            if proc.stdout is None:
+                raise RuntimeError("subprocess stdout is None")
             for raw_line in proc.stdout:
                 text = raw_line.decode(errors="replace")
                 chunks.append(text)

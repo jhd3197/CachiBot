@@ -122,3 +122,4 @@ mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-*.png
 mobile/ios/Pods/
 mobile/.fvm/
 *.iml
+pr.md
