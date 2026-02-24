@@ -137,7 +137,7 @@ class CodingAgentsConfig:
     """Coding agent CLI configuration."""
 
     default_agent: str = "claude"
-    timeout_seconds: int = 300
+    timeout_seconds: int = 600
     max_turns: int = 25
     max_output_length: int = 50000
     claude_path: str = ""
