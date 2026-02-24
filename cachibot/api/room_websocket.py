@@ -1073,9 +1073,9 @@ async def run_room_bot(
             )
 
         # Resolve per-bot environment for budget enforcement and API keys
-        from cachibot.api.websocket import _resolve_bot_env
+        from cachibot.services.agent_factory import resolve_bot_env
 
-        resolved_env, per_bot_driver = await _resolve_bot_env(
+        resolved_env, per_bot_driver = await resolve_bot_env(
             bot_id,
             platform="web",
             effective_model=effective_model or agent_config.agent.model,
