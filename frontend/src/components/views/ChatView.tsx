@@ -13,6 +13,7 @@ import {
   Loader2,
   Reply,
   X,
+  Cpu,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -22,13 +23,13 @@ import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
-import { generateBotNames } from '../../api/client'
+import { generateBotNames, getCodingAgents } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
-import type { ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
+import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -58,7 +59,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
-  const { isCommand, handleCommand } = useCommands()
+  const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate } = useBotAccess(activeBotId)
 
   // Use prop values if provided, otherwise fall back to WebSocket hook values
@@ -71,21 +72,67 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Command definitions for autocomplete
-  const SLASH_COMMANDS = [
-    { name: 'new', description: 'Create a new bot', icon: '✨' },
-    { name: 'list', description: 'View all your bots', icon: '📋' },
-    { name: 'help', description: 'Show available commands', icon: '❓' },
-    { name: 'settings', description: 'Open settings', icon: '⚙️' },
-    { name: 'start', description: 'Welcome message', icon: '👋' },
+  // @mention coding agent autocomplete state
+  const [showAgentMentions, setShowAgentMentions] = useState(false)
+  const [agentMentionFilter, setAgentMentionFilter] = useState('')
+  const [selectedAgentIndex, setSelectedAgentIndex] = useState(0)
+  const [availableAgents, setAvailableAgents] = useState<CodingAgentInfo[]>([])
+
+  // Local command definitions for autocomplete
+  const LOCAL_COMMANDS = [
+    { name: 'new', description: 'Create a new bot', icon: '✨', source: 'local' as const },
+    { name: 'list', description: 'View all your bots', icon: '📋', source: 'local' as const },
+    { name: 'help', description: 'Show available commands', icon: '❓', source: 'local' as const },
+    { name: 'settings', description: 'Open settings', icon: '⚙️', source: 'local' as const },
+    { name: 'start', description: 'Welcome message', icon: '👋', source: 'local' as const },
   ]
 
-  // Filter commands based on input
-  const filteredCommands = input.startsWith('/')
-    ? SLASH_COMMANDS.filter(cmd =>
-        cmd.name.toLowerCase().startsWith(input.slice(1).toLowerCase())
-      )
-    : []
+  // Build prefix groups from remote commands for two-stage autocomplete
+  const prefixGroups = remoteCommands.reduce<Record<string, { count: number; icon: string }>>((acc, cmd) => {
+    if (!acc[cmd.prefix]) {
+      acc[cmd.prefix] = { count: 0, icon: cmd.icon || '🔧' }
+    }
+    acc[cmd.prefix].count++
+    return acc
+  }, {})
+
+  // Two-stage filtering for command autocomplete
+  const filteredCommands = (() => {
+    if (!input.startsWith('/')) return []
+    const afterSlash = input.slice(1).toLowerCase()
+
+    // Stage 2: Typing "/prefix:" → show commands under that prefix
+    const colonIdx = afterSlash.indexOf(':')
+    if (colonIdx > 0) {
+      const prefix = afterSlash.slice(0, colonIdx)
+      const subFilter = afterSlash.slice(colonIdx + 1)
+      return remoteCommands
+        .filter(cmd => cmd.prefix === prefix && cmd.name.startsWith(subFilter))
+        .map(cmd => ({
+          name: `${cmd.prefix}:${cmd.name}`,
+          description: cmd.description,
+          icon: cmd.icon === 'terminal' ? '🖥️' : cmd.icon === 'sparkles' ? '✨' : cmd.icon === 'cpu' ? '🤖' : cmd.icon === 'book-open' ? '📖' : '🔧',
+          source: cmd.source,
+        }))
+    }
+
+    // Stage 1: Typing "/" → show local commands + prefix groups
+    const localMatches = LOCAL_COMMANDS.filter(cmd =>
+      cmd.name.startsWith(afterSlash)
+    )
+
+    // Add prefix group entries (e.g. "skill:", "gsd:", "bot:")
+    const groupEntries = Object.entries(prefixGroups)
+      .filter(([prefix]) => prefix.startsWith(afterSlash) || afterSlash === '')
+      .map(([prefix, info]) => ({
+        name: `${prefix}:`,
+        description: `${info.count} command${info.count > 1 ? 's' : ''} available`,
+        icon: info.icon === 'terminal' ? '🖥️' : info.icon === 'sparkles' ? '✨' : info.icon === 'cpu' ? '🤖' : '🔧',
+        source: 'group' as const,
+      }))
+
+    return [...localMatches, ...groupEntries]
+  })()
 
   // Show command menu when typing "/"
   useEffect(() => {
@@ -97,8 +144,32 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }, [input, filteredCommands.length])
 
-  const messages = activeChatId ? getMessages(activeChatId) : []
   const activeBot = getActiveBot()
+
+  // Fetch available coding agents when codingAgent capability is on
+  const codingAgentEnabled = activeBot?.capabilities?.codingAgent ?? false
+  useEffect(() => {
+    if (!codingAgentEnabled) {
+      setAvailableAgents([])
+      return
+    }
+    let cancelled = false
+    getCodingAgents()
+      .then((res) => {
+        if (!cancelled) setAvailableAgents(res.agents)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableAgents([])
+      })
+    return () => { cancelled = true }
+  }, [codingAgentEnabled])
+
+  // Filter agents by text typed after @
+  const filteredAgents = availableAgents.filter(
+    (a) => a.id.startsWith(agentMentionFilter) || a.name.toLowerCase().startsWith(agentMentionFilter)
+  )
+
+  const messages = activeChatId ? getMessages(activeChatId) : []
   const isInCreationFlow = creationFlow.step !== 'idle'
 
   // Get existing bot names for uniqueness validation
@@ -506,8 +577,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     const trimmedInput = input.trim()
     const lowerInput = trimmedInput.toLowerCase()
 
-    // Handle slash commands (except /create which uses the special flow)
-    if (isCommand(trimmedInput) && lowerInput !== '/create' && !isInCreationFlow) {
+    // Prefixed commands (/skill:X, /gsd:X, etc.) → send directly to backend via WS
+    if (isPrefixedCommand(trimmedInput)) {
+      // Falls through to normal message sending below — backend handles routing
+    }
+    // Handle local slash commands (except /create which uses the special flow)
+    else if (isCommand(trimmedInput) && lowerInput !== '/create' && !isInCreationFlow) {
       // Add user message first
       if (activeChatId) {
         addMessage(activeChatId, {
@@ -669,6 +744,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         workManagement: true,
         imageGeneration: false,
         audioGeneration: false,
+        codingAgent: false,
       }
 
       wsSendMessage(trimmedInput, {
@@ -689,11 +765,110 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   // Select a command from the autocomplete menu
   const selectCommand = (commandName: string) => {
     setInput(`/${commandName}`)
-    setShowCommandMenu(false)
+    // If selecting a prefix group (ends with ":"), keep menu open for sub-commands
+    if (!commandName.endsWith(':')) {
+      setShowCommandMenu(false)
+    }
     textareaRef.current?.focus()
   }
 
+  // Handle input changes — detects @mentions for coding agents
+  const handleInputChange = useCallback((value: string) => {
+    setInput(value)
+
+    // @mention detection (only when coding agents are available)
+    if (availableAgents.length > 0) {
+      const lastAtIndex = value.lastIndexOf('@')
+      if (lastAtIndex >= 0) {
+        const afterAt = value.slice(lastAtIndex + 1)
+        const beforeAt = lastAtIndex > 0 ? value[lastAtIndex - 1] : ' '
+        // Only trigger if @ is at start of input or preceded by a space
+        if (beforeAt === ' ' || lastAtIndex === 0) {
+          if (!afterAt.includes(' ') || afterAt.length < 20) {
+            setShowAgentMentions(true)
+            setAgentMentionFilter(afterAt.toLowerCase())
+            setSelectedAgentIndex(0)
+          } else {
+            setShowAgentMentions(false)
+          }
+        }
+      } else {
+        setShowAgentMentions(false)
+      }
+    }
+  }, [availableAgents.length])
+
+  // Insert an @mention into the input
+  const insertAgentMention = useCallback((agentId: string) => {
+    const lastAtIndex = input.lastIndexOf('@')
+    if (lastAtIndex >= 0) {
+      const before = input.slice(0, lastAtIndex)
+      setInput(`${before}@${agentId} `)
+    }
+    setShowAgentMentions(false)
+    textareaRef.current?.focus()
+  }, [input])
+
+  // Render the @mention popup
+  const renderAgentMentionPopup = () => {
+    if (!showAgentMentions || filteredAgents.length === 0) return null
+    return (
+      <div className="chat-input-mention-popup">
+        {filteredAgents.map((agent, index) => (
+          <button
+            key={agent.id}
+            type="button"
+            onClick={() => insertAgentMention(agent.id)}
+            className={cn(
+              'chat-input-mention-item',
+              index === selectedAgentIndex && 'chat-input-mention-item--selected'
+            )}
+          >
+            <Cpu className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">@{agent.id}</div>
+              <div className="text-xs text-[var(--color-text-secondary)] truncate">
+                {agent.name}{!agent.available && ' (not installed)'}
+              </div>
+            </div>
+            {index === selectedAgentIndex && (
+              <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
+            )}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle @mention agent popup navigation
+    if (showAgentMentions && filteredAgents.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedAgentIndex(prev =>
+          prev < filteredAgents.length - 1 ? prev + 1 : 0
+        )
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedAgentIndex(prev =>
+          prev > 0 ? prev - 1 : filteredAgents.length - 1
+        )
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault()
+        insertAgentMention(filteredAgents[selectedAgentIndex].id)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowAgentMentions(false)
+        return
+      }
+    }
+
     // Handle command menu navigation
     if (showCommandMenu && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -728,6 +903,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }
 
+  // Source badge label for command menu items
+  const sourceBadgeLabel = (source: string) => {
+    switch (source) {
+      case 'user_skill': return 'skill'
+      case 'bot_instruction': return 'bot'
+      case 'cli': return 'cli'
+      case 'group': return ''
+      default: return ''
+    }
+  }
+
   // Shared command menu renderer
   const renderCommandMenu = () => {
     if (!showCommandMenu || filteredCommands.length === 0) return null
@@ -735,26 +921,34 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       <div className="chat-command-menu">
         <div className="chat-command-menu__header">Commands</div>
         <div className="chat-command-menu__list">
-          {filteredCommands.map((cmd, index) => (
-            <button
-              key={cmd.name}
-              type="button"
-              onClick={() => selectCommand(cmd.name)}
-              className={cn(
-                'chat-command-menu__item',
-                index === selectedCommandIndex && 'chat-command-menu__item--selected'
-              )}
-            >
-              <span className="text-lg">{cmd.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium">/{cmd.name}</div>
-                <div className="text-xs text-[var(--color-text-secondary)] truncate">{cmd.description}</div>
-              </div>
-              {index === selectedCommandIndex && (
-                <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
-              )}
-            </button>
-          ))}
+          {filteredCommands.map((cmd, index) => {
+            const badge = sourceBadgeLabel(cmd.source)
+            return (
+              <button
+                key={cmd.name}
+                type="button"
+                onClick={() => selectCommand(cmd.name)}
+                className={cn(
+                  'chat-command-menu__item',
+                  index === selectedCommandIndex && 'chat-command-menu__item--selected'
+                )}
+              >
+                <span className="text-lg">{cmd.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium flex items-center gap-1.5">
+                    /{cmd.name}
+                    {badge && (
+                      <span className={cn('chat-command-badge', `chat-command-badge--${cmd.source}`)}>{badge}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-secondary)] truncate">{cmd.description}</div>
+                </div>
+                {index === selectedCommandIndex && (
+                  <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
     )
@@ -806,10 +1000,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           <form onSubmit={handleSubmit} className="chat-panel__input-inner">
             <div className="chat-input-container">
               {renderCommandMenu()}
+              {renderAgentMentionPopup()}
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
                 disabled={!isConnected || isLoading || !canOperate}
@@ -963,11 +1158,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           )}
           <div className="chat-input-container">
             {renderCommandMenu()}
+              {renderAgentMentionPopup()}
             {/* Textarea */}
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
                 !canOperate

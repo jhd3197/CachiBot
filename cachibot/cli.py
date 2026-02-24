@@ -346,7 +346,7 @@ def run_task(
 
 @app.command("server")
 def server(
-    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Server host"),
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Server host"),
     port: int = typer.Option(5870, "--port", "-p", help="Server port"),
     workspace: Path | None = typer.Option(None, "--workspace", "-w", help="Workspace path"),
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),

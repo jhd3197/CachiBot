@@ -17,7 +17,11 @@ export interface ModelInfo {
   supports_structured_output: boolean
   supports_image_generation: boolean
   supports_audio: boolean
+  supports_embedding: boolean
   is_reasoning: boolean
+  modalities_input: string[]
+  modalities_output: string[]
+  embedding_dimensions: number | null
   pricing: {
     input: number | null
     output: number | null
@@ -26,6 +30,12 @@ export interface ModelInfo {
 
 export interface ModelsGrouped {
   [provider: string]: ModelInfo[]
+}
+
+export interface EmbeddingModelInfo {
+  id: string
+  provider: string
+  dimensions: number | null
 }
 
 function getAuthHeader(): Record<string, string> {
@@ -88,6 +98,31 @@ export async function getDefaultModel(): Promise<string> {
  */
 export async function setDefaultModel(model: string): Promise<void> {
   await request('/models/default', {
+    method: 'PUT',
+    body: JSON.stringify({ model }),
+  })
+}
+
+/**
+ * Get available embedding models
+ */
+export async function getEmbeddingModels(): Promise<EmbeddingModelInfo[]> {
+  return request<EmbeddingModelInfo[]>('/models/embedding')
+}
+
+/**
+ * Get the current default embedding model
+ */
+export async function getDefaultEmbeddingModel(): Promise<string> {
+  const data = await request<{ model: string }>('/models/embedding/default')
+  return data.model
+}
+
+/**
+ * Set the default embedding model
+ */
+export async function setDefaultEmbeddingModel(model: string): Promise<void> {
+  await request('/models/embedding/default', {
     method: 'PUT',
     body: JSON.stringify({ model }),
   })

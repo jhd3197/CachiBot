@@ -15,7 +15,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelProps) {
-  const { activeChatId, getMessages, thinking, toolCalls, isLoading, error } = useChatStore()
+  const { activeChatId, getMessages, thinking, toolCalls, instructionDeltas, isLoading, error } = useChatStore()
   const { activeBotId } = useBotStore()
   const { showThinking, showCost } = useUIStore()
   const { canOperate } = useBotAccess(activeBotId)
@@ -36,7 +36,7 @@ export function ChatPanel({ onSendMessage, onCancel, isConnected }: ChatPanelPro
           {/* Active tool calls */}
           {toolCalls.length > 0 && (
             <div className="mt-4">
-              <ToolCallList toolCalls={toolCalls} />
+              <ToolCallList toolCalls={toolCalls} instructionDeltas={instructionDeltas} />
             </div>
           )}
 

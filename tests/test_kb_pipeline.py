@@ -20,6 +20,8 @@ from cachibot.services.vector_store import SearchResult, VectorStore
 def mock_vector_store():
     """Create a VectorStore with a mocked fastembed embedder."""
     vs = VectorStore(model_name="test-model")
+    # Force fastembed path so we use the mocked embedder, not the async driver
+    vs._is_provider_model = lambda: False  # type: ignore[method-assign]
     # Mock the embedder so we never download an actual model
     mock_embedder = MagicMock()
 

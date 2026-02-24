@@ -250,7 +250,18 @@ class DocumentProcessor:
             logger.debug(f"Storing {len(doc_chunks)} chunks")
             await self._repo.save_chunks(doc_chunks)
 
-            # Step 6: Update document status
+            # Step 6: Track embedding model on the document
+            try:
+                vs = self.vector_store
+                await self._repo.update_document_embedding_info(
+                    document_id,
+                    embedding_model=vs.model_name,
+                    embedding_dimensions=vs.get_dimensions(),
+                )
+            except Exception as e:
+                logger.debug(f"Could not save embedding info on document: {e}")
+
+            # Step 7: Update document status
             await self._repo.update_document_status(
                 document_id, DocumentStatus.READY, chunk_count=len(doc_chunks)
             )

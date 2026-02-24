@@ -1,0 +1,68 @@
+name: cachibot_mobile
+description: CachiBot mobile companion app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+  flutter: ^3.29.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking
+  dio: ^5.7.0
+  web_socket_channel: ^3.0.2
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.3
+  drift: ^2.22.1
+  sqlite3_flutter_libs: ^0.5.0
+  path: ^1.9.1
+
+  # UI
+  flutter_markdown: ^0.7.6
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.17
+  qr_flutter: ^4.1.0
+
+  # Utilities
+  path_provider: ^2.1.5
+  json_annotation: ^4.9.0
+  connectivity_plus: ^6.1.4
+  package_info_plus: ^8.3.0
+  crypto: ^3.0.6
+  local_auth: ^2.3.0
+  mobile_scanner: ^6.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  drift_dev: ^2.22.1
+  riverpod_generator: ^2.6.3
+  json_serializable: ^6.9.4
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: ../assets/icon.png
+  adaptive_icon_background: '#050505'
+  adaptive_icon_foreground: ../assets/icon.png
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/

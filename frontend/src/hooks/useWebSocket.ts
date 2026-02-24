@@ -56,7 +56,7 @@ export function setPendingChatId(chatId: string | null) {
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
-  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
+  const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, appendInstructionDelta, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
 
   // Use a ref to always have access to the current activeChatId without re-creating the handler
   const activeChatIdRef = useRef<string | null>(null)
@@ -103,6 +103,12 @@ export function useWebSocket() {
         case 'tool_end': {
           const payload = msg.payload as ToolEndPayload
           updateToolCall(payload.id, payload.result, payload.success)
+          break
+        }
+
+        case 'instruction_delta': {
+          const payload = msg.payload as { id: string; text: string }
+          appendInstructionDelta(payload.id, payload.text)
           break
         }
 
@@ -373,7 +379,7 @@ export function useWebSocket() {
         }
       }
     },
-    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage]
+    [addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, appendInstructionDelta, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage]
   )
 
   // Connect on mount - only runs once since handleMessage is now stable

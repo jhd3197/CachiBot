@@ -98,7 +98,12 @@ jobs:
             | **Linux** (x64 .deb) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.deb) | — |
             | **Linux** (x64 .rpm) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.rpm`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}-linux.rpm) | — |
 
-            > Desktop downloads become available once the build pipeline completes (~10 min after release).
+            ### Mobile App
+            | Platform | Download | Size |
+            |----------|----------|------|
+            | **Android** (APK) | [`CachiBot-${{ steps.bump_version.outputs.new_version }}.apk`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/CachiBot-${{ steps.bump_version.outputs.new_version }}.apk) | — |
+
+            > Downloads become available once the build pipeline completes (~10 min after release).
 
             > **macOS users:** This build is not yet notarized by Apple. After installing, open Terminal and run:
             > ```
@@ -365,10 +370,59 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =========================================================================
-  # 4. Update release body with actual asset sizes
+  # 4. Build Flutter APK (Android)
+  # =========================================================================
+  build-mobile:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: mobile
+        run: |
+          flutter build apk --release \
+            --build-name=${{ needs.release.outputs.new_version }} \
+            --build-number=${{ github.run_number }}
+
+      - name: Rename APK
+        run: |
+          mv mobile/build/app/outputs/flutter-apk/app-release.apk \
+             CachiBot-${{ needs.release.outputs.new_version }}.apk
+
+      - name: Upload APK to GitHub Release
+        run: |
+          gh release upload "v${{ needs.release.outputs.new_version }}" \
+            "CachiBot-${{ needs.release.outputs.new_version }}.apk" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =========================================================================
+  # 5. Update release body with actual asset sizes
   # =========================================================================
   update-release:
-    needs: [release, build-desktop]
+    needs: [release, build-desktop, build-mobile]
     runs-on: ubuntu-latest
 
     steps:

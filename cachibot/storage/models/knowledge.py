@@ -100,6 +100,8 @@ class BotDocument(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String, nullable=True)
+    embedding_dimensions: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     chunks: Mapped[list[DocChunk]] = relationship(
@@ -112,7 +114,7 @@ class DocChunk(Base):
 
     Uses VectorType which delegates to pgvector on PostgreSQL
     and stores as JSON text on SQLite. The embedding column stores a
-    384-dimensional vector (matching BAAI/bge-small-en-v1.5).
+    vector up to 3072 dimensions (supports OpenAI text-embedding-3-large).
     """
 
     __tablename__ = "doc_chunks"
@@ -134,7 +136,7 @@ class DocChunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    embedding = mapped_column(VectorType(384), nullable=True)
+    embedding = mapped_column(VectorType(3072), nullable=True)
 
     # Relationships
     document: Mapped[BotDocument] = relationship("BotDocument", back_populates="chunks")

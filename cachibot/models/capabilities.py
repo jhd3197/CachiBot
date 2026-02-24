@@ -45,6 +45,9 @@ class BotCapabilities(BaseModel):
     # Audio generation (generate_audio, transcribe_audio via Prompture audio drivers)
     audioGeneration: bool = False
 
+    # Coding agents (spawn Claude Code, Codex, Gemini CLI as autonomous coding tools)
+    codingAgent: bool = False
+
 
 class Contact(BaseModel):
     """A contact entry for a bot."""

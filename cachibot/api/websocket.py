@@ -22,6 +22,11 @@ from cachibot.config import Config
 from cachibot.models.auth import User
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.websocket import WSMessage, WSMessageType
+from cachibot.services.command_registry import (
+    CommandDescriptor,
+    ParsedCommand,
+    get_command_registry,
+)
 from cachibot.services.context_builder import get_context_builder
 from cachibot.services.driver_factory import build_driver_with_key
 from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
@@ -29,6 +34,18 @@ from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Instruction block appended to the system prompt when the codingAgent
+# capability is enabled, telling the LLM how to handle @agent mentions.
+CODING_AGENT_MENTION_INSTRUCTIONS = """
+
+## Coding Agent @Mentions
+When the user @mentions a coding agent in their message (e.g. @claude, @codex, @gemini), \
+you MUST invoke the `coding_agent` tool with the matching `agent` parameter and pass the \
+user's request as the `task`. For example, if the user writes "@claude refactor this file", \
+call coding_agent(task="refactor this file", agent="claude"). If only "@" is used without a \
+specific agent name, use the default agent (omit the agent parameter).
+"""
 
 
 class ConnectionManager:
@@ -67,6 +84,19 @@ manager = ConnectionManager()
 def get_ws_manager() -> ConnectionManager:
     """Get the WebSocket connection manager singleton."""
     return manager
+
+
+def _inject_coding_agent_instructions(
+    prompt: str | None,
+    capabilities: dict[str, Any] | None,
+    disabled_caps: set[str],
+) -> str | None:
+    """Append @mention usage instructions when codingAgent is enabled."""
+    if not capabilities or not capabilities.get("codingAgent"):
+        return prompt
+    if "codingAgent" in disabled_caps:
+        return prompt
+    return (prompt or "") + CODING_AGENT_MENTION_INSTRUCTIONS
 
 
 async def _resolve_bot_env(
@@ -194,6 +224,37 @@ async def websocket_endpoint(
                 if current_task and not current_task.done():
                     current_task.cancel()
 
+                # Check if message is a /prefix:command
+                registry = get_command_registry()
+                parsed_cmd = registry.parse_command(message)
+                if parsed_cmd:
+                    descriptor = await registry.resolve(parsed_cmd.prefix, parsed_cmd.name, bot_id)
+                    if not descriptor:
+                        await manager.send(
+                            client_id,
+                            WSMessage.error(
+                                f"Unknown command: /{parsed_cmd.prefix}:{parsed_cmd.name}"
+                            ),
+                        )
+                        continue
+
+                    if descriptor.execution_mode == "passthrough":
+                        current_task = asyncio.create_task(
+                            _run_passthrough_command(descriptor, parsed_cmd, config, client_id)
+                        )
+                        continue
+                    else:
+                        # Native mode: inject skill instructions into system prompt
+                        system_prompt = (
+                            (system_prompt or "")
+                            + f"\n\n## Active Skill: {descriptor.display_name}\n"
+                            + (descriptor.instructions or "")
+                        )
+                        message = (
+                            f"Execute the /{descriptor.prefix}:{descriptor.name} skill."
+                            f" {parsed_cmd.args}".strip()
+                        )
+
                 # Fetch enabled skill definitions for this bot
                 enabled_skills = []
                 if bot_id:
@@ -303,6 +364,12 @@ async def websocket_endpoint(
                         pass
 
                 disabled_caps = await load_disabled_capabilities()
+
+                # Inject @mention instructions when codingAgent capability is on
+                enhanced_prompt = _inject_coding_agent_instructions(
+                    enhanced_prompt, capabilities, disabled_caps
+                )
+
                 agent = CachibotAgent(
                     config=agent_config,
                     system_prompt_override=enhanced_prompt,
@@ -355,6 +422,64 @@ async def websocket_endpoint(
         if current_task and not current_task.done():
             current_task.cancel()
         manager.disconnect(client_id)
+
+
+async def _run_passthrough_command(
+    descriptor: CommandDescriptor,
+    parsed_cmd: ParsedCommand,
+    config: Config,
+    client_id: str,
+) -> None:
+    """Run a CLI passthrough command and stream output to the client."""
+    from cachibot.plugins.coding_agent import CodingCLI, _run_coding_cli
+
+    label = f"/{parsed_cmd.prefix}:{parsed_cmd.name}"
+    binary = descriptor.cli_binary or "claude"
+
+    await manager.send(
+        client_id,
+        WSMessage.thinking(f"Running {label} via {binary}..."),
+    )
+
+    try:
+        # Build the task string for the CLI
+        if parsed_cmd.prefix == "gsd":
+            # GSD commands: pass as /gsd:subcommand to Claude Code
+            task = f"/gsd:{parsed_cmd.name}"
+            if parsed_cmd.args:
+                task += f" {parsed_cmd.args}"
+            cli = CodingCLI.CLAUDE
+        elif binary == "codex":
+            task = parsed_cmd.args or parsed_cmd.name
+            cli = CodingCLI.CODEX
+        elif binary == "gemini":
+            task = parsed_cmd.args or parsed_cmd.name
+            cli = CodingCLI.GEMINI
+        else:
+            task = parsed_cmd.args or parsed_cmd.name
+            cli = CodingCLI.CLAUDE
+
+        output = await _run_coding_cli(
+            cli=cli,
+            task=task,
+            cwd=config.workspace_path,
+            timeout=config.coding_agents.timeout_seconds,
+            max_turns=config.coding_agents.max_turns,
+            max_output=config.coding_agents.max_output_length,
+        )
+
+        await manager.send(
+            client_id,
+            WSMessage.message("assistant", output),
+        )
+    except Exception as e:
+        logger.error("Passthrough command %s failed: %s", label, e, exc_info=True)
+        await manager.send(
+            client_id,
+            WSMessage.error(f"Command {label} failed: {e}"),
+        )
+
+    await manager.send(client_id, WSMessage.done())
 
 
 async def run_agent(

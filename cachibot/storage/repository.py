@@ -473,6 +473,21 @@ class KnowledgeRepository:
             )
             await session.commit()
 
+    async def update_document_embedding_info(
+        self,
+        document_id: str,
+        embedding_model: str,
+        embedding_dimensions: int,
+    ) -> None:
+        """Update embedding model info on a document after processing."""
+        async with db.ensure_initialized()() as session:
+            await session.execute(
+                update(BotDocumentModel)
+                .where(BotDocumentModel.id == document_id)
+                .values(embedding_model=embedding_model, embedding_dimensions=embedding_dimensions)
+            )
+            await session.commit()
+
     async def delete_document(self, document_id: str) -> bool:
         """Delete a document and its chunks."""
         async with db.ensure_initialized()() as session:
