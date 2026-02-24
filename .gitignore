@@ -93,5 +93,6 @@ settings.local.json
 settings.json
 /desktop/node_modules
 .pr/
+.plan/
 .mypy_cache/
 .ruff_cache/

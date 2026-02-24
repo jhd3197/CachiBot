@@ -1,27 +1,56 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUIStore } from '../stores/ui'
 import { useBotStore, useChatStore } from '../stores/bots'
+import { getAvailableCommands } from '../api/commands'
+import type { CommandDescriptor } from '../types'
 
 export interface CommandResult {
   handled: boolean
   message?: string
 }
 
+/** Regex matching /prefix:name patterns (backend-routed commands). */
+const PREFIXED_RE = /^\/\w+:\S+/
+
 /**
  * Hook for handling slash commands in the web UI.
  *
- * Commands trigger dialogs/actions instead of being sent to the backend.
+ * Local commands (/new, /help, etc.) are handled client-side.
+ * Prefixed commands (/skill:X, /gsd:X, etc.) are sent to the backend via WebSocket.
  */
 export function useCommands() {
   const { setCreateBotOpen, setSettingsOpen, setSidebarCollapsed } = useUIStore()
-  const { bots } = useBotStore()
+  const { bots, activeBotId } = useBotStore()
   const { addMessage, activeChatId } = useChatStore()
+
+  // Remote commands fetched from backend
+  const [remoteCommands, setRemoteCommands] = useState<CommandDescriptor[]>([])
+
+  // Fetch remote commands when bot changes
+  useEffect(() => {
+    let cancelled = false
+    getAvailableCommands(activeBotId ?? undefined)
+      .then((cmds) => {
+        if (!cancelled) setRemoteCommands(cmds)
+      })
+      .catch(() => {
+        if (!cancelled) setRemoteCommands([])
+      })
+    return () => { cancelled = true }
+  }, [activeBotId])
 
   /**
    * Check if a message is a command.
    */
   const isCommand = useCallback((text: string): boolean => {
     return text.trim().startsWith('/')
+  }, [])
+
+  /**
+   * Check if the message is a prefixed command that the backend should handle.
+   */
+  const isPrefixedCommand = useCallback((text: string): boolean => {
+    return PREFIXED_RE.test(text.trim())
   }, [])
 
   /**
@@ -41,11 +70,16 @@ export function useCommands() {
   /**
    * Handle a slash command.
    *
-   * @returns true if the command was handled, false if it should be sent to backend
+   * @returns true if the command was handled locally, false if it should be sent to backend
    */
   const handleCommand = useCallback((input: string): CommandResult => {
     const trimmed = input.trim()
     if (!trimmed.startsWith('/')) {
+      return { handled: false }
+    }
+
+    // Prefixed commands (/skill:X, /gsd:X, /bot:X, etc.) → let backend handle
+    if (PREFIXED_RE.test(trimmed)) {
       return { handled: false }
     }
 
@@ -101,7 +135,7 @@ export function useCommands() {
         return { handled: false }
 
       default:
-        // Unknown command - let backend handle it or show error
+        // Unknown local command - let backend handle it or show error
         addSystemMessage(
           `Unknown command: \`/${cmd}\`\n\nType \`/help\` to see available commands.`
         )
@@ -111,6 +145,8 @@ export function useCommands() {
 
   return {
     isCommand,
+    isPrefixedCommand,
     handleCommand,
+    remoteCommands,
   }
 }
