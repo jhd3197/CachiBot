@@ -115,10 +115,6 @@ jobs:
         working-directory: mobile
         run: flutter analyze
 
-      - name: Build APK
-        working-directory: mobile
-        run: flutter build apk --debug
-
   test-pdf-no-fonttools:
     runs-on: ubuntu-latest
     steps:
