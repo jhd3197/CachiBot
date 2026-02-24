@@ -59,7 +59,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
-  const { isCommand, handleCommand } = useCommands()
+  const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate } = useBotAccess(activeBotId)
 
   // Use prop values if provided, otherwise fall back to WebSocket hook values
@@ -78,21 +78,61 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const [selectedAgentIndex, setSelectedAgentIndex] = useState(0)
   const [availableAgents, setAvailableAgents] = useState<CodingAgentInfo[]>([])
 
-  // Command definitions for autocomplete
-  const SLASH_COMMANDS = [
-    { name: 'new', description: 'Create a new bot', icon: '✨' },
-    { name: 'list', description: 'View all your bots', icon: '📋' },
-    { name: 'help', description: 'Show available commands', icon: '❓' },
-    { name: 'settings', description: 'Open settings', icon: '⚙️' },
-    { name: 'start', description: 'Welcome message', icon: '👋' },
+  // Local command definitions for autocomplete
+  const LOCAL_COMMANDS = [
+    { name: 'new', description: 'Create a new bot', icon: '✨', source: 'local' as const },
+    { name: 'list', description: 'View all your bots', icon: '📋', source: 'local' as const },
+    { name: 'help', description: 'Show available commands', icon: '❓', source: 'local' as const },
+    { name: 'settings', description: 'Open settings', icon: '⚙️', source: 'local' as const },
+    { name: 'start', description: 'Welcome message', icon: '👋', source: 'local' as const },
   ]
 
-  // Filter commands based on input
-  const filteredCommands = input.startsWith('/')
-    ? SLASH_COMMANDS.filter(cmd =>
-        cmd.name.toLowerCase().startsWith(input.slice(1).toLowerCase())
-      )
-    : []
+  // Build prefix groups from remote commands for two-stage autocomplete
+  const prefixGroups = remoteCommands.reduce<Record<string, { count: number; icon: string }>>((acc, cmd) => {
+    if (!acc[cmd.prefix]) {
+      acc[cmd.prefix] = { count: 0, icon: cmd.icon || '🔧' }
+    }
+    acc[cmd.prefix].count++
+    return acc
+  }, {})
+
+  // Two-stage filtering for command autocomplete
+  const filteredCommands = (() => {
+    if (!input.startsWith('/')) return []
+    const afterSlash = input.slice(1).toLowerCase()
+
+    // Stage 2: Typing "/prefix:" → show commands under that prefix
+    const colonIdx = afterSlash.indexOf(':')
+    if (colonIdx > 0) {
+      const prefix = afterSlash.slice(0, colonIdx)
+      const subFilter = afterSlash.slice(colonIdx + 1)
+      return remoteCommands
+        .filter(cmd => cmd.prefix === prefix && cmd.name.startsWith(subFilter))
+        .map(cmd => ({
+          name: `${cmd.prefix}:${cmd.name}`,
+          description: cmd.description,
+          icon: cmd.icon === 'terminal' ? '🖥️' : cmd.icon === 'sparkles' ? '✨' : cmd.icon === 'cpu' ? '🤖' : cmd.icon === 'book-open' ? '📖' : '🔧',
+          source: cmd.source,
+        }))
+    }
+
+    // Stage 1: Typing "/" → show local commands + prefix groups
+    const localMatches = LOCAL_COMMANDS.filter(cmd =>
+      cmd.name.startsWith(afterSlash)
+    )
+
+    // Add prefix group entries (e.g. "skill:", "gsd:", "bot:")
+    const groupEntries = Object.entries(prefixGroups)
+      .filter(([prefix]) => prefix.startsWith(afterSlash) || afterSlash === '')
+      .map(([prefix, info]) => ({
+        name: `${prefix}:`,
+        description: `${info.count} command${info.count > 1 ? 's' : ''} available`,
+        icon: info.icon === 'terminal' ? '🖥️' : info.icon === 'sparkles' ? '✨' : info.icon === 'cpu' ? '🤖' : '🔧',
+        source: 'group' as const,
+      }))
+
+    return [...localMatches, ...groupEntries]
+  })()
 
   // Show command menu when typing "/"
   useEffect(() => {
@@ -537,8 +577,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     const trimmedInput = input.trim()
     const lowerInput = trimmedInput.toLowerCase()
 
-    // Handle slash commands (except /create which uses the special flow)
-    if (isCommand(trimmedInput) && lowerInput !== '/create' && !isInCreationFlow) {
+    // Prefixed commands (/skill:X, /gsd:X, etc.) → send directly to backend via WS
+    if (isPrefixedCommand(trimmedInput)) {
+      // Falls through to normal message sending below — backend handles routing
+    }
+    // Handle local slash commands (except /create which uses the special flow)
+    else if (isCommand(trimmedInput) && lowerInput !== '/create' && !isInCreationFlow) {
       // Add user message first
       if (activeChatId) {
         addMessage(activeChatId, {
@@ -721,7 +765,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   // Select a command from the autocomplete menu
   const selectCommand = (commandName: string) => {
     setInput(`/${commandName}`)
-    setShowCommandMenu(false)
+    // If selecting a prefix group (ends with ":"), keep menu open for sub-commands
+    if (!commandName.endsWith(':')) {
+      setShowCommandMenu(false)
+    }
     textareaRef.current?.focus()
   }
 
@@ -856,6 +903,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }
 
+  // Source badge label for command menu items
+  const sourceBadgeLabel = (source: string) => {
+    switch (source) {
+      case 'user_skill': return 'skill'
+      case 'bot_instruction': return 'bot'
+      case 'cli': return 'cli'
+      case 'group': return ''
+      default: return ''
+    }
+  }
+
   // Shared command menu renderer
   const renderCommandMenu = () => {
     if (!showCommandMenu || filteredCommands.length === 0) return null
@@ -863,26 +921,34 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       <div className="chat-command-menu">
         <div className="chat-command-menu__header">Commands</div>
         <div className="chat-command-menu__list">
-          {filteredCommands.map((cmd, index) => (
-            <button
-              key={cmd.name}
-              type="button"
-              onClick={() => selectCommand(cmd.name)}
-              className={cn(
-                'chat-command-menu__item',
-                index === selectedCommandIndex && 'chat-command-menu__item--selected'
-              )}
-            >
-              <span className="text-lg">{cmd.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium">/{cmd.name}</div>
-                <div className="text-xs text-[var(--color-text-secondary)] truncate">{cmd.description}</div>
-              </div>
-              {index === selectedCommandIndex && (
-                <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
-              )}
-            </button>
-          ))}
+          {filteredCommands.map((cmd, index) => {
+            const badge = sourceBadgeLabel(cmd.source)
+            return (
+              <button
+                key={cmd.name}
+                type="button"
+                onClick={() => selectCommand(cmd.name)}
+                className={cn(
+                  'chat-command-menu__item',
+                  index === selectedCommandIndex && 'chat-command-menu__item--selected'
+                )}
+              >
+                <span className="text-lg">{cmd.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium flex items-center gap-1.5">
+                    /{cmd.name}
+                    {badge && (
+                      <span className={cn('chat-command-badge', `chat-command-badge--${cmd.source}`)}>{badge}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-secondary)] truncate">{cmd.description}</div>
+                </div>
+                {index === selectedCommandIndex && (
+                  <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
     )

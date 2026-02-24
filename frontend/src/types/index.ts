@@ -664,6 +664,23 @@ export interface SkillDefinition {
 }
 
 // =============================================================================
+// COMMAND TYPES
+// =============================================================================
+
+export interface CommandDescriptor {
+  prefix: string
+  name: string
+  display_name: string
+  description: string
+  source: string  // "user_skill" | "bot_instruction" | "cli"
+  execution_mode: 'native' | 'passthrough'
+  instructions?: string
+  cli_binary?: string
+  tags: string[]
+  icon?: string
+}
+
+// =============================================================================
 // PLATFORM TOOL CONFIG TYPES
 // =============================================================================
 
