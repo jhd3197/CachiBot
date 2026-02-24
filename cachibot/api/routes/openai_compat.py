@@ -20,8 +20,8 @@ from pydantic import BaseModel
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import resolve_api_key
-from cachibot.api.websocket import _resolve_bot_env
 from cachibot.config import Config
+from cachibot.services.agent_factory import resolve_bot_env
 from cachibot.storage.repository import BotRepository
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ async def chat_completions(
     agent_config = copy.deepcopy(config)
     agent_config.agent.model = effective_model
 
-    resolved_env, per_bot_driver = await _resolve_bot_env(
+    resolved_env, per_bot_driver = await resolve_bot_env(
         bot_id, platform="api", effective_model=effective_model
     )
 

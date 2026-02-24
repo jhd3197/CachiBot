@@ -389,9 +389,9 @@ class JobRunnerService:
         driver = None
         provider_environment = None
         try:
-            from cachibot.api.websocket import _resolve_bot_env
+            from cachibot.services.agent_factory import resolve_bot_env
 
-            resolved_env, resolved_driver = await _resolve_bot_env(
+            resolved_env, resolved_driver = await resolve_bot_env(
                 bot.id, effective_model=config.agent.model
             )
             if resolved_env:
