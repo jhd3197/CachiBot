@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import QRCode from 'qrcode'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Settings,
@@ -46,6 +47,9 @@ import {
   Sparkles,
   Search,
   Plus,
+  Smartphone,
+  QrCode,
+  Timer,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, PresetColor, accentColors, generatePalette } from '../../stores/ui'
@@ -72,7 +76,7 @@ import {
   addMember,
   removeMember,
 } from '../../api/groups'
-import { checkHealth, type HealthInfo } from '../../api/client'
+import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
@@ -318,10 +322,181 @@ function GeneralSettings({
         </div>
       </Section>
 
+      <MobilePairingSection />
+
       <SetupWizardButton />
       <UpdatesSection healthInfo={healthInfo} />
     </>
   )
+}
+
+function MobilePairingSection() {
+  const [showQr, setShowQr] = useState(false)
+  const [pairData, setPairData] = useState<PairTokenResponse | null>(null)
+  const [countdown, setCountdown] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [firewall, setFirewall] = useState<FirewallStatus | null>(null)
+  const [firewallLoading, setFirewallLoading] = useState(false)
+
+  // Check firewall status on mount
+  useEffect(() => {
+    getFirewallStatus().then(setFirewall).catch(() => {})
+  }, [])
+
+  const handleEnableFirewall = async () => {
+    setFirewallLoading(true)
+    try {
+      const result = await enableFirewallRule()
+      if (result.success) {
+        toast.success(result.message)
+        const updated = await getFirewallStatus()
+        setFirewall(updated)
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to create firewall rule. Try running the server as administrator.'
+      toast.error(msg)
+    } finally {
+      setFirewallLoading(false)
+    }
+  }
+
+  const fetchToken = async () => {
+    setLoading(true)
+    try {
+      const data = await createMobilePairToken()
+      setPairData(data)
+      setCountdown(Math.floor(data.expires))
+      setShowQr(true)
+    } catch {
+      toast.error('Failed to generate pairing token')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Countdown timer and auto-refresh
+  useEffect(() => {
+    if (!showQr || countdown <= 0) return
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          fetchToken()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [showQr, countdown > 0])
+
+  const qrValue = pairData
+    ? `cachibot://pair?url=${encodeURIComponent(pairData.url)}&token=${encodeURIComponent(pairData.token)}${pairData.urls.map(u => `&urls=${encodeURIComponent(u)}`).join('')}`
+    : ''
+
+  return (
+    <Section icon={Smartphone} title="Mobile App">
+      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        Pair your mobile device to access CachiBot on the go. Open the CachiBot mobile app and scan the QR code.
+      </p>
+
+      {/* Firewall status (Windows only) */}
+      {firewall?.needed && (
+        <div className={`flex items-center justify-between p-3 rounded-lg mb-4 border ${
+          firewall.enabled
+            ? 'bg-green-500/10 border-green-500/20'
+            : 'bg-yellow-500/10 border-yellow-500/20'
+        }`}>
+          <div className="flex items-center gap-3">
+            <Shield className={`h-4 w-4 ${firewall.enabled ? 'text-green-500' : 'text-yellow-500'}`} />
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text-primary)]">
+                {firewall.enabled ? 'LAN access enabled' : 'LAN access blocked'}
+              </p>
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                {firewall.enabled
+                  ? `Windows Firewall allows connections on port ${firewall.port}`
+                  : 'Windows Firewall is blocking connections from your phone'}
+              </p>
+            </div>
+          </div>
+          {!firewall.enabled && (
+            <button
+              onClick={handleEnableFirewall}
+              disabled={firewallLoading}
+              className="settings-btn-primary flex items-center gap-2 text-sm"
+            >
+              {firewallLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Shield className="h-3 w-3" />
+              )}
+              Allow
+            </button>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={fetchToken}
+        disabled={loading}
+        className="settings-btn-primary flex items-center gap-2"
+      >
+        {loading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <QrCode className="h-4 w-4" />
+        )}
+        Pair Mobile Device
+      </button>
+
+      {showQr && pairData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowQr(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Scan QR Code</h3>
+              <button onClick={() => setShowQr(false)} className="p-1 rounded hover:bg-gray-100">
+                <X className="h-4 w-4 text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Open the CachiBot mobile app, tap &quot;Scan QR Code&quot; on the login screen, and point your camera at this code.
+            </p>
+            <div className="flex justify-center p-4 bg-gray-50 rounded-lg mb-4 border border-gray-200">
+              <QrCodeDisplay value={qrValue} size={220} />
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <Timer className="h-4 w-4" />
+              <span>Expires in {countdown}s</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function QrCodeDisplay({ value, size }: { value: string; size: number }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    QRCode.toDataURL(value, {
+      width: size,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then(setDataUrl)
+      .catch(() => {})
+  }, [value, size])
+
+  if (!dataUrl) {
+    return (
+      <div style={{ width: size, height: size }} className="flex items-center justify-center">
+        <div className="animate-spin h-6 w-6 border-2 border-current border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  return <img src={dataUrl} width={size} height={size} alt="QR Code" className="rounded" />
 }
 
 function SetupWizardButton() {

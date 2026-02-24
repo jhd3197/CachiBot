@@ -51,6 +51,7 @@ class WebSocketService {
     final uri = Uri.parse('$wsBase/ws?token=$token');
 
     try {
+      final wasReconnecting = _reconnectAttempts > 0;
       _channel = WebSocketChannel.connect(uri);
       await _channel!.ready;
       _reconnectAttempts = 0;
@@ -62,6 +63,14 @@ class WebSocketService {
         onError: _onError,
         onDone: _onDone,
       );
+
+      // Emit synthetic reconnected event so providers can flush queues
+      if (wasReconnecting) {
+        _eventController.add(const WSEvent(
+          type: WSEvent.reconnected,
+          payload: {},
+        ));
+      }
     } catch (e) {
       _channel = null;
       _connectionController.add(false);

@@ -19,7 +19,6 @@ from sqlalchemy import select
 
 if TYPE_CHECKING:
     from fastembed import TextEmbedding
-
     from prompture.drivers.async_embedding_base import AsyncEmbeddingDriver
 
 from cachibot.models.knowledge import DocChunk
@@ -88,16 +87,16 @@ class VectorStore:
 
         # Try the full model name first, then just the model ID part
         if self.model_name in EMBEDDING_MODEL_DIMENSIONS:
-            return EMBEDDING_MODEL_DIMENSIONS[self.model_name]
+            return int(EMBEDDING_MODEL_DIMENSIONS[self.model_name])
         parts = self.model_name.split("/", 1)
         if len(parts) > 1 and parts[1] in EMBEDDING_MODEL_DIMENSIONS:
-            return EMBEDDING_MODEL_DIMENSIONS[parts[1]]
+            return int(EMBEDDING_MODEL_DIMENSIONS[parts[1]])
 
         # Fall back to driver's default
         if self._is_provider_model():
             try:
                 driver = self._get_async_driver()
-                return driver.default_dimensions
+                return int(driver.default_dimensions)
             except Exception:
                 pass
         return self.EMBEDDING_DIM

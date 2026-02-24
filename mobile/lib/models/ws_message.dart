@@ -35,6 +35,9 @@ class WSEvent {
   static const String chat = 'chat';
   static const String cancel = 'cancel';
   static const String approval = 'approval';
+
+  // Client-only synthetic events
+  static const String reconnected = 'reconnected';
 }
 
 /// Approval request received from the server.

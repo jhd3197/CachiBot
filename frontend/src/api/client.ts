@@ -78,6 +78,33 @@ export async function checkHealth(): Promise<HealthInfo> {
   return request('/health')
 }
 
+// Mobile pairing
+export interface PairTokenResponse {
+  token: string
+  url: string
+  urls: string[]
+  expires: number
+}
+
+export async function createMobilePairToken(): Promise<PairTokenResponse> {
+  return request('/auth/mobile-pair', { method: 'POST' })
+}
+
+export interface FirewallStatus {
+  platform: string
+  needed: boolean
+  enabled: boolean | null
+  port: string
+}
+
+export async function getFirewallStatus(): Promise<FirewallStatus> {
+  return request('/auth/mobile-pair/firewall')
+}
+
+export async function enableFirewallRule(): Promise<{ success: boolean; message: string }> {
+  return request('/auth/mobile-pair/firewall', { method: 'POST' })
+}
+
 // Coding agents discovery
 import type { CodingAgentsResponse } from '../types'
 
