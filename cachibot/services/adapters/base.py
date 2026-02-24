@@ -247,6 +247,44 @@ class BasePlatformAdapter(ABC):
         """
         pass
 
+    async def send_and_get_id(self, chat_id: str, message: str) -> str | None:
+        """Send a message and return its platform message ID.
+
+        Used by live-streaming features (e.g. coding agent sessions) to edit
+        the message later with progressive output updates.
+
+        Default implementation sends via send_message and returns None (no ID).
+        Subclasses should override to return the platform message ID.
+
+        Args:
+            chat_id: The chat/channel ID.
+            message: The message content.
+
+        Returns:
+            The platform message ID, or None if not supported.
+        """
+        await self.send_message(chat_id, message)
+        return None
+
+    async def edit_message(self, chat_id: str, message_id: str, text: str) -> bool:
+        """Edit a previously sent message in place.
+
+        Used by live-streaming features to update a message with progressive
+        output (e.g. a coding agent session showing real-time CLI output).
+
+        Default implementation returns False (not supported).
+        Subclasses should override for platforms that support message editing.
+
+        Args:
+            chat_id: The chat/channel ID.
+            message_id: The platform message ID (from send_and_get_id).
+            text: The new message content.
+
+        Returns:
+            True if edited successfully, False otherwise.
+        """
+        return False
+
     @classmethod
     def validate_config(cls, config: dict[str, str]) -> list[str]:
         """Validate platform-specific configuration.

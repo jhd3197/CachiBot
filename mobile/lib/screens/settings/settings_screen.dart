@@ -10,6 +10,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/database/app_database.dart';
+import '../../services/notifications/background_service.dart';
+import '../../services/notifications/notification_service.dart';
+import '../../services/notifications/ntfy_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,6 +27,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _cachedMessageCount = 0;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
+
+  // Notification settings
+  bool _bgNotificationsEnabled = false;
+  bool _notifyMessages = true;
+  bool _notifyApprovals = true;
+  bool _notifyWork = true;
+  String _ntfyServerUrl = '';
 
   @override
   void initState() {
@@ -66,6 +76,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final count = await dao.countCachedMessages();
       if (mounted) setState(() => _cachedMessageCount = count);
     } catch (_) {}
+
+    // Notification settings
+    final bgEnabled = await BackgroundNotificationService.isEnabled();
+    final msgEnabled = await BackgroundNotificationService.messagesEnabled();
+    final appEnabled = await BackgroundNotificationService.approvalsEnabled();
+    final wrkEnabled = await BackgroundNotificationService.workEnabled();
+    final ntfyUrl = await NtfyService.getServerUrl();
+    if (mounted) {
+      setState(() {
+        _bgNotificationsEnabled = bgEnabled;
+        _notifyMessages = msgEnabled;
+        _notifyApprovals = appEnabled;
+        _notifyWork = wrkEnabled;
+        _ntfyServerUrl = ntfyUrl ?? '';
+      });
+    }
   }
 
   Future<void> _toggleBiometric(bool value) async {
@@ -121,6 +147,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     } catch (_) {}
+  }
+
+  Future<void> _editNtfyUrl() async {
+    final controller = TextEditingController(text: _ntfyServerUrl);
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ntfy Server URL'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'https://ntfy.example.com',
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          if (_ntfyServerUrl.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                NtfyService.clearServerUrl();
+                Navigator.pop(context, '');
+              },
+              child: const Text('Clear'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (result != null && mounted) {
+      if (result.isNotEmpty) {
+        await NtfyService.setServerUrl(result);
+      } else {
+        await NtfyService.clearServerUrl();
+      }
+      setState(() => _ntfyServerUrl = result);
+    }
   }
 
   Future<void> _switchServer() async {
@@ -357,6 +429,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 24),
           ],
+
+          // ---- Notifications ----
+          _SectionHeader(title: 'Notifications', theme: theme),
+          const SizedBox(height: 12),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.notifications_outlined),
+                  title: const Text('Background Notifications'),
+                  subtitle: const Text(
+                    'Get notified when the app is in the background',
+                  ),
+                  value: _bgNotificationsEnabled,
+                  onChanged: (value) async {
+                    if (value) {
+                      await notificationService.requestPermission();
+                    }
+                    await BackgroundNotificationService.setEnabled(value);
+                    setState(() => _bgNotificationsEnabled = value);
+                  },
+                ),
+                if (_bgNotificationsEnabled) ...[
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.chat_outlined),
+                    title: const Text('Messages'),
+                    value: _notifyMessages,
+                    onChanged: (value) async {
+                      await BackgroundNotificationService
+                          .setMessagesEnabled(value);
+                      setState(() => _notifyMessages = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.shield_outlined),
+                    title: const Text('Approval Requests'),
+                    value: _notifyApprovals,
+                    onChanged: (value) async {
+                      await BackgroundNotificationService
+                          .setApprovalsEnabled(value);
+                      setState(() => _notifyApprovals = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.work_outline),
+                    title: const Text('Work Updates'),
+                    value: _notifyWork,
+                    onChanged: (value) async {
+                      await BackgroundNotificationService
+                          .setWorkEnabled(value);
+                      setState(() => _notifyWork = value);
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.cloud_outlined),
+                    title: const Text('ntfy Server (optional)'),
+                    subtitle: Text(
+                      _ntfyServerUrl.isEmpty
+                          ? 'Not configured'
+                          : _ntfyServerUrl,
+                    ),
+                    onTap: () => _editNtfyUrl(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
 
           // ---- Data ----
           _SectionHeader(title: 'Data', theme: theme),

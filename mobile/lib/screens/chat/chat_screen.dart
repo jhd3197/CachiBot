@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
@@ -25,6 +26,10 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  bool _speechAvailable = false;
+  String? _sharedText;
 
   @override
   void initState() {
@@ -32,10 +37,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     Future.microtask(() {
       ref.read(chatProvider.notifier).openChat(widget.botId, widget.chatId);
     });
+    _initSpeech();
+
+    // Handle shared text if passed via extra
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sharedText != null && _sharedText!.isNotEmpty) {
+        _inputController.text = _sharedText!;
+        _sharedText = null;
+      }
+    });
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      _speechAvailable = await _speech.initialize();
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _speech.stop();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -48,6 +70,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(chatProvider.notifier).sendMessage(text);
     _inputController.clear();
     _scrollToBottom();
+  }
+
+  void _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      setState(() => _isListening = true);
+      await _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _inputController.text = result.recognizedWords;
+            _inputController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _inputController.text.length),
+            );
+          });
+          if (result.finalResult) {
+            setState(() => _isListening = false);
+          }
+        },
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.dictation,
+        ),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -124,8 +171,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _ChatInput(
             controller: _inputController,
             isLoading: state.isLoading,
+            isListening: _isListening,
+            speechAvailable: _speechAvailable,
             onSend: _sendMessage,
             onCancel: () => ref.read(chatProvider.notifier).cancelRequest(),
+            onMicPressed: _toggleListening,
           ),
         ],
       ),
@@ -323,14 +373,20 @@ class _ChatInput extends StatelessWidget {
   const _ChatInput({
     required this.controller,
     required this.isLoading,
+    required this.isListening,
+    required this.speechAvailable,
     required this.onSend,
     required this.onCancel,
+    required this.onMicPressed,
   });
 
   final TextEditingController controller;
   final bool isLoading;
+  final bool isListening;
+  final bool speechAvailable;
   final VoidCallback onSend;
   final VoidCallback onCancel;
+  final VoidCallback onMicPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -347,11 +403,24 @@ class _ChatInput extends StatelessWidget {
         top: false,
         child: Row(
           children: [
+            // Mic button
+            if (speechAvailable && !isLoading)
+              IconButton(
+                onPressed: onMicPressed,
+                icon: Icon(
+                  isListening ? Icons.mic : Icons.mic_none,
+                  color: isListening
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
             Expanded(
               child: TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: 'Type a message...',
+                  hintText: isListening
+                      ? 'Listening...'
+                      : 'Type a message...',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),

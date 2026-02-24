@@ -4,7 +4,6 @@ Platform Message Processor
 Handles incoming messages from Telegram/Discord by routing them through the bot's agent.
 """
 
-import copy
 import json
 import logging
 import uuid
@@ -13,12 +12,11 @@ from typing import Any
 
 from prompture.exceptions import BudgetExceededError
 
-from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.config import Config
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.platform import IncomingMedia, PlatformResponse
 from cachibot.models.websocket import WSMessage
-from cachibot.services.context_builder import get_context_builder
+from cachibot.services.agent_factory import build_bot_agent
 from cachibot.storage.repository import BotRepository, ChatRepository, KnowledgeRepository
 from cachibot.utils.markdown import extract_media_from_steps, extract_media_from_text
 
@@ -299,26 +297,6 @@ class MessageProcessor:
             platform=platform,
         )
 
-        # Build enhanced system prompt with context
-        try:
-            context_builder = get_context_builder()
-            enhanced_prompt = await context_builder.build_enhanced_system_prompt(
-                base_prompt=bot.system_prompt,
-                bot_id=bot_id,
-                user_message=message,
-                chat_id=chat_id,
-                include_contacts=bot.capabilities.get("contacts", False),
-            )
-        except Exception as e:
-            logger.warning(f"Context building failed: {e}")
-            enhanced_prompt = bot.system_prompt
-
-        # Determine agent config — override model if bot has multi-model slots
-        agent_config = self._config
-        if bot.models and bot.models.get("default"):
-            agent_config = copy.deepcopy(self._config)
-            agent_config.agent.model = bot.models["default"]
-
         # Send typing indicator before agent processing
         connection_id = metadata.get("connection_id")
         if connection_id:
@@ -332,67 +310,25 @@ class MessageProcessor:
             except Exception as e:
                 logger.debug(f"Failed to send typing indicator: {e}")
 
-        # Resolve per-bot environment (keys, temperature, etc.)
-        resolved_env = None
-        per_bot_driver = None
-        merged_tool_configs: dict[str, Any] = {}
-        try:
-            from cachibot.services.bot_environment import BotEnvironmentService
-            from cachibot.services.driver_factory import build_driver_with_key
-            from cachibot.services.encryption import get_encryption_service
-            from cachibot.storage.db import ensure_initialized
-
-            session_maker = ensure_initialized()
-            async with session_maker() as session:
-                encryption = get_encryption_service()
-                env_service = BotEnvironmentService(session, encryption)
-                resolved_env = await env_service.resolve(bot_id, platform=platform)
-
-            # Build a per-bot driver if we have a key/endpoint for the effective provider
-            effective_model = agent_config.agent.model
-            if effective_model and "/" in effective_model:
-                provider = effective_model.split("/", 1)[0].lower()
-                provider_value = resolved_env.provider_keys.get(provider)
-                if provider_value:
-                    from cachibot.api.routes.providers import PROVIDERS
-
-                    provider_info: dict[str, Any] = PROVIDERS.get(provider, {})
-                    if provider_info.get("type") == "endpoint":
-                        per_bot_driver = build_driver_with_key(
-                            effective_model, endpoint=provider_value
-                        )
-                    else:
-                        per_bot_driver = build_driver_with_key(
-                            effective_model, api_key=provider_value
-                        )
-
-            # Merge skill configs from resolved environment
-            if resolved_env.skill_configs:
-                merged_tool_configs = dict(resolved_env.skill_configs)
-        except Exception:
-            logger.warning(
-                "Per-bot environment resolution failed for bot %s; using global keys",
-                bot_id,
-                exc_info=True,
-            )
-
-        # Create agent with bot capabilities for tool access
-        disabled_caps = await load_disabled_capabilities()
-        agent = CachibotAgent(
-            config=agent_config,
-            system_prompt_override=enhanced_prompt,
-            capabilities=bot.capabilities or None,
+        agent = await build_bot_agent(
+            self._config,
             bot_id=bot_id,
             chat_id=chat_id,
+            base_system_prompt=bot.system_prompt,
+            user_message=message,
+            include_contacts=(
+                bot.capabilities.get("contacts", False) if bot.capabilities else False
+            ),
+            capabilities=bot.capabilities or None,
             bot_models=bot.models,
-            tool_configs=merged_tool_configs,
-            driver=per_bot_driver,
-            provider_environment=resolved_env,
-            disabled_capabilities=disabled_caps,
+            platform=platform,
+            platform_metadata={
+                "platform": platform,
+                "platform_chat_id": platform_chat_id,
+                "username": username,
+            },
+            inject_coding_agent=True,
         )
-
-        # Load custom instructions from DB (async)
-        await load_dynamic_instructions(agent)
 
         # Run async agent directly (pass images for vision if any)
         try:
@@ -414,7 +350,9 @@ class MessageProcessor:
             # Use per_model keys from Prompture for the actual model used,
             # falling back to effective_model (resolved from bot config + app default)
             per_model = run_usage.get("per_model", {})
-            actual_model = next(iter(per_model)) if per_model else effective_model or bot.model
+            actual_model = (
+                next(iter(per_model)) if per_model else agent.config.agent.model or bot.model
+            )
             usage_metadata: dict[str, Any] = {
                 "tokens": run_usage.get("total_tokens", 0),
                 "promptTokens": run_usage.get("prompt_tokens", 0),

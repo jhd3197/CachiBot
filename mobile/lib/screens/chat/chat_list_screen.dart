@@ -6,6 +6,7 @@ import '../../core/utils/time_utils.dart';
 import '../../models/chat.dart';
 import '../../providers/chats_provider.dart';
 
+/// Standalone screen with its own Scaffold/AppBar (used for direct routes).
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({required this.botId, super.key});
 
@@ -16,6 +17,41 @@ class ChatListScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(chatsProvider.notifier).loadChats(widget.botId),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Chats'),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.go('/chat/${widget.botId}'),
+        child: const Icon(Icons.add),
+      ),
+      body: ChatListContent(botId: widget.botId),
+    );
+  }
+}
+
+/// Reusable chat list body — used both in ChatListScreen and as a tab
+/// inside BotDetailScreen.
+class ChatListContent extends ConsumerStatefulWidget {
+  const ChatListContent({required this.botId, super.key});
+
+  final String botId;
+
+  @override
+  ConsumerState<ChatListContent> createState() => _ChatListContentState();
+}
+
+class _ChatListContentState extends ConsumerState<ChatListContent> {
   @override
   void initState() {
     super.initState();
@@ -105,15 +141,19 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final theme = Theme.of(context);
     final state = ref.watch(chatsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chats'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/chat/${widget.botId}'),
-        child: const Icon(Icons.add),
-      ),
-      body: _buildBody(theme, state),
+    return Stack(
+      children: [
+        _buildBody(theme, state),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            heroTag: 'newChat_${widget.botId}',
+            onPressed: () => context.go('/chat/${widget.botId}'),
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
     );
   }
 

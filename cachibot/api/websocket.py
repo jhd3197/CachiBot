@@ -5,7 +5,6 @@ Handles real-time streaming of agent events to clients.
 """
 
 import asyncio
-import copy
 import logging
 import re
 import uuid
@@ -16,36 +15,23 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from prompture import StreamEventType
 from prompture.exceptions import BudgetExceededError
 
-from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
+from cachibot.agent import CachibotAgent
 from cachibot.api.auth import get_user_from_token
 from cachibot.config import Config
 from cachibot.models.auth import User
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.websocket import WSMessage, WSMessageType
+from cachibot.services.agent_factory import build_bot_agent
 from cachibot.services.command_registry import (
     CommandDescriptor,
     ParsedCommand,
     get_command_registry,
 )
-from cachibot.services.context_builder import get_context_builder
-from cachibot.services.driver_factory import build_driver_with_key
 from cachibot.storage.repository import KnowledgeRepository, SkillsRepository
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Instruction block appended to the system prompt when the codingAgent
-# capability is enabled, telling the LLM how to handle @agent mentions.
-CODING_AGENT_MENTION_INSTRUCTIONS = """
-
-## Coding Agent @Mentions
-When the user @mentions a coding agent in their message (e.g. @claude, @codex, @gemini), \
-you MUST invoke the `coding_agent` tool with the matching `agent` parameter and pass the \
-user's request as the `task`. For example, if the user writes "@claude refactor this file", \
-call coding_agent(task="refactor this file", agent="claude"). If only "@" is used without a \
-specific agent name, use the default agent (omit the agent parameter).
-"""
 
 
 class ConnectionManager:
@@ -84,64 +70,6 @@ manager = ConnectionManager()
 def get_ws_manager() -> ConnectionManager:
     """Get the WebSocket connection manager singleton."""
     return manager
-
-
-def _inject_coding_agent_instructions(
-    prompt: str | None,
-    capabilities: dict[str, Any] | None,
-    disabled_caps: set[str],
-) -> str | None:
-    """Append @mention usage instructions when codingAgent is enabled."""
-    if not capabilities or not capabilities.get("codingAgent"):
-        return prompt
-    if "codingAgent" in disabled_caps:
-        return prompt
-    return (prompt or "") + CODING_AGENT_MENTION_INSTRUCTIONS
-
-
-async def _resolve_bot_env(
-    bot_id: str,
-    platform: str = "web",
-    effective_model: str = "",
-    request_overrides: dict[str, Any] | None = None,
-) -> tuple[Any, Any]:
-    """Resolve per-bot environment and build a driver.
-
-    Returns:
-        A tuple of (ResolvedEnvironment | None, driver | None).
-        On failure (DB unreachable, missing master key), returns (None, None)
-        and logs a warning so the agent falls back to global keys.
-    """
-    try:
-        from cachibot.services.bot_environment import BotEnvironmentService
-        from cachibot.services.encryption import get_encryption_service
-        from cachibot.storage.db import ensure_initialized
-
-        session_maker = ensure_initialized()
-        async with session_maker() as session:
-            encryption = get_encryption_service()
-            env_service = BotEnvironmentService(session, encryption)
-            resolved = await env_service.resolve(
-                bot_id, platform=platform, request_overrides=request_overrides
-            )
-
-        # Build a per-bot driver if we have a key for the effective provider
-        driver = None
-        if effective_model and "/" in effective_model:
-            provider = effective_model.split("/", 1)[0].lower()
-            api_key = resolved.provider_keys.get(provider)
-            if api_key:
-                extras = resolved.provider_extras.get(provider, {})
-                driver = build_driver_with_key(effective_model, api_key=api_key, **extras)
-
-        return resolved, driver
-    except Exception:
-        logger.warning(
-            "Per-bot environment resolution failed for bot %s; falling back to global keys",
-            bot_id,
-            exc_info=True,
-        )
-        return None, None
 
 
 @router.websocket("/ws")
@@ -211,7 +139,6 @@ async def websocket_endpoint(
                 system_prompt = payload.get("systemPrompt")
                 bot_id = payload.get("botId")
                 chat_id = payload.get("chatId")
-                bot_model = payload.get("model")  # Per-bot model override
                 bot_models = payload.get("models")  # Multi-model slots dict
                 capabilities = payload.get("capabilities")  # Optional dict
                 tool_configs = payload.get("toolConfigs")  # Optional dict with per-tool settings
@@ -277,69 +204,6 @@ async def websocket_endpoint(
                             e,
                         )
 
-                # Enhance system prompt with knowledge context if bot_id provided
-                enhanced_prompt = system_prompt
-                if bot_id:
-                    try:
-                        context_builder = get_context_builder()
-                        # Check if contacts capability is enabled
-                        include_contacts = (
-                            capabilities.get("contacts", False) if capabilities else False
-                        )
-                        # Pass skill IDs for context building
-                        skill_ids = [s.id for s in enabled_skills] if enabled_skills else None
-                        enhanced_prompt = await context_builder.build_enhanced_system_prompt(
-                            base_prompt=system_prompt,
-                            bot_id=bot_id,
-                            user_message=message,
-                            chat_id=chat_id,
-                            include_contacts=include_contacts,
-                            enabled_skills=skill_ids,
-                        )
-                    except Exception as e:
-                        # Log but don't fail - use base prompt if context building fails
-                        logger.warning(
-                            "Context building failed for bot %s chat %s: %s",
-                            bot_id,
-                            chat_id,
-                            e,
-                        )
-                        enhanced_prompt = system_prompt
-
-                # Merge tool_configs
-                merged_tool_configs = dict(tool_configs) if tool_configs else {}
-
-                # Apply per-bot model override: resolve from models.default or model field
-                effective_model = None
-                if bot_models and bot_models.get("default"):
-                    effective_model = bot_models["default"]
-                elif bot_model:
-                    effective_model = bot_model
-
-                agent_config = config
-                if effective_model:
-                    # Copy config to avoid mutating the shared instance
-                    agent_config = copy.deepcopy(config)
-                    agent_config.agent.model = effective_model
-
-                # Resolve per-bot environment (keys, temperature, etc.)
-                resolved_env = None
-                per_bot_driver = None
-                if bot_id:
-                    resolved_env, per_bot_driver = await _resolve_bot_env(
-                        bot_id,
-                        platform="web",
-                        effective_model=effective_model or agent_config.agent.model,
-                    )
-
-                # Merge skill configs from resolved environment into tool_configs
-                if resolved_env and resolved_env.skill_configs:
-                    for skill_name, skill_cfg in resolved_env.skill_configs.items():
-                        merged_tool_configs.setdefault(skill_name, {}).update(skill_cfg)
-
-                # Create fresh agent with current systemPrompt
-                # Capabilities are passed directly; the plugin system
-                # handles mapping capabilities to tools.
                 # Build instruction delta sender for streaming instruction
                 # LLM output to the client in real time.
                 async def _instruction_delta_sender(tool_call_id: str, text: str) -> None:
@@ -363,31 +227,26 @@ async def websocket_endpoint(
                     except RuntimeError:
                         pass
 
-                disabled_caps = await load_disabled_capabilities()
-
-                # Inject @mention instructions when codingAgent capability is on
-                enhanced_prompt = _inject_coding_agent_instructions(
-                    enhanced_prompt, capabilities, disabled_caps
-                )
-
-                agent = CachibotAgent(
-                    config=agent_config,
-                    system_prompt_override=enhanced_prompt,
-                    capabilities=capabilities,
+                agent = await build_bot_agent(
+                    config,
                     bot_id=bot_id,
                     chat_id=chat_id,
+                    base_system_prompt=system_prompt,
+                    user_message=message,
+                    include_contacts=(
+                        capabilities.get("contacts", False) if capabilities else False
+                    ),
+                    enabled_skills=([s.id for s in enabled_skills] if enabled_skills else None),
+                    capabilities=capabilities,
                     bot_models=bot_models,
-                    tool_configs=merged_tool_configs,
-                    on_approval_needed=on_approval,  # type: ignore[arg-type]
-                    driver=per_bot_driver,
-                    provider_environment=resolved_env,
-                    disabled_capabilities=disabled_caps,
+                    tool_configs=tool_configs or {},
+                    platform="web",
+                    platform_metadata={"platform": "web"},
+                    on_approval_needed=on_approval,
                     on_instruction_delta=_instruction_delta_sender,
                     on_model_fallback=_model_fallback_sync,
+                    inject_coding_agent=True,
                 )
-
-                # Load custom instructions from DB (async)
-                await load_dynamic_instructions(agent)
 
                 # Extract replyToId from client payload
                 reply_to_id = payload.get("replyToId")
