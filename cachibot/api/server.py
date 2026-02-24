@@ -25,6 +25,7 @@ from cachibot.api.routes import (
     bots,
     chat,
     chats,
+    coding_agents,
     config,
     connections,
     contacts,
@@ -247,6 +248,7 @@ def create_app(
     app.include_router(models.router, prefix="/api", tags=["models"])
     app.include_router(providers.router, prefix="/api", tags=["providers"])
     app.include_router(config.router, prefix="/api", tags=["config"])
+    app.include_router(coding_agents.router, prefix="/api", tags=["coding-agents"])
     app.include_router(update.router, prefix="/api", tags=["update"])
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])

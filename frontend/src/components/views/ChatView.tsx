@@ -13,6 +13,7 @@ import {
   Loader2,
   Reply,
   X,
+  Cpu,
 } from 'lucide-react'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -22,13 +23,13 @@ import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
-import { generateBotNames } from '../../api/client'
+import { generateBotNames, getCodingAgents } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
-import type { ToolCall, BotIcon, BotModels, Chat, Bot } from '../../types'
+import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -71,6 +72,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // @mention coding agent autocomplete state
+  const [showAgentMentions, setShowAgentMentions] = useState(false)
+  const [agentMentionFilter, setAgentMentionFilter] = useState('')
+  const [selectedAgentIndex, setSelectedAgentIndex] = useState(0)
+  const [availableAgents, setAvailableAgents] = useState<CodingAgentInfo[]>([])
+
   // Command definitions for autocomplete
   const SLASH_COMMANDS = [
     { name: 'new', description: 'Create a new bot', icon: '✨' },
@@ -97,8 +104,32 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }, [input, filteredCommands.length])
 
-  const messages = activeChatId ? getMessages(activeChatId) : []
   const activeBot = getActiveBot()
+
+  // Fetch available coding agents when codingAgent capability is on
+  const codingAgentEnabled = activeBot?.capabilities?.codingAgent ?? false
+  useEffect(() => {
+    if (!codingAgentEnabled) {
+      setAvailableAgents([])
+      return
+    }
+    let cancelled = false
+    getCodingAgents()
+      .then((res) => {
+        if (!cancelled) setAvailableAgents(res.agents)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableAgents([])
+      })
+    return () => { cancelled = true }
+  }, [codingAgentEnabled])
+
+  // Filter agents by text typed after @
+  const filteredAgents = availableAgents.filter(
+    (a) => a.id.startsWith(agentMentionFilter) || a.name.toLowerCase().startsWith(agentMentionFilter)
+  )
+
+  const messages = activeChatId ? getMessages(activeChatId) : []
   const isInCreationFlow = creationFlow.step !== 'idle'
 
   // Get existing bot names for uniqueness validation
@@ -694,7 +725,103 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     textareaRef.current?.focus()
   }
 
+  // Handle input changes — detects @mentions for coding agents
+  const handleInputChange = useCallback((value: string) => {
+    setInput(value)
+
+    // @mention detection (only when coding agents are available)
+    if (availableAgents.length > 0) {
+      const lastAtIndex = value.lastIndexOf('@')
+      if (lastAtIndex >= 0) {
+        const afterAt = value.slice(lastAtIndex + 1)
+        const beforeAt = lastAtIndex > 0 ? value[lastAtIndex - 1] : ' '
+        // Only trigger if @ is at start of input or preceded by a space
+        if (beforeAt === ' ' || lastAtIndex === 0) {
+          if (!afterAt.includes(' ') || afterAt.length < 20) {
+            setShowAgentMentions(true)
+            setAgentMentionFilter(afterAt.toLowerCase())
+            setSelectedAgentIndex(0)
+          } else {
+            setShowAgentMentions(false)
+          }
+        }
+      } else {
+        setShowAgentMentions(false)
+      }
+    }
+  }, [availableAgents.length])
+
+  // Insert an @mention into the input
+  const insertAgentMention = useCallback((agentId: string) => {
+    const lastAtIndex = input.lastIndexOf('@')
+    if (lastAtIndex >= 0) {
+      const before = input.slice(0, lastAtIndex)
+      setInput(`${before}@${agentId} `)
+    }
+    setShowAgentMentions(false)
+    textareaRef.current?.focus()
+  }, [input])
+
+  // Render the @mention popup
+  const renderAgentMentionPopup = () => {
+    if (!showAgentMentions || filteredAgents.length === 0) return null
+    return (
+      <div className="chat-input-mention-popup">
+        {filteredAgents.map((agent, index) => (
+          <button
+            key={agent.id}
+            type="button"
+            onClick={() => insertAgentMention(agent.id)}
+            className={cn(
+              'chat-input-mention-item',
+              index === selectedAgentIndex && 'chat-input-mention-item--selected'
+            )}
+          >
+            <Cpu className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">@{agent.id}</div>
+              <div className="text-xs text-[var(--color-text-secondary)] truncate">
+                {agent.name}{!agent.available && ' (not installed)'}
+              </div>
+            </div>
+            {index === selectedAgentIndex && (
+              <span className="text-xs text-[var(--color-text-secondary)]">↵</span>
+            )}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle @mention agent popup navigation
+    if (showAgentMentions && filteredAgents.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedAgentIndex(prev =>
+          prev < filteredAgents.length - 1 ? prev + 1 : 0
+        )
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSelectedAgentIndex(prev =>
+          prev > 0 ? prev - 1 : filteredAgents.length - 1
+        )
+        return
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault()
+        insertAgentMention(filteredAgents[selectedAgentIndex].id)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowAgentMentions(false)
+        return
+      }
+    }
+
     // Handle command menu navigation
     if (showCommandMenu && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -807,10 +934,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           <form onSubmit={handleSubmit} className="chat-panel__input-inner">
             <div className="chat-input-container">
               {renderCommandMenu()}
+              {renderAgentMentionPopup()}
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
                 disabled={!isConnected || isLoading || !canOperate}
@@ -964,11 +1092,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           )}
           <div className="chat-input-container">
             {renderCommandMenu()}
+              {renderAgentMentionPopup()}
             {/* Textarea */}
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
                 !canOperate

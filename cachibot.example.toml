@@ -84,6 +84,25 @@ embedding_model = "openai/text-embedding-3-small"
 # Maximum recent conversation messages included in context
 max_history_messages = 10
 
+[coding_agents]
+# Default coding agent for @mention without a specific agent name
+# Options: "claude", "codex", "gemini"
+# default_agent = "claude"
+
+# Maximum execution time for coding agent subprocesses (seconds)
+# timeout_seconds = 300
+
+# Maximum agent turns (passed to CLIs that support it)
+# max_turns = 25
+
+# Truncate agent output beyond this many characters
+# max_output_length = 50000
+
+# Custom binary paths (override auto-detection via PATH)
+# claude_path = "/usr/local/bin/claude"
+# codex_path = "/usr/local/bin/codex"
+# gemini_path = "/usr/local/bin/gemini"
+
 [database]
 # Database connection URL
 # Leave empty for SQLite (default — auto-created at ~/.cachibot/cachibot.db)
