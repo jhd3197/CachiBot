@@ -90,7 +90,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             setState(() => _isListening = false);
           }
         },
-        listenMode: stt.ListenMode.dictation,
+        listenOptions: stt.SpeechListenOptions(
+          listenMode: stt.ListenMode.dictation,
+        ),
       );
     }
   }
