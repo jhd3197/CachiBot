@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api/api_client.dart';
 import '../services/api/bot_service.dart';
+import '../services/api/knowledge_service.dart';
+import '../services/api/work_service.dart';
 import '../services/auth/auth_service.dart';
 import '../services/database/app_database.dart';
 import '../services/database/chat_dao.dart';
@@ -30,6 +32,16 @@ final authServiceProvider = Provider<AuthService>((ref) {
 final botServiceProvider = Provider<BotService>((ref) {
   final client = ref.watch(apiClientProvider);
   return BotService(client);
+});
+
+final knowledgeServiceProvider = Provider<KnowledgeService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return KnowledgeService(client);
+});
+
+final workServiceProvider = Provider<WorkService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return WorkService(client);
 });
 
 final wsServiceProvider = Provider<WebSocketService>((ref) {

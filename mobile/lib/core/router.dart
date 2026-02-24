@@ -6,11 +6,15 @@ import '../providers/auth_provider.dart';
 import '../screens/auth/biometric_lock_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/qr_pair_screen.dart';
-import '../screens/chat/chat_list_screen.dart';
+import '../screens/bot/bot_detail_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/chat/recent_chats_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/knowledge/knowledge_search_screen.dart';
+import '../screens/knowledge/note_editor_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/work/todos_screen.dart';
+import '../screens/work/work_detail_screen.dart';
 import '../widgets/common/app_shell.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -67,9 +71,51 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/bot/:botId',
-            builder: (context, state) => ChatListScreen(
+            builder: (context, state) => BotDetailScreen(
               botId: state.pathParameters['botId']!,
             ),
+            routes: [
+              // Knowledge routes
+              GoRoute(
+                path: 'knowledge/new',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => NoteEditorScreen(
+                  botId: state.pathParameters['botId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'knowledge/search',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => KnowledgeSearchScreen(
+                  botId: state.pathParameters['botId']!,
+                ),
+              ),
+              GoRoute(
+                path: 'knowledge/:noteId',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => NoteEditorScreen(
+                  botId: state.pathParameters['botId']!,
+                  noteId: state.pathParameters['noteId'],
+                ),
+              ),
+              // Work routes
+              GoRoute(
+                path: 'work/:workId',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => WorkDetailScreen(
+                  botId: state.pathParameters['botId']!,
+                  workId: state.pathParameters['workId']!,
+                ),
+              ),
+              // Todos route
+              GoRoute(
+                path: 'todos',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => TodosScreen(
+                  botId: state.pathParameters['botId']!,
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/chat/:botId',

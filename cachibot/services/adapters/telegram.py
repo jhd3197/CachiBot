@@ -268,3 +268,36 @@ class TelegramAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
             return False
+
+    async def send_and_get_id(self, chat_id: str, message: str) -> str | None:
+        """Send a message and return its Telegram message ID."""
+        if not self._bot or not self._running:
+            return None
+        try:
+            formatted = self.format_outgoing_message(message)
+            result = await self._bot.send_message(chat_id=int(chat_id), text=formatted)
+            return str(result.message_id)
+        except Exception as e:
+            logger.error(f"Failed to send Telegram message: {e}")
+            return None
+
+    async def edit_message(self, chat_id: str, message_id: str, text: str) -> bool:
+        """Edit a Telegram message in place."""
+        if not self._bot or not self._running:
+            return False
+        try:
+            formatted = self.format_outgoing_message(text)
+            # Telegram limit is 4096 chars
+            if len(formatted) > 4096:
+                formatted = formatted[:4093] + "..."
+            await self._bot.edit_message_text(
+                chat_id=int(chat_id),
+                message_id=int(message_id),
+                text=formatted,
+            )
+            return True
+        except Exception as e:
+            # "message is not modified" is expected when content hasn't changed
+            if "not modified" not in str(e).lower():
+                logger.debug(f"Failed to edit Telegram message: {e}")
+            return False
