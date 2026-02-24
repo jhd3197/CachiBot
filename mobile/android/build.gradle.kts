@@ -19,8 +19,9 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Force consistent JVM target across all subprojects (fixes plugin mismatches)
+// Force consistent JVM target on plugin subprojects (fixes plugin mismatches)
 subprojects {
+    if (project.name == "app") return@subprojects
     afterEvaluate {
         extensions.findByType<com.android.build.gradle.BaseExtension>()?.compileOptions {
             sourceCompatibility = JavaVersion.VERSION_17
