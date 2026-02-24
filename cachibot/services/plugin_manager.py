@@ -28,6 +28,7 @@ from tukuy.plugins.web import WebPlugin
 from cachibot.plugins import (
     AudioGenerationPlugin,
     CachibotPlugin,
+    CodingAgentPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
     InstructionManagementPlugin,
@@ -58,6 +59,7 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "workManagement": [WorkManagementPlugin, JobToolsPlugin],
     "imageGeneration": [ImageGenerationPlugin],
     "audioGeneration": [AudioGenerationPlugin],
+    "codingAgent": [CodingAgentPlugin],
     "instructions": [
         AnalysisInstructionPack,
         WritingInstructionPack,

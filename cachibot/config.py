@@ -128,7 +128,7 @@ class KnowledgeConfig:
     chunk_overlap: int = 50  # Overlap words between chunks
     top_k: int = 3  # Max document chunks returned per query
     min_similarity: float = 0.3  # Minimum cosine similarity threshold
-    embedding_model: str = "BAAI/bge-small-en-v1.5"  # fastembed model name
+    embedding_model: str = "openai/text-embedding-3-small"  # provider/model or fastembed name
     max_history_messages: int = 10  # Context history limit
 
 
@@ -319,6 +319,10 @@ class Config:
                 self.sandbox.timeout_seconds = int(timeout)
             except ValueError:
                 pass
+
+        # Embedding model
+        if embedding_model := os.getenv("CACHIBOT_EMBEDDING_MODEL"):
+            self.knowledge.embedding_model = embedding_model
 
         # Database URL (highest priority override)
         if database_url := os.getenv("CACHIBOT_DATABASE_URL") or os.getenv("DATABASE_URL"):

@@ -291,6 +291,7 @@ export function ModelSelect({
                             const hasVideoIn = modIn.includes('video')
                             const hasImgGen = modOut.includes('image') || m.supports_image_generation
                             const hasAudioOut = modOut.includes('audio') || m.supports_audio
+                            const hasEmbedding = m.supports_embedding
                             return (
                               <button
                                 key={m.id}
@@ -336,6 +337,11 @@ export function ModelSelect({
                                   {hasAudioOut && (
                                     <span className="model-select__badge model-select__badge--audio-out">
                                       tts
+                                    </span>
+                                  )}
+                                  {hasEmbedding && (
+                                    <span className="model-select__badge model-select__badge--embed">
+                                      {m.embedding_dimensions ? `embed ${m.embedding_dimensions}d` : 'embed'}
                                     </span>
                                   )}
                                   {m.supports_tool_use && (

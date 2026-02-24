@@ -669,6 +669,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         workManagement: true,
         imageGeneration: false,
         audioGeneration: false,
+        codingAgent: false,
       }
 
       wsSendMessage(trimmedInput, {

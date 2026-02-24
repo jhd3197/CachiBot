@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-const STEPS = ['welcome', 'api-key', 'model', 'database', 'smtp', 'preferences', 'complete'] as const
+const STEPS = ['provider', 'database', 'email', 'style', 'done'] as const
 export type OnboardingStep = (typeof STEPS)[number]
 
 interface OnboardingState {

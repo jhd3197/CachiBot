@@ -75,8 +75,11 @@ top_k = 3
 # Minimum cosine similarity threshold for document retrieval (0.0 - 1.0)
 min_similarity = 0.3
 
-# Embedding model name (fastembed compatible)
-embedding_model = "BAAI/bge-small-en-v1.5"
+# Embedding model (provider/model format or fastembed name for local fallback)
+# Provider models: "openai/text-embedding-3-small", "openai/text-embedding-3-large",
+#                  "ollama/nomic-embed-text", "ollama/all-minilm"
+# Fastembed (local): "BAAI/bge-small-en-v1.5"
+embedding_model = "openai/text-embedding-3-small"
 
 # Maximum recent conversation messages included in context
 max_history_messages = 10
