@@ -107,6 +107,17 @@ class PlatformManager:
         # Extract user_id from metadata (platform-specific)
         user_id = metadata.get("user_id") or metadata.get("username") or chat_id
 
+        # Check if /cancel should stop an active coding agent session
+        from cachibot.services.coding_agent_dispatcher import get_coding_agent_dispatcher
+
+        ca_dispatcher = get_coding_agent_dispatcher()
+        stripped = message.strip().lower()
+        if stripped in ("/cancel", "/stop") and ca_dispatcher.has_active_session(
+            connection_id, chat_id
+        ):
+            ca_dispatcher.cancel_session(connection_id, chat_id)
+            return PlatformResponse(text="Coding session cancelled.")
+
         # Check if this is a command or continuing a flow
         processor = get_command_processor()
         platform = metadata.get("platform", "unknown")
@@ -125,6 +136,28 @@ class PlatformManager:
                 logger.error(f"Error processing command: {e}")
                 return PlatformResponse(
                     text="Sorry, I encountered an error processing that command."
+                )
+
+        # Check for @claude/@codex/@gemini coding agent mentions
+        adapter = self._adapters.get(connection_id)
+        if adapter and ca_dispatcher.parse_mention(message):
+            try:
+                response = await ca_dispatcher.try_dispatch(
+                    message=message,
+                    connection_id=connection_id,
+                    bot_id=connection.bot_id,
+                    chat_id=chat_id,
+                    metadata=metadata,
+                    adapter=adapter,
+                )
+                if response is not None:
+                    # Increment message count for coding agent sessions too
+                    await self._repo.increment_message_count(connection_id)
+                    return response
+            except Exception as e:
+                logger.error(f"Error dispatching coding agent: {e}")
+                return PlatformResponse(
+                    text="Sorry, I encountered an error starting the coding session."
                 )
 
         # Normal message processing

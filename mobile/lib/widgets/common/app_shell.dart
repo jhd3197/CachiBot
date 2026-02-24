@@ -10,6 +10,7 @@ class AppShell extends StatelessWidget {
     final location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/settings')) return 2;
     if (location.startsWith('/chats') || location.startsWith('/chat')) return 1;
+    // /bot/:botId routes stay on Home tab (index 0)
     return 0;
   }
 

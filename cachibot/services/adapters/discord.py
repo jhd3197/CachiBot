@@ -318,3 +318,41 @@ class DiscordAdapter(BasePlatformAdapter):
                 await channel.typing()
         except Exception as e:
             logger.debug(f"Failed to send typing indicator: {e}")
+
+    async def send_and_get_id(self, chat_id: str, message: str) -> str | None:
+        """Send a message and return its Discord message ID."""
+        if not self._client or not self._running:
+            return None
+        try:
+            channel = self._client.get_channel(int(chat_id))
+            if channel is None:
+                channel = await self._client.fetch_channel(int(chat_id))
+            if channel:
+                formatted = self.format_outgoing_message(message)
+                msg = await channel.send(formatted)
+                return str(msg.id)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to send Discord message: {e}")
+            return None
+
+    async def edit_message(self, chat_id: str, message_id: str, text: str) -> bool:
+        """Edit a Discord message in place."""
+        if not self._client or not self._running:
+            return False
+        try:
+            channel = self._client.get_channel(int(chat_id))
+            if channel is None:
+                channel = await self._client.fetch_channel(int(chat_id))
+            if channel:
+                formatted = self.format_outgoing_message(text)
+                # Discord limit is 2000 chars
+                if len(formatted) > 2000:
+                    formatted = formatted[:1997] + "..."
+                msg = await channel.fetch_message(int(message_id))
+                await msg.edit(content=formatted)
+                return True
+            return False
+        except Exception as e:
+            logger.debug(f"Failed to edit Discord message: {e}")
+            return False

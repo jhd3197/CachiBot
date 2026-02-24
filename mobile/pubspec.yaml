@@ -44,6 +44,12 @@ dependencies:
   local_auth: ^2.3.0
   mobile_scanner: ^6.0.2
 
+  # Phase 4: Documents, Notifications, Share, Voice
+  file_picker: ^8.0.0
+  flutter_local_notifications: ^19.0.0
+  speech_to_text: ^7.0.0
+  receive_sharing_intent: ^1.8.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

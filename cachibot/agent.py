@@ -83,6 +83,10 @@ class CachibotAgent:
     # When provided, these capabilities are excluded even if the bot enables them.
     disabled_capabilities: set[str] | None = None
 
+    # Platform metadata (platform name, chat_id, username) for system prompt enrichment.
+    # Expected keys: "platform" (str), "platform_chat_id" (str), "username" (str).
+    platform_metadata: dict[str, Any] | None = None
+
     # Async callback for streaming instruction LLM deltas via WebSocket.
     # Signature: async (tool_call_id: str, text: str) -> None
     # When set, instruction executions broadcast incremental text chunks.
@@ -322,13 +326,61 @@ class CachibotAgent:
                     blocked.append(cmd)
 
     def _get_system_prompt(self) -> str:
-        """Generate the system prompt."""
-        if self.system_prompt_override:
-            return self.system_prompt_override
+        """Generate the system prompt.
 
-        # Build dynamic tool list from the actual registry
+        Always appends tool list, platform context, and usage guidelines
+        so the agent is aware of its environment regardless of whether
+        a system_prompt_override is set.
+        """
+        base = self.system_prompt_override or self._build_default_prompt()
+
+        # Always append tool + platform context
+        sections: list[str] = []
+
+        # Tool list
         tool_lines = "\n".join(f"- {name}" for name in sorted(self.registry.names))
+        if tool_lines:
+            sections.append(f"## Available Tools\n{tool_lines}")
 
+        # Background jobs section
+        job_section = self._get_job_tools_section()
+        if job_section:
+            sections.append(job_section.rstrip())
+
+        # Platform context
+        if self.platform_metadata:
+            platform = self.platform_metadata.get("platform", "unknown")
+            chat_id = self.platform_metadata.get("platform_chat_id")
+            username = self.platform_metadata.get("username")
+
+            ctx_lines = [f"- Platform: {platform.title()}"]
+            if username:
+                ctx_lines.append(f"- User: {username}")
+            if chat_id:
+                ctx_lines.append(f"- Chat ID: {chat_id}")
+                send_tool = f"{platform}_send"
+                if send_tool in self.registry.names:
+                    ctx_lines.append(
+                        f"- You can send messages to this chat using the `{send_tool}` "
+                        f'tool with chat_id="{chat_id}"'
+                    )
+            sections.append("## Current Conversation Context\n" + "\n".join(ctx_lines))
+
+        # Brief tool guidelines (only when override is set — the default already has these)
+        if self.system_prompt_override and sections:
+            sections.append(
+                "## Tool Usage\n"
+                "- Use your tools proactively when the user's request can be fulfilled by them\n"
+                "- You have full access to the tools listed above — use them without hesitation\n"
+                "- For scheduling, reminders, and todos, use the schedule/todo tools directly"
+            )
+
+        if sections:
+            return base + "\n\n---\n\n" + "\n\n".join(sections)
+        return base
+
+    def _build_default_prompt(self) -> str:
+        """Build the default CachiBot system prompt (used when no override is set)."""
         return f"""You are Cachibot, a helpful AI assistant that executes tasks safely.
 
 ## About Your Name
@@ -351,10 +403,7 @@ When asked about your creator, always refer to him by his full name "Juan Denis"
 4. Verify file paths are within the workspace
 5. Call task_complete when you're done
 
-## Available Tools
-{tool_lines}
-
-{self._get_job_tools_section()}## Important
+## Important
 - All tools are automatically scoped to the workspace for security
 - Python code runs in a sandbox with restricted imports
 """
