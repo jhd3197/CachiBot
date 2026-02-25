@@ -71,6 +71,7 @@ export function getEffectiveModels(bot: Bot): BotModels {
     default: bot.models?.default || bot.model || '',
     image: bot.models?.image || '',
     audio: bot.models?.audio || '',
+    utility: bot.models?.utility || '',
     structured: bot.models?.structured || '',
   }
 }
@@ -98,6 +99,7 @@ function syncBotToBackend(bot: Bot) {
     icon: bot.icon,
     color: bot.color,
     model: bot.model,
+    models: bot.models,
     systemPrompt: bot.systemPrompt,
     capabilities: bot.capabilities as Record<string, boolean> | undefined,
     createdAt: bot.createdAt,

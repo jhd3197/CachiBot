@@ -114,12 +114,12 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-[var(--color-bg-primary)] rounded-xl border border-[var(--color-border-primary)] w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+      <div className="bg-[var(--color-bg-dialog)] rounded-xl border border-[var(--color-border-primary)] w-full max-w-lg mx-4 max-h-[80vh] flex flex-col shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-primary)]">
           <div className="flex items-center gap-2">
             <Share2 className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Share "{botName}"</h2>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Share "{botName}"</h2>
           </div>
           <button
             onClick={onClose}
@@ -144,7 +144,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                     <select
                       value={selectedGroupId}
                       onChange={(e) => setSelectedGroupId(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select a group...</option>
                       {availableGroups.map((g) => (
@@ -156,7 +156,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                     <select
                       value={selectedLevel}
                       onChange={(e) => setSelectedLevel(e.target.value as BotAccessLevel)}
-                      className="w-28 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-28 px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] rounded-lg text-[var(--color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="viewer">Viewer</option>
                       <option value="operator">Operator</option>
@@ -186,7 +186,7 @@ export function BotSharingDialog({ botId, botName, open, onClose }: BotSharingDi
                         className="flex items-center justify-between px-3 py-2.5 bg-[var(--card-bg)] rounded-lg border border-[var(--color-border-primary)]"
                       >
                         <div>
-                          <div className="text-sm font-medium text-white">
+                          <div className="text-sm font-medium text-[var(--color-text-primary)]">
                             {record.group_name || record.group_id}
                           </div>
                         </div>

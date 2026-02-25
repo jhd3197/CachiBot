@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download } from 'lucide-react'
+import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, Paperclip } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useUIStore } from '../../stores/ui'
 import { useRoomWebSocket } from '../../hooks/useRoomWebSocket'
@@ -12,6 +12,8 @@ import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { PinnedMessagesBar } from './PinnedMessagesBar'
 import { DashboardCardsView } from './DashboardCardsView'
 import { TimelineView } from './TimelineView'
+import { RoomTasksView } from './RoomTasksView'
+import { AssetsView } from '../common/AssetsView'
 import { useAuthStore } from '../../stores/auth'
 import { downloadJson, slugify } from '../../lib/utils'
 import type { Room } from '../../types'
@@ -165,6 +167,20 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
             >
               <Clock size={14} />
             </button>
+            <button
+              onClick={() => setViewMode(roomId, 'tasks')}
+              className={`room-panel__view-btn ${currentView === 'tasks' ? 'room-panel__view-btn--active' : ''}`}
+              title="Tasks"
+            >
+              <CheckSquare size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode(roomId, 'assets')}
+              className={`room-panel__view-btn ${currentView === 'assets' ? 'room-panel__view-btn--active' : ''}`}
+              title="Assets"
+            >
+              <Paperclip size={14} />
+            </button>
           </div>
 
           <div className="room-panel__divider" />
@@ -260,11 +276,15 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
         </div>
       )}
 
-      {/* Main content area — switches between Chat, Cards, Timeline */}
+      {/* Main content area — switches between Chat, Cards, Timeline, Tasks, Assets */}
       {currentView === 'cards' ? (
         <DashboardCardsView roomId={roomId} messages={roomMessages} roomBots={room.bots} />
       ) : currentView === 'timeline' ? (
         <TimelineView roomId={roomId} roomBots={room.bots} />
+      ) : currentView === 'tasks' ? (
+        <RoomTasksView roomId={roomId} />
+      ) : currentView === 'assets' ? (
+        <AssetsView ownerType="room" ownerId={roomId} />
       ) : (
         <RoomMessageList messages={roomMessages} roomId={roomId}>
           {/* Active tool calls */}

@@ -196,6 +196,7 @@ export interface BotModels {
   default: string
   image?: string
   audio?: string
+  utility?: string
   structured?: string
 }
 
@@ -1381,4 +1382,71 @@ export interface RoomAutomation {
   triggerCount: number
   createdAt: string
   updatedAt: string
+}
+
+// =============================================================================
+// ROOM TASK TYPES
+// =============================================================================
+
+export type RoomTaskStatus = 'todo' | 'in_progress' | 'done' | 'blocked'
+export type RoomTaskPriority = 'low' | 'normal' | 'high' | 'urgent'
+
+export interface RoomTask {
+  id: string
+  roomId: string
+  title: string
+  description: string | null
+  status: RoomTaskStatus
+  priority: RoomTaskPriority
+  position: number
+  assignedToBotId: string | null
+  assignedToUserId: string | null
+  createdByUserId: string | null
+  createdByBotId: string | null
+  tags: string[]
+  dueAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRoomTaskRequest {
+  title: string
+  description?: string
+  status?: RoomTaskStatus
+  priority?: RoomTaskPriority
+  assigned_to_bot_id?: string
+  assigned_to_user_id?: string
+  tags?: string[]
+  due_at?: string
+}
+
+export interface UpdateRoomTaskRequest {
+  title?: string
+  description?: string
+  status?: RoomTaskStatus
+  priority?: RoomTaskPriority
+  assigned_to_bot_id?: string
+  assigned_to_user_id?: string
+  tags?: string[]
+  due_at?: string
+}
+
+// =============================================================================
+// ASSET TYPES
+// =============================================================================
+
+export type AssetOwnerType = 'room' | 'chat'
+
+export interface Asset {
+  id: string
+  ownerType: AssetOwnerType
+  ownerId: string
+  name: string
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  uploadedByUserId: string | null
+  uploadedByBotId: string | null
+  metadata: Record<string, unknown>
+  createdAt: string
 }

@@ -12,6 +12,7 @@ Smart Database Setup — auto-detects and configures the right database.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from collections.abc import AsyncGenerator
@@ -390,8 +391,26 @@ async def reset_database() -> str:
         backup_path = db_path.with_suffix(f".db.v1.bak.{counter}")
         counter += 1
 
-    db_path.rename(backup_path)
+    # Retry rename — on Windows, SQLite WAL file locks may linger briefly
+    for attempt in range(5):
+        try:
+            db_path.rename(backup_path)
+            break
+        except PermissionError:
+            if attempt == 4:
+                raise
+            await asyncio.sleep(0.5)
+
     logger.info("Legacy database backed up to %s", backup_path)
+
+    # Clean up WAL/SHM sidecar files
+    for suffix in (".db-wal", ".db-shm"):
+        sidecar = db_path.with_name(db_path.name.replace(".db", suffix))
+        if sidecar.exists():
+            try:
+                sidecar.unlink()
+            except OSError:
+                pass
 
     # Clear the flag and create a fresh DB
     legacy_db_detected = False

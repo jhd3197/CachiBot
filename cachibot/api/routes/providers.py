@@ -65,10 +65,19 @@ PROVIDERS: dict[str, dict[str, Any]] = {
     },
 }
 
+EXTRA_KEY_META: dict[str, dict[str, str]] = {
+    "AZURE_API_ENDPOINT": {"type": "endpoint", "label": "API Endpoint", "group": "primary"},
+    "AZURE_DEPLOYMENT_ID": {"type": "text", "label": "Deployment ID", "group": "primary"},
+    "AZURE_CLAUDE_API_KEY": {"type": "api_key", "label": "Claude API Key", "group": "claude"},
+    "AZURE_CLAUDE_ENDPOINT": {"type": "endpoint", "label": "Claude Endpoint", "group": "claude"},
+    "AZURE_MISTRAL_API_KEY": {"type": "api_key", "label": "Mistral API Key", "group": "mistral"},
+    "AZURE_MISTRAL_ENDPOINT": {"type": "endpoint", "label": "Mistral Endpoint", "group": "mistral"},
+}
+
 
 def _mask_value(value: str, provider_type: str) -> str:
-    """Mask API keys (show last 4 chars), show full URL for endpoints."""
-    if provider_type == "endpoint":
+    """Mask API keys (show last 4 chars), show full value for endpoints and text."""
+    if provider_type in ("endpoint", "text"):
         return value
     if len(value) <= 4:
         return "****"
@@ -107,6 +116,28 @@ async def list_providers(user: User = Depends(get_current_user)) -> dict[str, An
             os.environ[env_key] = value
         configured = bool(value)
         masked = _mask_value(value, info["type"]) if configured else ""
+        # Build extra_keys array for providers that define them (e.g. Azure)
+        extra_keys_list = []
+        for ek in info.get("extra_keys", []):
+            meta = EXTRA_KEY_META.get(ek)
+            if not meta:
+                continue
+            ek_value = os.environ.get(ek, "") or env_file_values.get(ek, "")
+            if ek_value and not os.environ.get(ek):
+                os.environ[ek] = ek_value
+            ek_configured = bool(ek_value)
+            ek_masked = _mask_value(ek_value, meta["type"]) if ek_configured else ""
+            extra_keys_list.append(
+                {
+                    "env_key": ek,
+                    "type": meta["type"],
+                    "configured": ek_configured,
+                    "masked_value": ek_masked,
+                    "label": meta["label"],
+                    "group": meta["group"],
+                }
+            )
+
         result.append(
             {
                 "name": name,
@@ -115,6 +146,7 @@ async def list_providers(user: User = Depends(get_current_user)) -> dict[str, An
                 "configured": configured,
                 "masked_value": masked,
                 "default": info.get("default", ""),
+                "extra_keys": extra_keys_list,
             }
         )
     return {"providers": result}
@@ -178,4 +210,53 @@ async def delete_provider(
     except Exception:
         pass
 
+    return None
+
+
+class KeyUpdate(BaseModel):
+    env_key: str
+    value: str
+
+
+@router.put("/providers/{name}/keys", response_model=dict)
+async def update_provider_key(
+    name: str,
+    body: KeyUpdate,
+    user: User = Depends(get_current_user),
+) -> JSONResponse:
+    """Set an individual extra key for a provider (e.g. Azure endpoint)."""
+    if name not in PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Unknown provider: {name}")
+
+    info = PROVIDERS[name]
+    allowed_keys = set(info.get("extra_keys", []))
+    if body.env_key not in allowed_keys:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Key {body.env_key} does not belong to provider {name}",
+        )
+
+    _set_env_value(body.env_key, body.value)
+    return JSONResponse(content={"ok": True})
+
+
+@router.delete("/providers/{name}/keys/{env_key}", status_code=204)
+async def delete_provider_key(
+    name: str,
+    env_key: str,
+    user: User = Depends(get_current_user),
+) -> None:
+    """Remove an individual extra key for a provider."""
+    if name not in PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Unknown provider: {name}")
+
+    info = PROVIDERS[name]
+    allowed_keys = set(info.get("extra_keys", []))
+    if env_key not in allowed_keys:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Key {env_key} does not belong to provider {name}",
+        )
+
+    _remove_env_value(env_key)
     return None

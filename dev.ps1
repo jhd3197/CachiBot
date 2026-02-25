@@ -7,15 +7,29 @@
 #   .\dev.ps1 desktop          # backend + frontend + Electron
 #   .\dev.ps1 all              # backend + frontend + browser + Electron
 #   .\dev.ps1 validate          # watch Python + TS + Dart files and validate on changes
+#   .\dev.ps1 reset-db          # delete SQLite DB so setup page shows on next launch
 
 param(
-    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "validate")]
+    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "validate", "reset-db")]
     [string]$Mode = "browser"
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $procs = @()
+
+# --- reset-db mode ---
+if ($Mode -eq "reset-db") {
+    $dbPath = Join-Path $env:USERPROFILE ".cachibot\cachibot.db"
+    if (Test-Path $dbPath) {
+        Remove-Item "$dbPath*" -Force   # removes .db, .db-wal, .db-shm
+        Write-Host "[dev] Database deleted: $dbPath" -ForegroundColor Green
+        Write-Host "[dev] Setup page will show on next launch." -ForegroundColor DarkGray
+    } else {
+        Write-Host "[dev] No database found at $dbPath" -ForegroundColor Yellow
+    }
+    return
+}
 
 # --- validate mode ---
 if ($Mode -eq "validate") {
@@ -78,6 +92,29 @@ if ($Mode -eq "validate") {
             $out | Where-Object { $_ -match "error:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
+        # --- Python: bandit security scan ---
+        Write-Host "  bandit           " -ForegroundColor Cyan -NoNewline
+        try {
+            $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+            $out = & bandit -r $pyPath -q -s B110,B112,B105,B106,B107,B404,B603,B607,B608,B104 --exclude "$pyPath\..\tests" 2>&1 | Where-Object { $_ -is [string] }
+            $banditExit = $LASTEXITCODE
+            $ErrorActionPreference = $savedEAP
+            if ($banditExit -eq 0) {
+                Write-Host "ok" -ForegroundColor Green
+            } else {
+                $issueCount = ($out | Select-String ">> Issue:").Count
+                if ($issueCount -gt 0) {
+                    Write-Host "fail ($issueCount issues)" -ForegroundColor Red
+                } else {
+                    Write-Host "fail" -ForegroundColor Red
+                }
+                $out | Where-Object { $_ -match ">> Issue:|Severity:|Confidence:|Location:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            }
+        } catch {
+            $ErrorActionPreference = $savedEAP
+            Write-Host "skipped" -ForegroundColor Yellow
+        }
+
         # --- Frontend: ESLint ---
         Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"
@@ -94,6 +131,19 @@ if ($Mode -eq "validate") {
         } else {
             Write-Host "fail" -ForegroundColor Red
             $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
+        # --- Frontend: tsc + vite build ---
+        Write-Host "  frontend build  " -ForegroundColor Cyan -NoNewline
+        Push-Location "$Root\frontend"
+        $out = & npm run build 2>&1
+        $exitCode = $LASTEXITCODE
+        Pop-Location
+        if ($exitCode -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            Write-Host "fail" -ForegroundColor Red
+            $out | Where-Object { $_ -match "error TS|Error:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
         # --- Flutter: analyze ---

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Room, RoomMessage, ToolCall, PinnedMessage, BookmarkedMessage } from '../types'
+import type { Room, RoomMessage, ToolCall, PinnedMessage, BookmarkedMessage, RoomTask, Asset } from '../types'
 
 export type BotRoomState = 'idle' | 'thinking' | 'responding'
 
@@ -20,7 +20,9 @@ interface RoomState {
   pinnedMessages: Record<string, PinnedMessage[]> // roomId -> pinned messages
   bookmarkedMessageIds: Record<string, Set<string>> // roomId -> message IDs
   bookmarks: BookmarkedMessage[]
-  viewMode: Record<string, 'chat' | 'cards' | 'timeline'>
+  viewMode: Record<string, 'chat' | 'cards' | 'timeline' | 'tasks' | 'assets'>
+  roomTasks: Record<string, RoomTask[]>
+  roomAssets: Record<string, Asset[]>
   botTimeline: Record<string, Array<{ botId: string; botName: string; startTime: number; endTime: number; tokens: number }>>
   consensusState: Record<string, { phase: 'collecting' | 'synthesizing'; collected: number; total: number; synthesizerName?: string } | null>
   interviewState: Record<string, { questionCount: number; maxQuestions: number; handoffTriggered: boolean } | null>
@@ -87,7 +89,18 @@ interface RoomState {
   removeBookmarkedId: (roomId: string, messageId: string) => void
 
   // View mode
-  setViewMode: (roomId: string, mode: 'chat' | 'cards' | 'timeline') => void
+  setViewMode: (roomId: string, mode: 'chat' | 'cards' | 'timeline' | 'tasks' | 'assets') => void
+
+  // Room tasks
+  setRoomTasks: (roomId: string, tasks: RoomTask[]) => void
+  addRoomTask: (roomId: string, task: RoomTask) => void
+  updateRoomTask: (roomId: string, taskId: string, updates: Partial<RoomTask>) => void
+  deleteRoomTask: (roomId: string, taskId: string) => void
+
+  // Room assets
+  setRoomAssets: (roomId: string, assets: Asset[]) => void
+  addRoomAsset: (roomId: string, asset: Asset) => void
+  deleteRoomAsset: (roomId: string, assetId: string) => void
 
   // Timeline
   addTimelineEntry: (roomId: string, entry: { botId: string; botName: string; startTime: number; endTime: number; tokens: number }) => void
@@ -126,6 +139,8 @@ export const useRoomStore = create<RoomState>()(
       bookmarkedMessageIds: {},
       bookmarks: [],
       viewMode: {},
+      roomTasks: {},
+      roomAssets: {},
       botTimeline: {},
       consensusState: {},
       interviewState: {},
@@ -517,6 +532,60 @@ export const useRoomStore = create<RoomState>()(
       setInterviewState: (roomId, interviewState) =>
         set((state) => ({
           interviewState: { ...state.interviewState, [roomId]: interviewState },
+        })),
+
+      // Room tasks
+      setRoomTasks: (roomId, tasks) =>
+        set((state) => ({
+          roomTasks: { ...state.roomTasks, [roomId]: tasks },
+        })),
+
+      addRoomTask: (roomId, task) =>
+        set((state) => ({
+          roomTasks: {
+            ...state.roomTasks,
+            [roomId]: [...(state.roomTasks[roomId] || []), task],
+          },
+        })),
+
+      updateRoomTask: (roomId, taskId, updates) =>
+        set((state) => ({
+          roomTasks: {
+            ...state.roomTasks,
+            [roomId]: (state.roomTasks[roomId] || []).map((t) =>
+              t.id === taskId ? { ...t, ...updates } : t
+            ),
+          },
+        })),
+
+      deleteRoomTask: (roomId, taskId) =>
+        set((state) => ({
+          roomTasks: {
+            ...state.roomTasks,
+            [roomId]: (state.roomTasks[roomId] || []).filter((t) => t.id !== taskId),
+          },
+        })),
+
+      // Room assets
+      setRoomAssets: (roomId, assets) =>
+        set((state) => ({
+          roomAssets: { ...state.roomAssets, [roomId]: assets },
+        })),
+
+      addRoomAsset: (roomId, asset) =>
+        set((state) => ({
+          roomAssets: {
+            ...state.roomAssets,
+            [roomId]: [asset, ...(state.roomAssets[roomId] || [])],
+          },
+        })),
+
+      deleteRoomAsset: (roomId, assetId) =>
+        set((state) => ({
+          roomAssets: {
+            ...state.roomAssets,
+            [roomId]: (state.roomAssets[roomId] || []).filter((a) => a.id !== assetId),
+          },
         })),
 
       getRoomsForBot: (botId) =>

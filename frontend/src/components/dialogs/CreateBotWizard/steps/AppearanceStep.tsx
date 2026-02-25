@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useCreationStore } from '../../../../stores/creation'
+import { useModelsStore } from '../../../../stores/models'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../../../common/BotIconRenderer'
 import { ModelSelect } from '../../../common/ModelSelect'
 import { cn } from '../../../../lib/utils'
@@ -17,6 +19,15 @@ const COLOR_OPTIONS = [
 
 export function AppearanceStep() {
   const { form, updateForm } = useCreationStore()
+  const { defaultModel } = useModelsStore()
+
+  // Pre-fill model from system default when empty
+  useEffect(() => {
+    if (!form.model && defaultModel) {
+      updateForm({ model: defaultModel })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultModel])
 
   return (
     <div className="space-y-6">
@@ -95,15 +106,31 @@ export function AppearanceStep() {
       </div>
 
       {/* Model Selection */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
-          AI Model
-        </label>
-        <ModelSelect
-          value={form.model}
-          onChange={(model) => updateForm({ model })}
-          placeholder="Select AI Model"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
+            AI Model
+          </label>
+          <ModelSelect
+            value={form.model}
+            onChange={(model) => updateForm({ model })}
+            placeholder="Select AI Model"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
+            Utility Model (optional)
+          </label>
+          <ModelSelect
+            value={form.utilityModel}
+            onChange={(model) => updateForm({ utilityModel: model })}
+            placeholder="Use system default"
+            filter={(m) => !m.supports_image_generation && !m.supports_audio}
+          />
+          <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+            Cheap/fast model for background tasks
+          </p>
+        </div>
       </div>
 
       {/* System Prompt (for blank/import methods or quick edit) */}

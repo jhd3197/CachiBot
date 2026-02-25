@@ -19,6 +19,7 @@ import {
   Cpu,
   AudioLines,
   Layers,
+  Zap,
   Mic,
   Plus,
   CheckCircle,
@@ -63,6 +64,7 @@ export function SettingsView() {
   const { settingsSection } = useUIStore()
   const { fetchConfig: fetchPlatformConfig } = usePlatformToolsStore()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
 
   // Preload platform tool config for capability/skill filtering
@@ -133,18 +135,29 @@ export function SettingsView() {
         <h1 className="settings-view__title">
           {sectionTitles[settingsSection]}
         </h1>
-        {settingsSection !== 'danger' && settingsSection !== 'environment' && settingsSection !== 'developer' && (
-          <button
-            onClick={handleSave}
-            className={cn(
-              'settings-save-btn flex items-center gap-2',
-              saved ? 'settings-save-btn--saved' : 'settings-save-btn--default'
-            )}
-          >
-            <Save className="h-4 w-4" />
-            {saved ? 'Saved!' : 'Save'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {settingsSection === 'general' && (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="settings-reset-btn flex items-center gap-2"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset to Default
+            </button>
+          )}
+          {settingsSection !== 'danger' && settingsSection !== 'environment' && settingsSection !== 'developer' && (
+            <button
+              onClick={handleSave}
+              className={cn(
+                'settings-save-btn flex items-center gap-2',
+                saved ? 'settings-save-btn--saved' : 'settings-save-btn--default'
+              )}
+            >
+              <Save className="h-4 w-4" />
+              {saved ? 'Saved!' : 'Save'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -154,18 +167,6 @@ export function SettingsView() {
             <GeneralSection
               form={form}
               setForm={setForm}
-              onReset={() => {
-                const appDefault = useModelsStore.getState().defaultModel
-                setForm({
-                  name: DEFAULT_BOT_SETTINGS.name,
-                  description: DEFAULT_BOT_SETTINGS.description,
-                  icon: DEFAULT_BOT_SETTINGS.icon,
-                  color: DEFAULT_BOT_SETTINGS.color,
-                  model: appDefault,
-                  models: { default: appDefault, image: '', audio: '', structured: '' },
-                  systemPrompt: DEFAULT_BOT_SETTINGS.systemPrompt,
-                })
-              }}
             />
           )}
           {settingsSection === 'knowledge' && (
@@ -223,6 +224,49 @@ export function SettingsView() {
           </div>
         </div>
       )}
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="settings-modal">
+          <div className="settings-modal__panel">
+            <div className="settings-modal__header settings-modal__header--warning">
+              <RotateCcw className="h-6 w-6" />
+              <h2 className="settings-modal__header-title">Reset General Settings</h2>
+            </div>
+            <p className="settings-modal__body">
+              This will reset the bot's name, description, icon, color, model, and system prompt to their default values.
+              <br /><br />
+              <strong className="settings-modal__strong">Connections will not be affected.</strong>
+            </p>
+            <div className="settings-modal__footer">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="settings-modal__cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const appDefault = useModelsStore.getState().defaultModel
+                  setForm({
+                    name: DEFAULT_BOT_SETTINGS.name,
+                    description: DEFAULT_BOT_SETTINGS.description,
+                    icon: DEFAULT_BOT_SETTINGS.icon,
+                    color: DEFAULT_BOT_SETTINGS.color,
+                    model: appDefault,
+                    models: { default: appDefault, image: '', audio: '', structured: '' },
+                    systemPrompt: DEFAULT_BOT_SETTINGS.systemPrompt,
+                  })
+                  setShowResetConfirm(false)
+                }}
+                className="settings-modal__confirm-btn--warning"
+              >
+                Reset Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -234,7 +278,6 @@ export function SettingsView() {
 interface GeneralSectionProps {
   form: Partial<BotType>
   setForm: (form: Partial<BotType>) => void
-  onReset: () => void
 }
 
 const TTS_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
@@ -254,8 +297,7 @@ const STT_LANGUAGES = [
   { value: 'ar', label: 'Arabic' },
 ]
 
-function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
+function GeneralSection({ form, setForm }: GeneralSectionProps) {
   const { imageGroups, audioGroups } = useModelsStore()
   const { getActiveBot, updateBot } = useBotStore()
   const { isCapabilityDisabled } = usePlatformToolsStore()
@@ -294,51 +336,6 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
 
   return (
     <div className="space-y-6">
-      {/* Reset to Default button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowResetConfirm(true)}
-          className="settings-reset-btn flex items-center gap-2"
-        >
-          <RotateCcw className="h-3 w-3" />
-          Reset to Default
-        </button>
-      </div>
-
-      {/* Reset confirmation modal */}
-      {showResetConfirm && (
-        <div className="settings-modal">
-          <div className="settings-modal__panel">
-            <div className="settings-modal__header settings-modal__header--warning">
-              <RotateCcw className="h-6 w-6" />
-              <h2 className="settings-modal__header-title">Reset General Settings</h2>
-            </div>
-            <p className="settings-modal__body">
-              This will reset the bot's name, description, icon, color, model, and system prompt to their default values.
-              <br /><br />
-              <strong className="settings-modal__strong">Connections will not be affected.</strong>
-            </p>
-            <div className="settings-modal__footer">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="settings-modal__cancel-btn"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  onReset()
-                  setShowResetConfirm(false)
-                }}
-                className="settings-modal__confirm-btn--warning"
-              >
-                Reset Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-4">
         <div>
           <label className="settings-form__label">Name</label>
@@ -385,6 +382,27 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
             />
             <p className="settings-form__hint">
               Main conversational model. Leave empty to use the system default.
+            </p>
+          </div>
+
+          {/* Utility Model */}
+          <div>
+            <label className="settings-form__label--small">
+              <Zap className="h-3.5 w-3.5" />
+              Utility Model
+            </label>
+            <ModelSelect
+              value={form.models?.utility || ''}
+              onChange={(model) => {
+                const models: BotModels = { ...(form.models || { default: '' }), utility: model }
+                setForm({ ...form, models })
+              }}
+              placeholder="Use system default"
+              className="w-full"
+              filter={(m) => !m.supports_image_generation && !m.supports_audio}
+            />
+            <p className="settings-form__hint">
+              Fast/cheap model for background tasks (name generation, routing, JSON extraction).
             </p>
           </div>
 
@@ -596,56 +614,71 @@ function GeneralSection({ form, setForm, onReset }: GeneralSectionProps) {
                   </div>
                 ))}
               </div>
-              <div className="settings-coding-agents__default">
-                <label className="text-xs text-[var(--color-text-secondary)]">Default agent for @mentions</label>
-                <select
-                  value={
-                    (activeBot?.toolConfigs?.coding_agent?.defaultAgent as string)
-                    || codingAgentsDefault
-                  }
-                  onChange={(e) => {
-                    if (!activeBot) return
-                    const current = activeBot.toolConfigs || {}
-                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), defaultAgent: e.target.value } }
-                    updateBot(activeBot.id, { toolConfigs: toolCfg })
-                  }}
-                  className="settings-coding-agents__select"
-                >
+              <div className="settings-coding-agents__field">
+                <label className="settings-coding-agents__label">Default agent for @mentions</label>
+                <div className="settings-coding-agents__pills">
                   {codingAgents.map((a) => (
-                    <option key={a.id} value={a.id} disabled={!a.available}>
-                      {a.name}{!a.available ? ' (not installed)' : ''}
-                    </option>
+                    <button
+                      key={a.id}
+                      disabled={!a.available}
+                      onClick={() => {
+                        if (!activeBot) return
+                        const current = activeBot.toolConfigs || {}
+                        const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), defaultAgent: a.id } }
+                        updateBot(activeBot.id, { toolConfigs: toolCfg })
+                      }}
+                      className={`settings-coding-agents__pill${
+                        ((activeBot?.toolConfigs?.coding_agent?.defaultAgent as string) || codingAgentsDefault) === a.id
+                          ? ' settings-coding-agents__pill--active' : ''
+                      }`}
+                    >
+                      {a.name}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
-              <div className="settings-coding-agents__default">
-                <label className="text-xs text-[var(--color-text-secondary)]">Timeout per task</label>
-                <select
-                  value={
-                    (activeBot?.toolConfigs?.coding_agent?.timeoutSeconds as number)
-                    || 600
-                  }
+              <div className="settings-coding-agents__field settings-coding-agents__field--stacked">
+                <div className="settings-coding-agents__label-row">
+                  <label className="settings-coding-agents__label">Timeout per task</label>
+                  <span className="settings-coding-agents__timeout-value">
+                    {(() => {
+                      const secs = (activeBot?.toolConfigs?.coding_agent?.timeoutSeconds as number) || 600
+                      if (secs < 60) return `${secs}s`
+                      if (secs < 3600) {
+                        const m = Math.round(secs / 60)
+                        return `${m} min`
+                      }
+                      const h = secs / 3600
+                      return `${Number.isInteger(h) ? h : h.toFixed(1)}h`
+                    })()}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={20}
+                  value={(() => {
+                    const steps = [10, 20, 30, 40, 50, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600, 7200, 10800, 14400, 21600, 28800, 43200, 86400]
+                    const secs = (activeBot?.toolConfigs?.coding_agent?.timeoutSeconds as number) || 600
+                    const idx = steps.indexOf(secs)
+                    return idx >= 0 ? idx : 9
+                  })()}
                   onChange={(e) => {
                     if (!activeBot) return
+                    const steps = [10, 20, 30, 40, 50, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600, 7200, 10800, 14400, 21600, 28800, 43200, 86400]
                     const current = activeBot.toolConfigs || {}
-                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), timeoutSeconds: Number(e.target.value) } }
+                    const toolCfg = { ...current, coding_agent: { ...(current.coding_agent || {}), timeoutSeconds: steps[Number(e.target.value)] } }
                     updateBot(activeBot.id, { toolConfigs: toolCfg })
                   }}
-                  className="settings-coding-agents__select"
-                >
-                  {/* Seconds: 10s steps up to 60s */}
-                  {[10, 20, 30, 40, 50, 60].map((s) => (
-                    <option key={s} value={s}>{s}s</option>
-                  ))}
-                  {/* Minutes: 2–60 min */}
-                  {[2, 3, 5, 10, 15, 20, 30, 45, 60].map((m) => (
-                    <option key={`m${m}`} value={m * 60}>{m} min</option>
-                  ))}
-                  {/* Hours: 2–24h */}
-                  {[2, 3, 4, 6, 8, 12, 18, 24].map((h) => (
-                    <option key={`h${h}`} value={h * 3600}>{h}h</option>
-                  ))}
-                </select>
+                  className="settings-coding-agents__slider"
+                />
+                <div className="settings-coding-agents__slider-labels">
+                  <span>10s</span>
+                  <span>1 min</span>
+                  <span>15 min</span>
+                  <span>3h</span>
+                  <span>24h</span>
+                </div>
               </div>
               <p className="settings-coding-agents__hint">
                 Type <code>@claude</code>, <code>@codex</code>, or <code>@gemini</code> in chat to invoke a coding agent.

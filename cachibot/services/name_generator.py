@@ -1,15 +1,12 @@
 """Bot name generation service using Prompture."""
 
-import json
 import logging
-import re
 from typing import Any
 
-import httpx
-from prompture.aio import get_async_driver_for_model
+from prompture.aio import extract_with_model
 from pydantic import BaseModel, Field
 
-from cachibot.config import Config
+from cachibot.services.model_resolver import resolve_utility_model
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +14,7 @@ logger = logging.getLogger(__name__)
 FALLBACK_NAMES = [
     ("Carlos", "Spanish origin meaning 'free man' - a warm, approachable companion"),
     ("Sophie", "Greek origin meaning 'wisdom' - knowledgeable and thoughtful"),
-    ("Nova", "Latin for 'new' - a bright star that appears suddenly in the sky"),
+    ("Ember", "A glowing warmth that keeps the fire going - reliable and steady"),
     ("Sage", "A wise person; also an herb used for purification and healing"),
 ]
 
@@ -33,115 +30,28 @@ class NameWithMeaning(BaseModel):
     )
 
 
-def _resolve_utility_model() -> str:
-    """Resolve the model to use for utility tasks."""
-    try:
-        config = Config.load()
-        return config.agent.utility_model or config.agent.model
-    except Exception:
-        return "moonshot/kimi-k2.5"
+class NamesResult(BaseModel):
+    """Result of name generation — a list of names."""
+
+    names: list[NameWithMeaning] = Field(description="List of bot name suggestions with meanings")
 
 
-def _extract_json(text: str) -> dict[str, Any]:
-    """Extract JSON object from model response text."""
-    # Try the whole text first
-    try:
-        return json.loads(text.strip())  # type: ignore[no-any-return]
-    except (json.JSONDecodeError, ValueError):
-        pass
+class SimpleNamesResult(BaseModel):
+    """Result of simple name generation — a list of name strings."""
 
-    # Try to find JSON in code blocks
-    code_block = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
-    if code_block:
-        try:
-            return json.loads(code_block.group(1).strip())  # type: ignore[no-any-return]
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # Try to find a JSON object with "names" key anywhere
-    brace_match = re.search(r'\{[^{}]*"names"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
-    if brace_match:
-        try:
-            return json.loads(brace_match.group(0))  # type: ignore[no-any-return]
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    # Last resort: find any JSON object
-    brace_match = re.search(r"\{.*\}", text, re.DOTALL)
-    if brace_match:
-        try:
-            return json.loads(brace_match.group(0))  # type: ignore[no-any-return]
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    raise ValueError(f"Could not extract JSON from response: {text[:300]}")
-
-
-async def _chat_completion(prompt: str, model_name: str) -> str:
-    """Call the model's chat completion API directly, handling reasoning models properly."""
-    driver = get_async_driver_for_model(model_name)
-
-    # Get API credentials from the driver
-    api_key = getattr(driver, "api_key", None)
-    base_url = getattr(driver, "base_url", None) or getattr(driver, "api_base", None)
-
-    if not api_key or not base_url:
-        raise ValueError(f"Cannot get API credentials from driver for {model_name}")
-
-    # Strip provider prefix from model name (e.g. "moonshot/kimi-k2.5" -> "kimi-k2.5")
-    bare_model = model_name.split("/", 1)[-1] if "/" in model_name else model_name
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    data: dict[str, Any] = {
-        "model": bare_model,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{base_url.rstrip('/')}/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=120,
-        )
-        response.raise_for_status()
-        resp = response.json()
-
-    message = resp["choices"][0]["message"]
-    content = message.get("content") or ""
-    reasoning = message.get("reasoning_content") or ""
-
-    # Prefer content, fall back to reasoning if content is empty
-    if content.strip():
-        return content
-    if reasoning.strip():
-        return reasoning
-
-    raise ValueError("Model returned empty response (both content and reasoning_content empty)")
+    names: list[str] = Field(description="List of bot name suggestions")
 
 
 async def generate_bot_names(
     count: int = 4,
     exclude: list[str] | None = None,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> list[str]:
-    """
-    Generate creative bot name suggestions using AI.
-
-    Args:
-        count: Number of names to generate (default 4)
-        exclude: List of names to avoid (existing bot names)
-        model: Model to use for generation (default from config)
-
-    Returns:
-        List of creative bot name suggestions
-    """
+    """Generate creative bot name suggestions using AI."""
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     exclude_set = set(name.lower() for name in (exclude or []))
 
@@ -161,24 +71,26 @@ Requirements:
 - Names should feel warm and approachable
 {exclude_clause}
 
-Good examples: Carlos, Sophie, Max, Aria, Chef, Scout, Sage, Coach
-
-Respond with ONLY a JSON object in this exact format, no other text:
-{{"names": ["Name1", "Name2", "Name3", "Name4"]}}"""
+Good examples: Carlos, Sophie, Max, Aria, Chef, Scout, Sage, Coach"""
 
     fallback_names = [n for n, _ in FALLBACK_NAMES if n.lower() not in exclude_set][:count]
 
-    try:
-        response = await _chat_completion(prompt, model)
-        data = _extract_json(response)
-        names: list[str] = data.get("names", [])
-        if names:
-            return names[:count]
-        logger.warning("No names in response, using fallbacks")
+    result = await extract_with_model(
+        SimpleNamesResult,
+        prompt,
+        model,
+        instruction_template="Generate bot names based on the requirements below:",
+    )
+    # result["model"] is the Pydantic SimpleNamesResult instance
+    parsed: SimpleNamesResult = result["model"]
+    if parsed.names:
+        return parsed.names[:count]
+
+    # LLM returned empty — use fallbacks as last resort
+    if fallback_names:
+        logger.warning("No names in LLM response, using fallback names")
         return fallback_names
-    except Exception:
-        logger.exception("Name generation failed, using fallbacks")
-        return fallback_names
+    raise RuntimeError("Name generation returned no results and no fallbacks available")
 
 
 async def generate_bot_names_with_meanings(
@@ -187,22 +99,12 @@ async def generate_bot_names_with_meanings(
     purpose: str | None = None,
     personality: str | None = None,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> list[NameWithMeaning]:
-    """
-    Generate creative bot name suggestions with meanings using AI.
-
-    Args:
-        count: Number of names to generate (default 4)
-        exclude: List of names to avoid (existing bot names)
-        purpose: Optional purpose/category of the bot for context
-        personality: Optional personality style for context
-        model: Model to use for generation (default from config)
-
-    Returns:
-        List of creative bot names with their meanings
-    """
+    """Generate creative bot name suggestions with meanings using AI."""
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     exclude_set = set(name.lower() for name in (exclude or []))
 
@@ -231,10 +133,7 @@ Name types required:
 Examples by purpose:
 - Cooking: "Carlos" (friendly chef), "Miso" (Japanese ingredient), "Julia" (Julia Child)
 - Fitness: "Marcus" (strong Roman name), "Coach", "Rocky"
-- Coding: "Ada" (Ada Lovelace), "Linus" (Torvalds), "Bug" (playful)
-
-Respond with ONLY a JSON object in this exact format, no other text:
-{{"names": [{{"name": "ExampleName", "meaning": "Brief reason this name fits"}}, ...]}}"""
+- Coding: "Ada" (Ada Lovelace), "Linus" (Torvalds), "Bug" (playful)"""
 
     fallback_names = [
         NameWithMeaning(name=name, meaning=meaning)
@@ -242,23 +141,19 @@ Respond with ONLY a JSON object in this exact format, no other text:
         if name.lower() not in exclude_set
     ][:count]
 
-    try:
-        response = await _chat_completion(prompt, model)
-        data = _extract_json(response)
-        raw_names = data.get("names", [])
-        names = []
-        for item in raw_names:
-            if isinstance(item, dict) and "name" in item:
-                names.append(
-                    NameWithMeaning(
-                        name=item["name"],
-                        meaning=item.get("meaning", "A great name for your bot"),
-                    )
-                )
-        if names:
-            return names[:count]
-        logger.warning("No names parsed from response, using fallbacks")
+    result = await extract_with_model(
+        NamesResult,
+        prompt,
+        model,
+        instruction_template="Generate bot names with meanings based on the requirements below:",
+    )
+    # result["model"] is the Pydantic NamesResult instance
+    parsed: NamesResult = result["model"]
+    if parsed.names:
+        return list(parsed.names[:count])
+
+    # LLM returned empty — use fallbacks as last resort
+    if fallback_names:
+        logger.warning("No names parsed from LLM response, using fallback names")
         return fallback_names
-    except Exception:
-        logger.exception("Name generation with meanings failed, using fallbacks")
-        return fallback_names
+    raise RuntimeError("Name generation returned no results and no fallbacks available")

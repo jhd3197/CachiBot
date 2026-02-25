@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Save, Loader2, Trash2, ExternalLink, Sparkles } from 'lucide-react'
+import { Eye, EyeOff, Save, Loader2, Trash2, RefreshCw, ExternalLink, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useProvidersStore } from '../../../../stores/providers'
 import { useModelsStore } from '../../../../stores/models'
@@ -22,6 +22,7 @@ export function ProviderStep() {
   const { defaultModel, updateDefaultModel, refresh: refreshModels } = useModelsStore()
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set())
+  const [replacingKeys, setReplacingKeys] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState<string | null>(null)
 
   useEffect(() => {
@@ -54,6 +55,11 @@ export function ProviderStep() {
         next.delete(name)
         return next
       })
+      setReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(name)
+        return next
+      })
       refreshModels()
       toast.success(`${PROVIDER_LABELS[name] || name} key saved`)
     } catch {
@@ -69,6 +75,11 @@ export function ProviderStep() {
       setEditValues((prev) => {
         const next = { ...prev }
         delete next[name]
+        return next
+      })
+      setReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(name)
         return next
       })
       refreshModels()
@@ -90,6 +101,24 @@ export function ProviderStep() {
     })
   }
 
+  const enterReplaceMode = (name: string) => {
+    setReplacingKeys((prev) => new Set(prev).add(name))
+    setEditValues((prev) => ({ ...prev, [name]: '' }))
+  }
+
+  const cancelReplaceMode = (name: string) => {
+    setReplacingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(name)
+      return next
+    })
+    setEditValues((prev) => {
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }
+
   const handleModelChange = async (model: string) => {
     if (model) {
       await updateDefaultModel(model)
@@ -99,6 +128,7 @@ export function ProviderStep() {
   const renderProviderCard = (provider: typeof providers[number], featured = false) => {
     const inputValue = editValues[provider.name] ?? ''
     const isVisible = visibleKeys.has(provider.name)
+    const isReplacing = replacingKeys.has(provider.name)
     const isSaving = saving === provider.name
     const label = PROVIDER_LABELS[provider.name] || provider.name
 
@@ -106,22 +136,20 @@ export function ProviderStep() {
       <div
         key={provider.name}
         className={cn(
-          'rounded-lg border p-3 space-y-2',
-          featured
-            ? 'border-accent-500/40 bg-accent-500/5'
-            : 'border-[var(--color-border-secondary)] bg-[var(--color-bg-primary)]'
+          'provider-card',
+          featured && 'provider-card--featured'
         )}
       >
-        <div className="flex items-center justify-between">
+        <div className="provider-card__header">
           <div className="flex items-center gap-2">
-            {featured && <Sparkles className="h-4 w-4 text-accent-600 dark:text-accent-400" />}
-            <h4 className="text-sm font-medium text-[var(--color-text-primary)]">{label}</h4>
+            {featured && <Sparkles className="h-4 w-4 text-[var(--accent-500)]" />}
+            <h4 className="provider-card__name">{label}</h4>
             <span
               className={cn(
-                'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium',
+                'provider-card__badge',
                 provider.configured
-                  ? 'bg-[var(--color-success-bg)] text-[var(--color-success-text)]'
-                  : 'bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)]'
+                  ? 'provider-card__badge--active'
+                  : 'provider-card__badge--inactive'
               )}
             >
               {provider.configured ? 'Active' : 'Not set'}
@@ -131,7 +159,7 @@ export function ProviderStep() {
                 href={provider.configured ? 'https://cachibot.ai/dashboard' : 'https://cachibot.ai/register'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-accent-600 bg-accent-500/10 hover:bg-accent-500/20 transition-colors dark:text-accent-400"
+                className="provider-card__cta-link"
               >
                 {provider.configured ? 'Dashboard' : 'Sign up for a key'} <ExternalLink className="h-2.5 w-2.5" />
               </a>
@@ -140,7 +168,7 @@ export function ProviderStep() {
           {provider.configured && (
             <button
               onClick={() => handleDelete(provider.name)}
-              className="rounded p-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-danger-bg)] hover:text-[var(--color-danger-text)]"
+              className="provider-card__delete-btn"
               title="Remove key"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -148,51 +176,105 @@ export function ProviderStep() {
           )}
         </div>
 
-        {provider.configured && !(provider.name in editValues) && (
-          <div className="flex items-center gap-1.5">
-            <div className="flex-1 truncate rounded border border-[var(--color-border-secondary)] bg-[var(--color-bg-inset)] px-2 py-1 font-mono text-xs text-[var(--color-text-secondary)]">
+        {/* State 1: Not configured — show input + save */}
+        {!provider.configured && !isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
+              }
+              placeholder="Enter API key..."
+              className="provider-card__key-input flex-1"
+            />
+            <button
+              onClick={() => toggleVisibility(provider.name)}
+              className="provider-card__visibility-btn-bordered"
+              title={isVisible ? 'Hide' : 'Show'}
+            >
+              {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => handleSave(provider.name)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+          </div>
+        )}
+
+        {/* State 2: Configured, viewing — show masked value + eye toggle + replace */}
+        {provider.configured && !isReplacing && (
+          <div className="flex items-center gap-2">
+            <div className="provider-card__masked">
               {isVisible
                 ? provider.masked_value
                 : provider.masked_value.replace(/./g, '*').slice(0, 16) + '****'}
             </div>
             <button
               onClick={() => toggleVisibility(provider.name)}
-              className="rounded p-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover-bg)]"
+              className="provider-card__visibility-btn"
+              title={isVisible ? 'Hide' : 'Show'}
             >
               {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => enterReplaceMode(provider.name)}
+              className="provider-card__replace-btn"
+              title="Replace key"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
 
-        <div className="flex gap-1.5">
-          <input
-            type={isVisible ? 'text' : 'password'}
-            value={inputValue}
-            onChange={(e) =>
-              setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
-            }
-            placeholder={provider.configured ? 'Update key...' : 'Enter API key...'}
-            className="h-8 flex-1 rounded border border-[var(--input-border)] bg-[var(--input-bg)] px-2 font-mono text-xs text-[var(--input-text)] outline-none transition-colors placeholder:text-[var(--input-placeholder)] focus:border-accent-500"
-          />
-          <button
-            onClick={() => toggleVisibility(provider.name)}
-            className="rounded border border-[var(--color-border-secondary)] px-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover-bg)]"
-          >
-            {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            onClick={() => handleSave(provider.name)}
-            disabled={!inputValue.trim() || isSaving}
-            className="flex items-center gap-1 rounded bg-accent-600 px-3 text-xs font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            Save
-          </button>
-        </div>
+        {/* State 3: Configured, replacing — show input + save + cancel */}
+        {provider.configured && isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
+              }
+              placeholder="Enter new API key..."
+              className="provider-card__key-input flex-1"
+            />
+            <button
+              onClick={() => toggleVisibility(provider.name)}
+              className="provider-card__visibility-btn-bordered"
+              title={isVisible ? 'Hide' : 'Show'}
+            >
+              {isVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              onClick={() => handleSave(provider.name)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              Save
+            </button>
+            <button
+              onClick={() => cancelReplaceMode(provider.name)}
+              className="provider-card__cancel-btn"
+              title="Cancel"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     )
   }
