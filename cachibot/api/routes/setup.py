@@ -256,12 +256,15 @@ async def reset_legacy_database(
     """
     import cachibot.storage.db as db_mod
 
-    user_repo = UserRepository()
-    if await user_repo.get_user_count() > 0 and user is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authentication required",
-        )
+    # Allow unauthenticated access when legacy DB is detected
+    # (user can't log in against the incompatible V1 schema)
+    if not db_mod.legacy_db_detected:
+        user_repo = UserRepository()
+        if await user_repo.get_user_count() > 0 and user is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authentication required",
+            )
 
     if not db_mod.legacy_db_detected:
         raise HTTPException(
@@ -284,12 +287,15 @@ async def keep_legacy_database(
     """
     import cachibot.storage.db as db_mod
 
-    user_repo = UserRepository()
-    if await user_repo.get_user_count() > 0 and user is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Authentication required",
-        )
+    # Allow unauthenticated access when legacy DB is detected
+    # (user can't log in against the incompatible V1 schema)
+    if not db_mod.legacy_db_detected:
+        user_repo = UserRepository()
+        if await user_repo.get_user_count() > 0 and user is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authentication required",
+            )
 
     if not db_mod.legacy_db_detected:
         raise HTTPException(
