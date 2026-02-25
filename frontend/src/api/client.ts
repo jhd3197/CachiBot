@@ -106,7 +106,7 @@ export async function enableFirewallRule(): Promise<{ success: boolean; message:
 }
 
 // Coding agents discovery
-import type { CodingAgentsResponse } from '../types'
+import type { CodingAgentsResponse, BotModels } from '../types'
 
 export async function getCodingAgents(): Promise<CodingAgentsResponse> {
   return request('/coding-agents')
@@ -530,7 +530,7 @@ export interface BotSyncData {
   icon?: string
   color?: string
   model: string
-  models?: Record<string, string>
+  models?: BotModels
   systemPrompt: string
   capabilities?: Record<string, boolean>
   createdAt: string

@@ -133,6 +133,19 @@ if ($Mode -eq "validate") {
             $out | Where-Object { $_ -match "(error|warning)" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
+        # --- Frontend: tsc + vite build ---
+        Write-Host "  frontend build  " -ForegroundColor Cyan -NoNewline
+        Push-Location "$Root\frontend"
+        $out = & npm run build 2>&1
+        $exitCode = $LASTEXITCODE
+        Pop-Location
+        if ($exitCode -eq 0) {
+            Write-Host "ok" -ForegroundColor Green
+        } else {
+            Write-Host "fail" -ForegroundColor Red
+            $out | Where-Object { $_ -match "error TS|Error:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        }
+
         # --- Flutter: analyze ---
         Write-Host "  flutter analyze " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\mobile"

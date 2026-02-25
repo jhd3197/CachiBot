@@ -119,3 +119,4 @@ mobile/ios/Pods/
 mobile/.fvm/
 *.iml
 pr.md
+*.tsbuildinfo
