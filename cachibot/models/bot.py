@@ -16,6 +16,7 @@ class BotModels(BaseModel):
     default: str = ""  # Main conversational model
     image: str = ""  # Image generation model (e.g., openai/dall-e-3)
     audio: str = ""  # Audio model (planned)
+    utility: str = ""  # Cheap/fast model for background tasks (name gen, routing, etc.)
     structured: str = ""  # Structured output model (planned)
 
 

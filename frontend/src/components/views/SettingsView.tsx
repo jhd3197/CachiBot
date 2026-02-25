@@ -19,6 +19,7 @@ import {
   Cpu,
   AudioLines,
   Layers,
+  Zap,
   Mic,
   Plus,
   CheckCircle,
@@ -381,6 +382,27 @@ function GeneralSection({ form, setForm }: GeneralSectionProps) {
             />
             <p className="settings-form__hint">
               Main conversational model. Leave empty to use the system default.
+            </p>
+          </div>
+
+          {/* Utility Model */}
+          <div>
+            <label className="settings-form__label--small">
+              <Zap className="h-3.5 w-3.5" />
+              Utility Model
+            </label>
+            <ModelSelect
+              value={form.models?.utility || ''}
+              onChange={(model) => {
+                const models: BotModels = { ...(form.models || { default: '' }), utility: model }
+                setForm({ ...form, models })
+              }}
+              placeholder="Use system default"
+              className="w-full"
+              filter={(m) => !m.supports_image_generation && !m.supports_audio}
+            />
+            <p className="settings-form__hint">
+              Fast/cheap model for background tasks (name generation, routing, JSON extraction).
             </p>
           </div>
 

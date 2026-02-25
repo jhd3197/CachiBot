@@ -51,7 +51,6 @@ import {
   Timer,
   Heart,
   Zap,
-  Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, PresetColor, accentColors, generatePalette } from '../../stores/ui'
@@ -1105,9 +1104,11 @@ function ModelsSettings() {
     embeddingGroups,
     defaultModel,
     defaultEmbeddingModel,
+    defaultUtilityModel,
     loading,
     updateDefaultModel,
     updateDefaultEmbeddingModel,
+    updateDefaultUtilityModel,
     refresh,
   } = useModelsStore()
   const [search, setSearch] = useState('')
@@ -1128,6 +1129,11 @@ function ModelsSettings() {
       await updateDefaultEmbeddingModel(model)
       toast.success('Embedding model updated')
     }
+  }
+
+  const handleUtilityModelChange = async (model: string) => {
+    await updateDefaultUtilityModel(model)
+    toast.success('Utility model updated')
   }
 
   // Filter models by search
@@ -1165,6 +1171,24 @@ function ModelsSettings() {
             />
             <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
               Used when no specific model is configured for a bot.
+            </p>
+          </Field>
+        </div>
+      </Section>
+
+      {/* Utility model */}
+      <Section icon={Zap} title="Utility Model">
+        <div className="space-y-4">
+          <Field label="Default Utility Model">
+            <ModelSelect
+              value={defaultUtilityModel}
+              onChange={handleUtilityModelChange}
+              placeholder="Falls back to system default model"
+              className="w-full"
+              filter={(m) => !m.supports_image_generation && !m.supports_audio}
+            />
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+              Fast/cheap model for background tasks (name generation, message routing, JSON extraction). Falls back to the system default model if not set.
             </p>
           </Field>
         </div>

@@ -95,15 +95,31 @@ export function AppearanceStep() {
       </div>
 
       {/* Model Selection */}
-      <div>
-        <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
-          AI Model
-        </label>
-        <ModelSelect
-          value={form.model}
-          onChange={(model) => updateForm({ model })}
-          placeholder="Select AI Model"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
+            AI Model
+          </label>
+          <ModelSelect
+            value={form.model}
+            onChange={(model) => updateForm({ model })}
+            placeholder="Select AI Model"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
+            Utility Model (optional)
+          </label>
+          <ModelSelect
+            value={form.utilityModel}
+            onChange={(model) => updateForm({ utilityModel: model })}
+            placeholder="Use system default"
+            filter={(m) => !m.supports_image_generation && !m.supports_audio}
+          />
+          <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+            Cheap/fast model for background tasks
+          </p>
+        </div>
       </div>
 
       {/* System Prompt (for blank/import methods or quick edit) */}

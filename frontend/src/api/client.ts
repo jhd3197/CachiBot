@@ -530,6 +530,7 @@ export interface BotSyncData {
   icon?: string
   color?: string
   model: string
+  models?: Record<string, string>
   systemPrompt: string
   capabilities?: Record<string, boolean>
   createdAt: string

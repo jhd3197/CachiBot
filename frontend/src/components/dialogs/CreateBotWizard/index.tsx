@@ -109,6 +109,9 @@ export function CreateBotWizard() {
       icon: form.icon,
       color: form.color,
       model: form.model,
+      models: form.utilityModel
+        ? { default: form.model, utility: form.utilityModel }
+        : undefined,
       systemPrompt: form.systemPrompt,
       tools: form.tools,
       personality: form.method === 'ai-assisted'
