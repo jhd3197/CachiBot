@@ -7,15 +7,29 @@
 #   .\dev.ps1 desktop          # backend + frontend + Electron
 #   .\dev.ps1 all              # backend + frontend + browser + Electron
 #   .\dev.ps1 validate          # watch Python + TS + Dart files and validate on changes
+#   .\dev.ps1 reset-db          # delete SQLite DB so setup page shows on next launch
 
 param(
-    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "validate")]
+    [ValidateSet("browser", "backend", "frontend", "desktop", "all", "validate", "reset-db")]
     [string]$Mode = "browser"
 )
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $procs = @()
+
+# --- reset-db mode ---
+if ($Mode -eq "reset-db") {
+    $dbPath = Join-Path $env:USERPROFILE ".cachibot\cachibot.db"
+    if (Test-Path $dbPath) {
+        Remove-Item "$dbPath*" -Force   # removes .db, .db-wal, .db-shm
+        Write-Host "[dev] Database deleted: $dbPath" -ForegroundColor Green
+        Write-Host "[dev] Setup page will show on next launch." -ForegroundColor DarkGray
+    } else {
+        Write-Host "[dev] No database found at $dbPath" -ForegroundColor Yellow
+    }
+    return
+}
 
 # --- validate mode ---
 if ($Mode -eq "validate") {
