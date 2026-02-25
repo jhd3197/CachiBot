@@ -7,8 +7,8 @@
 
 [agent]
 # Model to use (format: provider/model-name)
-# Options: moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514, openai/gpt-4o, ollama/llama3.1:8b
-model = "moonshot/kimi-k2.5"
+# Examples: openai/gpt-4o, claude/claude-sonnet-4-20250514, ollama/llama3.1:8b
+# model = ""
 
 # Cheap/fast model for utility tasks (name generation, follow-up questions)
 # Falls back to the main model if empty

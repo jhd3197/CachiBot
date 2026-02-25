@@ -17,8 +17,8 @@ logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
 
 
-# Default model if none configured
-DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "moonshot/kimi-k2.5")
+# Default model if none configured (empty = user must set one)
+DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "")
 
 
 class ModelInfo(BaseModel):

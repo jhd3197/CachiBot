@@ -87,10 +87,10 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         return (
           <div key={param.name} className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <label className="text-sm font-medium text-[var(--label-text)]">
                 {param.displayName || param.name}
               </label>
-              <span className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{formatValue(numValue, param)}</span>
+              <span className="text-sm text-[var(--color-text-secondary)]">{formatValue(numValue, param)}</span>
             </div>
             <input
               type="range"
@@ -115,9 +115,9 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
       case 'boolean': {
         const boolValue = typeof value === 'boolean' ? value : Boolean(param.default)
         return (
-          <div key={param.name} className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+          <div key={param.name} className="flex items-center justify-between rounded-lg border border-[var(--color-border-primary)] p-4">
             <div>
-              <h4 className="text-sm font-medium text-zinc-800 dark:text-[var(--color-text-primary)]">
+              <h4 className="text-sm font-medium text-[var(--color-text-primary)]">
                 {param.displayName || param.name}
               </h4>
               {param.description && (
@@ -128,7 +128,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
               onClick={() => updateValue(param.name, !boolValue)}
               className={cn(
                 'relative h-6 w-11 rounded-full transition-colors',
-                boolValue ? 'bg-cachi-600' : 'bg-zinc-200 dark:bg-[var(--color-hover-bg)]'
+                boolValue ? 'bg-cachi-600' : 'bg-[var(--btn-secondary-bg)]'
               )}
             >
               <span
@@ -146,13 +146,13 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const strValue = String(value ?? param.default ?? '')
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <select
               value={strValue}
               onChange={(e) => updateValue(param.name, e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+              className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
             >
               {(param.options || []).map((opt) => (
                 <option key={opt} value={opt}>
@@ -171,7 +171,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const strValue = String(value ?? param.default ?? '')
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <input
@@ -179,7 +179,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
               value={strValue}
               onChange={(e) => updateValue(param.name, e.target.value)}
               placeholder={param.placeholder}
-              className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+              className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
             />
             {param.description && (
               <p className="text-xs text-[var(--color-text-secondary)]">{param.description}</p>
@@ -193,7 +193,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const isRevealed = revealedSecrets.has(param.name)
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <div className="relative">
@@ -202,7 +202,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                 value={strValue}
                 onChange={(e) => updateValue(param.name, e.target.value)}
                 placeholder={param.placeholder ?? 'Enter secret...'}
-                className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-2 pr-10 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-2 pr-10 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
               />
               <button
                 type="button"
@@ -223,7 +223,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const strValue = String(value ?? param.default ?? '')
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <textarea
@@ -231,7 +231,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
               onChange={(e) => updateValue(param.name, e.target.value)}
               rows={param.rows ?? 4}
               placeholder={param.placeholder}
-              className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] resize-y"
+              className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] resize-y"
             />
             {param.description && (
               <p className="text-xs text-[var(--color-text-secondary)]">{param.description}</p>
@@ -248,7 +248,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const PathIcon = pathIcon
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <div className="relative">
@@ -260,11 +260,11 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                 value={strValue}
                 onChange={(e) => updateValue(param.name, e.target.value)}
                 placeholder={param.placeholder ?? (param.pathType === 'directory' ? '/path/to/directory' : '/path/to/file')}
-                className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] font-mono"
+                className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] font-mono"
               />
             </div>
             {param.pathType && (
-              <span className="inline-block rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] border border-zinc-300 dark:border-[var(--color-border-secondary)]">
+              <span className="inline-block rounded bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] border border-[var(--color-border-secondary)]">
                 {param.pathType}
               </span>
             )}
@@ -289,7 +289,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         return (
           <div key={param.name} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <label className="text-sm font-medium text-[var(--label-text)]">
                 {param.displayName || param.name}
               </label>
               <span className="text-xs text-[var(--color-text-secondary)]">
@@ -308,7 +308,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                       updateItems(newItems)
                     }}
                     placeholder={param.itemPlaceholder}
-                    className="flex-1 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                    className="flex-1 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
                   />
                   <button
                     onClick={() => {
@@ -316,7 +316,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                       updateItems(items.filter((_, j) => j !== i))
                     }}
                     disabled={!canRemove}
-                    className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -329,7 +329,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                 updateItems([...items, isNumeric ? 0 : ''])
               }}
               disabled={!canAdd}
-              className="flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:border-cachi-500 hover:text-cachi-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:border-cachi-500 hover:text-cachi-400 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Plus className="h-3.5 w-3.5" />
               Add item
@@ -354,7 +354,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         return (
           <div key={param.name} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <label className="text-sm font-medium text-[var(--label-text)]">
                 {param.displayName || param.name}
               </label>
               <span className="text-xs text-[var(--color-text-secondary)]">
@@ -373,7 +373,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                       updateEntries(newEntries)
                     }}
                     placeholder={param.keyPlaceholder ?? 'Key'}
-                    className="w-2/5 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                    className="w-2/5 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
                   />
                   <input
                     type="text"
@@ -384,11 +384,11 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                       updateEntries(newEntries)
                     }}
                     placeholder={param.valuePlaceholder ?? 'Value'}
-                    className="flex-1 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] px-3 py-1.5 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                    className="flex-1 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] px-3 py-1.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
                   />
                   <button
                     onClick={() => updateEntries(entries.filter((_, j) => j !== i))}
-                    className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-red-400"
+                    className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-red-400"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -401,7 +401,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                 updateEntries([...entries, ['', '']])
               }}
               disabled={!canAdd}
-              className="flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 dark:border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:border-cachi-500 hover:text-cachi-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--color-border-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:border-cachi-500 hover:text-cachi-400 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Plus className="h-3.5 w-3.5" />
               Add entry
@@ -427,7 +427,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         return (
           <div key={param.name} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <label className="text-sm font-medium text-[var(--label-text)]">
                 {param.displayName || param.name}
               </label>
               <span className="text-xs text-[var(--color-text-secondary)]">
@@ -445,7 +445,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                       'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors',
                       isSelected
                         ? 'border-cachi-500 bg-cachi-500/15 text-cachi-300'
-                        : 'border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-200 dark:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:border-zinc-400 dark:hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-tertiary)] dark:hover:text-[var(--color-text-primary)]'
+                        : 'border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-secondary)] hover:text-[var(--color-text-primary)]'
                     )}
                   >
                     {isSelected && <Check className="h-3 w-3" />}
@@ -465,7 +465,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         const strValue = String(value ?? param.default ?? '')
         return (
           <div key={param.name} className="space-y-2">
-            <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+            <label className="text-sm font-medium text-[var(--label-text)]">
               {param.displayName || param.name}
             </label>
             <div className="relative">
@@ -477,7 +477,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
                 value={strValue}
                 onChange={(e) => updateValue(param.name, e.target.value)}
                 placeholder={param.placeholder ?? 'https://...'}
-                className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-white dark:bg-[var(--color-bg-secondary)] pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
+                className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--input-bg)] pl-9 pr-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)]"
               />
             </div>
             {param.description && (
@@ -492,11 +492,11 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         return (
           <div key={param.name} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-zinc-700 dark:text-[var(--color-text-primary)]">
+              <label className="text-sm font-medium text-[var(--label-text)]">
                 {param.displayName || param.name}
               </label>
               {param.language && (
-                <span className="flex items-center gap-1 rounded bg-zinc-200 dark:bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] border border-zinc-300 dark:border-[var(--color-border-secondary)]">
+                <span className="flex items-center gap-1 rounded bg-[var(--color-bg-secondary)] px-2 py-0.5 text-xs text-[var(--color-text-secondary)] border border-[var(--color-border-secondary)]">
                   <Code className="h-3 w-3" />
                   {param.language}
                 </span>
@@ -508,7 +508,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
               rows={param.rows ?? 6}
               placeholder={param.placeholder}
               spellCheck={false}
-              className="w-full rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] bg-zinc-50 dark:bg-[var(--color-bg-app)] px-3 py-2 text-sm text-zinc-900 dark:text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] resize-y font-mono leading-relaxed"
+              className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-tertiary)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none focus:border-[var(--color-border-focus)] resize-y font-mono leading-relaxed"
             />
             {param.description && (
               <p className="text-xs text-[var(--color-text-secondary)]">{param.description}</p>
@@ -524,16 +524,16 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white dark:bg-[var(--color-bg-primary)] shadow-xl">
+      <div className="w-full max-w-md rounded-xl bg-[var(--color-bg-dialog)] shadow-xl border border-[var(--color-border-primary)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-primary)] p-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">Configure {tool.name}</h2>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Configure {tool.name}</h2>
             <p className="text-sm text-[var(--color-text-secondary)]">{tool.description}</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] hover:text-zinc-900 dark:hover:text-[var(--color-text-primary)]"
+            className="rounded-lg p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-primary)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -553,11 +553,11 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between border-t border-zinc-200 dark:border-[var(--color-border-primary)] p-4">
+        <div className="flex justify-between border-t border-[var(--color-border-primary)] p-4">
           <button
             onClick={handleReset}
             disabled={!hasConfig}
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg border border-[var(--color-border-secondary)] px-4 py-2 text-sm text-[var(--label-text)] hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RotateCcw className="h-4 w-4" />
             Reset to Defaults
@@ -565,7 +565,7 @@ export function ToolConfigDialog({ tool, botId, currentConfigs, isOpen, onClose 
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="rounded-lg border border-zinc-300 dark:border-[var(--color-border-secondary)] px-4 py-2 text-sm text-zinc-700 dark:text-[var(--color-text-primary)] hover:bg-zinc-100 dark:hover:bg-[var(--color-hover-bg)]"
+              className="rounded-lg border border-[var(--color-border-secondary)] px-4 py-2 text-sm text-[var(--label-text)] hover:bg-[var(--color-hover-bg)]"
             >
               Cancel
             </button>

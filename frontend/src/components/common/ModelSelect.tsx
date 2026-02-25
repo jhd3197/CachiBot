@@ -205,7 +205,7 @@ export function ModelSelect({
                         setManualValue('')
                       }
                     }}
-                    placeholder="openrouter/moonshotai/kimi-k2.5"
+                    placeholder="provider/model-name"
                     className="model-select__manual-input"
                   />
                   <button

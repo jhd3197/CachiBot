@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { cn } from '../../../../lib/utils'
+
+const DEFAULT_VISIBLE = 6
 
 // Category-specific placeholder examples
 const CATEGORY_EXAMPLES: Record<string, string> = {
@@ -14,41 +17,24 @@ const CATEGORY_EXAMPLES: Record<string, string> = {
   creative: "Help me brainstorm ideas for my art projects, give feedback on my designs, and inspire me",
   gaming: "Help me improve at competitive games, find the best builds, and discover new games to play",
   social: "Help me improve my conversation skills, give advice on dating, and be more confident socially",
-  custom: "Describe exactly what you want your bot to help you with...",
+  marketing: "Help me plan campaigns, optimize SEO, manage social media, and track analytics",
 }
 
 export function PurposeStep() {
   const { form, updateForm } = useCreationStore()
+  const [expanded, setExpanded] = useState(false)
 
   const placeholder = CATEGORY_EXAMPLES[form.purposeCategory] || "Describe what you want your bot to help you with..."
+  const visibleCategories = expanded ? PURPOSE_CATEGORIES : PURPOSE_CATEGORIES.slice(0, DEFAULT_VISIBLE)
+  const hiddenCount = PURPOSE_CATEGORIES.length - DEFAULT_VISIBLE
+
+  const toggleCategory = (id: string) => {
+    updateForm({ purposeCategory: form.purposeCategory === id ? '' : id })
+  }
 
   return (
     <div className="space-y-6">
-      {/* Category Selection */}
-      <div>
-        <label className="mb-3 block text-sm font-medium text-[var(--color-text-primary)]">
-          What's your bot for?
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          {PURPOSE_CATEGORIES.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => updateForm({ purposeCategory: category.id })}
-              className={cn(
-                'flex flex-col items-start rounded-lg border p-3 text-left transition-all',
-                form.purposeCategory === category.id
-                  ? 'border-cachi-500 bg-cachi-500/10'
-                  : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)]'
-              )}
-            >
-              <span className="text-sm font-medium text-[var(--color-text-primary)]">{category.label}</span>
-              <span className="text-xs text-[var(--color-text-secondary)] line-clamp-1">{category.description}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Purpose Description */}
+      {/* Purpose Description (primary) */}
       <div>
         <label className="mb-2 block text-sm font-medium text-[var(--color-text-primary)]">
           What do you want your bot to do?
@@ -63,6 +49,38 @@ export function PurposeStep() {
         <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
           The more specific you are, the better we can personalize your bot.
         </p>
+      </div>
+
+      {/* Category Chips (optional) */}
+      <div>
+        <label className="mb-3 block text-sm font-medium text-[var(--color-text-secondary)]">
+          Pick a category (optional)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {visibleCategories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => toggleCategory(category.id)}
+              title={category.description}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-sm transition-all',
+                form.purposeCategory === category.id
+                  ? 'border-cachi-500 bg-cachi-500/15 text-cachi-400'
+                  : 'border-[var(--color-border-primary)] bg-[var(--card-bg)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-secondary)]'
+              )}
+            >
+              {category.label}
+            </button>
+          ))}
+          {!expanded && hiddenCount > 0 && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="rounded-full border border-dashed border-[var(--color-border-secondary)] px-3 py-1.5 text-sm text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-secondary)]"
+            >
+              +{hiddenCount} more
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

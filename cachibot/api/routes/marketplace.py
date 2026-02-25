@@ -405,7 +405,7 @@ async def install_template(
         try:
             template_model = Config.load().agent.model
         except Exception:
-            template_model = "moonshot/kimi-k2.5"
+            template_model = ""
 
     # Create the bot from template
     bot = Bot(
@@ -564,7 +564,7 @@ async def install_room_template(
                 try:
                     template_model = Config.load().agent.model
                 except Exception:
-                    template_model = "moonshot/kimi-k2.5"
+                    template_model = ""
 
             bot = Bot(
                 id=bot_id,
