@@ -127,3 +127,21 @@ export async function setDefaultEmbeddingModel(model: string): Promise<void> {
     body: JSON.stringify({ model }),
   })
 }
+
+/**
+ * Get the current default utility model
+ */
+export async function getDefaultUtilityModel(): Promise<string> {
+  const data = await request<{ model: string }>('/models/utility/default')
+  return data.model
+}
+
+/**
+ * Set the default utility model
+ */
+export async function setDefaultUtilityModel(model: string): Promise<void> {
+  await request('/models/utility/default', {
+    method: 'PUT',
+    body: JSON.stringify({ model }),
+  })
+}

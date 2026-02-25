@@ -9,7 +9,7 @@ import httpx
 from prompture.aio import get_async_driver_for_model
 from pydantic import BaseModel, Field
 
-from cachibot.config import Config
+from cachibot.services.model_resolver import resolve_utility_model
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +31,6 @@ class NameWithMeaning(BaseModel):
             "The meaning or origin of this name, explaining why it's suitable for an AI assistant"
         )
     )
-
-
-def _resolve_utility_model() -> str:
-    """Resolve the model to use for utility tasks."""
-    try:
-        config = Config.load()
-        return config.agent.utility_model or config.agent.model
-    except Exception:
-        return "moonshot/kimi-k2.5"
 
 
 def _extract_json(text: str) -> dict[str, Any]:
@@ -128,6 +119,8 @@ async def generate_bot_names(
     count: int = 4,
     exclude: list[str] | None = None,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> list[str]:
     """
     Generate creative bot name suggestions using AI.
@@ -136,12 +129,14 @@ async def generate_bot_names(
         count: Number of names to generate (default 4)
         exclude: List of names to avoid (existing bot names)
         model: Model to use for generation (default from config)
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         List of creative bot name suggestions
     """
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     exclude_set = set(name.lower() for name in (exclude or []))
 
@@ -187,6 +182,8 @@ async def generate_bot_names_with_meanings(
     purpose: str | None = None,
     personality: str | None = None,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> list[NameWithMeaning]:
     """
     Generate creative bot name suggestions with meanings using AI.
@@ -197,12 +194,14 @@ async def generate_bot_names_with_meanings(
         purpose: Optional purpose/category of the bot for context
         personality: Optional personality style for context
         model: Model to use for generation (default from config)
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         List of creative bot names with their meanings
     """
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     exclude_set = set(name.lower() for name in (exclude or []))
 

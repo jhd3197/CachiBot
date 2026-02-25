@@ -8,6 +8,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from cachibot.config import Config
 from cachibot.models.bot import Bot
@@ -569,17 +570,23 @@ async def route_message(
     orchestrator: RoomOrchestrator,
     message: str,
     config: Config,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> tuple[str, str]:
     """Use an LLM to pick the best bot for a message.
+
+    Args:
+        orchestrator: The room orchestrator instance.
+        message: The user message to route.
+        config: Global config (unused now but kept for backward compat).
+        bot_models: Per-bot model slots (checked first for "utility").
+        resolved_env: Per-bot resolved environment override.
 
     Returns:
         (bot_id, reason) tuple.
     """
-    from cachibot.services.name_generator import (
-        _chat_completion,
-        _extract_json,
-        _resolve_utility_model,
-    )
+    from cachibot.services.model_resolver import resolve_utility_model
+    from cachibot.services.name_generator import _chat_completion, _extract_json
 
     # Build bot descriptions for the prompt
     candidates = []
@@ -611,7 +618,7 @@ async def route_message(
     )
 
     try:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
         response = await _chat_completion(prompt, model)
         data = _extract_json(response)
         chosen_id = data.get("bot_id", "")

@@ -196,6 +196,7 @@ export interface BotModels {
   default: string
   image?: string
   audio?: string
+  utility?: string
   structured?: string
 }
 

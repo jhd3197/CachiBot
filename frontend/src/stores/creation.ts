@@ -113,6 +113,7 @@ export interface BotFormData {
   icon: BotIcon
   color: string
   model: string
+  utilityModel: string
   systemPrompt: string
   tools: string[]
 }
@@ -138,6 +139,7 @@ const defaultFormData: BotFormData = {
   icon: 'bot',
   color: '#3b82f6',
   model: '',
+  utilityModel: '',
   systemPrompt: '',
   tools: ['file_read', 'file_write', 'file_list', 'file_edit', 'file_info', 'python_execute', 'task_complete'],
 }

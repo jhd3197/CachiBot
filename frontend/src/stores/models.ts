@@ -5,6 +5,8 @@ import {
   setDefaultModel,
   getDefaultEmbeddingModel,
   setDefaultEmbeddingModel,
+  getDefaultUtilityModel,
+  setDefaultUtilityModel,
   type ModelsGrouped,
   type ModelInfo,
 } from '../api/models'
@@ -26,6 +28,7 @@ interface ModelsState {
   embeddingGroups: ModelsGrouped
   defaultModel: string
   defaultEmbeddingModel: string
+  defaultUtilityModel: string
   loading: boolean
   error: string | null
 
@@ -36,6 +39,7 @@ interface ModelsState {
   refresh: () => Promise<void>
   updateDefaultModel: (model: string) => Promise<void>
   updateDefaultEmbeddingModel: (model: string) => Promise<void>
+  updateDefaultUtilityModel: (model: string) => Promise<void>
 }
 
 export const useModelsStore = create<ModelsState>((set, get) => ({
@@ -45,6 +49,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   embeddingGroups: {},
   defaultModel: '',
   defaultEmbeddingModel: '',
+  defaultUtilityModel: '',
   loading: true,
   error: null,
 
@@ -55,10 +60,11 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null })
     try {
-      const [groups, defaultModel, defaultEmbeddingModel] = await Promise.all([
+      const [groups, defaultModel, defaultEmbeddingModel, defaultUtilityModel] = await Promise.all([
         getModels(),
         getDefaultModel(),
         getDefaultEmbeddingModel(),
+        getDefaultUtilityModel(),
       ])
       set({
         groups,
@@ -67,6 +73,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
         embeddingGroups: filterGroups(groups, (m) => m.supports_embedding),
         defaultModel,
         defaultEmbeddingModel,
+        defaultUtilityModel,
         loading: false,
       })
     } catch (err) {
@@ -95,6 +102,17 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to update embedding model',
+      })
+    }
+  },
+
+  updateDefaultUtilityModel: async (model: string) => {
+    try {
+      await setDefaultUtilityModel(model)
+      set({ defaultUtilityModel: model })
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to update utility model',
       })
     }
   },
