@@ -88,6 +88,7 @@ export function MainLayout() {
     automations: 'automations',
     voice: 'voice',
     tools: 'tools',
+    developer: 'developer',
     settings: 'settings',
   }
   const botView = viewSegment ? viewMap[viewSegment] : null
@@ -103,7 +104,7 @@ export function MainLayout() {
     }
   }, [viewSegment, urlBotId, navigate])
 
-  // Sync URL to store state
+  // Sync URL to store state (runs only when URL-derived values change)
   useEffect(() => {
     // Sync bot from URL
     if (urlBotId && urlBotId !== activeBotId) {
@@ -118,7 +119,7 @@ export function MainLayout() {
     }
 
     // Sync view from URL
-    if (botView && botView !== activeView) {
+    if (botView) {
       setActiveView(botView)
     }
 
@@ -148,7 +149,8 @@ export function MainLayout() {
     }
 
     // Note: workId and scheduleId are handled by their respective views
-  }, [urlBotId, botView, urlChatId, urlRoomId, urlTaskId, bots, chats, rooms, activeBotId, activeChatId, activeRoomId, activeView, setActiveBot, setActiveView, setActiveChat, setActiveRoom, setActiveTask, navigate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlBotId, botView, urlChatId, urlRoomId, urlTaskId, bots, chats, rooms, activeBotId, activeChatId, activeRoomId, setActiveBot, setActiveView, setActiveChat, setActiveRoom, setActiveTask, navigate])
 
   // Apply theme
   useEffect(() => {

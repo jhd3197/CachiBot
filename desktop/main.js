@@ -632,6 +632,7 @@ app.whenReady().then(async () => {
             "script-src 'self' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
+            "media-src 'self' data: blob:",
             "font-src 'self' data:",
             "object-src 'none'",
             "base-uri 'self'",

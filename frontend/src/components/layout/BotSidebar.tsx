@@ -1184,6 +1184,11 @@ const settingsSections: { id: SettingsSection; label: string; icon: React.Compon
 function SettingsList({ collapsed }: { collapsed: boolean }) {
   const { settingsSection, setSettingsSection } = useUIStore()
 
+  // Reset to 'general' when entering settings (undo developer override)
+  useEffect(() => {
+    setSettingsSection('general')
+  }, [setSettingsSection])
+
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-1 p-2">
