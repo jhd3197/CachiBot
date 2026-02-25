@@ -1,0 +1,152 @@
+// =============================================================================
+// Assets View — components/assets-view.less
+// File upload/download, drag-and-drop, asset list
+// =============================================================================
+
+.assets-view {
+  .flex-col();
+  height: 100%;
+  background: var(--color-bg-primary);
+
+  .dark & {
+    background: var(--color-bg-app);
+  }
+}
+
+.assets-header {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  padding: @sp-3 @sp-4;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.assets-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: @sp-2;
+  margin: @sp-3 @sp-4;
+  padding: @sp-6;
+  border: 2px dashed var(--color-border-secondary);
+  border-radius: @radius-xl;
+  cursor: pointer;
+  font-size: @text-sm;
+  color: var(--color-text-tertiary);
+  .transition-colors();
+
+  &:hover,
+  &--active {
+    border-color: var(--accent-500);
+    color: var(--accent-400);
+    background: rgba(var(--accent-500-rgb, 99, 102, 241), 0.05);
+  }
+}
+
+.asset-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 @sp-4 @sp-4;
+  display: flex;
+  flex-direction: column;
+  gap: @sp-2;
+}
+
+.asset-item {
+  display: flex;
+  align-items: center;
+  gap: @sp-3;
+  padding: @sp-3;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
+  .transition-all();
+
+  .dark & {
+    background: var(--card-bg);
+  }
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+  }
+
+  &__icon {
+    .flex-center();
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: @radius-md;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+
+    .dark & {
+      background: var(--color-bg-secondary);
+    }
+  }
+
+  &__thumbnail {
+    .flex-center();
+    width: 100%;
+    height: 100%;
+    border-radius: @radius-md;
+    overflow: hidden;
+    color: var(--accent-500);
+  }
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+
+    span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__meta {
+    display: flex;
+    gap: @sp-3;
+    flex-shrink: 0;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    gap: @sp-1;
+    flex-shrink: 0;
+    opacity: 0;
+    .transition-colors();
+
+    .asset-item:hover & {
+      opacity: 1;
+    }
+
+    button {
+      .flex-center();
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: @radius-sm;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--color-text-secondary);
+      .transition-colors();
+
+      &:hover {
+        background: var(--color-hover-bg);
+        color: var(--color-text-primary);
+      }
+
+      &:last-child:hover {
+        color: @red-400;
+      }
+    }
+  }
+}

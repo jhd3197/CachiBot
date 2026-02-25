@@ -426,9 +426,9 @@ class CommandProcessor:
             # Create the bot
             now = datetime.now(timezone.utc)
             try:
-                default_model = Config.load().agent.model
+                default_model = Config.load().agent.model or ""
             except Exception:
-                default_model = "moonshot/kimi-k2.5"
+                default_model = ""
             bot = Bot(
                 id=str(uuid.uuid4()),
                 name=name,

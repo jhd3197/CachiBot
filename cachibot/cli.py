@@ -185,7 +185,7 @@ def main(
         None,
         "--model",
         "-m",
-        help="Model to use (e.g., moonshot/kimi-k2.5, claude/claude-sonnet-4-20250514)",
+        help="Model to use (e.g., openai/gpt-4o, claude/claude-sonnet-4-20250514)",
     ),
     approve: bool = typer.Option(
         False,
@@ -588,9 +588,9 @@ def print_help() -> None:
 
 ## Models
 
-- `moonshot/kimi-k2.5` (default)
-- `claude/claude-sonnet-4-20250514`
+Set your default model in Settings or `~/.cachibot.toml`. Examples:
 - `openai/gpt-4o`
+- `claude/claude-sonnet-4-20250514`
 - `ollama/llama3.1:8b` (local)
 """
     console.print(Markdown(help_text))

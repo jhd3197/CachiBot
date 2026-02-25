@@ -238,11 +238,20 @@ class CachibotAgent:
     def _create_agent(self) -> None:
         """Create the Prompture agent with callbacks and SecurityContext."""
 
+        # Wrap on_tool_end to auto-capture assets from file_write
+        original_on_tool_end = self.on_tool_end
+
+        def _on_tool_end_with_capture(tool_name: str, result: Any) -> None:
+            if original_on_tool_end:
+                original_on_tool_end(tool_name, result)
+            if tool_name == "file_write":
+                self._schedule_auto_capture(result)
+
         # Build callbacks
         callbacks = AgentCallbacks(
             on_thinking=self.on_thinking,
             on_tool_start=self.on_tool_start,
-            on_tool_end=self.on_tool_end,
+            on_tool_end=_on_tool_end_with_capture,
             on_message=self.on_message,
             on_approval_needed=self._handle_approval,
         )
@@ -324,6 +333,120 @@ class CachibotAgent:
             for cmd in ("env", "printenv", "set", "export"):
                 if cmd not in blocked:
                     blocked.append(cmd)
+
+    # ------------------------------------------------------------------
+    # Auto-capture: file_write → Asset
+    # ------------------------------------------------------------------
+
+    _AUTO_CAPTURE_PREFIXES = ("image/", "audio/", "video/")
+    _AUTO_CAPTURE_EXTENSIONS = {
+        ".pdf",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".mp3",
+        ".wav",
+        ".ogg",
+        ".flac",
+        ".aac",
+        ".mp4",
+        ".webm",
+        ".mov",
+        ".avi",
+    }
+
+    def _schedule_auto_capture(self, result: Any) -> None:
+        """Fire-and-forget async task to auto-capture a file_write result as an Asset."""
+        import asyncio
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._auto_capture_asset(result))
+        except RuntimeError:
+            pass  # No event loop — skip
+
+    async def _auto_capture_asset(self, result: Any) -> None:
+        """Create an Asset record if the written file is a media/binary type."""
+        import logging
+        import mimetypes
+        import shutil
+        import uuid
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            # Extract file path from tool result
+            if isinstance(result, dict):
+                file_path = result.get("path") or result.get("file_path", "")
+            elif isinstance(result, str):
+                file_path = result
+            else:
+                return
+
+            if not file_path:
+                return
+
+            path = Path(str(file_path))
+            if not path.exists() or not path.is_file():
+                return
+
+            # Check if it's a capturable type
+            mime_type, _ = mimetypes.guess_type(path.name)
+            ext = path.suffix.lower()
+
+            is_capturable = ext in self._AUTO_CAPTURE_EXTENSIONS or (
+                mime_type and any(mime_type.startswith(p) for p in self._AUTO_CAPTURE_PREFIXES)
+            )
+            if not is_capturable:
+                return
+
+            # Determine owner context
+            owner_type = "chat"
+            owner_id = self.chat_id or ""
+            if not owner_id:
+                return  # No chat context — can't attach
+
+            from cachibot.models.asset import Asset
+            from cachibot.storage.asset_repository import AssetRepository
+
+            asset_id = str(uuid.uuid4())
+            assets_base = Path.home() / ".cachibot" / "assets"
+            storage_dir = assets_base / owner_type / owner_id
+            storage_path = storage_dir / asset_id
+            storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+            shutil.copy2(str(path), str(storage_path))
+
+            asset = Asset(
+                id=asset_id,
+                owner_type=owner_type,
+                owner_id=owner_id,
+                name=path.name,
+                original_filename=path.name,
+                content_type=mime_type or "application/octet-stream",
+                size_bytes=path.stat().st_size,
+                storage_path=str(storage_path),
+                uploaded_by_bot_id=self.bot_id,
+                metadata={"source": "generated", "tool": "file_write"},
+                created_at=datetime.now(timezone.utc),
+            )
+
+            repo = AssetRepository()
+            await repo.create(asset)
+
+            logger.debug(
+                "Auto-captured asset %s from file_write: %s",
+                asset_id,
+                path.name,
+            )
+
+        except Exception:
+            logger.debug("Auto-capture failed for file_write result", exc_info=True)
 
     def _get_system_prompt(self) -> str:
         """Generate the system prompt.

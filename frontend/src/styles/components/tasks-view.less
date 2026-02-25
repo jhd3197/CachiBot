@@ -43,40 +43,38 @@
 .tasks-view-toggle {
   display: inline-flex;
   align-items: center;
-  gap: @sp-0-5;
-  border-radius: @radius-xl;
-  border: 1px solid var(--color-border-secondary);
+  gap: 2px;
+  border-radius: @radius-lg;
+  border: 1px solid var(--color-border-primary);
   background: var(--color-bg-secondary);
-  padding: @sp-0-5;
-
-  .dark & {
-    background: var(--card-bg);
-  }
+  padding: 3px;
 
   &__btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: @radius-lg;
+    border-radius: @radius-md;
     width: 2rem;
     height: 2rem;
-    .transition-colors();
+    .transition-all();
     background: none;
     border: none;
     cursor: pointer;
+    color: var(--color-text-tertiary);
 
-    &--active {
-      background: var(--color-active-bg);
+    &:hover {
       color: var(--color-text-primary);
-      box-shadow: @shadow-sm;
+      background: var(--color-hover-bg);
     }
 
-    &--inactive {
-      color: var(--color-text-tertiary);
+    &--active {
+      background: var(--accent-600);
+      color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 
       &:hover {
-        color: var(--color-text-primary);
-        background: var(--color-hover-bg);
+        background: var(--accent-500);
+        color: white;
       }
     }
   }

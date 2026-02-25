@@ -17,8 +17,8 @@ logger = logging.getLogger("cachibot.api.models")
 router = APIRouter()
 
 
-# Default model if none configured
-DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "moonshot/kimi-k2.5")
+# Default model if none configured (empty = user must set one)
+DEFAULT_MODEL = os.getenv("CACHIBOT_DEFAULT_MODEL", "")
 
 
 class ModelInfo(BaseModel):
@@ -264,6 +264,36 @@ async def set_default_model(
         raise HTTPException(status_code=400, detail="Invalid model ID")
 
     set_env_value(key, value)
+
+    return {"ok": True, "model": value}
+
+
+# ── Utility Model Endpoints ───────────────────────────────────────────────
+
+
+@router.get("/models/utility/default", response_model=DefaultModelResponse)
+async def get_default_utility_model(
+    user: User = Depends(get_current_user),
+) -> DefaultModelResponse:
+    """Get the current default utility model."""
+    model = os.getenv("CACHIBOT_UTILITY_MODEL", "")
+    return DefaultModelResponse(model=model)
+
+
+@router.put("/models/utility/default", response_model=dict)
+async def set_default_utility_model(
+    body: DefaultModelUpdate,
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Set the default utility model.
+
+    Updates the CACHIBOT_UTILITY_MODEL env var so the change persists.
+    """
+    value = body.model
+    if any(c in value for c in ("\n", "\r", "\0")):
+        raise HTTPException(status_code=400, detail="Invalid model ID")
+
+    set_env_value("CACHIBOT_UTILITY_MODEL", value)
 
     return {"ok": True, "model": value}
 

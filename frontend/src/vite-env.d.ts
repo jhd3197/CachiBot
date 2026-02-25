@@ -44,6 +44,9 @@ interface ElectronAPI {
   // Settings
   getSetting: (key: string, defaultValue?: unknown) => Promise<unknown>
   setSetting: (key: string, value: unknown) => Promise<{ success: boolean }>
+  // Start on boot
+  getStartOnBoot: () => Promise<boolean>
+  setStartOnBoot: (enabled: boolean) => Promise<{ success: boolean }>
 }
 
 interface Window {

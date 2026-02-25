@@ -40,6 +40,7 @@
     flex: 1;
     overflow-y: auto;
     padding: @sp-6;
+    background: var(--color-bg-app);
     .scrollbar-thin();
   }
 
@@ -394,6 +395,139 @@
 }
 
 // -----------------------------------------------------------------------------
+// CachiBot.ai promo banner
+// -----------------------------------------------------------------------------
+
+.cachibot-promo {
+  position: relative;
+  border-radius: @radius-xl;
+  border: 1px solid rgba(var(--accent-500-rgb, 139, 92, 246), 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-500-rgb, 139, 92, 246), 0.08) 0%,
+    rgba(var(--accent-600-rgb, 124, 58, 237), 0.04) 50%,
+    rgba(var(--accent-500-rgb, 139, 92, 246), 0.08) 100%
+  );
+  overflow: hidden;
+
+  &__glow {
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(var(--accent-500-rgb, 139, 92, 246), 0.1) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+  }
+
+  &__content {
+    position: relative;
+    padding: @sp-5;
+  }
+
+  &__icon-row {
+    display: flex;
+    align-items: center;
+    gap: @sp-2-5;
+    margin-bottom: @sp-3;
+  }
+
+  &__icon-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: @radius-lg;
+    background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.2);
+    color: var(--accent-500);
+  }
+
+  &__badge {
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent-500);
+    background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.12);
+    padding: @sp-0-5 @sp-2;
+    border-radius: @radius-full;
+  }
+
+  &__title {
+    font-size: @text-lg;
+    font-weight: @font-bold;
+    color: var(--color-text-primary);
+    margin-bottom: @sp-1-5;
+  }
+
+  &__desc {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    max-width: 32rem;
+    margin-bottom: @sp-4;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1-5;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    padding: @sp-1-5 @sp-3;
+    border-radius: @radius-lg;
+    .transition-colors();
+    color: white;
+    background: var(--accent-600);
+    text-decoration: none;
+
+    &:hover {
+      background: var(--accent-500);
+    }
+
+    &--ghost {
+      background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.12);
+      color: var(--accent-500);
+
+      &:hover {
+        background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.2);
+      }
+    }
+  }
+
+  &__footer {
+    margin-top: @sp-3;
+    padding-top: @sp-3;
+    border-top: 1px solid rgba(var(--accent-500-rgb, 139, 92, 246), 0.15);
+  }
+
+  &__github {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    .transition-colors();
+
+    &:hover {
+      color: var(--accent-500);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Provider card (API keys)
 // -----------------------------------------------------------------------------
 
@@ -405,10 +539,37 @@
   background: var(--card-bg);
   padding: @sp-4;
 
+  &--featured {
+    border-color: rgba(var(--accent-500-rgb, 139, 92, 246), 0.4);
+    background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.05);
+  }
+
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  &__cta-link {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1;
+    border-radius: @radius-sm;
+    padding: @sp-0-5 @sp-1-5;
+    font-size: 10px;
+    font-weight: @font-medium;
+    color: var(--accent-600);
+    background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.1);
+    text-decoration: none;
+    .transition-colors();
+
+    &:hover {
+      background: rgba(var(--accent-500-rgb, 139, 92, 246), 0.2);
+    }
+
+    .dark & {
+      color: var(--accent-400);
+    }
   }
 
   &__name {
@@ -517,6 +678,113 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+  }
+
+  &__replace-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-2;
+    color: var(--color-text-secondary);
+    background: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &__cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-2;
+    color: var(--color-text-secondary);
+    background: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: rgba(@red-500, 0.1);
+      color: @red-400;
+      border-color: rgba(@red-500, 0.3);
+    }
+  }
+
+  &__extra-keys {
+    border-top: 1px solid var(--color-border-primary);
+    padding-top: @sp-3;
+    margin-top: @sp-1;
+  }
+
+  &__extra-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-2 @sp-1;
+    background: none;
+    border: none;
+    border-radius: @radius-lg;
+    cursor: pointer;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__extra-list {
+    .flex-col();
+    gap: @sp-4;
+    padding-top: @sp-3;
+  }
+
+  &__extra-group {
+    .flex-col();
+    gap: @sp-2;
+  }
+
+  &__extra-group-label {
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    padding-left: @sp-1;
+  }
+
+  &__extra-field {
+    .flex-col();
+    gap: @sp-2;
+    padding-left: @sp-3;
+  }
+
+  &__extra-field-label {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    flex-wrap: wrap;
+  }
+
+  &__extra-field-env {
+    font-family: @font-mono;
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-secondary);
+    padding: @sp-0-5 @sp-1-5;
+    border-radius: @radius-sm;
   }
 }
 

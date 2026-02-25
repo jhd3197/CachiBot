@@ -8,6 +8,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from cachibot.config import Config
 from cachibot.models.bot import Bot
@@ -569,17 +570,30 @@ async def route_message(
     orchestrator: RoomOrchestrator,
     message: str,
     config: Config,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> tuple[str, str]:
     """Use an LLM to pick the best bot for a message.
+
+    Args:
+        orchestrator: The room orchestrator instance.
+        message: The user message to route.
+        config: Global config (unused now but kept for backward compat).
+        bot_models: Per-bot model slots (checked first for "utility").
+        resolved_env: Per-bot resolved environment override.
 
     Returns:
         (bot_id, reason) tuple.
     """
-    from cachibot.services.name_generator import (
-        _chat_completion,
-        _extract_json,
-        _resolve_utility_model,
-    )
+    from prompture.aio import extract_with_model
+    from pydantic import BaseModel as _BaseModel
+    from pydantic import Field as _Field
+
+    from cachibot.services.model_resolver import resolve_utility_model
+
+    class _RoutingResult(_BaseModel):
+        bot_id: str = _Field(description="The ID of the best bot to handle this message")
+        reason: str = _Field(description="Brief reason for this choice")
 
     # Build bot descriptions for the prompt
     candidates = []
@@ -602,20 +616,23 @@ async def route_message(
         f'- id="{c["id"]}", name="{c["name"]}": {c["description"]}' for c in candidates
     )
 
-    prompt = (
-        f"You are a message router. Given a user message and a list of available bots, "
-        f"pick the single best bot to respond.\n\n"
-        f"Available bots:\n{bot_list}\n\n"
-        f"User message: {message[:500]}\n\n"
-        f'Respond with ONLY a JSON object: {{"bot_id": "...", "reason": "..."}}'
-    )
+    prompt = f"Available bots:\n{bot_list}\n\nUser message: {message[:500]}"
 
     try:
-        model = _resolve_utility_model()
-        response = await _chat_completion(prompt, model)
-        data = _extract_json(response)
-        chosen_id = data.get("bot_id", "")
-        reason = data.get("reason", "Best match")
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
+        data = await extract_with_model(
+            _RoutingResult,
+            prompt,
+            model,
+            instruction_template=(
+                "You are a message router. Given a user message and a list of available bots, "
+                "pick the single best bot to respond."
+            ),
+        )
+        # data["model"] is the Pydantic _RoutingResult instance
+        parsed = data["model"]
+        chosen_id = parsed.bot_id
+        reason = parsed.reason
 
         # Validate the chosen bot exists
         valid_ids = {c["id"] for c in candidates}
@@ -623,7 +640,7 @@ async def route_message(
             return chosen_id, reason
 
         # Fuzzy match by name
-        chosen_name = data.get("name", "").lower()
+        chosen_name = getattr(parsed, "name", "").lower()
         for c in candidates:
             if c["name"].lower() == chosen_name:
                 return c["id"], reason

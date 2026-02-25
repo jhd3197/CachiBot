@@ -15,6 +15,7 @@
   &__header {
     .flex-between();
     border-bottom: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
     padding: @sp-3 @sp-6;
   }
 
@@ -67,9 +68,9 @@
   .button-base();
   border: 1px solid var(--color-border-secondary);
   border-radius: @radius-lg;
-  padding: 0 @sp-3;
-  height: @height-sm;
-  font-size: @text-xs;
+  padding: 0 @sp-4;
+  height: @height-md;
+  font-size: @text-sm;
   color: var(--color-text-secondary);
   background: transparent;
 
@@ -826,7 +827,9 @@
     display: flex;
     flex-direction: column;
     gap: @sp-2;
-    margin-bottom: @sp-3;
+    margin-bottom: @sp-4;
+    padding-bottom: @sp-4;
+    border-bottom: 1px solid var(--color-border-primary);
   }
 
   &__item {
@@ -876,32 +879,139 @@
     color: var(--accent-500);
   }
 
-  &__default {
+  &__field {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: @sp-3;
+    margin-bottom: @sp-3;
+
+    &--stacked {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  &__label {
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+  }
+
+  &__label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: @sp-2;
   }
 
-  &__select {
+  &__timeout-value {
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 12%, transparent);
+    border-radius: @radius-full;
+    padding: @sp-0-5 @sp-2;
+  }
+
+  // Segmented pill bar for agent selection
+  &__pills {
+    display: inline-flex;
+    gap: 2px;
     border-radius: @radius-lg;
     border: 1px solid var(--color-border-primary);
-    background: var(--color-bg-app);
-    padding: @sp-1-5 @sp-3;
-    font-size: @text-sm;
-    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    padding: 3px;
+  }
+
+  &__pill {
+    border-radius: @radius-md;
+    padding: @sp-1 @sp-3;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-tertiary);
+    .transition-all();
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-hover-bg);
+    }
+
+    &--active {
+      background: var(--accent-600);
+      color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+
+      &:hover {
+        background: var(--accent-500);
+        color: white;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+
+      &:hover {
+        background: none;
+        color: var(--color-text-tertiary);
+      }
+    }
+  }
+
+  // Range slider
+  &__slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: @radius-full;
+    background: var(--color-border-primary);
     outline: none;
+    margin: @sp-2 0 @sp-1;
+    cursor: pointer;
 
-    .dark & {
-      background: var(--color-bg-primary);
-      border-color: var(--color-border-secondary);
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-500);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      .transition-all();
+
+      &:hover {
+        background: var(--accent-400);
+        transform: scale(1.15);
+      }
+
+      &:active {
+        transform: scale(1.05);
+      }
     }
 
-    &:focus {
-      border-color: var(--accent-500);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-500) 12%, transparent);
+    &::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-500);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      border: none;
+      cursor: pointer;
     }
+  }
+
+  &__slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    padding: 0 2px;
   }
 
   &__hint {

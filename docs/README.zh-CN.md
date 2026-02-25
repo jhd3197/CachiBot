@@ -27,7 +27,7 @@
     <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python" /></a>
     <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB.svg" alt="React" /></a>
     <a href="https://github.com/jhd3197/CachiBot/stargazers"><img src="https://img.shields.io/github/stars/jhd3197/CachiBot?style=social" alt="Stars" /></a>
-    <a href="https://discord.gg/V9bKwYVJ"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
+    <a href="https://discord.gg/93QEWZeHRK"><img src="https://img.shields.io/discord/1470624345188732992?label=Discord&logo=discord&logoColor=white&color=5865F2" alt="Discord" /></a>
   </p>
 
   <p>
@@ -40,7 +40,7 @@
     <a href="#支持的提供商">提供商</a> ·
     <a href="#安全性">安全性</a> ·
     <a href="#贡献">贡献</a> ·
-    <a href="https://discord.gg/V9bKwYVJ">Discord</a>
+    <a href="https://discord.gg/93QEWZeHRK">Discord</a>
   </p>
 
 </div>
@@ -297,7 +297,7 @@ bash dev.sh watch-lint   # lint 监视器（保存时运行 ruff + ESLint）
   <a href="https://cachibot.ai">
     <img src="https://img.shields.io/badge/Website-cachibot.ai-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="网站" />
   </a>
-  <a href="https://discord.gg/V9bKwYVJ">
+  <a href="https://discord.gg/93QEWZeHRK">
     <img src="https://img.shields.io/badge/Discord-加入社区-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" />
   </a>
   <a href="https://github.com/jhd3197/CachiBot/issues">

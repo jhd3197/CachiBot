@@ -3,6 +3,8 @@ import {
   getProviders,
   updateProvider,
   deleteProvider,
+  updateProviderKey,
+  deleteProviderKey,
   type Provider,
 } from '../api/providers'
 
@@ -14,6 +16,8 @@ interface ProvidersState {
   refresh: () => Promise<void>
   update: (name: string, value: string) => Promise<void>
   remove: (name: string) => Promise<void>
+  updateKey: (name: string, envKey: string, value: string) => Promise<void>
+  removeKey: (name: string, envKey: string) => Promise<void>
 }
 
 export const useProvidersStore = create<ProvidersState>((set) => ({
@@ -56,6 +60,32 @@ export const useProvidersStore = create<ProvidersState>((set) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to remove provider',
+      })
+      throw err
+    }
+  },
+
+  updateKey: async (name: string, envKey: string, value: string) => {
+    try {
+      await updateProviderKey(name, envKey, value)
+      const providers = await getProviders()
+      set({ providers })
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to update key',
+      })
+      throw err
+    }
+  },
+
+  removeKey: async (name: string, envKey: string) => {
+    try {
+      await deleteProviderKey(name, envKey)
+      const providers = await getProviders()
+      set({ providers })
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to remove key',
       })
       throw err
     }

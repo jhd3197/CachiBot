@@ -1,14 +1,24 @@
-import { useEffect, useRef } from 'react'
-import { Loader2, RefreshCw, Sparkles, Check } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, RefreshCw, Sparkles, Check, Settings, AlertTriangle } from 'lucide-react'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
+import { useModelsStore } from '../../../../stores/models'
+import { useUIStore } from '../../../../stores/ui'
 import { streamBotNamesWithMeanings } from '../../../../api/client'
 import { cn } from '../../../../lib/utils'
+
+const LOADING_MESSAGES = [
+  { title: 'Brainstorming names...', sub: 'Finding names that match your bot\'s personality' },
+  { title: 'Exploring cultures & languages...', sub: 'Looking for meaningful names from around the world' },
+  { title: 'Getting creative...', sub: 'Mixing real names with purpose-driven ideas' },
+  { title: 'Almost there...', sub: 'Polishing the best candidates for you' },
+]
 
 export function NamePickerStep() {
   const {
     form,
     updateForm,
     isGenerating,
+    generationError,
     setGenerating,
     setGenerationError,
     selectName,
@@ -24,9 +34,8 @@ export function NamePickerStep() {
       loadInitiatedRef.current = true
       loadNameSuggestions()
     }
-    return () => {
-      abortRef.current?.abort()
-    }
+    // Don't abort on cleanup — StrictMode remounts would kill the in-flight request.
+    // Abort only happens when starting a new request (inside loadNameSuggestions).
   }, [])
 
   const loadNameSuggestions = async () => {
@@ -38,24 +47,22 @@ export function NamePickerStep() {
     setGenerating(true)
     setGenerationError(null)
 
-    // Clear existing suggestions for a fresh batch
-    const store = useCreationStore.getState()
-    // Track names added during this batch for auto-select
-    const newNames: Array<{ name: string; meaning: string }> = []
+    // Read fresh state — closure values may be stale after refresh
+    const freshForm = useCreationStore.getState().form
     let isFirstName = true
 
     try {
-      const categoryLabel = PURPOSE_CATEGORIES.find(c => c.id === form.purposeCategory)?.label || form.purposeCategory
+      const categoryLabel = PURPOSE_CATEGORIES.find(c => c.id === freshForm.purposeCategory)?.label || ''
+      const purposeParts = [categoryLabel, freshForm.purposeDescription].filter(Boolean)
 
       await streamBotNamesWithMeanings(
         {
           count: 4,
           exclude: getExcludedNames(),
-          purpose: `${categoryLabel}: ${form.purposeDescription}`,
+          purpose: purposeParts.join(': '),
         },
         {
           onName: (nameData) => {
-            newNames.push(nameData)
             // Append name incrementally to the store
             useCreationStore.setState((state) => ({
               form: {
@@ -65,7 +72,7 @@ export function NamePickerStep() {
             }))
 
             // Auto-select the first name if none selected
-            if (isFirstName && !store.form.name) {
+            if (isFirstName && !useCreationStore.getState().form.name) {
               selectName(nameData.name, nameData.meaning)
               isFirstName = false
             }
@@ -102,7 +109,21 @@ export function NamePickerStep() {
     selectName(name, meaning)
   }
 
+  // Cycle through loading messages while waiting
+  const [msgIndex, setMsgIndex] = useState(0)
+  useEffect(() => {
+    if (!isGenerating || form.nameSuggestions.length > 0) return
+    const interval = setInterval(() => {
+      setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [isGenerating, form.nameSuggestions.length])
+
+  const { defaultUtilityModel } = useModelsStore()
+  const hasUtilityModel = !!defaultUtilityModel
+
   if (isGenerating && form.nameSuggestions.length === 0) {
+    const msg = LOADING_MESSAGES[msgIndex]
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4">
         <div className="relative">
@@ -111,11 +132,61 @@ export function NamePickerStep() {
             <Sparkles className="h-8 w-8 text-cachi-400" />
           </div>
         </div>
-        <div className="text-center">
-          <p className="text-lg font-medium text-[var(--color-text-primary)]">Finding the perfect name...</p>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Each name has a special meaning</p>
+        <div className="text-center transition-opacity duration-500">
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">{msg.title}</p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{msg.sub}</p>
         </div>
         <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        {!hasUtilityModel && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--color-text-tertiary)]">
+            <Settings className="h-3 w-3" />
+            Tip: Set a fast utility model in Settings to speed up generation
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  const isNoModel = generationError?.toLowerCase().includes('no ai model configured')
+
+  if (generationError && !isGenerating && form.nameSuggestions.length === 0) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+          <AlertTriangle className="h-8 w-8 text-red-400" />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-medium text-[var(--color-text-primary)]">
+            {isNoModel ? 'No AI Model Configured' : 'Something went wrong'}
+          </p>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            {isNoModel
+              ? 'You need to set a default model before creating a bot.'
+              : generationError}
+          </p>
+        </div>
+        {isNoModel ? (
+          <button
+            onClick={() => {
+              useUIStore.getState().setSettingsOpen(true)
+            }}
+            className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cachi-500"
+          >
+            <Settings className="h-4 w-4" />
+            Open Settings
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              setGenerationError(null)
+              loadInitiatedRef.current = false
+              loadNameSuggestions()
+            }}
+            className="text-sm text-cachi-400 hover:text-cachi-300"
+          >
+            Try again
+          </button>
+        )}
       </div>
     )
   }

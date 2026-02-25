@@ -1,4 +1,5 @@
-import { Sparkles } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sparkles, AlertTriangle } from 'lucide-react'
 import { useCreationStore } from '../../../stores/creation'
 import { useBotStore } from '../../../stores/bots'
 import { useUIStore } from '../../../stores/ui'
@@ -12,7 +13,6 @@ import {
   type Step,
 } from '../../common/Dialog'
 import { MethodSelectStep } from './steps/MethodSelectStep'
-import { TemplateSelectStep } from './steps/TemplateSelectStep'
 import { PurposeStep } from './steps/PurposeStep'
 import { NamePickerStep } from './steps/NamePickerStep'
 import { DetailsStep } from './steps/DetailsStep'
@@ -41,12 +41,6 @@ const WIZARD_STEPS: Record<string, Step[]> = {
     { id: 'appearance', label: 'Look' },
     { id: 'confirm', label: 'Create' },
   ],
-  template: [
-    { id: 'method-select', label: 'Method' },
-    { id: 'template-select', label: 'Template' },
-    { id: 'appearance', label: 'Design' },
-    { id: 'confirm', label: 'Create' },
-  ],
   blank: [
     { id: 'method-select', label: 'Method' },
     { id: 'appearance', label: 'Design' },
@@ -63,7 +57,6 @@ const WIZARD_STEPS: Record<string, Step[]> = {
 function getStepSubtitle(step: string): string {
   const subtitles: Record<string, string> = {
     'method-select': 'Choose how to create your bot',
-    'template-select': 'Pick a template to start with',
     purpose: "What should your bot do?",
     'name-picker': 'Give your bot a meaningful name',
     details: 'Help us understand you better',
@@ -93,12 +86,43 @@ export function CreateBotWizard() {
     prevStep,
   } = useCreationStore()
 
+  const [showConfirmClose, setShowConfirmClose] = useState(false)
+
+  // Steps where the user hasn't invested real effort yet — safe to close without confirmation
+  const safeToDismiss = currentStep === 'method-select'
+
   const handleClose = () => {
+    setShowConfirmClose(false)
     close()
     setCreateBotOpen(false)
     // Reset after animation
     setTimeout(reset, 200)
   }
+
+  const requestClose = () => {
+    if (safeToDismiss) {
+      handleClose()
+    } else {
+      setShowConfirmClose(true)
+    }
+  }
+
+  // When not safe to dismiss, Escape toggles the confirmation overlay
+  useEffect(() => {
+    if (!isOpen || safeToDismiss) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showConfirmClose) {
+          setShowConfirmClose(false)
+        } else {
+          setShowConfirmClose(true)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, safeToDismiss, showConfirmClose])
 
   const handleCreate = async () => {
     const botId = crypto.randomUUID()
@@ -109,6 +133,9 @@ export function CreateBotWizard() {
       icon: form.icon,
       color: form.color,
       model: form.model,
+      models: form.utilityModel
+        ? { default: form.model, utility: form.utilityModel }
+        : undefined,
       systemPrompt: form.systemPrompt,
       tools: form.tools,
       personality: form.method === 'ai-assisted'
@@ -163,7 +190,7 @@ export function CreateBotWizard() {
       case 'method-select':
         return form.method !== null
       case 'purpose':
-        return form.purposeCategory !== '' && form.purposeDescription.trim() !== ''
+        return form.purposeDescription.trim() !== ''
       case 'name-picker':
         return form.name.trim() !== ''
       case 'details':
@@ -191,8 +218,6 @@ export function CreateBotWizard() {
     switch (currentStep) {
       case 'method-select':
         return <MethodSelectStep />
-      case 'template-select':
-        return <TemplateSelectStep />
       case 'purpose':
         return <PurposeStep />
       case 'name-picker':
@@ -222,12 +247,19 @@ export function CreateBotWizard() {
   const isLastStep = currentStep === 'confirm'
 
   return (
-    <Dialog open={isOpen} onClose={handleClose} size="xl">
+    <Dialog
+      open={isOpen}
+      onClose={requestClose}
+      closeOnBackdrop={safeToDismiss}
+      closeOnEscape={safeToDismiss}
+      size="xl"
+      className="relative overflow-hidden"
+    >
       <DialogHeader
         title="Create New Bot"
         subtitle={getStepSubtitle(currentStep)}
         icon={<Sparkles className="h-5 w-5 text-cachi-500" />}
-        onClose={handleClose}
+        onClose={requestClose}
       >
         {form.method && (
           <DialogStepper
@@ -253,7 +285,7 @@ export function CreateBotWizard() {
           ) : null
         }
       >
-        <DialogButton variant="ghost" onClick={handleClose}>
+        <DialogButton variant="ghost" onClick={requestClose}>
           Cancel
         </DialogButton>
         {isLastStep ? (
@@ -274,6 +306,37 @@ export function CreateBotWizard() {
           </DialogButton>
         )}
       </DialogFooter>
+
+      {/* Confirm cancel overlay */}
+      {showConfirmClose && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-2xl bg-black/60 backdrop-blur-sm">
+          <div className="mx-6 w-full max-w-sm space-y-4 rounded-xl border border-[var(--color-border-primary)] bg-[var(--color-bg-dialog)] p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10">
+                <AlertTriangle className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Cancel bot creation?</h3>
+                <p className="text-xs text-[var(--color-text-secondary)]">All your progress will be lost.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirmClose(false)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-primary)]"
+              >
+                Keep editing
+              </button>
+              <button
+                onClick={handleClose}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500"
+              >
+                Discard & close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Dialog>
   )
 }

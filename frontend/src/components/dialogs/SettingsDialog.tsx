@@ -80,11 +80,11 @@ export function SettingsDialog() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className={cn(
-        'w-full rounded-xl bg-white shadow-xl dark:bg-[var(--color-bg-primary)]',
+        'w-full rounded-xl bg-[var(--color-bg-dialog)] shadow-xl border border-[var(--color-border-primary)]',
         activeTab === 'platform-tools' ? 'max-w-2xl' : 'max-w-md'
       )}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-[var(--color-border-primary)]">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-primary)] px-6 py-4">
           <h2 className="text-lg font-semibold">Settings</h2>
           <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)}>
             <X className="h-5 w-5" />
@@ -164,7 +164,7 @@ export function SettingsDialog() {
               {config && (
                 <div>
                   <label className="mb-1 block text-sm font-medium">Workspace</label>
-                  <p className="truncate text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+                  <p className="truncate text-sm text-[var(--color-text-secondary)]">
                     {config.workspacePath}
                   </p>
                 </div>
@@ -255,7 +255,7 @@ function PlatformToolsTab() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
+      <p className="text-sm text-[var(--color-text-secondary)]">
         Disable capabilities or skills globally. Disabled items won't appear in any bot's settings or be available at runtime.
       </p>
 
@@ -389,7 +389,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{description}</p>
+        <p className="text-xs text-[var(--color-text-secondary)]">{description}</p>
       </div>
       <button
         type="button"
@@ -398,7 +398,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
         onClick={() => onChange(!checked)}
         className={cn(
           'relative h-6 w-11 rounded-full transition-colors',
-          checked ? 'bg-cachi-600' : 'bg-zinc-200 dark:bg-[var(--color-hover-bg)]'
+          checked ? 'bg-cachi-600' : 'bg-[var(--btn-secondary-bg)]'
         )}
       >
         <span

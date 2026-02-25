@@ -6,7 +6,7 @@ from typing import Any, Literal
 from prompture.aio import extract_with_model
 from pydantic import BaseModel, Field
 
-from cachibot.config import Config
+from cachibot.services.model_resolver import resolve_main_model, resolve_utility_model
 
 logger = logging.getLogger(__name__)
 
@@ -106,24 +106,6 @@ class PreviewResponse(BaseModel):
     """Response from the preview chat."""
 
     response: str = Field(description="The bot's response to the test message")
-
-
-def _resolve_utility_model() -> str:
-    """Resolve the model to use for utility tasks."""
-    try:
-        config = Config.load()
-        return config.agent.utility_model or config.agent.model
-    except Exception:
-        return "moonshot/kimi-k2.5"
-
-
-def _resolve_main_model() -> str:
-    """Resolve the main model for generation tasks."""
-    try:
-        config = Config.load()
-        return config.agent.model
-    except Exception:
-        return "moonshot/kimi-k2.5"
 
 
 # Category-specific question templates as fallbacks (user-centric)
@@ -330,6 +312,8 @@ async def generate_follow_up_questions(
     category: str,
     description: str,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> list[FollowUpQuestion]:
     """
     Generate follow-up questions based on category and description.
@@ -338,12 +322,14 @@ async def generate_follow_up_questions(
         category: The purpose category (e.g., fitness, cooking)
         description: The user's initial description
         model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         List of 3 follow-up questions
     """
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     prompt_text = (
         "Generate 3 follow-up questions to learn about the USER so the bot can truly know them."
@@ -418,6 +404,8 @@ Generate exactly 3 questions that will help the bot KNOW the user personally."""
 async def generate_system_prompt_full(
     context: FullBotContext,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> GeneratedPrompt:
     """
     Generate a comprehensive system prompt with full context.
@@ -425,12 +413,14 @@ async def generate_system_prompt_full(
     Args:
         context: Complete bot context including name, purpose, and follow-up answers
         model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "default")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         Generated system prompt
     """
     if model is None:
-        model = _resolve_main_model()
+        model = resolve_main_model(bot_models=bot_models, resolved_env=resolved_env)
 
     emoji_instruction = {
         "yes": "Use emojis liberally to express emotions and emphasize points.",
@@ -518,6 +508,8 @@ with specific tasks and questions in this area.
 async def generate_system_prompt(
     personality: PersonalityConfig,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> GeneratedPrompt:
     """
     Generate a system prompt based on bot personality configuration.
@@ -525,12 +517,14 @@ async def generate_system_prompt(
     Args:
         personality: User-defined personality settings
         model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "default")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         Generated system prompt with suggestions
     """
     if model is None:
-        model = _resolve_main_model()
+        model = resolve_main_model(bot_models=bot_models, resolved_env=resolved_env)
 
     emoji_instruction = {
         "yes": "Use emojis liberally to express emotions and emphasize points.",
@@ -589,6 +583,8 @@ async def refine_system_prompt(
     current_prompt: str,
     feedback: str,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> RefinedPrompt:
     """
     Refine an existing system prompt based on user feedback.
@@ -597,12 +593,14 @@ async def refine_system_prompt(
         current_prompt: The current system prompt to refine
         feedback: User's feedback on what to change
         model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "default")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         Refined system prompt with change summary
     """
     if model is None:
-        model = _resolve_main_model()
+        model = resolve_main_model(bot_models=bot_models, resolved_env=resolved_env)
 
     prompt_text = f"""You are helping refine a bot's system prompt based on user feedback.
 
@@ -640,6 +638,8 @@ async def preview_bot_response(
     system_prompt: str,
     test_message: str,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> PreviewResponse:
     """
     Generate a preview response from the bot with the given system prompt.
@@ -648,12 +648,14 @@ async def preview_bot_response(
         system_prompt: The system prompt to test
         test_message: A test user message to respond to
         model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "default")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         The bot's response to the test message
     """
     if model is None:
-        model = _resolve_main_model()
+        model = resolve_main_model(bot_models=bot_models, resolved_env=resolved_env)
 
     prompt_text = f"""You are an AI assistant with the following system prompt:
 
@@ -731,6 +733,8 @@ async def analyze_creation_context(
     system_prompt: str,
     bot_name: str,
     model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
 ) -> CreationAnalysis:
     """
     Analyze all wizard data to extract user context, todos, and schedules.
@@ -745,12 +749,14 @@ async def analyze_creation_context(
         system_prompt: The generated system prompt
         bot_name: The bot's name
         model: Model to use for analysis
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
 
     Returns:
         CreationAnalysis with user_context, suggested_todos, suggested_schedules
     """
     if model is None:
-        model = _resolve_utility_model()
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
     # Format follow-up Q&A
     qa_section = ""

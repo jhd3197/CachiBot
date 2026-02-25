@@ -265,7 +265,7 @@ export function BotRail({ onNavigate }: BotRailProps) {
           {draggedBot ? (
             <div
               className="bot-rail__avatar-btn bot-rail__avatar-btn--active"
-              style={{ backgroundColor: draggedBot.color + '30' }}
+              style={{ '--bot-color': draggedBot.color } as React.CSSProperties}
             >
               <BotIconRenderer icon={draggedBot.icon} className="h-6 w-6" size={24} />
             </div>
@@ -378,7 +378,7 @@ function SortableBotAvatar({ id, bot, active, isDragging, onClick, onContextMenu
           'bot-rail__avatar-btn',
           active && 'bot-rail__avatar-btn--active'
         )}
-        style={{ backgroundColor: bot.color + '30' }}
+        style={{ '--bot-color': bot.color } as React.CSSProperties}
       >
         <BotIconRenderer icon={bot.icon} className="h-6 w-6" size={24} />
       </div>
