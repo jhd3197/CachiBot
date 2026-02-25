@@ -47,7 +47,7 @@ export function DeveloperPanel({ botId }: DeveloperPanelProps) {
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <div className="flex gap-1 rounded-lg bg-[var(--color-bg-secondary)] p-1">
+      <div className="inline-flex gap-0.5 rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] p-[3px]">
         {([
           { id: 'api-keys', label: 'API Keys' },
           { id: 'api-docs', label: 'API Docs' },
@@ -56,10 +56,10 @@ export function DeveloperPanel({ botId }: DeveloperPanelProps) {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-[var(--accent-600)] text-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] hover:bg-[var(--accent-500)]'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover-bg)]'
             }`}
           >
             {tab.label}
@@ -769,7 +769,7 @@ function WebhooksPanel({ botId }: { botId: string }) {
         <p className="text-sm text-[var(--color-text-secondary)]">
           Webhooks send event notifications to external URLs when things happen in this bot.
         </p>
-        <button onClick={() => setShowCreate(true)} className="btn btn--primary">
+        <button onClick={() => setShowCreate(true)} className="btn btn--primary btn--sm">
           <Plus className="h-4 w-4" />
           Add Webhook
         </button>

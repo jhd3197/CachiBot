@@ -46,4 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings
   getSetting: (key, defaultValue) => ipcRenderer.invoke('settings:get', key, defaultValue),
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+  // Start on boot
+  getStartOnBoot: () => ipcRenderer.invoke('startup:get'),
+  setStartOnBoot: (enabled) => ipcRenderer.invoke('startup:set', enabled),
 });

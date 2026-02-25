@@ -1,34 +1,35 @@
 // =============================================================================
 // Theme — theme.less
 // CSS custom properties for light/dark mode.
-// "Layered Glass" design system — surfaces as translucent layers over a canvas.
+// Light: white chrome (sidebar, cards, bubbles) on cool grey canvas.
+// Dark: deep dark canvas with subtle white glass layers.
 // =============================================================================
 
 :root {
-  // Backgrounds — warm light canvas with white glass layers
-  --color-bg-app: #F5F5F5;
-  --color-bg-primary: rgba(255, 255, 255, 0.90);
-  --color-bg-secondary: rgba(255, 255, 255, 0.70);
-  --color-bg-tertiary: rgba(255, 255, 255, 0.50);
-  --color-bg-inset: #EFEFEF;
+  // Backgrounds — white chrome surfaces over a cool grey canvas
+  --color-bg-app: #EDEEF0;
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-tertiary: #F5F6F8;
+  --color-bg-inset: #E5E6E8;
   --color-bg-dropdown: #FFFFFF;
   --color-bg-overlay: rgba(0, 0, 0, 0.6);
 
   // Text — warm dark, not pure black (avoids halation)
   --color-text-primary: #1A1A1A;
-  --color-text-secondary: #808080;
-  --color-text-tertiary: #AAAAAA;
+  --color-text-secondary: #6B6B80;
+  --color-text-tertiary: #9B9BAA;
   --color-text-inverted: white;
 
-  // Borders — subtle definition via low-opacity black
-  --color-border-primary: rgba(0, 0, 0, 0.08);
-  --color-border-secondary: rgba(0, 0, 0, 0.12);
+  // Borders — visible definition
+  --color-border-primary: rgba(0, 0, 0, 0.10);
+  --color-border-secondary: rgba(0, 0, 0, 0.15);
   --color-border-focus: var(--accent-500);
 
   // Interactive states
-  --color-hover-bg: rgba(0, 0, 0, 0.04);
-  --color-active-bg: rgba(0, 0, 0, 0.07);
-  --color-selected-bg: rgba(0, 0, 0, 0.07);
+  --color-hover-bg: rgba(0, 0, 0, 0.05);
+  --color-active-bg: rgba(0, 0, 0, 0.08);
+  --color-selected-bg: rgba(0, 0, 0, 0.08);
 
   // Status — Success
   --color-success-bg: rgba(76, 175, 80, 0.10);
@@ -51,50 +52,50 @@
   --color-info-border: rgba(100, 181, 246, 0.20);
 
   // Component tokens — Buttons
-  --btn-secondary-bg: rgba(0, 0, 0, 0.05);
+  --btn-secondary-bg: rgba(0, 0, 0, 0.06);
   --btn-secondary-text: #555555;
-  --btn-secondary-hover: rgba(0, 0, 0, 0.08);
-  --btn-secondary-border: rgba(0, 0, 0, 0.10);
-  --btn-ghost-hover: rgba(0, 0, 0, 0.05);
-  --btn-ghost-text: #666666;
+  --btn-secondary-hover: rgba(0, 0, 0, 0.10);
+  --btn-secondary-border: rgba(0, 0, 0, 0.12);
+  --btn-ghost-hover: rgba(0, 0, 0, 0.06);
+  --btn-ghost-text: #555555;
   --btn-ghost-text-hover: #1A1A1A;
 
   // Component tokens — Inputs
   --input-bg: #FFFFFF;
-  --input-border: rgba(0, 0, 0, 0.12);
+  --input-border: rgba(0, 0, 0, 0.14);
   --input-text: #1A1A1A;
-  --input-placeholder: #AAAAAA;
+  --input-placeholder: #9B9BAA;
 
   // Component tokens — Cards
   --card-bg: #FFFFFF;
-  --card-border: rgba(0, 0, 0, 0.08);
+  --card-border: rgba(0, 0, 0, 0.10);
   --card-shadow: @shadow-sm;
 
   // Component tokens — Labels
-  --label-text: #666666;
+  --label-text: #5A5A6A;
 
   // Component tokens — Code
-  --code-bg: rgba(0, 0, 0, 0.04);
+  --code-bg: rgba(0, 0, 0, 0.05);
   --code-text: #1A1A1A;
 
-  // Component tokens — Chat bubbles
-  --chat-bubble-bot-bg: rgba(0, 0, 0, 0.03);
+  // Component tokens — Chat bubbles — white cards on grey canvas
+  --chat-bubble-bot-bg: #FFFFFF;
   --chat-bubble-bot-text: #1A1A1A;
-  --chat-bubble-bot-border: rgba(0, 0, 0, 0.06);
+  --chat-bubble-bot-border: rgba(0, 0, 0, 0.08);
 
   // Component tokens — Scrollbar
-  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
 }
 
 .dark {
-  // Backgrounds — near-black canvas with subtle white glass layers
-  --color-bg-app: #050505;
-  --color-bg-primary: rgba(255, 255, 255, 0.05);
-  --color-bg-secondary: rgba(255, 255, 255, 0.03);
+  // Backgrounds — deep dark canvas with subtle white glass layers
+  --color-bg-app: #0A0A0B;
+  --color-bg-primary: rgba(255, 255, 255, 0.06);
+  --color-bg-secondary: rgba(255, 255, 255, 0.04);
   --color-bg-tertiary: rgba(255, 255, 255, 0.02);
-  --color-bg-inset: #0A0A0A;
-  --color-bg-dropdown: #1A1A1B;
+  --color-bg-inset: #0F0F10;
+  --color-bg-dropdown: #1C1C1E;
   --color-bg-overlay: rgba(0, 0, 0, 0.8);
 
   // Text — soft white, not pure (avoids halation)

@@ -23,11 +23,13 @@
   }
 
   &__tabs {
-    display: flex;
-    gap: @sp-1;
+    display: inline-flex;
+    gap: 2px;
     margin-bottom: @sp-3;
-    padding-bottom: @sp-3;
-    border-bottom: 1px solid var(--color-border-primary);
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+    padding: 3px;
   }
 
   &__tab {
@@ -36,15 +38,15 @@
     gap: @sp-1-5;
     flex: 1;
     justify-content: center;
-    border-radius: @radius-lg;
+    border-radius: @radius-md;
     padding: @sp-1-5 @sp-2;
     font-size: @text-sm;
     font-weight: @font-medium;
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-text-secondary);
-    .transition-colors();
+    color: var(--color-text-tertiary);
+    .transition-all();
 
     &:hover {
       background: var(--color-hover-bg);
@@ -52,8 +54,14 @@
     }
 
     &--active {
-      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
-      color: var(--accent-400);
+      background: var(--accent-600);
+      color: white;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+
+      &:hover {
+        background: var(--accent-500);
+        color: white;
+      }
     }
   }
 
@@ -81,8 +89,13 @@
     }
 
     &--active {
-      background: color-mix(in srgb, var(--accent-600) 20%, transparent);
-      color: var(--accent-400);
+      background: var(--accent-600);
+      color: white;
+
+      &:hover {
+        background: var(--accent-500);
+        color: white;
+      }
     }
   }
 

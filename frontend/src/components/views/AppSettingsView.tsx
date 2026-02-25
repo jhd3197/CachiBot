@@ -19,7 +19,6 @@ import {
   Palette,
   Sliders,
   FolderOpen,
-  Code,
   AlertTriangle,
   Brain,
   Users,
@@ -228,6 +227,37 @@ export function AppSettingsView() {
 // GENERAL SETTINGS
 // =============================================================================
 
+function StartOnBootSection() {
+  const [enabled, setEnabled] = useState(false)
+  const isElectron = !!window.electronAPI?.isDesktop
+
+  useEffect(() => {
+    window.electronAPI?.getStartOnBoot?.().then((val) => {
+      setEnabled(val as boolean)
+    })
+  }, [])
+
+  if (!isElectron) return null
+
+  const handleToggle = async (checked: boolean) => {
+    await window.electronAPI?.setStartOnBoot?.(checked)
+    setEnabled(checked)
+  }
+
+  return (
+    <Section icon={Zap} title="Startup">
+      <div className="space-y-4">
+        <ToggleField
+          label="Start on Boot"
+          description="Automatically launch CachiBot when you log in to your computer"
+          checked={enabled}
+          onChange={handleToggle}
+        />
+      </div>
+    </Section>
+  )
+}
+
 function GeneralSettings({
   showThinking,
   setShowThinking,
@@ -262,6 +292,8 @@ function GeneralSettings({
         </div>
       </Section>
 
+
+      <StartOnBootSection />
 
       <Section icon={FolderOpen} title="Workspace">
         <div className="space-y-4">
@@ -1011,32 +1043,6 @@ function AppearanceSettings({
             checked={sidebarCollapsed}
             onChange={setSidebarCollapsed}
           />
-          <Field label="Chat Message Style">
-            <select className="settings-select w-full">
-              <option value="detailed">Detailed (with metadata)</option>
-              <option value="compact">Compact</option>
-              <option value="minimal">Minimal</option>
-            </select>
-          </Field>
-        </div>
-      </Section>
-
-      <Section icon={Code} title="Code Display">
-        <div className="space-y-4">
-          <Field label="Code Font">
-            <select className="settings-select w-full">
-              <option value="jetbrains-mono">JetBrains Mono</option>
-              <option value="fira-code">Fira Code</option>
-              <option value="monaco">Monaco</option>
-              <option value="consolas">Consolas</option>
-            </select>
-          </Field>
-          <ToggleField
-            label="Enable Ligatures"
-            description="Display programming ligatures in code"
-            checked={true}
-            onChange={() => {}}
-          />
         </div>
       </Section>
     </>
@@ -1375,11 +1381,17 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 function ApiKeysSettings() {
-  const { providers, loading, refresh, update, remove } = useProvidersStore()
+  const { providers, loading, refresh, update, remove, updateKey, removeKey } = useProvidersStore()
   const { refresh: refreshModels } = useModelsStore()
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState<string | null>(null)
+  const [replacingKeys, setReplacingKeys] = useState<Set<string>>(new Set())
+  const [expandedAzure, setExpandedAzure] = useState(false)
+  const [extraEditValues, setExtraEditValues] = useState<Record<string, string>>({})
+  const [extraReplacingKeys, setExtraReplacingKeys] = useState<Set<string>>(new Set())
+  const [extraVisibleKeys, setExtraVisibleKeys] = useState<Set<string>>(new Set())
+  const [extraSaving, setExtraSaving] = useState<string | null>(null)
 
   useEffect(() => {
     refresh()
@@ -1389,6 +1401,31 @@ function ApiKeysSettings() {
     .filter((p) => CLOUD_PROVIDERS.has(p.name))
     .sort((a, b) => (a.name === 'cachibot' ? -1 : b.name === 'cachibot' ? 1 : 0))
   const localProviders = providers.filter((p) => !CLOUD_PROVIDERS.has(p.name))
+
+  // --- Primary key helpers ---
+
+  const enterReplaceMode = (name: string) => {
+    setReplacingKeys((prev) => new Set(prev).add(name))
+    setEditValues((prev) => ({ ...prev, [name]: '' }))
+  }
+
+  const cancelReplaceMode = (name: string) => {
+    setReplacingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(name)
+      return next
+    })
+    setEditValues((prev) => {
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+    setVisibleKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(name)
+      return next
+    })
+  }
 
   const handleSave = async (name: string) => {
     const value = editValues[name]
@@ -1407,7 +1444,11 @@ function ApiKeysSettings() {
         next.delete(name)
         return next
       })
-      // Refresh models so newly available models show up
+      setReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(name)
+        return next
+      })
       refreshModels()
       toast.success(`${PROVIDER_LABELS[name] || name} key saved`)
     } catch {
@@ -1423,6 +1464,11 @@ function ApiKeysSettings() {
       setEditValues((prev) => {
         const next = { ...prev }
         delete next[name]
+        return next
+      })
+      setReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(name)
         return next
       })
       refreshModels()
@@ -1444,14 +1490,234 @@ function ApiKeysSettings() {
     })
   }
 
+  // --- Extra key helpers (keyed by "providerName:envKey") ---
+
+  const extraCompositeKey = (providerName: string, envKey: string) => `${providerName}:${envKey}`
+
+  const enterExtraReplaceMode = (providerName: string, envKey: string) => {
+    const ck = extraCompositeKey(providerName, envKey)
+    setExtraReplacingKeys((prev) => new Set(prev).add(ck))
+    setExtraEditValues((prev) => ({ ...prev, [ck]: '' }))
+  }
+
+  const cancelExtraReplaceMode = (providerName: string, envKey: string) => {
+    const ck = extraCompositeKey(providerName, envKey)
+    setExtraReplacingKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(ck)
+      return next
+    })
+    setExtraEditValues((prev) => {
+      const next = { ...prev }
+      delete next[ck]
+      return next
+    })
+    setExtraVisibleKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(ck)
+      return next
+    })
+  }
+
+  const toggleExtraVisibility = (providerName: string, envKey: string) => {
+    const ck = extraCompositeKey(providerName, envKey)
+    setExtraVisibleKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(ck)) {
+        next.delete(ck)
+      } else {
+        next.add(ck)
+      }
+      return next
+    })
+  }
+
+  const handleExtraSave = async (providerName: string, envKey: string) => {
+    const ck = extraCompositeKey(providerName, envKey)
+    const value = extraEditValues[ck]
+    if (!value?.trim()) return
+
+    setExtraSaving(ck)
+    try {
+      await updateKey(providerName, envKey, value.trim())
+      setExtraEditValues((prev) => {
+        const next = { ...prev }
+        delete next[ck]
+        return next
+      })
+      setExtraVisibleKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(ck)
+        return next
+      })
+      setExtraReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(ck)
+        return next
+      })
+      toast.success(`${envKey} saved`)
+    } catch {
+      toast.error(`Failed to save ${envKey}`)
+    } finally {
+      setExtraSaving(null)
+    }
+  }
+
+  const handleExtraDelete = async (providerName: string, envKey: string) => {
+    const ck = extraCompositeKey(providerName, envKey)
+    try {
+      await removeKey(providerName, envKey)
+      setExtraEditValues((prev) => {
+        const next = { ...prev }
+        delete next[ck]
+        return next
+      })
+      setExtraReplacingKeys((prev) => {
+        const next = new Set(prev)
+        next.delete(ck)
+        return next
+      })
+      toast.success(`${envKey} removed`)
+    } catch {
+      toast.error(`Failed to remove ${envKey}`)
+    }
+  }
+
+  // --- Render extra key field (same 3-state pattern as primary) ---
+
+  const renderExtraKeyField = (providerName: string, ek: { env_key: string; type: string; configured: boolean; masked_value: string; label: string; group: string }) => {
+    const ck = extraCompositeKey(providerName, ek.env_key)
+    const isReplacing = extraReplacingKeys.has(ck)
+    const isVisible = extraVisibleKeys.has(ck)
+    const inputValue = extraEditValues[ck] ?? ''
+    const isSaving = extraSaving === ck
+    const isApiKey = ek.type === 'api_key'
+
+    return (
+      <div key={ek.env_key} className="provider-card__extra-field">
+        <div className="provider-card__extra-field-label">
+          <span className="text-sm font-medium text-[var(--color-text-primary)]">{ek.label}</span>
+          <code className="provider-card__extra-field-env">{ek.env_key}</code>
+          {ek.configured && (
+            <span className="provider-card__badge provider-card__badge--active" style={{ marginLeft: 4 }}>Set</span>
+          )}
+        </div>
+
+        {/* State 1: Not configured — show input + save */}
+        {!ek.configured && !isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible || !isApiKey ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) => setExtraEditValues((prev) => ({ ...prev, [ck]: e.target.value }))}
+              placeholder={isApiKey ? 'Enter key...' : 'Enter value...'}
+              className="provider-card__key-input flex-1"
+            />
+            {isApiKey && (
+              <button
+                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
+                className="provider-card__visibility-btn-bordered"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => handleExtraSave(providerName, ek.env_key)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save
+            </button>
+          </div>
+        )}
+
+        {/* State 2: Configured, viewing — show masked value + eye + replace + delete */}
+        {ek.configured && !isReplacing && (
+          <div className="flex items-center gap-2">
+            <div className="provider-card__masked">
+              {isVisible ? ek.masked_value : (isApiKey ? ek.masked_value.replace(/./g, '*').slice(0, 20) + '****' : ek.masked_value)}
+            </div>
+            {isApiKey && (
+              <button
+                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
+                className="provider-card__visibility-btn"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => enterExtraReplaceMode(providerName, ek.env_key)}
+              className="provider-card__replace-btn"
+              title="Replace"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => handleExtraDelete(providerName, ek.env_key)}
+              className="provider-card__delete-btn"
+              title="Remove"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* State 3: Configured, replacing — show input + save + cancel */}
+        {ek.configured && isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible || !isApiKey ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) => setExtraEditValues((prev) => ({ ...prev, [ck]: e.target.value }))}
+              placeholder={isApiKey ? 'Enter new key...' : 'Enter new value...'}
+              className="provider-card__key-input flex-1"
+            />
+            {isApiKey && (
+              <button
+                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
+                className="provider-card__visibility-btn-bordered"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => handleExtraSave(providerName, ek.env_key)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save
+            </button>
+            <button
+              onClick={() => cancelExtraReplaceMode(providerName, ek.env_key)}
+              className="provider-card__cancel-btn"
+              title="Cancel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // --- Render provider card with 3 clean states ---
+
   const renderProviderCard = (provider: typeof providers[0]) => {
-    const isEditing = provider.name in editValues
+    const isReplacing = replacingKeys.has(provider.name)
     const inputValue = editValues[provider.name] ?? ''
     const isVisible = visibleKeys.has(provider.name)
     const isSaving = saving === provider.name
     const label = PROVIDER_LABELS[provider.name] || provider.name
     const isEndpoint = provider.type === 'endpoint'
     const isCachibot = provider.name === 'cachibot'
+    const isAzure = provider.name === 'azure'
+    const hasExtraKeys = provider.extra_keys && provider.extra_keys.length > 0
+    const configuredExtraCount = hasExtraKeys ? provider.extra_keys.filter((ek) => ek.configured).length : 0
 
     return (
       <div
@@ -1501,55 +1767,144 @@ function ApiKeysSettings() {
           )}
         </p>
 
-        {/* Show masked value if configured and not editing */}
-        {provider.configured && !isEditing && (
-          <div className="flex items-center gap-2">
-            <div className="provider-card__masked">
-              {isVisible ? provider.masked_value : provider.masked_value.replace(/./g, '*').slice(0, 20) + '****'}
-            </div>
+        {/* State 1: Not configured — show input + save */}
+        {!provider.configured && !isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible || isEndpoint ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
+              }
+              placeholder={isEndpoint ? (provider.default || 'Enter endpoint URL...') : 'Enter API key...'}
+              className="provider-card__key-input flex-1"
+            />
+            {!isEndpoint && (
+              <button
+                onClick={() => toggleVisibility(provider.name)}
+                className="provider-card__visibility-btn-bordered"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
             <button
-              onClick={() => toggleVisibility(provider.name)}
-              className="provider-card__visibility-btn"
-              title={isVisible ? 'Hide' : 'Show'}
+              onClick={() => handleSave(provider.name)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
             >
-              {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
             </button>
           </div>
         )}
 
-        {/* Input for new/updated key */}
-        <div className="flex gap-2">
-          <input
-            type={isVisible || isEndpoint ? 'text' : 'password'}
-            value={inputValue}
-            onChange={(e) =>
-              setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
-            }
-            placeholder={isEndpoint ? (provider.default || 'Enter endpoint URL...') : 'Enter API key...'}
-            className="provider-card__key-input flex-1"
-          />
-          {!isEndpoint && (
-            <button
-              onClick={() => toggleVisibility(provider.name)}
-              className="provider-card__visibility-btn-bordered"
-              title={isVisible ? 'Hide' : 'Show'}
-            >
-              {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-            </button>
-          )}
-          <button
-            onClick={() => handleSave(provider.name)}
-            disabled={!inputValue.trim() || isSaving}
-            className="provider-card__save-btn"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
+        {/* State 2: Configured, viewing — show masked value + eye toggle + replace button */}
+        {provider.configured && !isReplacing && (
+          <div className="flex items-center gap-2">
+            <div className="provider-card__masked">
+              {isVisible ? provider.masked_value : (isEndpoint ? provider.masked_value : provider.masked_value.replace(/./g, '*').slice(0, 20) + '****')}
+            </div>
+            {!isEndpoint && (
+              <button
+                onClick={() => toggleVisibility(provider.name)}
+                className="provider-card__visibility-btn"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
             )}
-            Save
-          </button>
-        </div>
+            <button
+              onClick={() => enterReplaceMode(provider.name)}
+              className="provider-card__replace-btn"
+              title="Replace key"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* State 3: Configured, replacing — show input + save + cancel */}
+        {provider.configured && isReplacing && (
+          <div className="flex gap-2">
+            <input
+              type={isVisible || isEndpoint ? 'text' : 'password'}
+              value={inputValue}
+              onChange={(e) =>
+                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
+              }
+              placeholder={isEndpoint ? 'Enter new endpoint URL...' : 'Enter new API key...'}
+              className="provider-card__key-input flex-1"
+            />
+            {!isEndpoint && (
+              <button
+                onClick={() => toggleVisibility(provider.name)}
+                className="provider-card__visibility-btn-bordered"
+                title={isVisible ? 'Hide' : 'Show'}
+              >
+                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              onClick={() => handleSave(provider.name)}
+              disabled={!inputValue.trim() || isSaving}
+              className="provider-card__save-btn"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </button>
+            <button
+              onClick={() => cancelReplaceMode(provider.name)}
+              className="provider-card__cancel-btn"
+              title="Cancel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Azure extra keys section */}
+        {isAzure && hasExtraKeys && (
+          <div className="provider-card__extra-keys">
+            <button
+              onClick={() => setExpandedAzure((prev) => !prev)}
+              className="provider-card__extra-toggle"
+            >
+              {expandedAzure ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <span>Additional Configuration</span>
+              <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
+                {configuredExtraCount}/{provider.extra_keys.length} configured
+              </span>
+            </button>
+            {expandedAzure && (
+              <div className="provider-card__extra-list">
+                {(['primary', 'claude', 'mistral'] as const).map((groupId) => {
+                  const groupKeys = provider.extra_keys.filter((ek) => ek.group === groupId)
+                  if (groupKeys.length === 0) return null
+                  const groupLabels: Record<string, string> = {
+                    primary: 'Primary',
+                    claude: 'Claude Override',
+                    mistral: 'Mistral Override',
+                  }
+                  return (
+                    <div key={groupId} className="provider-card__extra-group">
+                      <div className="provider-card__extra-group-label">{groupLabels[groupId]}</div>
+                      {groupKeys.map((ek) => renderExtraKeyField(provider.name, ek))}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     )
   }
