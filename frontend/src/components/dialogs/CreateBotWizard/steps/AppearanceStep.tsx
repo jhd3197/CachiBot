@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { useCreationStore } from '../../../../stores/creation'
+import { useModelsStore } from '../../../../stores/models'
 import { BotIconRenderer, BOT_ICON_OPTIONS } from '../../../common/BotIconRenderer'
 import { ModelSelect } from '../../../common/ModelSelect'
 import { cn } from '../../../../lib/utils'
@@ -17,6 +19,15 @@ const COLOR_OPTIONS = [
 
 export function AppearanceStep() {
   const { form, updateForm } = useCreationStore()
+  const { defaultModel } = useModelsStore()
+
+  // Pre-fill model from system default when empty
+  useEffect(() => {
+    if (!form.model && defaultModel) {
+      updateForm({ model: defaultModel })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultModel])
 
   return (
     <div className="space-y-6">

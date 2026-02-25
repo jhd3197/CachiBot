@@ -585,8 +585,15 @@ async def route_message(
     Returns:
         (bot_id, reason) tuple.
     """
+    from prompture.aio import extract_with_model
+    from pydantic import BaseModel as _BaseModel
+    from pydantic import Field as _Field
+
     from cachibot.services.model_resolver import resolve_utility_model
-    from cachibot.services.name_generator import _chat_completion, _extract_json
+
+    class _RoutingResult(_BaseModel):
+        bot_id: str = _Field(description="The ID of the best bot to handle this message")
+        reason: str = _Field(description="Brief reason for this choice")
 
     # Build bot descriptions for the prompt
     candidates = []
@@ -610,19 +617,25 @@ async def route_message(
     )
 
     prompt = (
-        f"You are a message router. Given a user message and a list of available bots, "
-        f"pick the single best bot to respond.\n\n"
         f"Available bots:\n{bot_list}\n\n"
-        f"User message: {message[:500]}\n\n"
-        f'Respond with ONLY a JSON object: {{"bot_id": "...", "reason": "..."}}'
+        f"User message: {message[:500]}"
     )
 
     try:
         model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
-        response = await _chat_completion(prompt, model)
-        data = _extract_json(response)
-        chosen_id = data.get("bot_id", "")
-        reason = data.get("reason", "Best match")
+        data = await extract_with_model(
+            _RoutingResult,
+            prompt,
+            model,
+            instruction_template=(
+                "You are a message router. Given a user message and a list of available bots, "
+                "pick the single best bot to respond."
+            ),
+        )
+        # data["model"] is the Pydantic _RoutingResult instance
+        parsed = data["model"]
+        chosen_id = parsed.bot_id
+        reason = parsed.reason
 
         # Validate the chosen bot exists
         valid_ids = {c["id"] for c in candidates}
@@ -630,7 +643,7 @@ async def route_message(
             return chosen_id, reason
 
         # Fuzzy match by name
-        chosen_name = data.get("name", "").lower()
+        chosen_name = getattr(parsed, "name", "").lower()
         for c in candidates:
             if c["name"].lower() == chosen_name:
                 return c["id"], reason

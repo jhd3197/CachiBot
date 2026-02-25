@@ -84,7 +84,7 @@ The providers endpoint also **writes** directly to the `.env` file via `_set_env
 #### Configuration Loading Chain
 
 The `Config` class (dataclass) loads in this order (later overrides earlier):
-1. **Defaults** (hardcoded in dataclasses) — e.g., model defaults to `"moonshot/kimi-k2.5"`
+1. **Defaults** (hardcoded in dataclasses) — e.g., model defaults to `"openai/gpt-4o"`
 2. **Environment variables** (`_load_from_env()`) — `CACHIBOT_MODEL`, `CACHIBOT_TEMPERATURE`, etc.
 3. **User config** (`~/.cachibot.toml`)
 4. **Workspace config** (`./cachibot.toml`)
@@ -98,7 +98,7 @@ The Bot table (`storage/models/bot.py`) has these fields:
 - `description` (text, nullable)
 - `icon` (str, nullable)
 - `color` (str, nullable)
-- `model` (str) — e.g., "moonshot/kimi-k2.5"
+- `model` (str) — e.g., "openai/gpt-4o"
 - `system_prompt` (text) — custom system prompt
 - `capabilities` (JSON) — dict of capability toggles like `{"fileOperations": true}`
 - `models` (JSON, nullable) — multi-model slot config: `{"default": "...", "image": "...", "audio": "..."}`

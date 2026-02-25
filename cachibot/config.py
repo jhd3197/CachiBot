@@ -71,14 +71,15 @@ DEFAULT_ALLOWED_IMPORTS = [
 class AgentConfig:
     """Agent behavior configuration."""
 
-    # Default to Kimi K2.5 via Moonshot
-    model: str = "moonshot/kimi-k2.5"
+    # Model in provider/model-name format (e.g. openai/gpt-4o, claude/claude-sonnet-4-20250514)
+    # Must be configured by the user — no default.
+    model: str = ""
     # Cheap/fast model for utility tasks (name gen, questions).
     # Falls back to main model if empty.
     utility_model: str = ""
     max_iterations: int = 20
     approve_actions: bool = False
-    temperature: float = 0.6  # Moonshot recommends 0.6 for instant mode
+    temperature: float = 0.7
     max_tokens: int = 4096  # Max output tokens per LLM call
     max_tool_result_length: int = 2000  # Truncate large tool results sent to the LLM
     max_depth: int = 5  # Max nested agent depth (Prompture recursion limit)
@@ -294,8 +295,9 @@ class Config:
     def _load_from_env(self) -> None:
         """Load configuration from environment variables."""
 
-        # Model selection
-        if model := os.getenv("CACHIBOT_MODEL"):
+        # Model selection (CACHIBOT_DEFAULT_MODEL is set by the Settings UI,
+        # CACHIBOT_MODEL is the legacy/manual env var)
+        if model := os.getenv("CACHIBOT_DEFAULT_MODEL") or os.getenv("CACHIBOT_MODEL"):
             self.agent.model = model
 
         # Utility model (cheap/fast for name gen, questions, etc.)

@@ -2,11 +2,10 @@ import { create } from 'zustand'
 import type { BotIcon } from '../types'
 
 // Wizard step types
-export type WizardMethod = 'template' | 'ai-assisted' | 'blank' | 'import'
+export type WizardMethod = 'ai-assisted' | 'blank' | 'import'
 
 export type WizardStep =
   | 'method-select'
-  | 'template-select'
   | 'purpose'
   | 'name-picker'
   | 'details'
@@ -35,7 +34,6 @@ export const PURPOSE_CATEGORIES = [
   { id: 'creative', label: 'Creative Projects', description: 'Art, music, design, brainstorming' },
   { id: 'gaming', label: 'Gaming & Hobbies', description: 'Game guides, tips, hobby tracking' },
   { id: 'social', label: 'Social & Dating', description: 'Conversation tips, profile help, advice' },
-  { id: 'custom', label: 'Something Else', description: 'Describe your unique use case' },
 ]
 
 export const COMMUNICATION_STYLES = [
@@ -202,7 +200,6 @@ interface CreationState {
 
 // Step flow definitions for each method
 const STEP_FLOWS: Record<WizardMethod, WizardStep[]> = {
-  template: ['method-select', 'template-select', 'appearance', 'confirm'],
   'ai-assisted': [
     'method-select',
     'purpose',

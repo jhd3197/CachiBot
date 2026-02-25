@@ -14,7 +14,13 @@ from cachibot.config import Config
 
 logger = logging.getLogger(__name__)
 
-_HARDCODED_FALLBACK = "moonshot/kimi-k2.5"
+class NoModelConfiguredError(Exception):
+    """Raised when no model is configured anywhere in the fallback chain."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "No AI model configured. Please set a default model in Settings."
+        )
 
 
 def resolve_utility_model(
@@ -28,7 +34,8 @@ def resolve_utility_model(
     2. resolved_env.utility_model  — per-bot DB override
     3. config.agent.utility_model  — global config
     4. config.agent.model          — global main model
-    5. hardcoded last-resort
+
+    Raises NoModelConfiguredError if nothing is set.
     """
     # 1. Per-bot slot
     if bot_models:
@@ -45,9 +52,13 @@ def resolve_utility_model(
     # 3-4. Global config
     try:
         config = Config.load()
-        return config.agent.utility_model or config.agent.model
+        model = config.agent.utility_model or config.agent.model
+        if model:
+            return model
     except Exception:
-        return _HARDCODED_FALLBACK
+        pass
+
+    raise NoModelConfiguredError()
 
 
 def resolve_main_model(
@@ -60,7 +71,8 @@ def resolve_main_model(
     1. bot_models["default"]   — per-bot slot from frontend
     2. resolved_env.model      — per-bot DB override
     3. config.agent.model      — global config
-    4. hardcoded last-resort
+
+    Raises NoModelConfiguredError if nothing is set.
     """
     # 1. Per-bot slot
     if bot_models:
@@ -77,6 +89,9 @@ def resolve_main_model(
     # 3. Global config
     try:
         config = Config.load()
-        return config.agent.model
+        if config.agent.model:
+            return config.agent.model
     except Exception:
-        return _HARDCODED_FALLBACK
+        pass
+
+    raise NoModelConfiguredError()
