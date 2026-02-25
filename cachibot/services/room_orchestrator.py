@@ -616,10 +616,7 @@ async def route_message(
         f'- id="{c["id"]}", name="{c["name"]}": {c["description"]}' for c in candidates
     )
 
-    prompt = (
-        f"Available bots:\n{bot_list}\n\n"
-        f"User message: {message[:500]}"
-    )
+    prompt = f"Available bots:\n{bot_list}\n\nUser message: {message[:500]}"
 
     try:
         model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
