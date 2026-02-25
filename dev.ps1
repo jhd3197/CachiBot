@@ -92,6 +92,29 @@ if ($Mode -eq "validate") {
             $out | Where-Object { $_ -match "error:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
 
+        # --- Python: bandit security scan ---
+        Write-Host "  bandit           " -ForegroundColor Cyan -NoNewline
+        try {
+            $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+            $out = & bandit -r $pyPath -q -s B110,B112,B105,B106,B107,B404,B603,B607,B608,B104 --exclude "$pyPath\..\tests" 2>&1 | Where-Object { $_ -is [string] }
+            $banditExit = $LASTEXITCODE
+            $ErrorActionPreference = $savedEAP
+            if ($banditExit -eq 0) {
+                Write-Host "ok" -ForegroundColor Green
+            } else {
+                $issueCount = ($out | Select-String ">> Issue:").Count
+                if ($issueCount -gt 0) {
+                    Write-Host "fail ($issueCount issues)" -ForegroundColor Red
+                } else {
+                    Write-Host "fail" -ForegroundColor Red
+                }
+                $out | Where-Object { $_ -match ">> Issue:|Severity:|Confidence:|Location:" } | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            }
+        } catch {
+            $ErrorActionPreference = $savedEAP
+            Write-Host "skipped" -ForegroundColor Yellow
+        }
+
         # --- Frontend: ESLint ---
         Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"

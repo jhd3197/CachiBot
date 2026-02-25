@@ -14,13 +14,12 @@ from cachibot.config import Config
 
 logger = logging.getLogger(__name__)
 
+
 class NoModelConfiguredError(Exception):
     """Raised when no model is configured anywhere in the fallback chain."""
 
     def __init__(self) -> None:
-        super().__init__(
-            "No AI model configured. Please set a default model in Settings."
-        )
+        super().__init__("No AI model configured. Please set a default model in Settings.")
 
 
 def resolve_utility_model(

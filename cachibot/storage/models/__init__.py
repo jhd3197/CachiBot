@@ -22,6 +22,7 @@ reference the unified User model (String PK) defined here.
 from __future__ import annotations
 
 from cachibot.storage.db import Base
+from cachibot.storage.models.asset import Asset
 
 # Automation system
 from cachibot.storage.models.automations import (
@@ -52,6 +53,7 @@ from cachibot.storage.models.knowledge import BotDocument, BotInstruction, BotNo
 from cachibot.storage.models.message import BotMessage, Message
 from cachibot.storage.models.platform_config import PlatformToolConfig
 from cachibot.storage.models.room import Room, RoomBot, RoomMember, RoomMessage
+from cachibot.storage.models.room_task import RoomTask
 from cachibot.storage.models.skill import BotSkill, Skill
 from cachibot.storage.models.user import User
 from cachibot.storage.models.work import Function, Schedule, Task, Todo, Work, WorkJob
@@ -106,6 +108,10 @@ __all__ = [
     "RoomMember",
     "RoomBot",
     "RoomMessage",
+    # Room tasks
+    "RoomTask",
+    # Assets
+    "Asset",
     # Automation system
     "Script",
     "ScriptVersion",

@@ -47,6 +47,7 @@ from cachibot.api.routes import (
     platforms,
     plugins,
     providers,
+    room_tasks,
     rooms,
     scripts,
     setup,
@@ -55,6 +56,7 @@ from cachibot.api.routes import (
     update,
     work,
 )
+from cachibot.api.routes.assets import chat_asset_router, room_asset_router
 from cachibot.api.routes.webhooks import custom as wh_custom
 from cachibot.api.routes.webhooks import line as wh_line
 from cachibot.api.routes.webhooks import teams as wh_teams
@@ -286,6 +288,9 @@ def create_app(
     app.include_router(setup.router, prefix="/api", tags=["setup"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
     app.include_router(rooms.router, tags=["rooms"])
+    app.include_router(room_tasks.router, tags=["room-tasks"])
+    app.include_router(room_asset_router, tags=["room-assets"])
+    app.include_router(chat_asset_router, tags=["chat-assets"])
     app.include_router(developer.router, tags=["developer"])
     app.include_router(openai_compat.router, tags=["openai-compat"])
     app.include_router(ws_router, tags=["websocket"])
