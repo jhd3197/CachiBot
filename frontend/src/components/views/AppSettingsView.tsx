@@ -50,6 +50,9 @@ import {
   Smartphone,
   QrCode,
   Timer,
+  Heart,
+  Zap,
+  Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUIStore, Theme, AccentColor, PresetColor, accentColors, generatePalette } from '../../stores/ui'
@@ -1347,12 +1350,13 @@ function ModelsSettings() {
 // =============================================================================
 
 const CLOUD_PROVIDERS = new Set([
-  'openai', 'claude', 'google', 'groq', 'grok',
+  'cachibot', 'openai', 'claude', 'google', 'groq', 'grok',
   'openrouter', 'moonshot', 'zai', 'modelscope', 'azure',
   'stability', 'elevenlabs',
 ])
 
 const PROVIDER_LABELS: Record<string, string> = {
+  cachibot: 'CachiBot.ai',
   openai: 'OpenAI',
   claude: 'Anthropic / Claude',
   google: 'Google AI',
@@ -1381,7 +1385,9 @@ function ApiKeysSettings() {
     refresh()
   }, [refresh])
 
-  const cloudProviders = providers.filter((p) => CLOUD_PROVIDERS.has(p.name))
+  const cloudProviders = providers
+    .filter((p) => CLOUD_PROVIDERS.has(p.name))
+    .sort((a, b) => (a.name === 'cachibot' ? -1 : b.name === 'cachibot' ? 1 : 0))
   const localProviders = providers.filter((p) => !CLOUD_PROVIDERS.has(p.name))
 
   const handleSave = async (name: string) => {
@@ -1445,14 +1451,16 @@ function ApiKeysSettings() {
     const isSaving = saving === provider.name
     const label = PROVIDER_LABELS[provider.name] || provider.name
     const isEndpoint = provider.type === 'endpoint'
+    const isCachibot = provider.name === 'cachibot'
 
     return (
       <div
         key={provider.name}
-        className="provider-card"
+        className={cn('provider-card', isCachibot && 'provider-card--featured')}
       >
         <div className="provider-card__header">
           <div className="flex items-center gap-2">
+            {isCachibot && <Sparkles className="h-4 w-4 text-[var(--accent-500)]" />}
             <h4 className="provider-card__name">{label}</h4>
             <span
               className={cn(
@@ -1464,6 +1472,16 @@ function ApiKeysSettings() {
             >
               {provider.configured ? 'Active' : 'Not set'}
             </span>
+            {isCachibot && (
+              <a
+                href={provider.configured ? 'https://cachibot.ai/dashboard' : 'https://cachibot.ai/register'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="provider-card__cta-link"
+              >
+                {provider.configured ? 'Dashboard' : 'Sign up for a key'} <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
           </div>
           {provider.configured && (
             <button
@@ -1546,6 +1564,57 @@ function ApiKeysSettings() {
 
   return (
     <>
+      {/* CachiBot.ai promo banner */}
+      <div className="cachibot-promo">
+        <div className="cachibot-promo__glow" />
+        <div className="cachibot-promo__content">
+          <div className="cachibot-promo__icon-row">
+            <div className="cachibot-promo__icon-circle">
+              <Zap className="h-5 w-5" />
+            </div>
+            <span className="cachibot-promo__badge">Free Tier Available</span>
+          </div>
+          <h3 className="cachibot-promo__title">
+            Get a free CachiBot API key
+          </h3>
+          <p className="cachibot-promo__desc">
+            Access CachiBot-hosted models with a free API key. No credit card required &mdash;
+            sign up in seconds and start chatting right away.
+          </p>
+          <div className="cachibot-promo__actions">
+            <a
+              href="https://cachibot.ai/register"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cachibot-promo__link"
+            >
+              <Sparkles className="h-4 w-4" />
+              Create free account
+            </a>
+            <a
+              href="https://cachibot.ai/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cachibot-promo__link cachibot-promo__link--ghost"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Already have an account? Dashboard
+            </a>
+          </div>
+          <div className="cachibot-promo__footer">
+            <a
+              href="https://github.com/jhd3197/CachiBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cachibot-promo__github"
+            >
+              <Heart className="h-3.5 w-3.5" />
+              Star us on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+
       <Section icon={Cloud} title="Cloud Providers">
         <div className="space-y-4">
           <p className="text-sm text-[var(--color-text-secondary)]">
