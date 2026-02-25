@@ -7,6 +7,15 @@ import { tryRefreshToken } from './auth'
 
 const API_BASE = '/api'
 
+export interface ExtraKeyInfo {
+  env_key: string
+  type: 'api_key' | 'endpoint' | 'text'
+  configured: boolean
+  masked_value: string
+  label: string
+  group: string
+}
+
 export interface Provider {
   name: string
   env_key: string
@@ -14,6 +23,7 @@ export interface Provider {
   configured: boolean
   masked_value: string
   default: string
+  extra_keys: ExtraKeyInfo[]
 }
 
 function getAuthHeader(): Record<string, string> {
@@ -69,6 +79,19 @@ export async function updateProvider(name: string, value: string): Promise<void>
 
 export async function deleteProvider(name: string): Promise<void> {
   await request(`/providers/${name}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function updateProviderKey(name: string, envKey: string, value: string): Promise<void> {
+  await request(`/providers/${name}/keys`, {
+    method: 'PUT',
+    body: JSON.stringify({ env_key: envKey, value }),
+  })
+}
+
+export async function deleteProviderKey(name: string, envKey: string): Promise<void> {
+  await request(`/providers/${name}/keys/${encodeURIComponent(envKey)}`, {
     method: 'DELETE',
   })
 }

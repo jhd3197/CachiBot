@@ -40,6 +40,7 @@
     flex: 1;
     overflow-y: auto;
     padding: @sp-6;
+    background: var(--color-bg-app);
     .scrollbar-thin();
   }
 
@@ -677,6 +678,113 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+  }
+
+  &__replace-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-2;
+    color: var(--color-text-secondary);
+    background: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+      border-color: var(--color-border-secondary);
+    }
+  }
+
+  &__cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: @radius-lg;
+    border: 1px solid var(--color-border-primary);
+    padding: @sp-2;
+    color: var(--color-text-secondary);
+    background: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: rgba(@red-500, 0.1);
+      color: @red-400;
+      border-color: rgba(@red-500, 0.3);
+    }
+  }
+
+  &__extra-keys {
+    border-top: 1px solid var(--color-border-primary);
+    padding-top: @sp-3;
+    margin-top: @sp-1;
+  }
+
+  &__extra-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: @sp-2;
+    padding: @sp-2 @sp-1;
+    background: none;
+    border: none;
+    border-radius: @radius-lg;
+    cursor: pointer;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    .transition-colors();
+
+    &:hover {
+      background: var(--color-hover-bg);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__extra-list {
+    .flex-col();
+    gap: @sp-4;
+    padding-top: @sp-3;
+  }
+
+  &__extra-group {
+    .flex-col();
+    gap: @sp-2;
+  }
+
+  &__extra-group-label {
+    font-size: @text-xs;
+    font-weight: @font-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    padding-left: @sp-1;
+  }
+
+  &__extra-field {
+    .flex-col();
+    gap: @sp-2;
+    padding-left: @sp-3;
+  }
+
+  &__extra-field-label {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    flex-wrap: wrap;
+  }
+
+  &__extra-field-env {
+    font-family: @font-mono;
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+    background: var(--color-bg-secondary);
+    padding: @sp-0-5 @sp-1-5;
+    border-radius: @radius-sm;
   }
 }
 

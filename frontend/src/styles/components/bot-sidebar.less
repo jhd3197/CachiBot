@@ -8,8 +8,12 @@
   height: 100%;
   flex-direction: column;
   border-right: 1px solid var(--color-border-primary);
-  background: var(--color-bg-secondary);
+  background: #FAFAFA;
   transition: all @transition-slow;
+
+  .dark & {
+    background: var(--color-bg-secondary);
+  }
 
   &--collapsed {
     width: @sidebar-width-collapsed;

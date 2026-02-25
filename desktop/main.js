@@ -341,59 +341,67 @@ function createTray() {
   tray = new Tray(trayIcon);
   tray.setToolTip(`CachiBot v${app.getVersion()}`);
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show CachiBot',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Check for Updates',
-      enabled: !!autoUpdater,
-      click: () => {
-        if (autoUpdater) {
-          autoUpdater.checkForUpdates().catch(() => {});
-        }
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
-    },
-    {
-      label: 'Clear Cache & Restart',
-      click: async () => {
-        await clearAllCaches();
-        // Remove version marker so next launch also clears
-        try { fs.unlinkSync(VERSION_FILE); } catch {}
-        stopBackend();
-        app.relaunch();
-        app.exit(0);
-      },
-    },
-    {
-      label: 'Restart App',
-      click: () => {
-        stopBackend();
-        app.relaunch();
-        app.exit(0);
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit CachiBot',
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
+  rebuildTrayMenu();
 
-  tray.setContextMenu(contextMenu);
+  function rebuildTrayMenu() {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show CachiBot',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Check for Updates',
+        enabled: !!autoUpdater,
+        click: () => {
+          if (autoUpdater) {
+            autoUpdater.checkForUpdates().catch(() => {});
+          }
+          if (mainWindow) {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        },
+      },
+      {
+        label: 'Show Logs',
+        click: () => {
+          const logsDir = path.join(app.getPath('home'), '.cachibot', 'logs');
+          shell.openPath(logsDir);
+        },
+      },
+      {
+        label: 'Start on Boot',
+        type: 'checkbox',
+        checked: getStartOnBoot(),
+        click: (menuItem) => {
+          setStartOnBoot(menuItem.checked);
+        },
+      },
+      {
+        label: 'Restart App',
+        click: () => {
+          stopBackend();
+          app.relaunch();
+          app.exit(0);
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit CachiBot',
+        click: () => {
+          app.quit();
+        },
+      },
+    ]);
+
+    tray.setContextMenu(contextMenu);
+  }
 
   // Click the tray icon to show/focus the window
   tray.on('click', () => {
@@ -434,6 +442,19 @@ function saveSetting(key, value) {
 function getSetting(key, defaultValue) {
   const settings = loadSettings();
   return settings[key] !== undefined ? settings[key] : defaultValue;
+}
+
+// ---------------------------------------------------------------------------
+// Start on boot
+// ---------------------------------------------------------------------------
+
+function setStartOnBoot(enabled) {
+  app.setLoginItemSettings({ openAtLogin: enabled });
+  saveSetting('startOnBoot', enabled);
+}
+
+function getStartOnBoot() {
+  return getSetting('startOnBoot', false);
 }
 
 function checkVersionChange() {
@@ -546,6 +567,12 @@ ipcMain.handle('settings:set', (_event, key, value) => {
   return { success: true };
 });
 
+ipcMain.handle('startup:get', () => getStartOnBoot());
+ipcMain.handle('startup:set', (_event, enabled) => {
+  setStartOnBoot(enabled);
+  return { success: true };
+});
+
 ipcMain.handle('update:check', async () => {
   if (!autoUpdater) return { available: false };
   try {
@@ -608,6 +635,9 @@ if (!gotTheLock) {
 // ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
+  // Sync login item with saved setting
+  app.setLoginItemSettings({ openAtLogin: getStartOnBoot() });
+
   // Clear Chromium cache when app version changes (e.g. after reinstall)
   if (checkVersionChange()) {
     console.log('[electron] Version changed, clearing all Chromium caches');
