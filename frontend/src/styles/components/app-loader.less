@@ -1,0 +1,137 @@
+// =============================================================================
+// App Loader — full-screen overlay with orbiting dots animation
+// Mirrors the Electron splash screen for visual continuity.
+// =============================================================================
+
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-app, #0f0f11);
+  opacity: 1;
+  transition: opacity 0.4s ease;
+
+  &--fade {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.app-loader__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--accent-500-rgb, 16, 185, 129), 0.25) 0%,
+    transparent 70%
+  );
+  animation: app-loader-pulse 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.app-loader__orbit {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  z-index: 1;
+}
+
+.app-loader__dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--accent-500, #10b981);
+  animation: app-loader-orbit 2.4s linear infinite;
+  opacity: 0;
+  animation-fill-mode: forwards;
+
+  &:nth-child(1) { animation-delay: 0s; }
+  &:nth-child(2) { animation-delay: 0.4s; }
+  &:nth-child(3) { animation-delay: 0.8s; }
+  &:nth-child(4) { animation-delay: 1.2s; }
+  &:nth-child(5) { animation-delay: 1.6s; }
+  &:nth-child(6) { animation-delay: 2.0s; }
+}
+
+.app-loader__bottom {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  padding: 0 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: app-loader-fadeIn 0.6s ease-out 0.3s both;
+}
+
+.app-loader__track {
+  width: 100%;
+  height: 2px;
+  background: var(--color-border-primary, #27272a);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.app-loader__bar {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-500, #10b981),
+    transparent
+  );
+  border-radius: 1px;
+  animation: app-loader-progress 1.8s ease-in-out infinite;
+}
+
+.app-loader__status {
+  font-size: 12px;
+  color: var(--color-text-tertiary, #71717a);
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+@keyframes app-loader-orbit {
+  0% {
+    opacity: 1;
+    transform: rotate(0deg) translateX(40px) rotate(0deg) scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: rotate(180deg) translateX(40px) rotate(-180deg) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(360deg) translateX(40px) rotate(-360deg) scale(1);
+  }
+}
+
+@keyframes app-loader-pulse {
+  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.3); }
+}
+
+@keyframes app-loader-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+@keyframes app-loader-fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

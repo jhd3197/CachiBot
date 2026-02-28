@@ -35,6 +35,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "splash.html",
       "package.json"
     ],
     "extraResources": [
