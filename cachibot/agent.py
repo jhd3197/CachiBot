@@ -112,17 +112,35 @@ class CachibotAgent:
         """Set up the Python sandbox with restrictions."""
         workspace = str(self.config.workspace_path)
 
-        # Get timeout from tool_configs or fall back to config defaults
+        # Get per-tool config or fall back to config defaults
         timeout = self.config.sandbox.timeout_seconds
+        py_cfg: dict[str, Any] = {}
         if self.tool_configs and "python_execute" in self.tool_configs:
             py_cfg = self.tool_configs["python_execute"]
             timeout = py_cfg.get("timeoutSeconds", timeout)
 
+        # Build path lists: workspace is always included, configs can only add
+        blocked_paths = set(py_cfg.get("blockedPaths", []))
+        read_paths = [workspace] + [
+            p for p in py_cfg.get("allowedReadPaths", []) if p not in blocked_paths
+        ]
+        write_paths = [workspace] + [
+            p for p in py_cfg.get("allowedWritePaths", []) if p not in blocked_paths
+        ]
+
+        # Build import lists: base allowed + extra, with separate blocked set
+        allowed_imports = list(self.config.sandbox.allowed_imports)
+        for mod in py_cfg.get("extraImports", []):
+            if mod not in allowed_imports:
+                allowed_imports.append(mod)
+        blocked_imports = py_cfg.get("blockedImports", []) or None
+
         self.sandbox = PythonSandbox(
-            allowed_imports=self.config.sandbox.allowed_imports,
+            allowed_imports=allowed_imports,
+            blocked_imports=blocked_imports,
             timeout_seconds=timeout,
-            allowed_read_paths=[workspace],
-            allowed_write_paths=[workspace],
+            allowed_read_paths=read_paths,
+            allowed_write_paths=write_paths,
         )
 
     def _build_registry_from_plugins(self) -> None:
@@ -313,12 +331,12 @@ class CachibotAgent:
 
         self._agent = PromptureAgent(**agent_kwargs)
 
-    @staticmethod
-    def _harden_security_context(ctx: object) -> None:
+    def _harden_security_context(self, ctx: object) -> None:
         """Add security restrictions to prevent secret leakage from bot agents.
 
-        Blocks .env file access and dangerous shell commands that could
-        expose environment variables or secrets.
+        Blocks .env file access, dangerous shell commands that could
+        expose environment variables or secrets, and user-configured
+        blocked paths.
         """
         # Block .env files via ignore patterns (matched against filename)
         ignore = getattr(ctx, "ignore_patterns", None)
@@ -333,6 +351,18 @@ class CachibotAgent:
             for cmd in ("env", "printenv", "set", "export"):
                 if cmd not in blocked:
                     blocked.append(cmd)
+
+        # Apply user-configured blocked paths to the security context
+        py_cfg: dict[str, Any] = {}
+        if self.tool_configs and "python_execute" in self.tool_configs:
+            py_cfg = self.tool_configs["python_execute"]
+        blocked_paths_cfg = py_cfg.get("blockedPaths", [])
+        if blocked_paths_cfg:
+            ctx_blocked = getattr(ctx, "blocked_paths", None)
+            if ctx_blocked is not None:
+                for p in blocked_paths_cfg:
+                    if p not in ctx_blocked:
+                        ctx_blocked.append(p)
 
     # ------------------------------------------------------------------
     # Auto-capture: file_write → Asset

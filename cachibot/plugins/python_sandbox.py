@@ -65,6 +65,53 @@ class PythonSandboxPlugin(CachibotPlugin):
                     step=1000,
                     unit="chars",
                 ),
+                ConfigParam(
+                    name="allowedReadPaths",
+                    display_name="Extra Read Paths",
+                    description="Additional directories the sandbox can read from "
+                    "(workspace is always included).",
+                    type="string[]",
+                    default=[],
+                    placeholder="/data/shared",
+                    max_items=20,
+                ),
+                ConfigParam(
+                    name="allowedWritePaths",
+                    display_name="Extra Write Paths",
+                    description="Additional directories the sandbox can write to "
+                    "(workspace is always included).",
+                    type="string[]",
+                    default=[],
+                    placeholder="/data/output",
+                    max_items=20,
+                ),
+                ConfigParam(
+                    name="blockedPaths",
+                    display_name="Blocked Paths",
+                    description="Directories forbidden from access, even if within allowed paths.",
+                    type="string[]",
+                    default=[],
+                    placeholder="/etc/secrets",
+                    max_items=20,
+                ),
+                ConfigParam(
+                    name="extraImports",
+                    display_name="Extra Imports",
+                    description="Additional Python modules to allow beyond the default safe set.",
+                    type="string[]",
+                    default=[],
+                    placeholder="requests",
+                    max_items=50,
+                ),
+                ConfigParam(
+                    name="blockedImports",
+                    display_name="Blocked Imports",
+                    description="Python modules to block, even if in the default safe set.",
+                    type="string[]",
+                    default=[],
+                    placeholder="csv",
+                    max_items=50,
+                ),
             ],
         )
         def python_execute(code: str) -> str:

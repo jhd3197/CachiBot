@@ -15,9 +15,9 @@ import {
   ToggleRight,
   Info,
   Settings,
-  Play,
   Loader2,
   AlertCircle,
+  X,
 } from 'lucide-react'
 import { useBotStore } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
@@ -367,13 +367,17 @@ export function ToolsView() {
         </div>
       </div>
 
-      {/* Tool details panel */}
+      {/* Tool detail modal */}
       {selectedTool && (
-        <ToolDetailsPanel
+        <ToolDetailDialog
           tool={selectedTool}
           enabled={isToolEnabled(selectedTool.id)}
           onToggle={() => handleToggleTool(selectedTool.id)}
           onClose={() => setSelectedTool(null)}
+          onConfigure={() => {
+            setConfigTool(selectedTool)
+            setSelectedTool(null)
+          }}
         />
       )}
 
@@ -475,17 +479,18 @@ function ToolCard({ tool, enabled, onToggle, onSelect, onConfigure }: ToolCardPr
 }
 
 // =============================================================================
-// TOOL DETAILS PANEL
+// TOOL DETAIL DIALOG (modal)
 // =============================================================================
 
-interface ToolDetailsPanelProps {
+interface ToolDetailDialogProps {
   tool: Tool
   enabled: boolean
   onToggle: () => void
   onClose: () => void
+  onConfigure: () => void
 }
 
-function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanelProps) {
+function ToolDetailDialog({ tool, enabled, onToggle, onClose, onConfigure }: ToolDetailDialogProps) {
   const riskConfig = {
     safe: {
       icon: Shield,
@@ -515,87 +520,95 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
 
   const config = riskConfig[tool.riskLevel] || riskConfig.safe
   const RiskIcon = config.icon
+  const hasConfigParams = tool.configParams && tool.configParams.length > 0
 
   return (
-    <div className="tool-details-panel">
-      {/* Header */}
-      <div className="tool-details-panel__header">
-        <h2 className="tool-details-panel__title">Tool Details</h2>
-        <button onClick={onClose} className="tool-details-panel__close">
-          x
-        </button>
-      </div>
-
-      <div className="tool-details-panel__body">
-        {/* Tool info */}
-        <div className="mb-6 flex items-center gap-4">
-          <div className="tool-details-panel__icon-box">
-            <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="tool-details-panel__icon" />
-          </div>
-          <div>
-            <h3 className="tool-details-panel__name">{tool.name}</h3>
-            <p className="tool-details-panel__category">
-              {categoryConfig[tool.category]?.label || tool.category}
-            </p>
-          </div>
-        </div>
-
-        {/* Risk level */}
-        <div className={cn('mb-6 rounded-lg border p-4', config.bg, config.border)}>
-          <div className={cn('flex items-center gap-2', config.color)}>
-            <RiskIcon className="h-5 w-5" />
-            <span className="font-medium capitalize">{tool.riskLevel} Risk</span>
-          </div>
-          <p className="tool-details-panel__risk-description">
-            {tool.riskLevel === 'safe' &&
-              'This tool is safe to use and cannot modify system resources.'}
-            {tool.riskLevel === 'moderate' &&
-              'This tool can modify files or execute code. Actions may require approval.'}
-            {tool.riskLevel === 'dangerous' &&
-              'This tool can perform system-level operations. Use with caution.'}
-            {tool.riskLevel === 'critical' &&
-              'This tool performs critical operations with significant risk. Requires explicit approval.'}
-          </p>
-        </div>
-
-        {/* Description */}
-        <div className="mb-6">
-          <h4 className="tool-details-panel__section-title">Description</h4>
-          <p className="tool-card__description">{tool.description}</p>
-        </div>
-
-        {/* Parameters */}
-        {tool.parameters && tool.parameters.length > 0 && (
-          <div className="mb-6">
-            <h4 className="tool-details-panel__section-title">Parameters</h4>
-            <div className="space-y-2">
-              {tool.parameters.map((param) => (
-                <div key={param.name} className="tool-param-card">
-                  <div className="flex items-center gap-2">
-                    <code className="font-mono text-sm text-cachi-400">{param.name}</code>
-                    <span className="tool-param-card__type">
-                      {param.type}
-                    </span>
-                    {param.required && (
-                      <span className="tool-param-card__required">
-                        required
-                      </span>
-                    )}
-                  </div>
-                  <p className="tool-param-card__description">{param.description}</p>
-                </div>
-              ))}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full max-w-lg rounded-xl bg-[var(--color-bg-dialog)] shadow-xl border border-[var(--color-border-primary)]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--color-border-primary)] p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-bg-secondary)]">
+              <ToolIconRenderer toolId={tool.id} icon={tool.icon} className="h-5 w-5 text-[var(--color-text-primary)]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">{tool.name}</h2>
+                <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', config.bg, config.color, 'border', config.border)}>
+                  <RiskIcon className="h-3 w-3" />
+                  {tool.riskLevel}
+                </span>
+              </div>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                {categoryConfig[tool.category]?.label || tool.category}
+              </p>
             </div>
           </div>
-        )}
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-hover-bg)] hover:text-[var(--color-text-primary)]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        {/* Actions */}
-        <div className="tool-details-actions">
+        {/* Body */}
+        <div className="max-h-[60vh] overflow-y-auto p-4 space-y-4">
+          {/* Description */}
+          <div>
+            <h4 className="mb-1 text-sm font-medium text-[var(--color-text-primary)]">Description</h4>
+            <p className="text-sm text-[var(--color-text-secondary)]">{tool.description}</p>
+          </div>
+
+          {/* Parameters */}
+          {tool.parameters && tool.parameters.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-sm font-medium text-[var(--color-text-primary)]">Parameters</h4>
+              <div className="space-y-2">
+                {tool.parameters.map((param) => (
+                  <div key={param.name} className="rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-primary)] p-3">
+                    <div className="flex items-center gap-2">
+                      <code className="font-mono text-sm text-cachi-400">{param.name}</code>
+                      <span className="rounded-sm bg-[var(--color-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
+                        {param.type}
+                      </span>
+                      {param.required && (
+                        <span className="rounded-sm bg-red-500/20 px-1.5 py-0.5 text-xs text-red-400">
+                          required
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{param.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Configure button */}
+          {hasConfigParams && (
+            <button
+              onClick={onConfigure}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--color-border-secondary)] px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:border-cachi-500 hover:text-cachi-400 transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+              Configure ({tool.configParams!.length} parameter{tool.configParams!.length > 1 ? 's' : ''})
+            </button>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end border-t border-[var(--color-border-primary)] p-4">
           <button
             onClick={onToggle}
             className={cn(
-              'tool-details-btn',
-              enabled ? 'tool-details-btn--disable' : 'tool-details-btn--enable'
+              'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              enabled
+                ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
+                : 'bg-cachi-600 text-white hover:bg-cachi-500'
             )}
           >
             {enabled ? (
@@ -609,10 +622,6 @@ function ToolDetailsPanel({ tool, enabled, onToggle, onClose }: ToolDetailsPanel
                 Enable
               </>
             )}
-          </button>
-          <button className="tool-details-btn tool-details-btn--test">
-            <Play className="h-4 w-4" />
-            Test
           </button>
         </div>
       </div>

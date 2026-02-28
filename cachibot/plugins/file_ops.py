@@ -5,9 +5,11 @@ File operations plugin — workspace-scoped file_read, file_write, file_list, fi
 from pathlib import Path
 
 from tukuy.manifest import PluginManifest, PluginRequirements
-from tukuy.skill import RiskLevel, Skill, skill
+from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
+
+_ENCODING_OPTIONS = ["utf-8", "ascii", "latin-1", "utf-16"]
 
 
 class FileOpsPlugin(CachibotPlugin):
@@ -48,6 +50,26 @@ class FileOpsPlugin(CachibotPlugin):
             display_name="Read File",
             icon="file-text",
             risk_level=RiskLevel.SAFE,
+            config_params=[
+                ConfigParam(
+                    name="maxFileSize",
+                    display_name="Max File Size",
+                    description="Maximum file size allowed for reading.",
+                    type="number",
+                    default=10485760,
+                    min=1024,
+                    max=104857600,
+                    unit="bytes",
+                ),
+                ConfigParam(
+                    name="encoding",
+                    display_name="Encoding",
+                    description="Text encoding used when reading files.",
+                    type="select",
+                    default="utf-8",
+                    options=_ENCODING_OPTIONS,
+                ),
+            ],
         )
         def file_read(path: str) -> str:
             """Read the contents of a file.
@@ -62,7 +84,18 @@ class FileOpsPlugin(CachibotPlugin):
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
             try:
-                return ctx.sandbox.read_file(str(full_path))  # type: ignore[no-any-return]
+                cfg = ctx.tool_configs.get("file_read", {})
+                max_size: int = cfg.get("maxFileSize", 10485760)
+                encoding: str = cfg.get("encoding", "utf-8")
+
+                file_size = full_path.stat().st_size
+                if file_size > max_size:
+                    return (
+                        f"Error: File '{path}' is {file_size} bytes, "
+                        f"exceeds limit of {max_size} bytes"
+                    )
+
+                return ctx.sandbox.read_file(str(full_path), encoding=encoding)  # type: ignore[no-any-return]
             except Exception as e:
                 return f"Error reading file: {e}"
 
@@ -76,6 +109,24 @@ class FileOpsPlugin(CachibotPlugin):
             display_name="Write File",
             icon="file-pen",
             risk_level=RiskLevel.MODERATE,
+            config_params=[
+                ConfigParam(
+                    name="encoding",
+                    display_name="Encoding",
+                    description="Text encoding used when writing files.",
+                    type="select",
+                    default="utf-8",
+                    options=_ENCODING_OPTIONS,
+                ),
+                ConfigParam(
+                    name="allowedExtensions",
+                    display_name="Allowed Extensions",
+                    description="File extensions allowed for writing. Empty list allows all.",
+                    type="string[]",
+                    default=[],
+                    item_placeholder=".txt, .json, .csv",
+                ),
+            ],
         )
         def file_write(path: str, content: str) -> str:
             """Write content to a file. Creates the file if it doesn't exist.
@@ -91,8 +142,18 @@ class FileOpsPlugin(CachibotPlugin):
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
             try:
+                cfg = ctx.tool_configs.get("file_write", {})
+                encoding: str = cfg.get("encoding", "utf-8")
+                allowed_ext: list[str] = cfg.get("allowedExtensions", [])
+
+                if allowed_ext and full_path.suffix not in allowed_ext:
+                    return (
+                        f"Error: Extension '{full_path.suffix}' is not allowed. "
+                        f"Allowed: {', '.join(allowed_ext)}"
+                    )
+
                 full_path.parent.mkdir(parents=True, exist_ok=True)
-                ctx.sandbox.write_file(str(full_path), content)
+                ctx.sandbox.write_file(str(full_path), content, encoding=encoding)
                 return f"Successfully wrote to {path}"
             except Exception as e:
                 return f"Error writing file: {e}"
@@ -154,6 +215,26 @@ class FileOpsPlugin(CachibotPlugin):
             display_name="Edit File",
             icon="file-search",
             risk_level=RiskLevel.MODERATE,
+            config_params=[
+                ConfigParam(
+                    name="maxFileSize",
+                    display_name="Max File Size",
+                    description="Maximum file size allowed for editing.",
+                    type="number",
+                    default=10485760,
+                    min=1024,
+                    max=104857600,
+                    unit="bytes",
+                ),
+                ConfigParam(
+                    name="allowedExtensions",
+                    display_name="Allowed Extensions",
+                    description="File extensions allowed for editing. Empty list allows all.",
+                    type="string[]",
+                    default=[],
+                    item_placeholder=".txt, .json, .csv",
+                ),
+            ],
         )
         def file_edit(path: str, old_text: str, new_text: str) -> str:
             """Edit a file by replacing a specific string with new content.
@@ -170,6 +251,23 @@ class FileOpsPlugin(CachibotPlugin):
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
             try:
+                cfg = ctx.tool_configs.get("file_edit", {})
+                max_size: int = cfg.get("maxFileSize", 10485760)
+                allowed_ext: list[str] = cfg.get("allowedExtensions", [])
+
+                if allowed_ext and full_path.suffix not in allowed_ext:
+                    return (
+                        f"Error: Extension '{full_path.suffix}' is not allowed. "
+                        f"Allowed: {', '.join(allowed_ext)}"
+                    )
+
+                file_size = full_path.stat().st_size
+                if file_size > max_size:
+                    return (
+                        f"Error: File '{path}' is {file_size} bytes, "
+                        f"exceeds limit of {max_size} bytes"
+                    )
+
                 content = ctx.sandbox.read_file(str(full_path))
                 if old_text not in content:
                     return f"Error: Could not find the specified text in {path}"
