@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils'
 const PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
+  claude: 'Anthropic',
   google: 'Google',
   groq: 'Groq',
   grok: 'xAI Grok',

@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
-from cachibot.api.helpers import require_bot_ownership
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import (
@@ -114,9 +114,7 @@ async def get_note(
 ) -> NoteResponse:
     """Get a specific note."""
     repo = NotesRepository()
-    note = await repo.get_note(note_id)
-    if note is None:
-        raise HTTPException(status_code=404, detail="Note not found")
+    note = require_found(await repo.get_note(note_id), "Note")
     require_bot_ownership(note, bot_id, "Note")
     return _note_to_response(note)
 
@@ -140,8 +138,7 @@ async def update_note(
         content=data.content,
         tags=data.tags,
     )
-    if updated is None:
-        raise HTTPException(404, "Note not found")
+    require_found(updated, "Note")
     return _note_to_response(updated)
 
 
@@ -282,9 +279,7 @@ async def retry_document(
     """Retry processing a failed document."""
     repo = KnowledgeRepository()
 
-    doc = await repo.get_document(document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = require_found(await repo.get_document(document_id), "Document")
     require_bot_ownership(doc, bot_id, "Document")
 
     if doc.status.value != "failed":
@@ -319,9 +314,7 @@ async def get_document_chunks(
     """Get all chunks for a document (without embeddings)."""
     repo = KnowledgeRepository()
 
-    doc = await repo.get_document(document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = require_found(await repo.get_document(document_id), "Document")
     require_bot_ownership(doc, bot_id, "Document")
 
     chunks = await repo.get_chunks_by_document_light(document_id)

@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { wsClient } from '../api/websocket'
-import { useChatStore, useBotStore, useJobStore } from '../stores/bots'
+import { useChatStore, useBotStore, useJobStore, getBotDefaultModel } from '../stores/bots'
 import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
 import type {
@@ -47,11 +47,12 @@ export function onPendingApprovalChange(fn: (approval: ApprovalPayload | null) =
   }
 }
 
-// Track the pending chat ID for messages sent before chat is set
-let pendingChatId: string | null = null
-
+/**
+ * Set the pending chat ID via the store.
+ * Exported for use outside of React components (e.g. ChatView).
+ */
 export function setPendingChatId(chatId: string | null) {
-  pendingChatId = chatId
+  useChatStore.getState().setPendingChatId(chatId)
 }
 
 export function useWebSocket() {
@@ -86,7 +87,7 @@ export function useWebSocket() {
           const payload = msg.payload as ToolStartPayload
           // Persist accumulated thinking to the last assistant message before clearing
           const tsThinking = useChatStore.getState().thinking
-          const tsChatId = activeChatIdRef.current || pendingChatId
+          const tsChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (tsThinking && tsChatId) {
             attachThinkingToLastMessage(tsChatId, tsThinking)
           }
@@ -115,8 +116,8 @@ export function useWebSocket() {
         case 'message': {
           const payload = msg.payload as MessagePayload
           // Use ref for current chat, or fall back to pending chat ID
-          const chatId = activeChatIdRef.current || pendingChatId
-          console.log('[WS] Message received:', { role: payload.role, chatId, refValue: activeChatIdRef.current, pendingChatId })
+          const chatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          console.log('[WS] Message received:', { role: payload.role, chatId, refValue: activeChatIdRef.current, pendingChatId: useChatStore.getState().pendingChatId })
           if (chatId) {
             const messageId = payload.messageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
             // Accumulate assistant messages by messageId (streaming)
@@ -252,12 +253,12 @@ export function useWebSocket() {
           const payload = msg.payload as UsagePayload
           const currentBotId = useBotStore.getState().activeBotId
           const currentBot = useBotStore.getState().getActiveBot()
-          const chatId = activeChatIdRef.current || pendingChatId
+          const chatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
 
           // Determine model from perModel breakdown (authoritative source from Prompture)
           // Falls back to bot store model only when perModel is empty
           const perModelKeys = Object.keys(payload.perModel || {})
-          const model = perModelKeys.length > 0 ? perModelKeys[0] : (currentBot?.model || 'unknown')
+          const model = perModelKeys.length > 0 ? perModelKeys[0] : (currentBot ? getBotDefaultModel(currentBot) : 'unknown')
 
           // Record to dashboard usage stats
           useUsageStore.getState().recordUsage({
@@ -331,20 +332,20 @@ export function useWebSocket() {
 
           // Persist accumulated thinking before clearing
           const errThinking = useChatStore.getState().thinking
-          const errThinkingChatId = activeChatIdRef.current || pendingChatId
+          const errThinkingChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (errThinking && errThinkingChatId) {
             attachThinkingToLastMessage(errThinkingChatId, errThinking)
           }
           setThinking(null)
 
           // Attach any in-progress tool calls to the last message (same as done)
-          const errChatId = activeChatIdRef.current || pendingChatId
+          const errChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
           const errToolCalls = useChatStore.getState().toolCalls
           if (errChatId && errToolCalls.length > 0) {
             attachToolCallsToLastMessage(errChatId, errToolCalls)
           }
           clearToolCalls()
-          pendingChatId = null
+          useChatStore.getState().setPendingChatId(null)
           break
         }
 
@@ -353,14 +354,14 @@ export function useWebSocket() {
 
           // Persist accumulated thinking before clearing
           const doneThinking = useChatStore.getState().thinking
-          const doneThinkingChatId = activeChatIdRef.current || pendingChatId
+          const doneThinkingChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (doneThinking && doneThinkingChatId) {
             attachThinkingToLastMessage(doneThinkingChatId, doneThinking)
           }
           setThinking(null)
 
           // Attach tool calls to last assistant message before clearing
-          const doneChatId = activeChatIdRef.current || pendingChatId
+          const doneChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
           const currentToolCalls = useChatStore.getState().toolCalls
           if (doneChatId && currentToolCalls.length > 0) {
             attachToolCallsToLastMessage(doneChatId, currentToolCalls)
@@ -374,7 +375,7 @@ export function useWebSocket() {
           }
 
           // Clear pending chat ID when done
-          pendingChatId = null
+          useChatStore.getState().setPendingChatId(null)
           break
         }
       }

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.helpers import require_found
 from cachibot.models.asset import Asset, AssetResponse
 from cachibot.models.auth import User
 from cachibot.storage.asset_repository import AssetRepository
@@ -38,9 +39,7 @@ async def list_room_assets(
     user: User = Depends(get_current_user),
 ) -> list[AssetResponse]:
     """Get all assets for a room."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
 
@@ -55,9 +54,7 @@ async def upload_room_asset(
     user: User = Depends(get_current_user),
 ) -> AssetResponse:
     """Upload a file asset to a room."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
 
@@ -135,9 +132,7 @@ async def delete_room_asset(
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
 
-    storage_path = await asset_repo.delete(asset_id)
-    if storage_path is None:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    storage_path = require_found(await asset_repo.delete(asset_id), "Asset")
 
     # Clean up file on disk
     try:
@@ -238,9 +233,7 @@ async def delete_chat_asset(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete an asset."""
-    storage_path = await asset_repo.delete(asset_id)
-    if storage_path is None:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    storage_path = require_found(await asset_repo.delete(asset_id), "Asset")
 
     try:
         Path(storage_path).unlink(missing_ok=True)

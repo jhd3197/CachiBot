@@ -18,6 +18,7 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import select as sa_select
 
 from cachibot.api.auth import get_admin_user, require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.services.encryption import get_encryption_service
@@ -244,8 +245,7 @@ async def delete_bot_env_var(
         await session.commit()
         deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Environment variable not found")
+    require_found(deleted, "Environment variable")
 
     await _audit_log(
         action="delete",
@@ -470,8 +470,7 @@ async def delete_platform_env_var(
         await session.commit()
         deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Platform env var not found")
+    require_found(deleted, "Platform env var")
 
     await _audit_log(
         action="delete",
@@ -586,8 +585,7 @@ async def delete_skill_config(
         await session.commit()
         deleted = result.rowcount > 0  # type: ignore[attr-defined]
 
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Skill config not found")
+    require_found(deleted, "Skill config")
 
     await _audit_log(
         action="delete",

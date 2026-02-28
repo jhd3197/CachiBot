@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership
 from cachibot.models.auth import User
 from cachibot.models.capabilities import Contact
 from cachibot.models.group import BotAccessLevel
@@ -99,9 +100,7 @@ async def get_contact(
     user: User = Depends(require_bot_access),
 ) -> ContactResponse:
     """Get a specific contact."""
-    contact = await repo.get_contact(contact_id)
-    if contact is None or contact.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Contact not found")
+    contact = require_bot_ownership(await repo.get_contact(contact_id), bot_id, "Contact")
     return ContactResponse.from_contact(contact)
 
 
@@ -113,9 +112,7 @@ async def update_contact(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ContactResponse:
     """Update an existing contact."""
-    contact = await repo.get_contact(contact_id)
-    if contact is None or contact.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Contact not found")
+    contact = require_bot_ownership(await repo.get_contact(contact_id), bot_id, "Contact")
 
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Contact name is required")
@@ -135,8 +132,6 @@ async def delete_contact(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a contact."""
-    contact = await repo.get_contact(contact_id)
-    if contact is None or contact.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Contact not found")
+    contact = require_bot_ownership(await repo.get_contact(contact_id), bot_id, "Contact")
 
     await repo.delete_contact(contact_id)

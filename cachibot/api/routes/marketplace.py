@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from cachibot import __version__
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.helpers import require_found
 from cachibot.config import Config
 from cachibot.data.marketplace_templates import (
     get_all_templates,
@@ -413,9 +414,7 @@ async def get_template(
         return remote_template
 
     # Fall back to local
-    template = get_template_by_id(template_id)
-    if template is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+    template = require_found(get_template_by_id(template_id), "Template")
     return TemplateResponse(**template)
 
 
@@ -443,8 +442,7 @@ async def install_template(
         if local_template:
             template_data = local_template  # type: ignore[assignment]
 
-    if template_data is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+    require_found(template_data, "Template")
 
     # Generate new bot ID
     bot_id = str(uuid.uuid4())
@@ -550,9 +548,7 @@ async def get_room_template(
     user: User = Depends(get_current_user),
 ) -> RoomTemplateResponse:
     """Get details of a specific room template with resolved bot details."""
-    template = get_room_template_by_id(template_id)
-    if template is None:
-        raise HTTPException(status_code=404, detail="Room template not found")
+    template = require_found(get_room_template_by_id(template_id), "Room template")
 
     # Resolve bot details from bot marketplace templates
     bot_details = []
@@ -598,9 +594,7 @@ async def install_room_template(
     - If not, installs the bot template
     Then creates a room with all the bots and configured settings.
     """
-    template = get_room_template_by_id(template_id)
-    if template is None:
-        raise HTTPException(status_code=404, detail="Room template not found")
+    template = require_found(get_room_template_by_id(template_id), "Room template")
 
     installed_bots: list[str] = []
     reused_bots: list[str] = []
