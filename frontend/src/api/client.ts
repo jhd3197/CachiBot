@@ -220,6 +220,7 @@ export interface FollowUpQuestion {
 export interface GenerateQuestionsRequest {
   category: string
   description: string
+  mode?: 'user-focused' | 'task-focused'
 }
 
 // Non-streaming fallback
@@ -517,6 +518,118 @@ export async function analyzeCreationContext(
   data: AnalyzeContextRequest
 ): Promise<AnalyzeContextResponse> {
   return request('/creation/analyze-context', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// =============================================================================
+// PROJECT CREATION API
+// =============================================================================
+
+export async function classifyPurpose(data: {
+  category: string
+  description: string
+}): Promise<{ classification: 'single' | 'project'; reason: string; confidence: number }> {
+  return request('/creation/classify-purpose', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+/**
+ * Stream project follow-up questions via SSE.
+ * Calls onQuestion for each question as it arrives.
+ */
+export async function streamProjectFollowUpQuestions(
+  data: GenerateQuestionsRequest,
+  callbacks: {
+    onQuestion: (question: FollowUpQuestion) => void
+    onDone: () => void
+    onError: (error: string) => void
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  try {
+    for await (const { event, data: eventData } of fetchSSE(
+      '/creation/project-questions/stream',
+      data,
+      signal,
+    )) {
+      if (event === 'question') {
+        callbacks.onQuestion(eventData as FollowUpQuestion)
+      } else if (event === 'done') {
+        callbacks.onDone()
+      } else if (event === 'error') {
+        callbacks.onError((eventData as { error: string }).error)
+      }
+    }
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return
+    callbacks.onError(err instanceof Error ? err.message : 'Stream failed')
+  }
+}
+
+export interface ProjectProposalResponse {
+  project_name: string
+  project_description: string
+  bots: Array<{
+    name: string
+    description: string
+    role: string
+    system_prompt: string
+    tone: string
+    expertise_level: string
+    response_length: string
+    personality_traits: string[]
+  }>
+  rooms: Array<{
+    name: string
+    description: string
+    response_mode: string
+    bot_names: string[]
+  }>
+}
+
+export async function generateProjectProposal(data: {
+  category: string
+  description: string
+  follow_up_answers: Array<{ question: string; answer: string }>
+}): Promise<ProjectProposalResponse> {
+  return request('/creation/generate-project-proposal', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export interface CreateProjectResponse {
+  bots: Array<{ temp_id: string; bot_id: string; name: string }>
+  rooms: Array<{ room_id: string; title: string }>
+}
+
+export async function createProject(data: {
+  bots: Array<{
+    temp_id: string
+    name: string
+    description: string
+    icon: string
+    color: string
+    system_prompt: string
+    model: string
+    tone: string
+    expertise_level: string
+    response_length: string
+    personality_traits: string[]
+  }>
+  rooms: Array<{
+    name: string
+    description: string
+    response_mode: string
+    bot_temp_ids: string[]
+    settings: Record<string, unknown>
+  }>
+}): Promise<CreateProjectResponse> {
+  return request('/creation/create-project', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -1633,6 +1746,16 @@ export async function getRoomMarketplaceTemplate(templateId: string): Promise<Ro
 
 export async function installRoomMarketplaceTemplate(templateId: string): Promise<InstallRoomTemplateResponse> {
   return request(`/marketplace/room-templates/${templateId}/install`, { method: 'POST' })
+}
+
+/**
+ * Fire-and-forget: notify backend of a template view event for marketplace analytics.
+ */
+export function trackTemplateView(templateId: string, templateType: 'bot' | 'room'): void {
+  request('/marketplace/track-view', {
+    method: 'POST',
+    body: JSON.stringify({ template_id: templateId, template_type: templateType }),
+  }).catch(() => {}) // Fire-and-forget
 }
 
 export { ApiError }
