@@ -88,8 +88,7 @@ class PythonSandboxPlugin(CachibotPlugin):
                 ConfigParam(
                     name="blockedPaths",
                     display_name="Blocked Paths",
-                    description="Directories forbidden from access, even if within "
-                    "allowed paths.",
+                    description="Directories forbidden from access, even if within allowed paths.",
                     type="string[]",
                     default=[],
                     placeholder="/etc/secrets",
@@ -98,8 +97,7 @@ class PythonSandboxPlugin(CachibotPlugin):
                 ConfigParam(
                     name="extraImports",
                     display_name="Extra Imports",
-                    description="Additional Python modules to allow beyond the "
-                    "default safe set.",
+                    description="Additional Python modules to allow beyond the default safe set.",
                     type="string[]",
                     default=[],
                     placeholder="requests",
@@ -108,8 +106,7 @@ class PythonSandboxPlugin(CachibotPlugin):
                 ConfigParam(
                     name="blockedImports",
                     display_name="Blocked Imports",
-                    description="Python modules to block, even if in the default "
-                    "safe set.",
+                    description="Python modules to block, even if in the default safe set.",
                     type="string[]",
                     default=[],
                     placeholder="csv",
