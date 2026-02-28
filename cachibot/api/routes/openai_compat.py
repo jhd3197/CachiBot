@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import resolve_api_key
+from cachibot.api.helpers import require_found
 from cachibot.config import Config
 from cachibot.services.agent_factory import resolve_bot_env
 from cachibot.storage.repository import BotRepository
@@ -97,11 +98,7 @@ async def chat_completions(
     bot_id, key_id = api_key_info
 
     # Load bot from DB
-    bot = await bot_repo.get_bot(bot_id)
-    if not bot:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await bot_repo.get_bot(bot_id), "Bot")
 
     # Resolve per-bot environment and driver
     effective_model = bot.model
@@ -205,11 +202,7 @@ async def list_models(
     """Return the bot's configured model in OpenAI format."""
     bot_id, _ = api_key_info
 
-    bot = await bot_repo.get_bot(bot_id)
-    if not bot:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await bot_repo.get_bot(bot_id), "Bot")
 
     model_id = bot.model
     if bot.models and bot.models.get("default"):

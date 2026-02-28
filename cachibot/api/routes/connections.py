@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.connection import BotConnection, ConnectionPlatform, ConnectionStatus
 from cachibot.models.group import BotAccessLevel
@@ -150,9 +151,9 @@ async def get_connection(
     user: User = Depends(require_bot_access),
 ) -> ConnectionResponse:
     """Get a specific connection."""
-    connection = await repo.get_connection(connection_id)
-    if connection is None or connection.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_bot_ownership(
+        await repo.get_connection(connection_id), bot_id, "Connection"
+    )
     return ConnectionResponse.from_connection(connection)
 
 
@@ -164,9 +165,9 @@ async def update_connection(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ConnectionResponse:
     """Update an existing connection."""
-    connection = await repo.get_connection(connection_id)
-    if connection is None or connection.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_bot_ownership(
+        await repo.get_connection(connection_id), bot_id, "Connection"
+    )
 
     if body.name is not None:
         if not body.name.strip():
@@ -190,9 +191,9 @@ async def delete_connection(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a connection."""
-    connection = await repo.get_connection(connection_id)
-    if connection is None or connection.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_bot_ownership(
+        await repo.get_connection(connection_id), bot_id, "Connection"
+    )
 
     # Disconnect if active
     manager = get_platform_manager()
@@ -209,17 +210,15 @@ async def connect_platform(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ConnectionResponse:
     """Start a platform connection."""
-    connection = await repo.get_connection(connection_id)
-    if connection is None or connection.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_bot_ownership(
+        await repo.get_connection(connection_id), bot_id, "Connection"
+    )
 
     manager = get_platform_manager()
     try:
         await manager.connect(connection_id)
         # Refresh connection from DB to get updated status
-        connection = await repo.get_connection(connection_id)
-        if connection is None:
-            raise HTTPException(status_code=404, detail="Connection not found after connect")
+        connection = require_found(await repo.get_connection(connection_id), "Connection")
         return ConnectionResponse.from_connection(connection)
     except Exception as e:
         logger.error(f"Failed to connect {connection_id}: {e}")
@@ -233,15 +232,13 @@ async def disconnect_platform(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ConnectionResponse:
     """Stop a platform connection."""
-    connection = await repo.get_connection(connection_id)
-    if connection is None or connection.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_bot_ownership(
+        await repo.get_connection(connection_id), bot_id, "Connection"
+    )
 
     manager = get_platform_manager()
     await manager.disconnect(connection_id)
 
     # Refresh connection from DB to get updated status
-    connection = await repo.get_connection(connection_id)
-    if connection is None:
-        raise HTTPException(status_code=404, detail="Connection not found after disconnect")
+    connection = require_found(await repo.get_connection(connection_id), "Connection")
     return ConnectionResponse.from_connection(connection)

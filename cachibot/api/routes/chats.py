@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership
 from cachibot.models.auth import User
 from cachibot.models.chat_model import ChatResponse
 from cachibot.models.group import BotAccessLevel
@@ -98,9 +99,7 @@ async def get_chat(
     user: User = Depends(require_bot_access),
 ) -> ChatResponse:
     """Get a specific chat."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
     return ChatResponse.from_chat(chat)
 
 
@@ -112,9 +111,7 @@ async def get_chat_messages(
     user: User = Depends(require_bot_access),
 ) -> list[MessageResponse]:
     """Get messages for a chat."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
 
     messages = await knowledge_repo.get_bot_messages(bot_id, chat_id, limit)
     return [MessageResponse.from_message(m) for m in messages]
@@ -127,9 +124,7 @@ async def delete_chat(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a chat permanently (including messages)."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
 
     # Delete messages for this chat first
     await knowledge_repo.delete_messages_for_chat(bot_id, chat_id)
@@ -144,9 +139,7 @@ async def clear_chat_messages(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ClearDataResponse:
     """Clear all messages for a chat but keep the chat itself."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
 
     messages_deleted = await knowledge_repo.delete_messages_for_chat(bot_id, chat_id)
     return ClearDataResponse(chats_deleted=0, messages_deleted=messages_deleted)
@@ -159,9 +152,7 @@ async def archive_chat(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ArchiveResponse:
     """Archive a chat. Archived chats are hidden and won't receive new messages."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
 
     await chat_repo.archive_chat(chat_id, archived=True)
     return ArchiveResponse(archived=True, chat_id=chat_id)
@@ -174,9 +165,7 @@ async def unarchive_chat(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ArchiveResponse:
     """Unarchive a chat. It will appear in listings and receive messages again."""
-    chat = await chat_repo.get_chat(chat_id)
-    if chat is None or chat.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = require_bot_ownership(await chat_repo.get_chat(chat_id), bot_id, "Chat")
 
     await chat_repo.archive_chat(chat_id, archived=False)
     return ArchiveResponse(archived=False, chat_id=chat_id)

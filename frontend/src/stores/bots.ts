@@ -64,6 +64,14 @@ CachiBot is named after the Venezuelan *cachicamo* (armadillo) - a resilient, ar
 }
 
 /**
+ * Get the effective default model for a bot.
+ * Prefers `bot.models.default` over the legacy `bot.model` field.
+ */
+export function getBotDefaultModel(bot: Bot): string {
+  return bot.models?.default || bot.model || ''
+}
+
+/**
  * Get effective multi-model config for a bot, with fallback from bot.model.
  */
 export function getEffectiveModels(bot: Bot): BotModels {
@@ -197,6 +205,7 @@ interface ChatState {
   isLoading: boolean
   error: string | null
   replyToMessage: ChatMessage | null
+  pendingChatId: string | null
 
   // Actions
   addChat: (chat: Chat) => void
@@ -222,6 +231,7 @@ interface ChatState {
 
   // Reply state
   setReplyTo: (message: ChatMessage | null) => void
+  setPendingChatId: (chatId: string | null) => void
 
   // UI State
   setThinking: (content: string | null) => void
@@ -248,6 +258,7 @@ export const useChatStore = create<ChatState>()(
       isLoading: false,
       error: null,
       replyToMessage: null,
+      pendingChatId: null,
 
       addChat: (chat) =>
         set((state) => ({
@@ -464,6 +475,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       setReplyTo: (message) => set({ replyToMessage: message }),
+      setPendingChatId: (chatId) => set({ pendingChatId: chatId }),
 
       clearMessages: (chatId) =>
         set((state) => ({

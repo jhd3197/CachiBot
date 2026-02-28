@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import User
 from cachibot.models.room import (
     ALLOWED_EMOJIS,
@@ -73,12 +74,7 @@ async def create_room(
 
     # Validate bots exist
     for bid in data.bot_ids:
-        bot = await backend_bot_repo.get_bot(bid)
-        if bot is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Bot {bid} not found",
-            )
+        require_found(await backend_bot_repo.get_bot(bid), f"Bot {bid}")
 
     now = datetime.now(timezone.utc)
     room = Room(
@@ -141,9 +137,7 @@ async def get_room(
     user: User = Depends(get_current_user),
 ) -> RoomResponse:
     """Get room details."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -161,9 +155,7 @@ async def update_room(
     user: User = Depends(get_current_user),
 ) -> RoomResponse:
     """Update room details (creator only)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -175,8 +167,7 @@ async def update_room(
         description=data.description,
         settings=data.settings,
     )
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    require_found(updated, "Room")
 
     # Sync live orchestrator with new settings
     if data.settings:
@@ -212,9 +203,7 @@ async def delete_room(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete a room (creator only)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -235,18 +224,14 @@ async def invite_member(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Invite a user to the room by username (creator only)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
         raise HTTPException(status_code=403, detail="Only the creator can invite members")
 
     # Look up user by username
-    target_user = await user_repo.get_user_by_username(data.username)
-    if target_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+    target_user = require_found(await user_repo.get_user_by_username(data.username), "User")
 
     # Check not already a member
     if await member_repo.is_member(room_id, target_user.id):
@@ -271,9 +256,7 @@ async def remove_member(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a member from the room (creator only, or self-leave)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     # Allow self-leave or creator removal
     is_self = user.id == target_user_id
@@ -301,9 +284,7 @@ async def add_bot(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Add a bot to the room (enforces max 4)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -312,9 +293,7 @@ async def add_bot(
     if current_count >= 4:
         raise HTTPException(status_code=400, detail="Maximum of 4 bots per room")
 
-    bot = await backend_bot_repo.get_bot(data.bot_id)
-    if bot is None:
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await backend_bot_repo.get_bot(data.bot_id), "Bot")
 
     rb = RoomBot(
         room_id=room_id,
@@ -334,9 +313,7 @@ async def remove_bot(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a bot from the room (enforces min 2)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -356,9 +333,7 @@ async def update_bot_role(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Update a bot's role in the room (creator only)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -372,9 +347,7 @@ async def update_bot_role(
             detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}",
         )
 
-    updated = await bot_repo.update_bot_role(room_id, bot_id, data.role)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Bot not found in room")
+    require_found(await bot_repo.update_bot_role(room_id, bot_id, data.role), "Bot in room")
 
     return {"botId": bot_id, "role": data.role}
 
@@ -390,9 +363,7 @@ async def clear_room_messages(
     user: User = Depends(get_current_user),
 ) -> dict[str, int]:
     """Delete all messages in a room (members only)."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -409,9 +380,7 @@ async def get_room_messages(
     user: User = Depends(get_current_user),
 ) -> list[RoomMessageResponse]:
     """Get paginated room transcript."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
 
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
@@ -477,9 +446,7 @@ async def remove_reaction(
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
 
-    removed = await reaction_repo.remove_reaction(room_id, message_id, user.id, emoji)
-    if not removed:
-        raise HTTPException(status_code=404, detail="Reaction not found")
+    require_found(await reaction_repo.remove_reaction(room_id, message_id, user.id, emoji), "Reaction")
 
     # Broadcast via WS
     from cachibot.api.room_websocket import room_manager
@@ -533,9 +500,7 @@ async def unpin_message(
     if not await member_repo.is_member(room_id, user.id):
         raise HTTPException(status_code=403, detail="Not a room member")
 
-    unpinned = await pin_repo.unpin_message(room_id, message_id)
-    if not unpinned:
-        raise HTTPException(status_code=404, detail="Pin not found")
+    require_found(await pin_repo.unpin_message(room_id, message_id), "Pin")
 
     # Broadcast via WS
     from cachibot.api.room_websocket import room_manager
@@ -590,9 +555,7 @@ async def remove_bookmark(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a bookmark."""
-    removed = await bookmark_repo.remove_bookmark(user.id, message_id)
-    if not removed:
-        raise HTTPException(status_code=404, detail="Bookmark not found")
+    require_found(await bookmark_repo.remove_bookmark(user.id, message_id), "Bookmark")
 
 
 @router.get("/bookmarks")
@@ -629,9 +592,7 @@ async def create_automation(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Create a new automation for a room."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
     if room.creator_id != user.id:
         raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
     if req.trigger_type not in VALID_TRIGGER_TYPES:
@@ -666,9 +627,7 @@ async def update_automation(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Update an automation."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
     if room.creator_id != user.id:
         raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
 
@@ -686,8 +645,7 @@ async def update_automation(
         action_type=req.action_type,
         action_config=req.action_config,
     )
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Automation not found")
+    require_found(updated, "Automation")
     return updated.model_dump()
 
 
@@ -698,11 +656,7 @@ async def delete_automation(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete an automation."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
+    room = require_found(await room_repo.get_room(room_id), "Room")
     if room.creator_id != user.id:
         raise HTTPException(status_code=403, detail="Only the room creator can manage automations")
-    deleted = await automation_repo.delete(automation_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Automation not found")
+    require_found(await automation_repo.delete(automation_id), "Automation")

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from cachibot.api.auth import _to_user, get_admin_user, get_current_user
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import (
     AuthModeResponse,
     ChangePasswordRequest,
@@ -331,12 +332,7 @@ async def change_password(
     auth_service = get_auth_service()
 
     # Get user with password hash
-    user_db = await repo.get_user_by_id(user.id)
-    if user_db is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    user_db = require_found(await repo.get_user_by_id(user.id), "User")
 
     # Verify current password
     if not auth_service.verify_password(request.current_password, user_db.password_hash):
@@ -429,12 +425,7 @@ async def update_user(
     repo = UserRepository()
 
     # Get existing user
-    existing = await repo.get_user_by_id(user_id)
-    if existing is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    existing = require_found(await repo.get_user_by_id(user_id), "User")
 
     # Prevent demoting the last admin
     if existing.role == UserRole.ADMIN and request.role == UserRole.USER:
@@ -472,12 +463,7 @@ async def update_user(
     )
 
     # Get updated user
-    updated = await repo.get_user_by_id(user_id)
-    if updated is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found after update",
-        )
+    updated = require_found(await repo.get_user_by_id(user_id), "User")
 
     return User(
         id=updated.id,
@@ -507,12 +493,7 @@ async def deactivate_user(
         )
 
     # Get user
-    user = await repo.get_user_by_id(user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+    user = require_found(await repo.get_user_by_id(user_id), "User")
 
     # Prevent deactivating the last admin
     if user.role == UserRole.ADMIN:

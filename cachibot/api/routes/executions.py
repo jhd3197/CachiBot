@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
-from cachibot.api.helpers import require_bot_ownership
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.automations import ExecutionLog, ExecutionLogLine
 from cachibot.models.group import BotAccessLevel
@@ -182,9 +182,7 @@ async def get_execution(
     user: User = Depends(require_bot_access),
 ) -> ExecutionLogResponse:
     """Get execution log detail."""
-    log = await exec_log_repo.get(exec_id)
-    if log is None:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    log = require_found(await exec_log_repo.get(exec_id), "Execution log")
     require_bot_ownership(log, bot_id, "Execution log")
     return ExecutionLogResponse.from_log(log)
 
@@ -196,9 +194,7 @@ async def get_execution_output(
     user: User = Depends(require_bot_access),
 ) -> dict[str, Any]:
     """Get full output of an execution."""
-    log = await exec_log_repo.get(exec_id)
-    if log is None:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    log = require_found(await exec_log_repo.get(exec_id), "Execution log")
     require_bot_ownership(log, bot_id, "Execution log")
     return {
         "id": log.id,
@@ -217,9 +213,7 @@ async def get_execution_lines(
     user: User = Depends(require_bot_access),
 ) -> list[LogLineResponse]:
     """Get paginated log lines for an execution."""
-    log = await exec_log_repo.get(exec_id)
-    if log is None:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    log = require_found(await exec_log_repo.get(exec_id), "Execution log")
     require_bot_ownership(log, bot_id, "Execution log")
 
     lines = await log_line_repo.get_lines(exec_id, limit=limit, offset=offset)
@@ -233,9 +227,7 @@ async def cancel_execution(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> dict[str, Any]:
     """Cancel a running execution."""
-    log = await exec_log_repo.get(exec_id)
-    if log is None:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    log = require_found(await exec_log_repo.get(exec_id), "Execution log")
     require_bot_ownership(log, bot_id, "Execution log")
 
     cancelled = await exec_log_repo.cancel(exec_id)

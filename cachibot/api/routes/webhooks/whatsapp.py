@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from cachibot.api.helpers import require_found
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.repository import ConnectionRepository
 
@@ -71,9 +72,7 @@ async def verify_webhook(
         logger.warning(f"WhatsApp webhook verification failed: invalid hub.mode '{hub_mode}'")
         raise HTTPException(status_code=403, detail="Invalid hub.mode")
 
-    connection = await repo.get_connection(connection_id)
-    if connection is None:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_found(await repo.get_connection(connection_id), "Connection")
 
     expected_token = connection.config.get("verify_token", "")
     if not expected_token or hub_verify_token != expected_token:
@@ -105,9 +104,7 @@ async def handle_webhook(connection_id: str, request: Request) -> dict[str, str]
     body = await request.body()
 
     # Get connection config for signature validation
-    connection = await repo.get_connection(connection_id)
-    if connection is None:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_found(await repo.get_connection(connection_id), "Connection")
 
     app_secret = connection.config.get("app_secret", "")
 
