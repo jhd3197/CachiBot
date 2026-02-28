@@ -1,25 +1,50 @@
 """Shared model resolution with per-bot override support.
 
-Centralizes the fallback chain for utility and main model selection,
-replacing the duplicated _resolve_utility_model() helpers in
-name_generator.py and bot_creation_service.py.
+Thin wrapper around Prompture's :class:`ModelResolver`, replacing the
+duplicated fallback logic with a generic layered resolution chain.
 """
 
 from __future__ import annotations
 
-import logging
 from typing import Any
+
+from prompture.pipeline.resolver import (
+    SLOT_DEFAULT,
+    SLOT_UTILITY,
+    ModelResolver,
+    NoModelConfiguredError,
+    attr_layer,
+    dict_layer,
+)
 
 from cachibot.config import Config
 
-logger = logging.getLogger(__name__)
+# Re-export so existing callers keep their imports unchanged
+__all__ = ["NoModelConfiguredError", "resolve_main_model", "resolve_utility_model"]
 
 
-class NoModelConfiguredError(Exception):
-    """Raised when no model is configured anywhere in the fallback chain."""
+def _build_resolver(
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
+) -> ModelResolver:
+    """Build a resolver with layers matching the original fallback chain.
 
-    def __init__(self) -> None:
-        super().__init__("No AI model configured. Please set a default model in Settings.")
+    Layer order (highest → lowest priority):
+    1. ``bot_models`` dict (per-bot slot from frontend)
+    2. ``resolved_env`` object attrs (per-bot DB override)
+    3. ``config.agent`` object attrs (global config)
+    """
+    layers = []
+    if bot_models:
+        layers.append(dict_layer(bot_models))
+    if resolved_env:
+        layers.append(attr_layer(resolved_env))
+    try:
+        config = Config.load()
+        layers.append(attr_layer(config.agent))
+    except Exception:
+        pass
+    return ModelResolver(layers=layers)
 
 
 def resolve_utility_model(
@@ -28,36 +53,10 @@ def resolve_utility_model(
 ) -> str:
     """Resolve the model to use for cheap/fast background tasks.
 
-    Fallback chain:
-    1. bot_models["utility"]       — per-bot slot from frontend
-    2. resolved_env.utility_model  — per-bot DB override
-    3. config.agent.utility_model  — global config
-    4. config.agent.model          — global main model
-
-    Raises NoModelConfiguredError if nothing is set.
+    Raises :class:`NoModelConfiguredError` if nothing is set.
     """
-    # 1. Per-bot slot
-    if bot_models:
-        slot = str(bot_models.get("utility", ""))
-        if slot:
-            return slot
-
-    # 2. Per-bot DB override
-    if resolved_env:
-        env_utility = getattr(resolved_env, "utility_model", "")
-        if env_utility:
-            return env_utility
-
-    # 3-4. Global config
-    try:
-        config = Config.load()
-        model = config.agent.utility_model or config.agent.model
-        if model:
-            return model
-    except Exception:
-        pass
-
-    raise NoModelConfiguredError()
+    result: str = _build_resolver(bot_models, resolved_env).resolve(SLOT_UTILITY)
+    return result
 
 
 def resolve_main_model(
@@ -66,31 +65,7 @@ def resolve_main_model(
 ) -> str:
     """Resolve the main conversational model.
 
-    Fallback chain:
-    1. bot_models["default"]   — per-bot slot from frontend
-    2. resolved_env.model      — per-bot DB override
-    3. config.agent.model      — global config
-
-    Raises NoModelConfiguredError if nothing is set.
+    Raises :class:`NoModelConfiguredError` if nothing is set.
     """
-    # 1. Per-bot slot
-    if bot_models:
-        slot = str(bot_models.get("default", ""))
-        if slot:
-            return slot
-
-    # 2. Per-bot DB override
-    if resolved_env:
-        env_model = getattr(resolved_env, "model", "")
-        if env_model:
-            return env_model
-
-    # 3. Global config
-    try:
-        config = Config.load()
-        if config.agent.model:
-            return config.agent.model
-    except Exception:
-        pass
-
-    raise NoModelConfiguredError()
+    result: str = _build_resolver(bot_models, resolved_env).resolve(SLOT_DEFAULT)
+    return result

@@ -1,24 +1,31 @@
 # CachiBot - The Armored AI Agent
 # Multi-stage build for Python backend
 
-FROM python:3.11-slim AS backend
+FROM python:3.12-slim AS backend
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml README.md ./
+# Copy build metadata files
+COPY pyproject.toml VERSION ./
+
+# hatchling reads readme = "README.md" from pyproject.toml;
+# create a placeholder so the install succeeds without requiring
+# the actual file in the Docker context.
+RUN touch README.md
+
+# Copy application code
 COPY cachibot/ ./cachibot/
 
-# Install the package
-RUN pip install --no-cache-dir -e .
+# Install the package (non-editable)
+RUN pip install --no-cache-dir .
 
 # Expose backend port
 EXPOSE 5870
 
-# Run the server
-CMD ["cachibot server"]
+CMD ["cachibot", "server"]

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Plus, MoreVertical, Calendar, Tag, AlertTriangle, ArrowUpCircle, List, LayoutGrid } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { getRoomTasks, createRoomTask, updateRoomTask, deleteRoomTask } from '../../api/room-tasks'
+import { TaskDetailPanel } from './TaskDetailPanel'
 import type { RoomTask, RoomTaskStatus, RoomTaskPriority, CreateRoomTaskRequest } from '../../types'
 
 const COLUMNS: { key: RoomTaskStatus; label: string; color: string }[] = [
@@ -23,12 +24,28 @@ interface RoomTasksViewProps {
 }
 
 export function RoomTasksView({ roomId }: RoomTasksViewProps) {
-  const { roomTasks, setRoomTasks, addRoomTask, updateRoomTask: updateStoreTask, deleteRoomTask: deleteStoreTask } = useRoomStore()
+  const { rooms, roomTasks, selectedTaskId, setRoomTasks, addRoomTask, updateRoomTask: updateStoreTask, deleteRoomTask: deleteStoreTask, setSelectedTask } = useRoomStore()
   const tasks = roomTasks[roomId] || []
   const [viewType, setViewType] = useState<'kanban' | 'list'>('kanban')
   const [showNewTask, setShowNewTask] = useState(false)
   const [menuTaskId, setMenuTaskId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const room = rooms.find((r) => r.id === roomId)
+  const activeTaskId = selectedTaskId[roomId] ?? null
+  const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) ?? null : null
+
+  const resolveActorName = useCallback((userId: string | null, botId: string | null): string => {
+    if (botId && room) {
+      const bot = room.bots.find((b) => b.botId === botId)
+      if (bot) return bot.botName
+    }
+    if (userId && room) {
+      const member = room.members.find((m) => m.userId === userId)
+      if (member) return member.username
+    }
+    return userId || botId || 'Unknown'
+  }, [room])
 
   useEffect(() => {
     let cancelled = false
@@ -120,79 +137,100 @@ export function RoomTasksView({ roomId }: RoomTasksViewProps) {
         </div>
       </div>
 
-      {viewType === 'kanban' ? (
-        <div className="tasks-kanban" style={{ padding: '0 1rem' }}>
-          {COLUMNS.map((col) => {
-            const colTasks = tasksByStatus(col.key)
-            return (
-              <div key={col.key} className="tasks-column">
-                <div className="tasks-column__header">
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
-                  <span className="tasks-column__label">{col.label}</span>
-                  <span className="tasks-column__count">{colTasks.length}</span>
-                </div>
-                <div className="tasks-column__body" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {colTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      menuOpen={menuTaskId === task.id}
-                      onMenuToggle={() => setMenuTaskId(menuTaskId === task.id ? null : task.id)}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                  {colTasks.length === 0 && (
-                    <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                      No tasks
+      <div className="tasks-view__body">
+        <div className="tasks-view__content">
+          {viewType === 'kanban' ? (
+            <div className="tasks-kanban" style={{ padding: '0 1rem' }}>
+              {COLUMNS.map((col) => {
+                const colTasks = tasksByStatus(col.key)
+                return (
+                  <div key={col.key} className="tasks-column">
+                    <div className="tasks-column__header">
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
+                      <span className="tasks-column__label">{col.label}</span>
+                      <span className="tasks-column__count">{colTasks.length}</span>
                     </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div style={{ padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'auto', flex: 1 }}>
-          {tasks.length === 0 ? (
-            <div className="tasks-empty">No tasks yet</div>
+                    <div className="tasks-column__body" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {colTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          selected={activeTaskId === task.id}
+                          menuOpen={menuTaskId === task.id}
+                          onMenuToggle={() => setMenuTaskId(menuTaskId === task.id ? null : task.id)}
+                          onClick={() => setSelectedTask(roomId, activeTaskId === task.id ? null : task.id)}
+                          onStatusChange={handleStatusChange}
+                          onDelete={handleDelete}
+                        />
+                      ))}
+                      {colTasks.length === 0 && (
+                        <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                          No tasks
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           ) : (
-            tasks.sort((a, b) => a.position - b.position).map((task) => (
-              <div key={task.id} className="task-list-row">
-                <button
-                  className={`task-list-row__checkbox ${task.status === 'done' ? 'task-list-row__checkbox--done' : ''}`}
-                  onClick={() => handleStatusChange(task.id, task.status === 'done' ? 'todo' : 'done')}
-                />
-                <span className={`task-list-row__title ${task.status === 'done' ? 'task-list-row__title--done' : ''}`}>
-                  {task.title}
-                </span>
-                {task.tags.map((tag) => (
-                  <span key={tag} className="task-list-row__tag">{tag}</span>
-                ))}
-                <span className={`task-list-row__priority task-list-row__priority--${task.priority === 'urgent' ? 'high' : task.priority}`}>
-                  {task.priority}
-                </span>
-                <select
-                  className="task-list-row__status-select"
-                  value={task.status}
-                  onChange={(e) => handleStatusChange(task.id, e.target.value as RoomTaskStatus)}
-                >
-                  {COLUMNS.map((c) => (
-                    <option key={c.key} value={c.key}>{c.label}</option>
-                  ))}
-                </select>
-                <button
-                  className="task-list-row__delete-btn"
-                  onClick={() => handleDelete(task.id)}
-                  title="Delete"
-                >
-                  &times;
-                </button>
-              </div>
-            ))
+            <div style={{ padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflow: 'auto', flex: 1 }}>
+              {tasks.length === 0 ? (
+                <div className="tasks-empty">No tasks yet</div>
+              ) : (
+                tasks.sort((a, b) => a.position - b.position).map((task) => (
+                  <div
+                    key={task.id}
+                    className={`task-list-row ${activeTaskId === task.id ? 'task-list-row--selected' : ''}`}
+                    onClick={() => setSelectedTask(roomId, activeTaskId === task.id ? null : task.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <button
+                      className={`task-list-row__checkbox ${task.status === 'done' ? 'task-list-row__checkbox--done' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, task.status === 'done' ? 'todo' : 'done') }}
+                    />
+                    <span className={`task-list-row__title ${task.status === 'done' ? 'task-list-row__title--done' : ''}`}>
+                      {task.title}
+                    </span>
+                    {task.tags.map((tag) => (
+                      <span key={tag} className="task-list-row__tag">{tag}</span>
+                    ))}
+                    <span className={`task-list-row__priority task-list-row__priority--${task.priority === 'urgent' ? 'high' : task.priority}`}>
+                      {task.priority}
+                    </span>
+                    <select
+                      className="task-list-row__status-select"
+                      value={task.status}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => handleStatusChange(task.id, e.target.value as RoomTaskStatus)}
+                    >
+                      {COLUMNS.map((c) => (
+                        <option key={c.key} value={c.key}>{c.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="task-list-row__delete-btn"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(task.id) }}
+                      title="Delete"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {activeTask && (
+          <TaskDetailPanel
+            roomId={roomId}
+            task={activeTask}
+            onClose={() => setSelectedTask(roomId, null)}
+            resolveActorName={resolveActorName}
+          />
+        )}
+      </div>
 
       {showNewTask && (
         <NewTaskModal
@@ -206,19 +244,27 @@ export function RoomTasksView({ roomId }: RoomTasksViewProps) {
 
 function TaskCard({
   task,
+  selected,
   menuOpen,
   onMenuToggle,
+  onClick,
   onStatusChange,
   onDelete,
 }: {
   task: RoomTask
+  selected: boolean
   menuOpen: boolean
   onMenuToggle: () => void
+  onClick: () => void
   onStatusChange: (taskId: string, status: RoomTaskStatus) => void
   onDelete: (taskId: string) => void
 }) {
   return (
-    <div className={`task-card ${task.status === 'done' ? 'task-card--done' : ''}`}>
+    <div
+      className={`task-card ${task.status === 'done' ? 'task-card--done' : ''} ${selected ? 'task-card--selected' : ''}`}
+      onClick={onClick}
+      style={{ cursor: 'pointer' }}
+    >
       <div
         className="task-card__priority-bar"
         style={{ background: PRIORITY_COLORS[task.priority] }}
@@ -228,7 +274,7 @@ function TaskCard({
           <span className={`task-card__title ${task.status === 'done' ? 'task-card__title--done' : ''}`}>
             {task.title}
           </span>
-          <button className="task-card__menu-btn" onClick={onMenuToggle}>
+          <button className="task-card__menu-btn" onClick={(e) => { e.stopPropagation(); onMenuToggle() }}>
             <MoreVertical size={14} />
           </button>
         </div>
@@ -256,7 +302,7 @@ function TaskCard({
         </div>
       </div>
       {menuOpen && (
-        <div className="task-context-menu">
+        <div className="task-context-menu" onClick={(e) => e.stopPropagation()}>
           {COLUMNS.filter((c) => c.key !== task.status).map((c) => (
             <button
               key={c.key}

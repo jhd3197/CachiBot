@@ -41,6 +41,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update:error', handler);
     return () => ipcRenderer.removeListener('update:error', handler);
   },
+  onUpdateDownloaded: (callback) => {
+    const handler = (_event, info) => callback(info);
+    ipcRenderer.on('update:downloaded', handler);
+    return () => ipcRenderer.removeListener('update:downloaded', handler);
+  },
   // Cache management
   clearCache: () => ipcRenderer.invoke('cache:clear'),
   // Settings

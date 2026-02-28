@@ -39,6 +39,7 @@ interface ElectronAPI {
   onUpdateAvailable: (callback: (info: UpdateCheckResult) => void) => () => void
   onUpdateProgress: (callback: (progress: UpdateDownloadProgress) => void) => () => void
   onUpdateError: (callback: (error: { message: string }) => void) => () => void
+  onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void
   // Cache management
   clearCache: () => Promise<{ success: boolean; error?: string }>
   // Settings

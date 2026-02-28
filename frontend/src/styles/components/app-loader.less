@@ -1,0 +1,185 @@
+// =============================================================================
+// App Loader — full-screen overlay with sci-fi orbital rings animation
+// Mirrors the Electron splash screen for visual continuity.
+// =============================================================================
+
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #1C1E2B, #0E1019);
+  opacity: 1;
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+
+  &--fade {
+    opacity: 0;
+    transform: scale(1.02);
+    pointer-events: none;
+  }
+
+  // Scanline overlay
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+      linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 3px 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+.app-loader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 2;
+}
+
+.app-loader__logo {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 2px;
+  margin-bottom: 40px;
+  text-transform: uppercase;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  animation: app-loader-glow 2.5s infinite alternate;
+}
+
+.app-loader__accent {
+  color: #00E676;
+  text-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+}
+
+.app-loader__rings {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-loader__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid transparent;
+
+  &--1 {
+    width: 100px;
+    height: 100px;
+    border-top: 2px solid #00E676;
+    border-left: 2px solid rgba(0, 230, 118, 0.3);
+    animation: app-loader-spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  }
+
+  &--2 {
+    width: 75px;
+    height: 75px;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid rgba(255, 255, 255, 0.2);
+    animation: app-loader-spin-reverse 2s linear infinite;
+  }
+
+  &--3 {
+    width: 50px;
+    height: 50px;
+    border-top: 2px solid #00E676;
+    animation: app-loader-spin 1s linear infinite;
+  }
+}
+
+.app-loader__core-dot {
+  width: 15px;
+  height: 15px;
+  background-color: #00E676;
+  border-radius: 50%;
+  box-shadow: 0 0 20px #00E676, 0 0 40px #00E676;
+  animation: app-loader-pulse-core 1.2s ease-in-out infinite alternate;
+}
+
+.app-loader__bottom {
+  position: absolute;
+  bottom: 32px;
+  left: 0;
+  right: 0;
+  padding: 0 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 2;
+  animation: app-loader-fadeIn 0.6s ease-out 0.3s both;
+}
+
+.app-loader__track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.app-loader__bar {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, #00E676, transparent);
+  border-radius: 1px;
+  animation: app-loader-progress 1.8s ease-in-out infinite;
+}
+
+.app-loader__status-container {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app-loader__status {
+  font-size: 13px;
+  color: #8892b0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 500;
+  text-align: center;
+}
+
+@keyframes app-loader-glow {
+  0%   { text-shadow: 0 0 10px rgba(255, 255, 255, 0.05); }
+  100% { text-shadow: 0 0 25px rgba(0, 230, 118, 0.5); }
+}
+
+@keyframes app-loader-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes app-loader-spin-reverse {
+  0%   { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes app-loader-pulse-core {
+  0%   { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(1.2); opacity: 1; }
+}
+
+@keyframes app-loader-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+@keyframes app-loader-fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
