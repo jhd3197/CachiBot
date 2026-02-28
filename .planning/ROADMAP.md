@@ -42,11 +42,10 @@ Plans:
   1. Bot creation flow shows a "Browse Templates" option alongside "AI Assisted" and "Blank"
   2. The template browser displays categories, search, and previews of available bots
   3. Clicking a template creates a new bot pre-configured from that template with one action
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: MarketplaceBrowser bots tab and template preview UI
-- [ ] 02-02: One-click bot creation from template endpoint and flow wiring
+- [ ] 02-01-PLAN.md — Add Browse Templates method card to wizard and verify full install flow
 
 ### Phase 3: Error Resilience
 **Goal**: Users recover gracefully from crashes and network errors without losing their work context
@@ -87,6 +86,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Model Switching | 2/2 | Complete   | 2026-02-28 |
-| 2. Bot Marketplace | 0/2 | Not started | - |
+| 2. Bot Marketplace | 0/1 | Not started | - |
 | 3. Error Resilience | 0/3 | Not started | - |
 | 4. WebSocket Reliability | 0/2 | Not started | - |
