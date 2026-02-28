@@ -118,8 +118,10 @@ if ($Mode -eq "validate") {
         # --- Frontend: ESLint ---
         Write-Host "  eslint          " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"
+        $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
         $out = & npm run lint 2>&1
         $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $savedEAP
         Pop-Location
         if ($exitCode -eq 0) {
             $warnCount = ($out | Select-String "warning").Count
@@ -136,8 +138,10 @@ if ($Mode -eq "validate") {
         # --- Frontend: tsc + vite build ---
         Write-Host "  frontend build  " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\frontend"
+        $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
         $out = & npm run build 2>&1
         $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $savedEAP
         Pop-Location
         if ($exitCode -eq 0) {
             Write-Host "ok" -ForegroundColor Green
@@ -149,8 +153,10 @@ if ($Mode -eq "validate") {
         # --- Flutter: analyze ---
         Write-Host "  flutter analyze " -ForegroundColor Cyan -NoNewline
         Push-Location "$Root\mobile"
+        $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
         $out = & flutter analyze 2>&1
         $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $savedEAP
         Pop-Location
         if ($exitCode -eq 0) {
             Write-Host "ok" -ForegroundColor Green
@@ -166,7 +172,9 @@ if ($Mode -eq "validate") {
 
         # --- Python: pytest ---
         Write-Host "  pytest          " -ForegroundColor Cyan -NoNewline
+        $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
         $out = & pytest --tb=short -q 2>&1
+        $ErrorActionPreference = $savedEAP
         if ($LASTEXITCODE -eq 0) {
             $passLine = ($out | Select-String "passed").Line
             if ($passLine) {
@@ -297,6 +305,7 @@ if ($startBackend) {
     Write-Host "[dev] Syncing editable installs..." -ForegroundColor DarkGray
     $prompturePath = Join-Path (Split-Path $Root) "prompture"
     $tukuyPath = Join-Path (Split-Path $Root) "Tukuy"
+    $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     try {
         if (Test-Path $prompturePath) {
             $out = & pip install -e $prompturePath -q 2>&1
@@ -317,12 +326,15 @@ if ($startBackend) {
         Write-Host "[dev] Warning: pip sync failed: $_" -ForegroundColor Yellow
         Pop-Location -ErrorAction SilentlyContinue
     }
+    $ErrorActionPreference = $savedEAP
 
     # Verify editable install points to source tree
     $pipFixCmd = 'pip uninstall cachibot -y; pip install -e ".[dev]"'
+    $savedEAP = $ErrorActionPreference; $ErrorActionPreference = "Continue"
     try {
         $installPath = & python -c "import cachibot; print(cachibot.__path__[0])" 2>&1
         $expectedPath = "$Root\cachibot"
+        $ErrorActionPreference = $savedEAP
         if ($LASTEXITCODE -ne 0) {
             Write-Host '[dev] WARNING: cachibot could not be imported — install may be broken' -ForegroundColor Red
             Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
@@ -332,6 +344,7 @@ if ($startBackend) {
             Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
         }
     } catch {
+        $ErrorActionPreference = $savedEAP
         Write-Host '[dev] WARNING: cachibot import check failed' -ForegroundColor Red
         Write-Host "[dev]          Run: $pipFixCmd" -ForegroundColor Yellow
     }

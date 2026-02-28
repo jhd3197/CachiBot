@@ -1,175 +1,78 @@
 """Tests for the driver factory — builds Prompture async drivers with explicit API keys.
 
 Covers:
-- build_driver_with_key creates correct driver type for each provider
-- Falls back to registry when no api_key provided
-- Unknown provider raises ValueError
-- Extra kwargs forwarded to driver constructor
+- build_driver_with_key delegates to get_async_driver_for_model
+- api_key and extra kwargs are forwarded
+- No api_key falls back to registry defaults
 """
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from cachibot.services.driver_factory import DRIVER_MAP, build_driver_with_key
-
-# ---------------------------------------------------------------------------
-# Driver Type Tests
-# ---------------------------------------------------------------------------
-
-
-class TestDriverTypeMapping:
-    """Verify that each provider in DRIVER_MAP resolves to the correct driver class."""
-
-    @pytest.mark.parametrize(
-        "provider,expected_class",
-        [
-            ("openai", "AsyncOpenAIDriver"),
-            ("claude", "AsyncClaudeDriver"),
-            ("anthropic", "AsyncClaudeDriver"),
-            ("google", "AsyncGoogleDriver"),
-            ("gemini", "AsyncGoogleDriver"),
-            ("groq", "AsyncGroqDriver"),
-            ("grok", "AsyncGrokDriver"),
-            ("xai", "AsyncGrokDriver"),
-            ("openrouter", "AsyncOpenRouterDriver"),
-            ("moonshot", "AsyncMoonshotDriver"),
-        ],
-    )
-    def test_driver_map_entries(self, provider, expected_class):
-        """Each provider maps to the expected driver class name."""
-        module_path, class_name = DRIVER_MAP[provider]
-        assert class_name == expected_class
-        assert "prompture.drivers." in module_path
-
-    def test_all_known_providers_in_map(self):
-        """All major providers have entries in DRIVER_MAP."""
-        required = {"openai", "claude", "google", "groq", "grok", "openrouter", "moonshot"}
-        assert required.issubset(DRIVER_MAP.keys())
+from cachibot.services.driver_factory import build_driver_with_key
 
 
 class TestBuildDriverWithKey:
     """Tests for the build_driver_with_key factory function."""
 
-    def test_with_explicit_key_creates_driver(self):
-        """Providing an api_key creates a driver directly (bypasses registry)."""
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncOpenAIDriver = mock_cls
-
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
-            driver = build_driver_with_key("openai/gpt-4o", api_key="sk-test-key")
-
-        mock_cls.assert_called_once_with(api_key="sk-test-key", model="gpt-4o")
-        assert driver == mock_cls.return_value
-
-    def test_without_key_falls_to_registry(self):
-        """When no api_key is provided, falls back to get_async_driver_for_model."""
-        mock_registry_fn = MagicMock(return_value="registry-driver")
+    def test_delegates_to_registry(self):
+        """Calls get_async_driver_for_model with the model string."""
+        mock_fn = MagicMock(return_value="mock-driver")
 
         with patch(
             "cachibot.services.driver_factory.get_async_driver_for_model",
-            mock_registry_fn,
-            create=True,
+            mock_fn,
         ):
-            # We need to patch at the call site — the function imports lazily
-            with patch(
-                "prompture.drivers.async_registry.get_async_driver_for_model",
-                mock_registry_fn,
-            ):
-                driver = build_driver_with_key("openai/gpt-4o")
+            result = build_driver_with_key("openai/gpt-4o")
 
-        mock_registry_fn.assert_called_once_with("openai/gpt-4o")
-        assert driver == "registry-driver"
+        mock_fn.assert_called_once_with("openai/gpt-4o", api_key=None)
+        assert result == "mock-driver"
 
-    def test_unknown_provider_raises_value_error(self):
-        """Unknown provider in model string raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown provider"):
-            build_driver_with_key("unknownprovider/some-model", api_key="sk-test")
+    def test_forwards_api_key(self):
+        """Explicit api_key is forwarded to the registry function."""
+        mock_fn = MagicMock(return_value="keyed-driver")
 
-    def test_extra_kwargs_forwarded(self):
-        """Extra kwargs (e.g., endpoint) are forwarded to the driver constructor."""
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncAzureDriver = mock_cls
+        with patch(
+            "cachibot.services.driver_factory.get_async_driver_for_model",
+            mock_fn,
+        ):
+            result = build_driver_with_key("openai/gpt-4o", api_key="sk-test")
 
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
+        mock_fn.assert_called_once_with("openai/gpt-4o", api_key="sk-test")
+        assert result == "keyed-driver"
+
+    def test_forwards_extra_kwargs(self):
+        """Extra kwargs (e.g. endpoint) are forwarded."""
+        mock_fn = MagicMock(return_value="extra-driver")
+
+        with patch(
+            "cachibot.services.driver_factory.get_async_driver_for_model",
+            mock_fn,
+        ):
             build_driver_with_key(
                 "azure/gpt-4o",
-                api_key="sk-azure-key",
+                api_key="sk-azure",
                 endpoint="https://myresource.openai.azure.com",
             )
 
-        mock_cls.assert_called_once_with(
-            api_key="sk-azure-key",
-            model="gpt-4o",
+        mock_fn.assert_called_once_with(
+            "azure/gpt-4o",
+            api_key="sk-azure",
             endpoint="https://myresource.openai.azure.com",
         )
 
-    def test_model_without_slash(self):
-        """Model string without a slash uses the provider with no model_id."""
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncOllamaDriver = mock_cls
+    def test_two_drivers_get_different_keys(self):
+        """Two calls with different keys produce independent drivers."""
+        mock_fn = MagicMock(side_effect=["driver-A", "driver-B"])
 
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
-            build_driver_with_key("ollama", api_key="dummy", endpoint="http://localhost:11434")
+        with patch(
+            "cachibot.services.driver_factory.get_async_driver_for_model",
+            mock_fn,
+        ):
+            a = build_driver_with_key("openai/gpt-4o", api_key="sk-AAA")
+            b = build_driver_with_key("openai/gpt-4o", api_key="sk-BBB")
 
-        # model should not be passed when there's no slash
-        call_kwargs = mock_cls.call_args[1]
-        assert "model" not in call_kwargs or call_kwargs.get("model") is None
-
-    def test_case_insensitive_provider(self):
-        """Provider name matching is case-insensitive."""
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncOpenAIDriver = mock_cls
-
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
-            build_driver_with_key("OpenAI/gpt-4o", api_key="sk-test")
-
-        mock_cls.assert_called_once()
-
-
-# ---------------------------------------------------------------------------
-# API Key Isolation via Driver
-# ---------------------------------------------------------------------------
-
-
-class TestDriverKeyIsolation:
-    """Verify that each driver instance gets its own api_key."""
-
-    def test_two_drivers_different_keys(self):
-        """Two drivers created for the same provider get different api_keys."""
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncOpenAIDriver = mock_cls
-
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
-
-            build_driver_with_key("openai/gpt-4o", api_key="sk-AAA")
-            build_driver_with_key("openai/gpt-4o", api_key="sk-BBB")
-
-        calls = mock_cls.call_args_list
-        assert len(calls) == 2
+        assert a == "driver-A"
+        assert b == "driver-B"
+        calls = mock_fn.call_args_list
         assert calls[0][1]["api_key"] == "sk-AAA"
         assert calls[1][1]["api_key"] == "sk-BBB"
-
-    def test_driver_key_not_in_environ(self):
-        """Building a driver with an explicit key should NOT set os.environ."""
-        import os
-
-        mock_cls = MagicMock()
-        mock_module = MagicMock()
-        mock_module.AsyncOpenAIDriver = mock_cls
-
-        with patch("cachibot.services.driver_factory.importlib") as mock_importlib:
-            mock_importlib.import_module.return_value = mock_module
-            build_driver_with_key("openai/gpt-4o", api_key="sk-SHOULD-NOT-BE-IN-ENV")
-
-        assert os.environ.get("OPENAI_API_KEY") != "sk-SHOULD-NOT-BE-IN-ENV"

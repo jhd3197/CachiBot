@@ -7,9 +7,9 @@
 
     body {
       height: 100vh;
-      background: #0f0f11;
+      background: radial-gradient(circle at center, #1C1E2B, #0E1019);
       color: #a1a1aa;
-      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -21,49 +21,87 @@
       position: relative;
     }
 
-    /* Pulsing radial glow center */
-    .glow {
+    /* Scanline overlay */
+    body::after {
+      content: '';
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
-      animation: pulse 2.4s ease-in-out infinite;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background:
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      background-size: 100% 4px, 3px 100%;
       pointer-events: none;
+      z-index: 10;
     }
 
-    /* Orbit container */
-    .orbit {
-      position: relative;
-      width: 100px;
-      height: 100px;
+    .splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
       z-index: 1;
     }
 
-    /* Each orbiting dot */
-    .orbit-dot {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 8px;
-      height: 8px;
-      margin: -4px 0 0 -4px;
-      border-radius: 50%;
-      background: #10b981;
-      animation: orbit 2.4s linear infinite;
-      opacity: 0;
-      animation-fill-mode: forwards;
+    /* Logo text */
+    .logo-text {
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 2px;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      animation: pulse-glow-text 2.5s infinite alternate;
     }
 
-    .orbit-dot:nth-child(1) { animation-delay: 0s; }
-    .orbit-dot:nth-child(2) { animation-delay: 0.4s; }
-    .orbit-dot:nth-child(3) { animation-delay: 0.8s; }
-    .orbit-dot:nth-child(4) { animation-delay: 1.2s; }
-    .orbit-dot:nth-child(5) { animation-delay: 1.6s; }
-    .orbit-dot:nth-child(6) { animation-delay: 2.0s; }
+    .accent {
+      color: #00E676;
+      text-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+    }
+
+    /* Sci-fi orbital loader */
+    .loader-core {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin-bottom: 28px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid transparent;
+    }
+
+    .ring1 {
+      width: 80px; height: 80px;
+      border-top: 2px solid #00E676;
+      border-left: 2px solid rgba(0, 230, 118, 0.3);
+      animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    }
+
+    .ring2 {
+      width: 58px; height: 58px;
+      border-bottom: 2px solid #ffffff;
+      border-right: 2px solid rgba(255, 255, 255, 0.2);
+      animation: spin-reverse 2s linear infinite;
+    }
+
+    .ring3 {
+      width: 36px; height: 36px;
+      border-top: 2px solid #00E676;
+      animation: spin 1s linear infinite;
+    }
+
+    .core-dot {
+      width: 10px; height: 10px;
+      background-color: #00E676;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #00E676, 0 0 30px #00E676;
+      animation: pulse-core 1.2s ease-in-out infinite alternate;
+    }
 
     /* Bottom section */
     .bottom {
@@ -71,10 +109,11 @@
       bottom: 0;
       left: 0;
       right: 0;
-      padding: 0 32px 20px;
+      padding: 0 28px 16px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
+      z-index: 1;
       animation: fadeIn 0.6s ease-out 0.3s both;
     }
 
@@ -82,7 +121,7 @@
     .progress-track {
       width: 100%;
       height: 2px;
-      background: #27272a;
+      background: rgba(255, 255, 255, 0.08);
       border-radius: 1px;
       overflow: hidden;
     }
@@ -90,25 +129,47 @@
     .progress-bar {
       height: 100%;
       width: 40%;
-      background: linear-gradient(90deg, transparent, #10b981, transparent);
+      background: linear-gradient(90deg, transparent, #00E676, transparent);
       border-radius: 1px;
       animation: progress 1.8s ease-in-out infinite;
     }
 
+    .progress-bar.determinate {
+      width: 0%;
+      background: #00E676;
+      animation: none;
+      transition: width 0.3s ease;
+    }
+
+    /* Status row */
     .status-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
+    /* Smooth status text transitions */
+    .status-container {
+      height: 20px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+
     .status-text {
       font-size: 11px;
-      color: #71717a;
-      transition: opacity 0.3s ease;
+      color: #8892b0;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 500;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .status-text.fade {
       opacity: 0;
+      transform: translateY(-8px);
     }
 
     .version {
@@ -117,29 +178,30 @@
       letter-spacing: 0.5px;
     }
 
+    /* Animations */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    @keyframes orbit {
-      0% {
-        opacity: 1;
-        transform: rotate(0deg) translateX(40px) rotate(0deg) scale(1);
-      }
-      50% {
-        opacity: 0.6;
-        transform: rotate(180deg) translateX(40px) rotate(-180deg) scale(0.7);
-      }
-      100% {
-        opacity: 1;
-        transform: rotate(360deg) translateX(40px) rotate(-360deg) scale(1);
-      }
+    @keyframes pulse-glow-text {
+      0%   { text-shadow: 0 0 10px rgba(255, 255, 255, 0.05); }
+      100% { text-shadow: 0 0 25px rgba(0, 230, 118, 0.5); }
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
-      50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.3); }
+    @keyframes spin {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spin-reverse {
+      0%   { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes pulse-core {
+      0%   { transform: scale(0.8); opacity: 0.6; }
+      100% { transform: scale(1.2); opacity: 1; }
     }
 
     @keyframes progress {
@@ -149,15 +211,15 @@
   </style>
 </head>
 <body>
-  <div class="glow"></div>
+  <div class="splash-content">
+    <div class="logo-text">Cachi<span class="accent">Bot</span></div>
 
-  <div class="orbit">
-    <div class="orbit-dot"></div>
-    <div class="orbit-dot"></div>
-    <div class="orbit-dot"></div>
-    <div class="orbit-dot"></div>
-    <div class="orbit-dot"></div>
-    <div class="orbit-dot"></div>
+    <div class="loader-core">
+      <div class="ring ring1"></div>
+      <div class="ring ring2"></div>
+      <div class="ring ring3"></div>
+      <div class="core-dot"></div>
+    </div>
   </div>
 
   <div class="bottom">
@@ -165,7 +227,9 @@
       <div class="progress-bar"></div>
     </div>
     <div class="status-row">
-      <span class="status-text" id="status">Initializing...</span>
+      <div class="status-container">
+        <span class="status-text" id="status">Initializing...</span>
+      </div>
       <span class="version" id="version"></span>
     </div>
   </div>
@@ -176,14 +240,39 @@
     if (version) document.getElementById('version').textContent = 'v' + version;
 
     const statusEl = document.getElementById('status');
+    const progressBar = document.querySelector('.progress-bar');
 
     // Called from main process via executeJavaScript
     window.updateStatus = function(text) {
+      // Slide out
       statusEl.classList.add('fade');
       setTimeout(() => {
         statusEl.textContent = text;
+        // Reset to below position while invisible
+        statusEl.style.transform = 'translateY(8px)';
+        // Force reflow so the browser registers the new position
+        statusEl.offsetHeight;
+        // Clear inline style and remove fade to slide in from below
+        statusEl.style.transform = '';
         statusEl.classList.remove('fade');
-      }, 300);
+      }, 350);
+    };
+
+    window.showDeterminateProgress = function() {
+      progressBar.classList.add('determinate');
+      progressBar.style.width = '0%';
+    };
+
+    window.showIndeterminateProgress = function() {
+      progressBar.classList.remove('determinate');
+      progressBar.style.width = '';
+    };
+
+    window.updateProgress = function(percent) {
+      if (!progressBar.classList.contains('determinate')) {
+        progressBar.classList.add('determinate');
+      }
+      progressBar.style.width = Math.round(percent) + '%';
     };
   </script>
 </body>

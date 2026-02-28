@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { TelemetryStatus } from '../api/telemetry'
+import { getTelemetryStatus, type TelemetryStatus } from '../api/telemetry'
 
 interface TelemetryState {
   status: TelemetryStatus | null
@@ -20,7 +20,6 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
   refresh: async () => {
     set({ loading: true })
     try {
-      const { getTelemetryStatus } = await import('../api/telemetry')
       const status = await getTelemetryStatus()
       set({ status, loading: false })
     } catch {
