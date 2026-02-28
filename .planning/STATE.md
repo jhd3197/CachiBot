@@ -34,6 +34,7 @@ Progress: [██░░░░░░░░] 20%
 - Trend: Fast execution
 
 *Updated after each plan completion*
+| Phase 01-model-switching P01 | 4 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -47,6 +48,8 @@ Recent decisions affecting current work:
 - Project: 30s ping/pong heartbeat interval — balance keep-alive with bandwidth
 - 01-02: Use first key of per_model dict as actual_model for BotMessage metadata
 - 01-02: Fallback to agent.config.agent.model when per_model is empty
+- [Phase 01-01]: selectedModel stored as local useState (ephemeral) not in Zustand — per-message UI state doesn't need persistence
+- [Phase 01-01]: effectiveModels spreads activeBot.models then overrides .default with selectedModel — preserves multi-model config
 
 ### Pending Todos
 

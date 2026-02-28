@@ -7,10 +7,10 @@
 
 ### Model Switching
 
-- [ ] **MODL-01**: User can select a model from a dropdown in the chat input area before sending a message
+- [x] **MODL-01**: User can select a model from a dropdown in the chat input area before sending a message
 - [x] **MODL-02**: Selected model override is sent with the WebSocket chat message and used for that response
 - [x] **MODL-03**: Model used for each message is stored in message metadata and displayed in the chat bubble
-- [ ] **MODL-04**: Model selector defaults to the bot's configured default model
+- [x] **MODL-04**: Model selector defaults to the bot's configured default model
 
 ### Bot Marketplace
 
@@ -57,10 +57,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MODL-01 | Phase 1 | Pending |
+| MODL-01 | Phase 1 | Complete |
 | MODL-02 | Phase 1 | Complete |
 | MODL-03 | Phase 1 | Complete |
-| MODL-04 | Phase 1 | Pending |
+| MODL-04 | Phase 1 | Complete |
 | MKTB-01 | Phase 2 | Pending |
 | MKTB-02 | Phase 2 | Pending |
 | MKTB-03 | Phase 2 | Pending |
