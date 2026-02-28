@@ -12,7 +12,7 @@ Four targeted improvements to CachiBot's chat experience and stability: users ga
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Model Switching** - Per-message model selection in chat input with metadata display
+- [x] **Phase 1: Model Switching** - Per-message model selection in chat input with metadata display (completed 2026-02-28)
 - [ ] **Phase 2: Bot Marketplace** - Template browser integrated into bot creation flow
 - [ ] **Phase 3: Error Resilience** - ErrorBoundary, toast notifications, and offline detection
 - [ ] **Phase 4: WebSocket Reliability** - Heartbeat ping/pong and exponential backoff reconnection
@@ -86,7 +86,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Model Switching | 1/2 | In Progress|  |
+| 1. Model Switching | 2/2 | Complete   | 2026-02-28 |
 | 2. Bot Marketplace | 0/2 | Not started | - |
 | 3. Error Resilience | 0/3 | Not started | - |
 | 4. WebSocket Reliability | 0/2 | Not started | - |
