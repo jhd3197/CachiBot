@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Room, RoomMessage, ToolCall, PinnedMessage, BookmarkedMessage, RoomTask, Asset } from '../types'
+import type { Room, RoomMessage, ToolCall, PinnedMessage, BookmarkedMessage, RoomTask, RoomTaskEvent, Asset } from '../types'
 
 export type BotRoomState = 'idle' | 'thinking' | 'responding'
 
@@ -22,6 +22,9 @@ interface RoomState {
   bookmarks: BookmarkedMessage[]
   viewMode: Record<string, 'chat' | 'cards' | 'timeline' | 'tasks' | 'assets'>
   roomTasks: Record<string, RoomTask[]>
+  selectedTaskId: Record<string, string | null>
+  taskEvents: Record<string, RoomTaskEvent[]>
+  taskEventsLoading: Record<string, boolean>
   roomAssets: Record<string, Asset[]>
   botTimeline: Record<string, Array<{ botId: string; botName: string; startTime: number; endTime: number; tokens: number }>>
   consensusState: Record<string, { phase: 'collecting' | 'synthesizing'; collected: number; total: number; synthesizerName?: string } | null>
@@ -96,6 +99,9 @@ interface RoomState {
   addRoomTask: (roomId: string, task: RoomTask) => void
   updateRoomTask: (roomId: string, taskId: string, updates: Partial<RoomTask>) => void
   deleteRoomTask: (roomId: string, taskId: string) => void
+  setSelectedTask: (roomId: string, taskId: string | null) => void
+  setTaskEvents: (taskId: string, events: RoomTaskEvent[]) => void
+  setTaskEventsLoading: (taskId: string, loading: boolean) => void
 
   // Room assets
   setRoomAssets: (roomId: string, assets: Asset[]) => void
@@ -140,6 +146,9 @@ export const useRoomStore = create<RoomState>()(
       bookmarks: [],
       viewMode: {},
       roomTasks: {},
+      selectedTaskId: {},
+      taskEvents: {},
+      taskEventsLoading: {},
       roomAssets: {},
       botTimeline: {},
       consensusState: {},
@@ -564,6 +573,21 @@ export const useRoomStore = create<RoomState>()(
             ...state.roomTasks,
             [roomId]: (state.roomTasks[roomId] || []).filter((t) => t.id !== taskId),
           },
+        })),
+
+      setSelectedTask: (roomId, taskId) =>
+        set((state) => ({
+          selectedTaskId: { ...state.selectedTaskId, [roomId]: taskId },
+        })),
+
+      setTaskEvents: (taskId, events) =>
+        set((state) => ({
+          taskEvents: { ...state.taskEvents, [taskId]: events },
+        })),
+
+      setTaskEventsLoading: (taskId, loading) =>
+        set((state) => ({
+          taskEventsLoading: { ...state.taskEventsLoading, [taskId]: loading },
         })),
 
       // Room assets

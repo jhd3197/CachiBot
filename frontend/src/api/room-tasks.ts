@@ -2,7 +2,7 @@
  * REST API client for room task operations.
  */
 
-import type { RoomTask, CreateRoomTaskRequest, UpdateRoomTaskRequest, RoomTaskStatus } from '../types'
+import type { RoomTask, RoomTaskEvent, CreateRoomTaskRequest, UpdateRoomTaskRequest, RoomTaskStatus } from '../types'
 import { useAuthStore } from '../stores/auth'
 import { tryRefreshToken } from './auth'
 
@@ -84,4 +84,13 @@ export async function reorderRoomTask(
 
 export async function deleteRoomTask(roomId: string, taskId: string): Promise<void> {
   return request(`/rooms/${roomId}/tasks/${taskId}`, { method: 'DELETE' })
+}
+
+export async function getRoomTaskEvents(
+  roomId: string,
+  taskId: string,
+  limit = 50,
+  offset = 0
+): Promise<RoomTaskEvent[]> {
+  return request(`/rooms/${roomId}/tasks/${taskId}/events?limit=${limit}&offset=${offset}`)
 }

@@ -7,8 +7,8 @@
 
     body {
       height: 100vh;
-      background: #ffffff;
-      color: #52525b;
+      background: #0f0f11;
+      color: #a1a1aa;
       font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
@@ -21,52 +21,51 @@
       position: relative;
     }
 
-    /* Subtle radial glow behind the icon */
-    body::before {
-      content: '';
+    /* Pulsing radial glow center */
+    .glow {
       position: absolute;
       top: 50%;
       left: 50%;
-      transform: translate(-50%, -60%);
-      width: 260px;
-      height: 260px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.10) 0%, transparent 70%);
+      transform: translate(-50%, -50%);
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+      animation: pulse 2.4s ease-in-out infinite;
       pointer-events: none;
     }
 
-    .content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
+    /* Orbit container */
+    .orbit {
+      position: relative;
+      width: 100px;
+      height: 100px;
       z-index: 1;
     }
 
-    .icon {
-      width: 110px;
-      height: 110px;
-      margin-bottom: 8px;
-      animation: fadeIn 0.6s ease-out;
-      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+    /* Each orbiting dot */
+    .orbit-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      margin: -4px 0 0 -4px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: orbit 2.4s linear infinite;
+      opacity: 0;
+      animation-fill-mode: forwards;
     }
 
-    .app-name {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      color: #18181b;
-      animation: fadeIn 0.6s ease-out 0.15s both;
-    }
+    .orbit-dot:nth-child(1) { animation-delay: 0s; }
+    .orbit-dot:nth-child(2) { animation-delay: 0.4s; }
+    .orbit-dot:nth-child(3) { animation-delay: 0.8s; }
+    .orbit-dot:nth-child(4) { animation-delay: 1.2s; }
+    .orbit-dot:nth-child(5) { animation-delay: 1.6s; }
+    .orbit-dot:nth-child(6) { animation-delay: 2.0s; }
 
-    .version {
-      font-size: 11px;
-      font-weight: 500;
-      color: #a1a1aa;
-      letter-spacing: 1px;
-      animation: fadeIn 0.6s ease-out 0.3s both;
-    }
-
-    /* Bottom section pinned to the bottom */
+    /* Bottom section */
     .bottom {
       position: absolute;
       bottom: 0;
@@ -76,19 +75,18 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
-      animation: fadeIn 0.6s ease-out 0.45s both;
+      animation: fadeIn 0.6s ease-out 0.3s both;
     }
 
     /* Progress bar track */
     .progress-track {
       width: 100%;
       height: 2px;
-      background: #e4e4e7;
+      background: #27272a;
       border-radius: 1px;
       overflow: hidden;
     }
 
-    /* Indeterminate progress bar */
     .progress-bar {
       height: 100%;
       width: 40%;
@@ -113,15 +111,35 @@
       opacity: 0;
     }
 
-    .tagline {
+    .version {
       font-size: 10px;
-      color: #a1a1aa;
+      color: #3f3f46;
       letter-spacing: 0.5px;
     }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes orbit {
+      0% {
+        opacity: 1;
+        transform: rotate(0deg) translateX(40px) rotate(0deg) scale(1);
+      }
+      50% {
+        opacity: 0.6;
+        transform: rotate(180deg) translateX(40px) rotate(-180deg) scale(0.7);
+      }
+      100% {
+        opacity: 1;
+        transform: rotate(360deg) translateX(40px) rotate(-360deg) scale(1);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+      50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.3); }
     }
 
     @keyframes progress {
@@ -131,10 +149,15 @@
   </style>
 </head>
 <body>
-  <div class="content">
-    <img class="icon" id="icon" alt="CachiBot">
-    <div class="app-name">CachiBot</div>
-    <div class="version" id="version"></div>
+  <div class="glow"></div>
+
+  <div class="orbit">
+    <div class="orbit-dot"></div>
+    <div class="orbit-dot"></div>
+    <div class="orbit-dot"></div>
+    <div class="orbit-dot"></div>
+    <div class="orbit-dot"></div>
+    <div class="orbit-dot"></div>
   </div>
 
   <div class="bottom">
@@ -143,39 +166,25 @@
     </div>
     <div class="status-row">
       <span class="status-text" id="status">Initializing...</span>
-      <span class="tagline">The armored agent</span>
+      <span class="version" id="version"></span>
     </div>
   </div>
 
   <script>
-    // Read query params passed from main process
     const params = new URLSearchParams(window.location.search);
-    const iconPath = params.get('icon');
     const version = params.get('version');
-
-    if (iconPath) document.getElementById('icon').src = iconPath;
     if (version) document.getElementById('version').textContent = 'v' + version;
 
-    // Cycle through status messages
-    const messages = [
-      'Initializing...',
-      'Starting backend server...',
-      'Loading security modules...',
-      'Preparing workspace...',
-      'Almost ready...',
-    ];
-
-    let index = 0;
     const statusEl = document.getElementById('status');
 
-    setInterval(() => {
+    // Called from main process via executeJavaScript
+    window.updateStatus = function(text) {
       statusEl.classList.add('fade');
       setTimeout(() => {
-        index = (index + 1) % messages.length;
-        statusEl.textContent = messages[index];
+        statusEl.textContent = text;
         statusEl.classList.remove('fade');
       }, 300);
-    }, 3000);
+    };
   </script>
 </body>
 </html>

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from cachibot.api.auth import get_current_user
 from cachibot.models.auth import User
@@ -12,10 +12,14 @@ from cachibot.models.room_task import (
     CreateRoomTaskRequest,
     ReorderRoomTaskRequest,
     RoomTask,
+    RoomTaskEvent,
+    RoomTaskEventAction,
+    RoomTaskEventResponse,
     RoomTaskResponse,
     UpdateRoomTaskRequest,
 )
 from cachibot.storage.room_repository import RoomMemberRepository, RoomRepository
+from cachibot.storage.room_task_event_repository import RoomTaskEventRepository
 from cachibot.storage.room_task_repository import RoomTaskRepository
 
 router = APIRouter(prefix="/api/rooms", tags=["room-tasks"])
@@ -23,6 +27,52 @@ router = APIRouter(prefix="/api/rooms", tags=["room-tasks"])
 room_repo = RoomRepository()
 member_repo = RoomMemberRepository()
 task_repo = RoomTaskRepository()
+event_repo = RoomTaskEventRepository()
+
+# Field -> action mapping for update events
+_FIELD_ACTION_MAP: dict[str, RoomTaskEventAction] = {
+    "status": RoomTaskEventAction.STATUS_CHANGED,
+    "priority": RoomTaskEventAction.PRIORITY_CHANGED,
+    "assigned_to_bot_id": RoomTaskEventAction.ASSIGNED,
+    "assigned_to_user_id": RoomTaskEventAction.ASSIGNED,
+}
+
+
+def _make_event(
+    *,
+    task_id: str,
+    room_id: str,
+    action: RoomTaskEventAction,
+    user_id: str,
+    field: str | None = None,
+    old_value: str | None = None,
+    new_value: str | None = None,
+) -> RoomTaskEvent:
+    """Factory for creating task events."""
+    return RoomTaskEvent(
+        id=str(uuid.uuid4()),
+        task_id=task_id,
+        room_id=room_id,
+        action=action,
+        field=field,
+        old_value=old_value,
+        new_value=new_value,
+        actor_user_id=user_id,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+def _stringify(val: Any) -> str | None:
+    """Convert a value to string for event storage."""
+    if val is None:
+        return None
+    if hasattr(val, "value"):
+        return str(val.value)
+    if isinstance(val, datetime):
+        return val.isoformat()
+    if isinstance(val, list):
+        return ", ".join(str(v) for v in val)
+    return str(val)
 
 
 async def _check_room_member(room_id: str, user: User) -> None:
@@ -79,6 +129,15 @@ async def create_room_task(
         updated_at=now,
     )
     await task_repo.create(task)
+
+    event = _make_event(
+        task_id=task.id,
+        room_id=room_id,
+        action=RoomTaskEventAction.CREATED,
+        user_id=user.id,
+    )
+    await event_repo.create(event)
+
     return RoomTaskResponse.from_entity(task)
 
 
@@ -94,6 +153,25 @@ async def get_room_task(
     if task is None or task.room_id != room_id:
         raise HTTPException(status_code=404, detail="Task not found")
     return RoomTaskResponse.from_entity(task)
+
+
+@router.get("/{room_id}/tasks/{task_id}/events")
+async def get_room_task_events(
+    room_id: str,
+    task_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
+) -> list[RoomTaskEventResponse]:
+    """Get activity history for a task."""
+    await _check_room_member(room_id, user)
+
+    task = await task_repo.get(task_id)
+    if task is None or task.room_id != room_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    events = await event_repo.get_by_task(task_id, limit=limit, offset=offset)
+    return [RoomTaskEventResponse.from_entity(e) for e in events]
 
 
 @router.patch("/{room_id}/tasks/{task_id}")
@@ -128,9 +206,34 @@ async def update_room_task(
     if data.due_at is not None:
         kwargs["due_at"] = datetime.fromisoformat(data.due_at)
 
+    # Build granular events by diffing each changed field
+    events: list[RoomTaskEvent] = []
+    for field_name, new_val in kwargs.items():
+        old_val = getattr(existing, field_name, None)
+        old_str = _stringify(old_val)
+        new_str = _stringify(new_val)
+        if old_str == new_str:
+            continue
+        action = _FIELD_ACTION_MAP.get(field_name, RoomTaskEventAction.UPDATED)
+        events.append(
+            _make_event(
+                task_id=task_id,
+                room_id=room_id,
+                action=action,
+                user_id=user.id,
+                field=field_name,
+                old_value=old_str,
+                new_value=new_str,
+            )
+        )
+
     updated = await task_repo.update(task_id, **kwargs)
     if updated is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if events:
+        await event_repo.create_many(events)
+
     return RoomTaskResponse.from_entity(updated)
 
 
@@ -148,9 +251,25 @@ async def reorder_room_task(
     if existing is None or existing.room_id != room_id:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    old_status = _stringify(existing.status)
+    new_status = _stringify(data.status)
+
     updated = await task_repo.reorder(task_id, data.status.value, data.position)
     if updated is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if old_status != new_status:
+        event = _make_event(
+            task_id=task_id,
+            room_id=room_id,
+            action=RoomTaskEventAction.STATUS_CHANGED,
+            user_id=user.id,
+            field="status",
+            old_value=old_status,
+            new_value=new_status,
+        )
+        await event_repo.create(event)
+
     return RoomTaskResponse.from_entity(updated)
 
 
@@ -166,5 +285,14 @@ async def delete_room_task(
     existing = await task_repo.get(task_id)
     if existing is None or existing.room_id != room_id:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Emit deleted event before deletion (will be cascaded away with the task)
+    event = _make_event(
+        task_id=task_id,
+        room_id=room_id,
+        action=RoomTaskEventAction.DELETED,
+        user_id=user.id,
+    )
+    await event_repo.create(event)
 
     await task_repo.delete(task_id)

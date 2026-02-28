@@ -3,7 +3,6 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useTelemetryStore } from '../../stores/telemetry'
-import { checkSetupRequired, getCurrentUser } from '../../api/auth'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -19,80 +18,20 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
     user,
     setupRequired,
     legacyDbDetected,
-    setUser,
-    setSetupRequired,
-    setLegacyDbDetected,
-    setLoading,
-    logout,
   } = useAuthStore()
   const { status: telemetryStatus, refresh: refreshTelemetry } = useTelemetryStore()
 
-  const [checked, setChecked] = useState(false)
-  const [consentChecked, setConsentChecked] = useState(false)
-  const [slow, setSlow] = useState(false)
+  // Consent check — telemetry may already be loaded by AppLoader
+  const [consentChecked, setConsentChecked] = useState(telemetryStatus !== null)
 
   useEffect(() => {
-    let cancelled = false
+    if (consentChecked || !isAuthenticated) return
 
-    const withTimeout = <T,>(promise: Promise<T>, ms = 10000): Promise<T> =>
-      Promise.race([
-        promise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Request timed out')), ms)
-        ),
-      ])
-
-    const verifyAuth = async () => {
-      // Check if setup is required first
-      if (setupRequired === null) {
-        try {
-          const { setup_required, legacy_db_detected } = await withTimeout(checkSetupRequired())
-          if (cancelled) return
-          if (legacy_db_detected) {
-            setLegacyDbDetected(true)
-            setLoading(false)
-            setChecked(true)
-            return
-          }
-          setSetupRequired(setup_required)
-          if (setup_required) {
-            setLoading(false)
-            setChecked(true)
-            return
-          }
-        } catch {
-          if (cancelled) return
-          // If we can't check setup, assume it's not required
-          setSetupRequired(false)
-        }
-      }
-
-      // Always verify token with server if we think we're authenticated
-      if (isAuthenticated) {
-        try {
-          const currentUser = await withTimeout(getCurrentUser())
-          if (cancelled) return
-          setUser(currentUser)
-        } catch {
-          if (cancelled) return
-          // Token is invalid or timed out, log out
-          logout()
-        }
-      }
-
-      if (!cancelled) {
-        setLoading(false)
-        setChecked(true)
-      }
+    // If telemetry was already loaded by AppLoader, skip
+    if (useTelemetryStore.getState().status !== null) {
+      setConsentChecked(true)
+      return
     }
-
-    verifyAuth()
-    return () => { cancelled = true }
-  }, [isAuthenticated, setupRequired, setUser, setSetupRequired, setLegacyDbDetected, setLoading, logout])
-
-  // Check consent status after auth is verified (with timeout to avoid hanging)
-  useEffect(() => {
-    if (!checked || !isAuthenticated) return
 
     const timeout = setTimeout(() => setConsentChecked(true), 10000)
     refreshTelemetry()
@@ -100,25 +39,13 @@ export function ProtectedRoute({ children, requireAdmin = false, requireManager 
       .catch(() => { clearTimeout(timeout); setConsentChecked(true) })
 
     return () => clearTimeout(timeout)
-  }, [checked, isAuthenticated, refreshTelemetry])
+  }, [consentChecked, isAuthenticated, refreshTelemetry])
 
-  // Show a hint after 8 seconds if still loading
-  useEffect(() => {
-    if (checked && (!isAuthenticated || consentChecked)) return
-    const timer = setTimeout(() => setSlow(true), 8000)
-    return () => clearTimeout(timer)
-  }, [checked, isAuthenticated, consentChecked])
-
-  // Show loading spinner while checking auth
-  if (isLoading || !checked || (isAuthenticated && !consentChecked)) {
+  // Fallback spinner — should rarely appear since AppLoader handles init
+  if (isLoading || (isAuthenticated && !consentChecked)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-zinc-100 dark:bg-[var(--color-bg-app)]">
         <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
-        {slow && (
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Taking longer than expected&hellip; the server may still be starting.
-          </p>
-        )}
       </div>
     )
   }

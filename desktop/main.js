@@ -241,7 +241,7 @@ function killProcessOnPort(port) {
 // Window creation
 // ---------------------------------------------------------------------------
 
-function createWindow() {
+function createWindow(splash = null) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -277,7 +277,10 @@ function createWindow() {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    if (splash && !splash.isDestroyed()) splash.close();
+  });
 
   // Forward maximize state changes to the renderer for title bar icon updates
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
@@ -307,15 +310,20 @@ function createSplashWindow() {
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });
 
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
-  const iconUrl = `file://${iconPath.replace(/\\/g, '/')}`;
   const version = require('./package.json').version;
 
   splash.loadFile(path.join(__dirname, 'splash.html'), {
-    query: { icon: iconUrl, version },
+    query: { version },
   });
 
   return splash;
+}
+
+function splashStatus(splash, text) {
+  if (splash && !splash.isDestroyed()) {
+    const escaped = text.replace(/'/g, "\\'");
+    splash.webContents.executeJavaScript(`window.updateStatus('${escaped}')`).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -683,21 +691,24 @@ app.whenReady().then(async () => {
   if (externalBackend) {
     // Dev mode: skip backend startup/wait, Vite proxy handles API calls
     console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
-    // Brief pause so the splash screen is visible
-    await new Promise((r) => setTimeout(r, 1500));
+    splashStatus(splash, 'Connecting to dev server...');
+    await new Promise((r) => setTimeout(r, 800));
   } else {
     // Kill any orphaned server process from a previous crash
     await killStalePidFile();
 
     const portInUse = await isPortInUse(BACKEND_PORT);
     if (portInUse) {
+      splashStatus(splash, 'Clearing stale process...');
       console.log(`[electron] Port ${BACKEND_PORT} in use, killing existing process...`);
       await killProcessOnPort(BACKEND_PORT);
       // Give the OS a moment to release the port
       await new Promise((r) => setTimeout(r, 500));
     }
 
+    splashStatus(splash, 'Starting server...');
     startBackend();
+    splashStatus(splash, 'Waiting for server...');
     try {
       await waitForPort(BACKEND_PORT);
     } catch (err) {
@@ -713,11 +724,12 @@ app.whenReady().then(async () => {
       app.quit();
       return;
     }
+    splashStatus(splash, 'Server ready');
   }
 
-  createWindow();
+  splashStatus(splash, 'Loading interface...');
+  createWindow(splash);
   createTray();
-  splash.close();
   setupAutoUpdater();
 });
 

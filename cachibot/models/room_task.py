@@ -77,6 +77,64 @@ class ReorderRoomTaskRequest(BaseModel):
     position: float
 
 
+class RoomTaskEventAction(str, Enum):
+    """Type of activity event on a room task."""
+
+    CREATED = "created"
+    UPDATED = "updated"
+    STATUS_CHANGED = "status_changed"
+    PRIORITY_CHANGED = "priority_changed"
+    ASSIGNED = "assigned"
+    DELETED = "deleted"
+
+
+class RoomTaskEvent(BaseModel):
+    """A single activity event on a room task."""
+
+    id: str
+    task_id: str
+    room_id: str
+    action: RoomTaskEventAction
+    field: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+    actor_user_id: str | None = None
+    actor_bot_id: str | None = None
+    created_at: datetime
+
+
+class RoomTaskEventResponse(BaseModel):
+    """Response model for a room task event."""
+
+    id: str
+    taskId: str
+    roomId: str
+    action: str
+    field: str | None
+    oldValue: str | None
+    newValue: str | None
+    actorUserId: str | None
+    actorBotId: str | None
+    createdAt: str
+
+    @classmethod
+    def from_entity(cls, event: RoomTaskEvent) -> "RoomTaskEventResponse":
+        return cls(
+            id=event.id,
+            taskId=event.task_id,
+            roomId=event.room_id,
+            action=event.action.value
+            if isinstance(event.action, RoomTaskEventAction)
+            else event.action,
+            field=event.field,
+            oldValue=event.old_value,
+            newValue=event.new_value,
+            actorUserId=event.actor_user_id,
+            actorBotId=event.actor_bot_id,
+            createdAt=event.created_at.isoformat(),
+        )
+
+
 class RoomTaskResponse(BaseModel):
     """Response model for a room task."""
 

@@ -1409,6 +1409,27 @@ export interface RoomTask {
   updatedAt: string
 }
 
+export type RoomTaskEventAction =
+  | 'created'
+  | 'updated'
+  | 'status_changed'
+  | 'priority_changed'
+  | 'assigned'
+  | 'deleted'
+
+export interface RoomTaskEvent {
+  id: string
+  taskId: string
+  roomId: string
+  action: RoomTaskEventAction
+  field: string | null
+  oldValue: string | null
+  newValue: string | null
+  actorUserId: string | null
+  actorBotId: string | null
+  createdAt: string
+}
+
 export interface CreateRoomTaskRequest {
   title: string
   description?: string
