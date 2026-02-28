@@ -411,6 +411,10 @@ async def run_agent(
         response_text = (agent_result.output_text or "") if agent_result else ""
         run_usage = agent_result.run_usage if agent_result else {}
 
+        # Determine the actual model used for this response
+        per_model = run_usage.get("per_model", {})
+        actual_model = next(iter(per_model), None) or agent.config.agent.model
+
         # Parse [cite:MSG_ID] from response to determine bot's primary citation
         cited_ids = re.findall(r"\[cite:([a-f0-9-]+)\]", response_text)
         bot_reply_to = cited_ids[0] if cited_ids else None
@@ -425,6 +429,7 @@ async def run_agent(
                 content=response_text,
                 timestamp=datetime.now(timezone.utc),
                 reply_to_id=bot_reply_to,
+                metadata={"model": actual_model},
             )
             await repo.save_bot_message(assistant_msg)
 
