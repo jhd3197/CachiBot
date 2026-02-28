@@ -5,11 +5,28 @@ import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { checkSetupRequired, getCurrentUser, tryRefreshToken } from '../../api/auth'
-import { getConfig } from '../../api/client'
+import { checkHealth, getConfig } from '../../api/client'
 import type { Config } from '../../types'
 
 interface AppLoaderProps {
   children: React.ReactNode
+}
+
+async function waitForBackend(
+  onStatus: (msg: string) => void,
+  maxAttempts = 30,
+  interval = 1000,
+): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await checkHealth()
+      return
+    } catch {
+      onStatus(i === 0 ? 'Waiting for server...' : `Waiting for server... (${i + 1}s)`)
+      await new Promise((r) => setTimeout(r, interval))
+    }
+  }
+  // Give up waiting — proceed anyway and let individual calls handle errors
 }
 
 export function AppLoader({ children }: AppLoaderProps) {
@@ -24,6 +41,9 @@ export function AppLoader({ children }: AppLoaderProps) {
 
     const run = async () => {
       const auth = useAuthStore.getState()
+
+      // Phase 0: Wait for backend to be ready
+      await waitForBackend(setStatus)
 
       // Phase 1: Check setup status
       setStatus('Checking system status...')
@@ -132,22 +152,26 @@ export function AppLoader({ children }: AppLoaderProps) {
   return (
     <>
       <div className={`app-loader ${ready ? 'app-loader--fade' : ''}`}>
-        <div className="app-loader__glow" />
+        <div className="app-loader__content">
+          <div className="app-loader__logo">
+            Cachi<span className="app-loader__accent">Bot</span>
+          </div>
 
-        <div className="app-loader__orbit">
-          <div className="app-loader__dot" />
-          <div className="app-loader__dot" />
-          <div className="app-loader__dot" />
-          <div className="app-loader__dot" />
-          <div className="app-loader__dot" />
-          <div className="app-loader__dot" />
+          <div className="app-loader__rings">
+            <div className="app-loader__ring app-loader__ring--1" />
+            <div className="app-loader__ring app-loader__ring--2" />
+            <div className="app-loader__ring app-loader__ring--3" />
+            <div className="app-loader__core-dot" />
+          </div>
         </div>
 
         <div className="app-loader__bottom">
           <div className="app-loader__track">
             <div className="app-loader__bar" />
           </div>
-          <p className="app-loader__status">{status}</p>
+          <div className="app-loader__status-container">
+            <p className="app-loader__status">{status}</p>
+          </div>
         </div>
       </div>
       {ready && children}

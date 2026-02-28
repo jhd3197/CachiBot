@@ -9,10 +9,10 @@ from __future__ import annotations
 from typing import Any
 
 from prompture.pipeline.resolver import (
-    ModelResolver,
-    NoModelConfiguredError,
     SLOT_DEFAULT,
     SLOT_UTILITY,
+    ModelResolver,
+    NoModelConfiguredError,
     attr_layer,
     dict_layer,
 )
@@ -55,7 +55,8 @@ def resolve_utility_model(
 
     Raises :class:`NoModelConfiguredError` if nothing is set.
     """
-    return _build_resolver(bot_models, resolved_env).resolve(SLOT_UTILITY)
+    result: str = _build_resolver(bot_models, resolved_env).resolve(SLOT_UTILITY)
+    return result
 
 
 def resolve_main_model(
@@ -66,4 +67,5 @@ def resolve_main_model(
 
     Raises :class:`NoModelConfiguredError` if nothing is set.
     """
-    return _build_resolver(bot_models, resolved_env).resolve(SLOT_DEFAULT)
+    result: str = _build_resolver(bot_models, resolved_env).resolve(SLOT_DEFAULT)
+    return result

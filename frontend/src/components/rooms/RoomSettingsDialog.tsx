@@ -14,6 +14,7 @@ import {
   createAutomation,
   updateAutomation,
   deleteAutomation,
+  getRoom,
 } from '../../api/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
@@ -270,7 +271,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
       }
 
       // Refresh room data to get updated roles
-      const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
       toast.success('Room updated')
@@ -288,7 +288,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
       await inviteMember(room.id, inviteUsername.trim())
       toast.success(`Invited ${inviteUsername}`)
       setInviteUsername('')
-      const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
     } catch (err) {
@@ -300,7 +299,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
     try {
       await removeMember(room.id, userId)
       toast.success(`Removed ${username}`)
-      const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
     } catch (err) {
@@ -312,7 +310,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
     try {
       await addRoomBot(room.id, botId)
       toast.success('Bot added')
-      const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
     } catch (err) {
@@ -324,7 +321,6 @@ export function RoomSettingsDialog({ room, onClose, onUpdate, onDelete }: RoomSe
     try {
       await removeRoomBot(room.id, botId)
       toast.success('Bot removed')
-      const { getRoom } = await import('../../api/rooms')
       const refreshed = await getRoom(room.id)
       onUpdate(refreshed)
     } catch (err) {

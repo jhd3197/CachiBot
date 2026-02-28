@@ -26,7 +26,7 @@ import {
   XCircle,
   Terminal,
 } from 'lucide-react'
-import { getCodingAgents } from '../../api/client'
+import { getCodingAgents, exportBot } from '../../api/client'
 import { useBotStore, DEFAULT_BOT_SETTINGS, getEffectiveModels } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { useUIStore } from '../../stores/ui'
@@ -1327,7 +1327,6 @@ function DangerSection({
     setExportError(null)
 
     try {
-      const { exportBot } = await import('../../api/client')
       const data = await exportBot(botId)
 
       // Create and download the file

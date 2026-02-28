@@ -3,6 +3,7 @@ import { ArrowLeft, Star, Download, Loader2, Users, AlertTriangle } from 'lucide
 import { DialogButton } from '../common/Dialog'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installRoomMarketplaceTemplate, getBackendBot } from '../../api/client'
+import { getRooms } from '../../api/rooms'
 import { useRoomStore } from '../../stores/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useModelsStore } from '../../stores/models'
@@ -122,7 +123,6 @@ export function RoomDetailPanel({ template, onBack, onInstalled }: RoomDetailPan
         }
       }
 
-      const { getRooms } = await import('../../api/rooms')
       const rooms = await getRooms()
       console.log('[RoomDetailPanel] Fetched rooms after install, count:', rooms.length)
       const newRoom = rooms.find((r) => r.id === result.room_id)
