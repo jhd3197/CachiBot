@@ -33,11 +33,11 @@ htmlcov
 # Documentation
 docs/_build
 *.md
+!VERSION
 
 # Frontend (built separately)
-frontend/node_modules
-frontend/dist
-frontend/.git
+frontend/
+desktop/
 
 # Local config
 *.local
@@ -51,3 +51,11 @@ Thumbs.db
 # Website (static, not needed in backend)
 website/
 .mypy_cache
+
+# Dev/CI artifacts
+.claude/
+.planning/
+.reviews/
+.ruff_cache/
+.pytest_cache/
+tests/

@@ -39,6 +39,7 @@ import { useUIStore, type SettingsSection, type WorkSection, type AutomationSect
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
+import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
 import { cn, downloadJson, slugify } from '../../lib/utils'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import type { BotView, Chat, Task } from '../../types'
@@ -246,7 +247,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
           onClose={() => setShowCreatePicker(false)}
         />
       )}
-      {showCreateRoom && <CreateRoomDialogWrapper onClose={() => setShowCreateRoom(false)} />}
+      {showCreateRoom && <CreateRoomDialog onClose={() => setShowCreateRoom(false)} />}
       {showSearch && (
         <GlobalSearchDialog
           botId={activeBot.id}
@@ -777,19 +778,6 @@ function CreatePickerDialog({
   )
 }
 
-/** Lazy-load CreateRoomDialog to avoid circular imports */
-function CreateRoomDialogWrapper({ onClose }: { onClose: () => void }) {
-  const [Dialog, setDialog] = useState<React.ComponentType<{ onClose: () => void }> | null>(null)
-
-  useEffect(() => {
-    import('../rooms/CreateRoomDialog').then((mod) => {
-      setDialog(() => mod.CreateRoomDialog)
-    })
-  }, [])
-
-  if (!Dialog) return null
-  return <Dialog onClose={onClose} />
-}
 
 // =============================================================================
 // TASK LIST

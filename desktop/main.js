@@ -241,7 +241,7 @@ function killProcessOnPort(port) {
 // Window creation
 // ---------------------------------------------------------------------------
 
-function createWindow() {
+function createWindow(splash = null) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -277,7 +277,10 @@ function createWindow() {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    if (splash && !splash.isDestroyed()) splash.close();
+  });
 
   // Forward maximize state changes to the renderer for title bar icon updates
   mainWindow.on('maximize', () => mainWindow.webContents.send('window:maximized', true));
@@ -307,15 +310,20 @@ function createSplashWindow() {
     webPreferences: { nodeIntegration: false, contextIsolation: true },
   });
 
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
-  const iconUrl = `file://${iconPath.replace(/\\/g, '/')}`;
   const version = require('./package.json').version;
 
   splash.loadFile(path.join(__dirname, 'splash.html'), {
-    query: { icon: iconUrl, version },
+    query: { version },
   });
 
   return splash;
+}
+
+function splashStatus(splash, text) {
+  if (splash && !splash.isDestroyed()) {
+    const escaped = text.replace(/'/g, "\\'");
+    splash.webContents.executeJavaScript(`window.updateStatus('${escaped}')`).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -484,7 +492,7 @@ async function clearAllCaches() {
 // Auto-updater
 // ---------------------------------------------------------------------------
 
-function setupAutoUpdater() {
+function configureAutoUpdater() {
   if (isDev || !autoUpdater) return;
 
   const channel = getSetting('updateChannel', 'stable');
@@ -492,6 +500,10 @@ function setupAutoUpdater() {
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+}
+
+function setupAutoUpdater() {
+  if (isDev || !autoUpdater) return;
 
   autoUpdater.on('update-available', (info) => {
     console.log('[updater] Update available:', info.version);
@@ -510,6 +522,9 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('[updater] Update downloaded:', info.version);
+    if (mainWindow) {
+      mainWindow.webContents.send('update:downloaded', { version: info.version });
+    }
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -540,6 +555,92 @@ function setupAutoUpdater() {
       autoUpdater.checkForUpdates().catch(() => {});
     }
   }, 6 * 60 * 60 * 1000);
+}
+
+// ---------------------------------------------------------------------------
+// Auto-update during splash (before backend starts)
+// ---------------------------------------------------------------------------
+
+function checkAndAutoUpdate(splash) {
+  if (isDev || !autoUpdater || !getSetting('autoInstallUpdates', false)) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    splashStatus(splash, 'Checking for updates...');
+
+    // Remove any existing listeners to avoid conflicts with setupAutoUpdater
+    autoUpdater.removeAllListeners('update-available');
+    autoUpdater.removeAllListeners('update-not-available');
+    autoUpdater.removeAllListeners('update-downloaded');
+    autoUpdater.removeAllListeners('download-progress');
+    autoUpdater.removeAllListeners('error');
+
+    let updateFound = false;
+
+    autoUpdater.once('update-available', (info) => {
+      updateFound = true;
+      console.log('[splash-updater] Update available:', info.version);
+      splashStatus(splash, `Downloading update v${info.version}...`);
+
+      // Switch to determinate progress
+      if (splash && !splash.isDestroyed()) {
+        splash.webContents.executeJavaScript('window.showDeterminateProgress()').catch(() => {});
+      }
+
+      autoUpdater.downloadUpdate().catch((err) => {
+        console.error('[splash-updater] Download failed:', err.message);
+        // Restore indeterminate progress and continue normal startup
+        if (splash && !splash.isDestroyed()) {
+          splash.webContents.executeJavaScript('window.showIndeterminateProgress()').catch(() => {});
+        }
+        resolve();
+      });
+    });
+
+    autoUpdater.once('update-not-available', () => {
+      console.log('[splash-updater] No update available');
+      resolve();
+    });
+
+    autoUpdater.on('download-progress', (progress) => {
+      console.log('[splash-updater] Download progress:', Math.round(progress.percent) + '%');
+      if (splash && !splash.isDestroyed()) {
+        splash.webContents.executeJavaScript(`window.updateProgress(${progress.percent})`).catch(() => {});
+      }
+    });
+
+    autoUpdater.once('update-downloaded', () => {
+      console.log('[splash-updater] Update downloaded, installing...');
+      splashStatus(splash, 'Installing update...');
+      // Give the user a moment to see the status
+      setTimeout(() => {
+        autoUpdater.quitAndInstall();
+      }, 1500);
+    });
+
+    autoUpdater.once('error', (err) => {
+      console.error('[splash-updater] Error:', err.message);
+      // Don't block startup — just continue
+      if (splash && !splash.isDestroyed()) {
+        splash.webContents.executeJavaScript('window.showIndeterminateProgress()').catch(() => {});
+      }
+      resolve();
+    });
+
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[splash-updater] Check failed:', err.message);
+      resolve();
+    });
+
+    // Safety timeout: don't block startup for more than 60 seconds
+    setTimeout(() => {
+      if (!updateFound) {
+        console.log('[splash-updater] Timeout waiting for update check');
+      }
+      resolve();
+    }, 60000);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -678,26 +779,35 @@ app.whenReady().then(async () => {
 
   const splash = createSplashWindow();
 
+  // Configure auto-updater settings (channel, prerelease) before any checks
+  configureAutoUpdater();
+
+  // Auto-install updates during splash if enabled
+  await checkAndAutoUpdate(splash);
+
   // When launched from dev script, backend is already running externally
   const externalBackend = !!DEV_FRONTEND_URL;
   if (externalBackend) {
     // Dev mode: skip backend startup/wait, Vite proxy handles API calls
     console.log('[electron] Dev mode: loading from', DEV_FRONTEND_URL);
-    // Brief pause so the splash screen is visible
-    await new Promise((r) => setTimeout(r, 1500));
+    splashStatus(splash, 'Connecting to dev server...');
+    await new Promise((r) => setTimeout(r, 800));
   } else {
     // Kill any orphaned server process from a previous crash
     await killStalePidFile();
 
     const portInUse = await isPortInUse(BACKEND_PORT);
     if (portInUse) {
+      splashStatus(splash, 'Clearing stale process...');
       console.log(`[electron] Port ${BACKEND_PORT} in use, killing existing process...`);
       await killProcessOnPort(BACKEND_PORT);
       // Give the OS a moment to release the port
       await new Promise((r) => setTimeout(r, 500));
     }
 
+    splashStatus(splash, 'Starting server...');
     startBackend();
+    splashStatus(splash, 'Waiting for server...');
     try {
       await waitForPort(BACKEND_PORT);
     } catch (err) {
@@ -713,11 +823,12 @@ app.whenReady().then(async () => {
       app.quit();
       return;
     }
+    splashStatus(splash, 'Server ready');
   }
 
-  createWindow();
+  splashStatus(splash, 'Loading interface...');
+  createWindow(splash);
   createTray();
-  splash.close();
   setupAutoUpdater();
 });
 

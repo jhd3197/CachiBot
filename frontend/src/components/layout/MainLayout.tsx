@@ -29,9 +29,8 @@ import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
-import { getConfig } from '../../api/client'
 import { cn } from '../../lib/utils'
-import type { AppView, BotView, Config } from '../../types'
+import type { AppView, BotView } from '../../types'
 
 // Map URL paths to app views
 const pathToAppView: Record<string, AppView> = {
@@ -69,7 +68,7 @@ export function MainLayout() {
   const { setActiveTask } = useTaskStore()
   const { activeRoomId, rooms, setActiveRoom } = useRoomStore()
   const { theme, accentColor, customHex, mobileMenuOpen, setMobileMenuOpen } = useUIStore()
-  const { setConfig } = useConfigStore()
+  const { config } = useConfigStore()
   const { refresh: refreshModels } = useModelsStore()
   const { providers, refresh: refreshProviders } = useProvidersStore()
   const { hasCompletedOnboarding } = useOnboardingStore()
@@ -193,44 +192,11 @@ export function MainLayout() {
     }
   }, [accentColor, customHex])
 
-  // Load config on mount
+  // Fallback: re-fetch if stores are empty (e.g. direct navigation edge case)
   useEffect(() => {
-    async function loadInitialData() {
-      try {
-        const configData = await getConfig()
-
-        // Transform config from snake_case to camelCase
-        const config: Config = {
-          agent: {
-            model: configData.agent.model,
-            maxIterations: configData.agent.max_iterations,
-            approveActions: configData.agent.approve_actions,
-            temperature: configData.agent.temperature,
-          },
-          sandbox: {
-            allowedImports: configData.sandbox.allowed_imports,
-            timeoutSeconds: configData.sandbox.timeout_seconds,
-            maxOutputLength: configData.sandbox.max_output_length,
-          },
-          display: {
-            showThinking: configData.display.show_thinking,
-            showCost: configData.display.show_cost,
-            style: configData.display.style as 'detailed' | 'compact',
-          },
-          workspacePath: configData.workspace_path,
-          timezone: configData.timezone || 'UTC',
-        }
-
-        setConfig(config)
-      } catch (error) {
-        console.error('Failed to load config:', error)
-      }
-    }
-
-    loadInitialData()
-    refreshModels()
-    refreshProviders()
-  }, [setConfig, refreshModels, refreshProviders])
+    if (!config) refreshModels() // models depend on config being available
+    if (providers.length === 0) refreshProviders()
+  }, [config, providers.length, refreshModels, refreshProviders])
 
   // Onboarding detection: redirect first-time users with no API keys
   useEffect(() => {

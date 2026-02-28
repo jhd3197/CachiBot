@@ -77,7 +77,7 @@ import {
   addMember,
   removeMember,
 } from '../../api/groups'
-import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
+import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, getPlatformChats, clearBotPlatformData, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
@@ -576,6 +576,7 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
   const [downloaded, setDownloaded] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true)
+  const [autoInstallUpdates, setAutoInstallUpdates] = useState(false)
   const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable')
 
   const currentVersion = healthInfo?.version || '...'
@@ -596,10 +597,17 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
     if (!api) return
     const cleanup = api.onUpdateProgress((progress) => {
       setDownloadProgress(progress)
-      if (progress.percent >= 100) {
-        setDownloading(false)
-        setDownloaded(true)
-      }
+    })
+    return cleanup
+  }, [])
+
+  // Listen for download completed (after SHA verification)
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api?.onUpdateDownloaded) return
+    const cleanup = api.onUpdateDownloaded(() => {
+      setDownloading(false)
+      setDownloaded(true)
     })
     return cleanup
   }, [])
@@ -610,6 +618,8 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
     if (!api?.onUpdateError) return
     const cleanup = api.onUpdateError((error) => {
       setUpdateError(error.message)
+      setDownloading(false)
+      setDownloaded(false)
     })
     return cleanup
   }, [])
@@ -618,6 +628,13 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
   useEffect(() => {
     window.electronAPI?.getSetting?.('autoUpdateEnabled', true).then((val) => {
       setAutoUpdateEnabled(val as boolean)
+    })
+  }, [])
+
+  // Load auto-install updates setting
+  useEffect(() => {
+    window.electronAPI?.getSetting?.('autoInstallUpdates', false).then((val) => {
+      setAutoInstallUpdates(val as boolean)
     })
   }, [])
 
@@ -663,6 +680,12 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
     setAutoUpdateEnabled(newValue)
   }
 
+  const handleToggleAutoInstall = async () => {
+    const newValue = !autoInstallUpdates
+    await window.electronAPI?.setSetting?.('autoInstallUpdates', newValue)
+    setAutoInstallUpdates(newValue)
+  }
+
   const handleToggleChannel = async () => {
     const newChannel = updateChannel === 'stable' ? 'beta' : 'stable'
     await window.electronAPI?.setSetting?.('updateChannel', newChannel)
@@ -705,6 +728,21 @@ function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null 
             className={cn('settings-btn-secondary text-sm', autoUpdateEnabled ? 'text-green-400' : 'text-zinc-400')}
           >
             {autoUpdateEnabled ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
+
+        <div className="settings-info-row">
+          <div>
+            <span className="settings-info-row__label">Auto-install Updates on Startup</span>
+            <span className="block text-xs text-[var(--color-text-tertiary)]">
+              Automatically download and install updates when the app starts
+            </span>
+          </div>
+          <button
+            onClick={handleToggleAutoInstall}
+            className={cn('settings-btn-secondary text-sm', autoInstallUpdates ? 'text-green-400' : 'text-zinc-400')}
+          >
+            {autoInstallUpdates ? 'Enabled' : 'Disabled'}
           </button>
         </div>
 
@@ -2490,7 +2528,6 @@ function BotDataManager() {
 
       for (const bot of bots) {
         try {
-          const { getPlatformChats } = await import('../../api/client')
           const platformChats = await getPlatformChats(bot.id)
           counts[bot.id] = platformChats.length
         } catch {
@@ -2671,7 +2708,6 @@ function BotDataManager() {
 
         // Then, delete from backend database
         try {
-          const { clearBotPlatformData } = await import('../../api/client')
           await clearBotPlatformData(botId)
           // Update local platform count
           setPlatformCounts((prev) => ({ ...prev, [botId]: 0 }))

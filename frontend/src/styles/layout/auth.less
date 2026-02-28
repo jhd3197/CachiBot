@@ -7,24 +7,7 @@
   .flex-center();
   min-height: 100vh;
   padding: @sp-4;
-  background: #ffffff;
-
-  // Force light-mode colors regardless of system theme
-  --color-text-primary: #1A1A1A;
-  --color-text-secondary: #808080;
-  --color-text-tertiary: #AAAAAA;
-  --color-bg-secondary: #F5F5F5;
-  --color-bg-app: #ffffff;
-  --color-border-primary: #E5E5E5;
-  --card-bg: #FFFFFF;
-  --card-border: rgba(0, 0, 0, 0.08);
-  --card-shadow: @shadow-sm;
-
-  // Force light-mode input tokens (otherwise dark theme leaks in)
-  --input-bg: #FFFFFF;
-  --input-border: rgba(0, 0, 0, 0.12);
-  --input-text: #1A1A1A;
-  --input-placeholder: #AAAAAA;
+  background: var(--color-bg-app);
 }
 
 .layout-split {
@@ -105,10 +88,6 @@
     font-size: @text-sm;
     color: var(--color-text-secondary);
     margin-bottom: @sp-4;
-
-    .dark & {
-      color: @zinc-300;
-    }
   }
 
   &__form {
@@ -126,15 +105,11 @@
     font-weight: @font-medium;
     color: var(--color-text-secondary);
     margin-bottom: @sp-1-5;
-
-    .dark & {
-      color: @zinc-300;
-    }
   }
 
   &__input {
     .input-base();
-    background: var(--color-bg-secondary);
+    background: var(--color-bg-tertiary);
   }
 
   &__password-wrap {
@@ -259,10 +234,6 @@
     font-size: @text-sm;
     color: var(--color-text-primary);
     .transition-colors();
-
-    .dark & {
-      color: @zinc-300;
-    }
   }
 
   &__divider {
@@ -315,17 +286,13 @@
     &--positive {
       color: @green-600;
 
-      .dark & {
-        color: @green-400;
-      }
+      .dark & { color: @green-400; }
     }
 
     &--negative {
       color: @red-500;
 
-      .dark & {
-        color: @red-400;
-      }
+      .dark & { color: @red-400; }
     }
   }
 

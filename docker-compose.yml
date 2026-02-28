@@ -33,12 +33,13 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cachibot-backend
+    ports:
+      - "5870:5870"
     environment:
       - DATABASE_URL=postgresql+asyncpg://cachibot:cachibot@db:5432/cachibot
-      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - cachibot-data:/app/data
     depends_on:
@@ -50,6 +51,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   frontend:
     build:
