@@ -114,7 +114,7 @@ export function MethodSelectStep() {
           )
         })()}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {METHODS.slice(1).map((method) => {
             const Icon = method.icon
             const isSelected = form.method === method.id
@@ -143,6 +143,24 @@ export function MethodSelectStep() {
               </button>
             )
           })}
+          <button
+            onClick={() => setMarketplaceOpen(true)}
+            className={cn(
+              'relative flex items-center gap-3 rounded-xl border p-4 text-left transition-all',
+              'border-[var(--color-border-primary)] bg-[var(--card-bg)] hover:border-[var(--color-border-secondary)] hover:bg-[var(--color-hover-bg)]'
+            )}
+          >
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ backgroundColor: '#3b82f620' }}
+            >
+              <Store className="h-5 w-5" style={{ color: '#3b82f6' }} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Browse Templates</h3>
+              <p className="text-xs text-[var(--color-text-secondary)]">Pick from curated bot templates</p>
+            </div>
+          </button>
         </div>
       </div>
 
