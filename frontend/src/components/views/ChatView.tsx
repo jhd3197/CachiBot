@@ -15,12 +15,13 @@ import {
   X,
   Cpu,
 } from 'lucide-react'
-import { useChatStore, useBotStore } from '../../stores/bots'
+import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { ModelSelect } from '../common/ModelSelect'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
@@ -66,6 +67,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const isConnected = isConnectedProp ?? wsIsConnected
   const handleCancel = onCancel ?? wsCancel
   const [input, setInput] = useState('')
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const bot = useBotStore.getState().getActiveBot()
+    return bot ? getBotDefaultModel(bot) : ''
+  })
   const [flowUserInputs, setFlowUserInputs] = useState<string[]>([])
   const [showCommandMenu, setShowCommandMenu] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
@@ -145,6 +150,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   }, [input, filteredCommands.length])
 
   const activeBot = getActiveBot()
+
+  // Sync selectedModel when the active bot changes
+  useEffect(() => {
+    const bot = useBotStore.getState().getActiveBot()
+    setSelectedModel(bot ? getBotDefaultModel(bot) : '')
+  }, [activeBotId])
 
   // Fetch available coding agents when codingAgent capability is on
   const codingAgentEnabled = activeBot?.capabilities?.codingAgent ?? false
@@ -747,12 +758,16 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         codingAgent: false,
       }
 
+      const effectiveModels: BotModels = {
+        ...(activeBot?.models || {}),
+        default: selectedModel || getBotDefaultModel(activeBot!) || '',
+      }
       wsSendMessage(trimmedInput, {
         systemPrompt: activeBot?.systemPrompt,
         botId: activeBot?.id,
         chatId: chatIdToUse ?? undefined,
-        model: activeBot?.model,
-        models: activeBot?.models,
+        model: selectedModel || activeBot?.model,
+        models: effectiveModels,
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
         replyToId: replyToMessage?.id,
@@ -1222,7 +1237,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 />
                 <span className="chat-status-bar__label">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </span>
-              <span className="chat-status-bar__model">{activeBot?.model}</span>
+              <ModelSelect
+                value={selectedModel}
+                onChange={setSelectedModel}
+                placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+                className="chat-status-bar__model-select"
+              />
             </div>
             <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
           </div>
