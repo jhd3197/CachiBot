@@ -3,56 +3,44 @@ import { Loader2, HelpCircle, Sparkles, Settings, AlertTriangle } from 'lucide-r
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { useModelsStore } from '../../../../stores/models'
 import { useUIStore } from '../../../../stores/ui'
-import { streamFollowUpQuestions } from '../../../../api/client'
+import { streamProjectFollowUpQuestions } from '../../../../api/client'
 import { cn } from '../../../../lib/utils'
 
 const LOADING_MESSAGES = [
-  { title: 'Thinking about what to ask...', sub: 'Tailoring questions to your use case' },
-  { title: 'Personalizing your experience...', sub: 'Making sure we ask the right things' },
-  { title: 'Almost ready...', sub: 'Putting together thoughtful questions' },
+  { title: 'Analyzing your project...', sub: 'Understanding what your team needs' },
+  { title: 'Designing your workflow...', sub: 'Thinking about roles and collaboration' },
+  { title: 'Almost ready...', sub: 'Preparing project-specific questions' },
 ]
 
-/**
- * Parse a placeholder string into 2-3 short suggestion chips.
- * Looks for comma/semicolon separated phrases, or "e.g." / "like" patterns.
- */
 function parseSuggestions(placeholder: string): string[] {
-  // Try "e.g. X, Y, Z" or "like X, Y, Z"
   const egMatch = placeholder.match(/(?:e\.g\.?|like|such as)\s+(.+)/i)
   const source = egMatch ? egMatch[1] : placeholder
-
-  // Split on commas, semicolons, or " or "
   const parts = source
     .split(/[,;]|\bor\b/)
     .map((s) => s.replace(/[.!?]+$/, '').trim())
     .filter((s) => s.length > 2 && s.length < 60)
-
   return parts.slice(0, 3)
 }
 
-export function DetailsStep() {
+export function ProjectDetailsStep() {
   const {
     form,
     isGenerating,
     generationError,
     setGenerating,
     setGenerationError,
-    updateFollowUpAnswer,
+    updateProjectFollowUpAnswer,
   } = useCreationStore()
 
-  // Track which questions had a chip clicked (to hide chips)
   const [chipUsed, setChipUsed] = useState<Set<string>>(new Set())
-
-  // Guard against StrictMode double-fire
   const loadInitiatedRef = useRef(false)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (form.followUpQuestions.length === 0 && !isGenerating && !loadInitiatedRef.current) {
+    if (form.projectFollowUpQuestions.length === 0 && !isGenerating && !loadInitiatedRef.current) {
       loadInitiatedRef.current = true
       loadQuestions()
     }
-    // Don't abort on cleanup — StrictMode remounts would kill the in-flight request.
   }, [])
 
   const loadQuestions = async () => {
@@ -64,26 +52,22 @@ export function DetailsStep() {
     setGenerationError(null)
 
     try {
-      // Read fresh state — closure values may be stale
       const freshForm = useCreationStore.getState().form
-      const categoryLabel = PURPOSE_CATEGORIES.find(c => c.id === freshForm.purposeCategory)?.label || 'General'
+      const categoryLabel =
+        PURPOSE_CATEGORIES.find((c) => c.id === freshForm.purposeCategory)?.label || 'General'
 
-      const mode = freshForm.creationPath === 'single' ? 'task-focused' : 'user-focused'
-
-      await streamFollowUpQuestions(
+      await streamProjectFollowUpQuestions(
         {
           category: categoryLabel,
           description: freshForm.purposeDescription,
-          mode,
         },
         {
           onQuestion: (question) => {
-            // Append each question incrementally
             useCreationStore.setState((state) => ({
               form: {
                 ...state.form,
-                followUpQuestions: [
-                  ...state.form.followUpQuestions,
+                projectFollowUpQuestions: [
+                  ...state.form.projectFollowUpQuestions,
                   { ...question, answer: '' },
                 ],
               },
@@ -101,31 +85,32 @@ export function DetailsStep() {
       )
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
-        setGenerationError(error instanceof Error ? error.message : 'Failed to generate questions')
+        setGenerationError(
+          error instanceof Error ? error.message : 'Failed to generate questions',
+        )
         setGenerating(false)
       }
     }
   }
 
   const handleChipClick = (questionId: string, suggestion: string) => {
-    updateFollowUpAnswer(questionId, suggestion)
+    updateProjectFollowUpAnswer(questionId, suggestion)
     setChipUsed((prev) => new Set(prev).add(questionId))
   }
 
-  // Cycle through loading messages while waiting
   const [msgIndex, setMsgIndex] = useState(0)
   useEffect(() => {
-    if (!isGenerating || form.followUpQuestions.length > 0) return
+    if (!isGenerating || form.projectFollowUpQuestions.length > 0) return
     const interval = setInterval(() => {
       setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length)
     }, 3000)
     return () => clearInterval(interval)
-  }, [isGenerating, form.followUpQuestions.length])
+  }, [isGenerating, form.projectFollowUpQuestions.length])
 
   const { defaultUtilityModel } = useModelsStore()
   const hasUtilityModel = !!defaultUtilityModel
 
-  if (isGenerating && form.followUpQuestions.length === 0) {
+  if (isGenerating && form.projectFollowUpQuestions.length === 0) {
     const msg = LOADING_MESSAGES[msgIndex]
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4">
@@ -152,7 +137,7 @@ export function DetailsStep() {
 
   const isNoModel = generationError?.toLowerCase().includes('no ai model configured')
 
-  if (generationError && !isGenerating && form.followUpQuestions.length === 0) {
+  if (generationError && !isGenerating && form.projectFollowUpQuestions.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
@@ -170,9 +155,7 @@ export function DetailsStep() {
         </div>
         {isNoModel ? (
           <button
-            onClick={() => {
-              useUIStore.getState().setSettingsOpen(true)
-            }}
+            onClick={() => useUIStore.getState().setSettingsOpen(true)}
             className="flex items-center gap-2 rounded-lg bg-cachi-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-cachi-500"
           >
             <Settings className="h-4 w-4" />
@@ -201,21 +184,17 @@ export function DetailsStep() {
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-cachi-400" />
           <div>
             <p className="text-sm font-medium text-[var(--color-text-primary)]">
-              {form.creationPath === 'single'
-                ? `Help us refine what ${form.name || 'your bot'} should do`
-                : `Help ${form.name} understand you better`}
+              Tell us about your project
             </p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              {form.creationPath === 'single'
-                ? 'These answers help tailor the bot to your specific needs.'
-                : 'These answers will help create a personalized assistant just for you.'}
+              These answers help us design the right team of bots and rooms for you.
             </p>
           </div>
         </div>
       </div>
 
       <div className="space-y-5">
-        {form.followUpQuestions.map((q, index) => {
+        {form.projectFollowUpQuestions.map((q, index) => {
           const suggestions = parseSuggestions(q.placeholder)
           const showChips = q.answer === '' && !chipUsed.has(q.id) && suggestions.length > 0
 
@@ -233,7 +212,7 @@ export function DetailsStep() {
               </label>
               <textarea
                 value={q.answer}
-                onChange={(e) => updateFollowUpAnswer(q.id, e.target.value)}
+                onChange={(e) => updateProjectFollowUpAnswer(q.id, e.target.value)}
                 placeholder={q.placeholder}
                 rows={2}
                 className="w-full rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-secondary)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--input-placeholder)] outline-none transition-colors focus:border-[var(--color-border-focus)]"
@@ -246,7 +225,7 @@ export function DetailsStep() {
                       onClick={() => handleChipClick(q.id, s)}
                       className={cn(
                         'rounded-full border border-[var(--color-border-primary)] bg-[var(--card-bg)] px-3 py-1 text-xs text-[var(--color-text-secondary)]',
-                        'transition-all hover:border-cachi-500 hover:text-cachi-400'
+                        'transition-all hover:border-cachi-500 hover:text-cachi-400',
                       )}
                     >
                       {s}
@@ -258,8 +237,7 @@ export function DetailsStep() {
           )
         })}
 
-        {/* Placeholder while streaming */}
-        {isGenerating && form.followUpQuestions.length < 3 && (
+        {isGenerating && form.projectFollowUpQuestions.length < 3 && (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]" />
           </div>
@@ -267,7 +245,7 @@ export function DetailsStep() {
       </div>
 
       <p className="text-center text-xs text-[var(--color-text-tertiary)]">
-        Don't worry, you can always refine your bot later
+        The more detail you provide, the better your team will be designed
       </p>
     </div>
   )

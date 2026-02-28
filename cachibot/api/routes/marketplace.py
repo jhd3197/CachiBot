@@ -4,8 +4,10 @@ Supports both local templates and remote fetch from cachibot.com marketplace.
 Remote templates are cached for 5 minutes to reduce API calls.
 """
 
+import asyncio
 import logging
 import os
+import platform
 import time
 import uuid
 from datetime import datetime, timezone
@@ -13,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from cachibot import __version__
 
 from cachibot.api.auth import get_current_user
 from cachibot.config import Config
@@ -207,6 +211,53 @@ def _get_cached(key: str) -> list[Any] | dict[str, Any] | None:
 def _set_cache(key: str, data: list[Any] | dict[str, Any]) -> None:
     """Cache data with current timestamp."""
     _remote_cache[key] = (time.time(), data)
+
+
+async def _track_remote_install(template_id: str, template_type: str, event: str = "install") -> None:
+    """Fire-and-forget: notify remote marketplace of an install event."""
+    if not MARKETPLACE_URL:
+        return
+    try:
+        import httpx
+
+        config = Config.load()
+        app_id = config.telemetry.install_id or None
+
+        url = f"{MARKETPLACE_URL.rstrip('/')}/marketplace/templates/install"
+        payload = {
+            "template_id": template_id,
+            "template_type": template_type,
+            "event": event,
+            "app_id": app_id,
+            "os": platform.system(),
+            "app_version": __version__,
+        }
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.debug(f"Remote install tracking failed: {e}")
+
+
+async def _track_remote_view(template_id: str, template_type: str) -> None:
+    """Fire-and-forget: notify remote marketplace of a view event."""
+    if not MARKETPLACE_URL:
+        return
+    try:
+        import httpx
+
+        config = Config.load()
+        app_id = config.telemetry.install_id or None
+
+        url = f"{MARKETPLACE_URL.rstrip('/')}/marketplace/templates/view"
+        payload = {
+            "template_id": template_id,
+            "template_type": template_type,
+            "app_id": app_id,
+        }
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json=payload)
+    except Exception as e:
+        logger.debug(f"Remote view tracking failed: {e}")
 
 
 async def _fetch_remote_templates(
@@ -422,6 +473,7 @@ async def install_template(
     )
 
     await repo.upsert_bot(bot)
+    asyncio.create_task(_track_remote_install(template_id, "bot"))
 
     return InstallResponse(
         bot_id=bot_id,
@@ -443,6 +495,23 @@ async def list_categories(
 
     # Fall back to local
     return list(CATEGORY_INFO.values())
+
+
+class TrackViewRequest(BaseModel):
+    """Request to track a template view event."""
+
+    template_id: str
+    template_type: str  # "bot" or "room"
+
+
+@router.post("/track-view")
+async def track_template_view(
+    req: TrackViewRequest,
+    user: User = Depends(get_current_user),
+) -> dict[str, bool]:
+    """Track a template view event by forwarding to remote marketplace."""
+    asyncio.create_task(_track_remote_view(req.template_id, req.template_type))
+    return {"tracked": True}
 
 
 # =============================================================================
@@ -652,6 +721,7 @@ async def install_room_template(
         updated_at=now,
     )
     await room_repo.create_room(room)
+    asyncio.create_task(_track_remote_install(template_id, "room"))
 
     # Add creator as member
     creator_member = RoomMember(
