@@ -28,11 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The selected model override is transmitted with the message and the backend uses it for that response
   3. Each chat bubble displays which model produced that response
   4. The dropdown defaults to the bot's configured model on load
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Frontend model selector component and chat input integration
-- [ ] 01-02: Backend WebSocket model override handling and message metadata storage
+- [ ] 01-01-PLAN.md — Embed ModelSelect in ChatView status bar and wire override into wsSendMessage
+- [ ] 01-02-PLAN.md — Persist actual model in assistant BotMessage metadata for page-refresh display
 
 ### Phase 2: Bot Marketplace
 **Goal**: Users can browse categorized bot templates and create bots from them in one click
