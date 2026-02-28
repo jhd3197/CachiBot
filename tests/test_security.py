@@ -378,11 +378,13 @@ class TestAgentSecurityHardening:
         """The hardening adds .env patterns to ignore_patterns."""
         from cachibot.agent import CachibotAgent
 
+        agent_mock = MagicMock(spec=CachibotAgent)
+        agent_mock.tool_configs = None
         ctx = MagicMock()
         ctx.ignore_patterns = []
         ctx.blocked_commands = []
 
-        CachibotAgent._harden_security_context(ctx)
+        CachibotAgent._harden_security_context(agent_mock, ctx)
 
         assert ".env" in ctx.ignore_patterns
         assert "*.env" in ctx.ignore_patterns
@@ -392,11 +394,13 @@ class TestAgentSecurityHardening:
         """The hardening blocks env-dumping shell commands."""
         from cachibot.agent import CachibotAgent
 
+        agent_mock = MagicMock(spec=CachibotAgent)
+        agent_mock.tool_configs = None
         ctx = MagicMock()
         ctx.ignore_patterns = []
         ctx.blocked_commands = []
 
-        CachibotAgent._harden_security_context(ctx)
+        CachibotAgent._harden_security_context(agent_mock, ctx)
 
         for cmd in ("env", "printenv", "set", "export"):
             assert cmd in ctx.blocked_commands
@@ -405,12 +409,14 @@ class TestAgentSecurityHardening:
         """Calling _harden twice doesn't duplicate entries."""
         from cachibot.agent import CachibotAgent
 
+        agent_mock = MagicMock(spec=CachibotAgent)
+        agent_mock.tool_configs = None
         ctx = MagicMock()
         ctx.ignore_patterns = []
         ctx.blocked_commands = []
 
-        CachibotAgent._harden_security_context(ctx)
-        CachibotAgent._harden_security_context(ctx)
+        CachibotAgent._harden_security_context(agent_mock, ctx)
+        CachibotAgent._harden_security_context(agent_mock, ctx)
 
         assert ctx.ignore_patterns.count(".env") == 1
         assert ctx.blocked_commands.count("env") == 1
