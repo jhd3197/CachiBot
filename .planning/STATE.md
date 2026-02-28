@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 1 of 4 (Model Switching)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-28 — Roadmap created, all 4 phases defined
+Plan: 2 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-28 — Completed plan 01-02 (persist model metadata)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 2
+- Average duration: ~5 min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-model-switching | 2 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: none yet
-- Trend: -
+- Last 5 plans: 01-01 (~8 min), 01-02 (~2 min)
+- Trend: Fast execution
 
 *Updated after each plan completion*
 
@@ -45,6 +45,8 @@ Recent decisions affecting current work:
 - Project: Per-message model override (not per-chat) — more flexible UX
 - Project: Toast-based error notifications — non-intrusive, industry standard
 - Project: 30s ping/pong heartbeat interval — balance keep-alive with bandwidth
+- 01-02: Use first key of per_model dict as actual_model for BotMessage metadata
+- 01-02: Fallback to agent.config.agent.model when per_model is empty
 
 ### Pending Todos
 
@@ -57,5 +59,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Roadmap created — ready to begin planning Phase 1
+Stopped at: Completed 01-02-PLAN.md — Phase 1 all plans complete
 Resume file: None
