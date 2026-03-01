@@ -35,3 +35,12 @@ name = "maxCost"
 display_name = "Max Cost"
 type = "number"
 default = 0
+
+[plugin.workspace]
+display_name = "Website Builder"
+icon = "globe"
+description = "Website generation workspace"
+accent_color = "#3b82f6"
+toolbar = ["build_website", "iterate_website", "list_websites"]
+default_artifact_type = "html"
+auto_open_panel = true

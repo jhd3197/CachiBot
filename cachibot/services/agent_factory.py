@@ -142,6 +142,21 @@ async def build_bot_agent(
     if disabled_capabilities is None:
         disabled_capabilities = await load_disabled_capabilities()
 
+    # 1b. Inject official plugin capabilities for default bot
+    if bot_id == "default":
+        try:
+            from cachibot.services.external_plugins import EXTERNAL_PLUGINS, OFFICIAL_PLUGIN_NAMES
+
+            if capabilities is None:
+                capabilities = {}
+            for name in OFFICIAL_PLUGIN_NAMES:
+                manifest = EXTERNAL_PLUGINS.get(name)
+                if manifest:
+                    cap_key = manifest.capability_key
+                    capabilities.setdefault(cap_key, True)
+        except Exception:
+            pass
+
     # 2. Model override — resolve effective model from bot_models["default"]
     agent_config = config
     effective_model: str | None = None

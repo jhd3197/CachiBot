@@ -21,7 +21,8 @@ import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
-import { ModelSelect } from '../common/ModelSelect'
+import { PluginChips } from '../chat/PluginChips'
+import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
@@ -78,6 +79,8 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     return bot ? getBotDefaultModel(bot) : ''
   })
   const [flowUserInputs, setFlowUserInputs] = useState<string[]>([])
+  const justCreatedChatRef = useRef(false)
+  const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -605,9 +608,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }, [input])
 
+  // Trigger dock-in animation when transitioning from hero → active chat
+  useEffect(() => {
+    if (messages.length > 0 && justCreatedChatRef.current) {
+      justCreatedChatRef.current = false
+      setAnimateIsland(true)
+      const timer = setTimeout(() => setAnimateIsland(false), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [messages.length])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
+
+    // Flag for dock-in animation when transitioning from hero → active chat
+    if (messages.length === 0) {
+      justCreatedChatRef.current = true
+    }
 
     const trimmedInput = input.trim()
     const lowerInput = trimmedInput.toLowerCase()
@@ -1049,58 +1067,25 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
   const showPanel = panelOpen && activeArtifact
 
-  // Empty state when no chat is selected - but still allow sending messages
-  if (!activeChatId) {
+  // Empty state — hero omnibox start state (no chat or chat with no messages)
+  if (messages.length === 0) {
     return (
-      <div className="chat-view">
-        {/* Welcome content */}
-        <div className="flex flex-1 items-center justify-center p-8">
-          <div className="max-w-md text-center">
-            <div
-              className="chat-empty__icon mx-auto"
-              style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
-            >
-              <BotIconRenderer
-                icon={activeBot?.icon || 'shield'}
-                size={48}
-                className="text-[var(--color-text-primary)]"
-              />
-            </div>
-            <h2 className="chat-empty__title">
-              Welcome to {activeBot?.name || 'CachiBot'}
-            </h2>
-            <p className="chat-empty__description">
-              {activeBot?.description || 'Start a new chat to begin working with your AI assistant.'}
-            </p>
-            <div className="chat-prompt-suggestions">
-              {['Write a Python script', 'Analyze this codebase', 'Help me debug an error'].map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => {
-                    setInput(prompt)
-                    textareaRef.current?.focus()
-                  }}
-                  className="chat-prompt-suggestions__item"
-                >
-                  <Sparkles className="h-4 w-4 text-cachi-500" />
-                  {prompt}
-                </button>
-              ))}
-            </div>
-            {availableWorkspaces.length > 0 && (
-              <WorkspaceSelector
-                workspaces={availableWorkspaces}
-                activeWorkspace={activeWorkspace}
-                onSelect={handleWorkspaceSelect}
-              />
-            )}
-          </div>
+      <div className="chat-view chat-view--hero">
+        {/* Hero title */}
+        <div className="chat-hero">
+          <h2 className="chat-hero__title">
+            What can {activeBot?.name || 'CachiBot'} help you with today?
+          </h2>
+          <p className="chat-hero__subtitle">
+            {activeBot?.description || 'Start a conversation to get help with coding, analysis, and more.'}
+          </p>
         </div>
 
-        {/* Input area - allows starting a new chat */}
-        <div className="chat-panel__input-area">
-          <form onSubmit={handleSubmit} className="chat-panel__input-inner">
-            <div className="chat-input-container">
+        {/* Omnibox island */}
+        <div className="chat-island">
+          <form onSubmit={handleSubmit} className="chat-island__form">
+            <PluginChips />
+            <div className="chat-input-container chat-input-container--island">
               {renderCommandMenu()}
               {renderAgentMentionPopup()}
               <textarea
@@ -1132,8 +1117,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 </button>
               </div>
             </div>
-            <div className="chat-status-bar">
-              <div className="chat-status-bar__indicator">
+            <div className="chat-island__footer">
+              <ModelPill
+                value={selectedModel}
+                onChange={setSelectedModel}
+                placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+              />
+              <span className="chat-island__status">
                 <span
                   className={cn(
                     'chat-status-bar__dot',
@@ -1141,10 +1131,35 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                   )}
                 />
                 {isConnected ? 'Connected' : 'Disconnected'}
-              </div>
-              <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
+              </span>
+              <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
             </div>
           </form>
+
+          {/* Prompt suggestions below input */}
+          <div className="chat-prompt-suggestions">
+            {['Write a Python script', 'Analyze this codebase', 'Help me debug an error'].map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => {
+                  setInput(prompt)
+                  textareaRef.current?.focus()
+                }}
+                className="chat-prompt-suggestions__item"
+              >
+                <Sparkles className="h-4 w-4 text-cachi-500" />
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {availableWorkspaces.length > 0 && (
+            <WorkspaceSelector
+              workspaces={availableWorkspaces}
+              activeWorkspace={activeWorkspace}
+              onSelect={handleWorkspaceSelect}
+            />
+          )}
         </div>
       </div>
     )
@@ -1242,9 +1257,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </div>
       </div>
 
-      {/* Input area */}
-      <div className="chat-panel__input-area">
-        <form onSubmit={handleSubmit} className="chat-panel__input-inner">
+      {/* Input island — docked at bottom */}
+      <div className={cn(
+        'chat-island chat-island--docked',
+        animateIsland && 'chat-island--animate-in'
+      )}>
+        <form onSubmit={handleSubmit} className="chat-island__form">
+          <PluginChips inChat={messages.length > 0} />
+
           {/* Reply composer bar */}
           {replyToMessage && (
             <div className="chat-reply-bar">
@@ -1266,6 +1286,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               </button>
             </div>
           )}
+
           {/* Workspace badge */}
           {workspaceConfig && (
             <div
@@ -1282,6 +1303,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               </button>
             </div>
           )}
+
           {/* Workspace selector (shown when chat is empty) */}
           {messages.length === 0 && availableWorkspaces.length > 0 && (
             <WorkspaceSelector
@@ -1290,10 +1312,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               onSelect={handleWorkspaceSelect}
             />
           )}
-          <div className="chat-input-container">
+
+          <div className="chat-input-container chat-input-container--island">
             {renderCommandMenu()}
-              {renderAgentMentionPopup()}
-            {/* Textarea */}
+            {renderAgentMentionPopup()}
             <textarea
               ref={textareaRef}
               value={input}
@@ -1311,7 +1333,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               className="chat-textarea"
             />
 
-            {/* Actions */}
             <div className="chat-input-btns">
               <button
                 type="button"
@@ -1344,26 +1365,23 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             </div>
           </div>
 
-          {/* Status bar */}
-          <div className="chat-status-bar">
-            <div className="chat-status-bar__left">
-              <span className="chat-status-bar__indicator">
-                <span
-                  className={cn(
-                    'chat-status-bar__dot',
-                    isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
-                  )}
-                />
-                <span className="chat-status-bar__label">{isConnected ? 'Connected' : 'Disconnected'}</span>
-              </span>
-              <ModelSelect
-                value={selectedModel}
-                onChange={setSelectedModel}
-                placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
-                className="chat-status-bar__model-select"
+          {/* Island footer — model pill + status + hint */}
+          <div className="chat-island__footer">
+            <ModelPill
+              value={selectedModel}
+              onChange={setSelectedModel}
+              placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+            />
+            <span className="chat-island__status">
+              <span
+                className={cn(
+                  'chat-status-bar__dot',
+                  isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
+                )}
               />
-            </div>
-            <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+            <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
           </div>
 
           {/* Creation flow indicator */}

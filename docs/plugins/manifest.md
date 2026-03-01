@@ -23,6 +23,7 @@ group = "Creative"                   # Grouping in the Plugins panel
 # ─── Scope ──────────────────────────────────────────────────
 [plugin.scope]
 contexts = ["chat", "room"]          # Where the plugin is available
+allow_late_activation = false         # Can the user toggle this on mid-chat?
 
 # ─── Requirements ───────────────────────────────────────────
 [plugin.requires]
@@ -83,9 +84,16 @@ The `name` field must be unique across all installed plugins and must not confli
 
 ### `[plugin.scope]` -- Availability
 
-| Field      | Type       | Default      | Description                                  |
-|------------|------------|--------------|----------------------------------------------|
-| `contexts` | `string[]` | `["chat"]`   | Where the plugin is available: `"chat"`, `"room"`, or both |
+| Field                    | Type       | Default    | Description                                                        |
+|--------------------------|------------|------------|--------------------------------------------------------------------|
+| `contexts`               | `string[]` | `["chat"]` | Where the plugin is available: `"chat"`, `"room"`, or both         |
+| `allow_late_activation`  | `bool`     | `false`    | Whether the plugin can be toggled on after the chat has started     |
+
+#### Late activation behavior
+
+By default, plugins must be enabled **before** the first message is sent. Once a chat is active, only plugins that were already toggled on are shown in the input area — this prevents users from accidentally opting into a heavy plugin (e.g. Website Builder) mid-conversation.
+
+Set `allow_late_activation = true` for lightweight plugins that make sense to add at any point during a chat. When `false` (the default), the plugin chip is hidden from the input bar once the conversation has messages, unless it was already active.
 
 ### `[plugin.requires]` -- Runtime Requirements
 

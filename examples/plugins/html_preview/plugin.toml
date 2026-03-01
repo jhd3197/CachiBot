@@ -23,3 +23,12 @@ imports = []
 [plugin.permissions]
 allow_env_vars = []
 allow_paths = []
+
+[plugin.workspace]
+display_name = "HTML Preview"
+icon = "globe"
+description = "Live HTML/CSS/JS preview workspace"
+accent_color = "#f97316"
+toolbar = ["preview_html", "update_preview"]
+default_artifact_type = "html"
+auto_open_panel = true

@@ -1789,3 +1789,221 @@
     }
   }
 }
+
+// =============================================================================
+// Premium Chat UI — Hero Start State, Floating Island, Plugin Chips
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Chat View — Hero modifier (empty / start state)
+// -----------------------------------------------------------------------------
+
+.chat-view--hero {
+  .flex-col();
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--color-bg-app);
+  padding: @sp-6;
+}
+
+// -----------------------------------------------------------------------------
+// Chat Hero — centered title + subtitle in start state
+// -----------------------------------------------------------------------------
+
+.chat-hero {
+  text-align: center;
+  margin-bottom: @sp-8;
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    margin-bottom: @sp-2;
+    letter-spacing: -0.01em;
+
+    .screen-sm({
+      font-size: 1.75rem;
+    });
+  }
+
+  &__subtitle {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+    max-width: 28rem;
+    margin: 0 auto;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Chat Island — floating input container (both hero omnibox & docked input)
+// -----------------------------------------------------------------------------
+
+.chat-island {
+  width: 100%;
+  max-width: 44rem;
+  margin: 0 auto;
+
+  &__form {
+    .flex-col();
+    gap: 0;
+  }
+
+  // Prompt suggestions inside the island → horizontal row
+  .chat-prompt-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: @sp-2;
+    margin-top: @sp-3;
+    justify-content: center;
+  }
+
+  .chat-prompt-suggestions__item {
+    padding: @sp-1-5 @sp-3;
+    font-size: @text-xs;
+  }
+
+  // Docked modifier — anchored at bottom of active chat view
+  &--docked {
+    max-width: none;
+    border-top: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+    padding: @sp-3 @sp-4;
+
+    .dark & {
+      background: var(--color-bg-app);
+    }
+  }
+
+  // Dock-in animation (after sending from hero state)
+  &--animate-in {
+    animation: island-dock-in 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  // Footer row — model pill + status + hint
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    margin-top: @sp-2;
+    padding: 0 @sp-1;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: @sp-1-5;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  &__hint {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+
+    // Hide on small screens
+    @media (max-width: (@screen-sm - 1)) {
+      display: none;
+    }
+  }
+}
+
+@keyframes island-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Chat Input Container — Island (glassmorphism) modifier
+// -----------------------------------------------------------------------------
+
+.chat-input-container--island {
+  // Override base .chat-input-container border/bg with glassmorphism
+  border: 1px solid var(--color-border-secondary);
+  background: color-mix(in srgb, var(--color-bg-primary) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  .dark & {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-border-secondary);
+  }
+
+  &:focus-within {
+    border-color: var(--accent-500);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-500) 12%, transparent);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Plugin Chips — horizontal row of toggleable capability chips
+// -----------------------------------------------------------------------------
+
+.plugin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @sp-1-5;
+  padding: @sp-1-5 @sp-1;
+  margin-bottom: @sp-2;
+
+  // Horizontal scroll on mobile
+  @media (max-width: (@screen-sm - 1)) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    .scrollbar-thin();
+    padding-bottom: @sp-1;
+  }
+}
+
+.plugin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1;
+  border-radius: @radius-full;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-1 @sp-2-5;
+  font-size: 11px;
+  font-weight: @font-medium;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  .transition-colors();
+
+  .dark & {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-secondary);
+  }
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+    color: var(--color-text-primary);
+    background: var(--color-hover-bg);
+  }
+
+  // Active state — filled with plugin color (set inline via style)
+  &--active {
+    font-weight: @font-semibold;
+  }
+
+  &__icon {
+    height: 0.75rem;
+    width: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    line-height: 1;
+  }
+}
