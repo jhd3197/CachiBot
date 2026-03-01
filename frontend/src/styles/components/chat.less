@@ -9,6 +9,8 @@
 
 .chat-view {
   .flex-col();
+  flex: 1;
+  min-width: 0;
   height: 100%;
   background: var(--color-bg-app);
 }
@@ -1583,5 +1585,207 @@
     display: flex;
     align-items: center;
     gap: @sp-1-5;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Workspace Selector — chip row below input for workspace-capable plugins
+// -----------------------------------------------------------------------------
+
+.workspace-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: @sp-2;
+  padding: @sp-2 0;
+  justify-content: center;
+}
+
+.workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1-5;
+  border-radius: @radius-full;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-1-5 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--accent-500);
+    color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 5%, transparent);
+  }
+
+  &--active {
+    border-color: var(--accent-500);
+    color: var(--accent-500);
+    background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-500) 20%, transparent);
+  }
+
+  &__icon {
+    height: 0.875rem;
+    width: 0.875rem;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    white-space: nowrap;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Workspace Badge — small pill above textarea when workspace is active
+// -----------------------------------------------------------------------------
+
+.workspace-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1-5;
+  margin-bottom: @sp-2;
+  border-radius: @radius-full;
+  border: 1px solid var(--accent-500);
+  background: color-mix(in srgb, var(--accent-500) 8%, transparent);
+  padding: @sp-1 @sp-2-5 @sp-1 @sp-3;
+  font-size: @text-xs;
+  font-weight: @font-medium;
+  color: var(--accent-500);
+
+  &__name {
+    white-space: nowrap;
+  }
+
+  &__close {
+    .flex-center();
+    flex-shrink: 0;
+    border-radius: @radius-full;
+    padding: @sp-0-5;
+    color: inherit;
+    opacity: 0.6;
+    background: none;
+    border: none;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      opacity: 1;
+      background: color-mix(in srgb, var(--accent-500) 15%, transparent);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Task Progress — inline checklist for workspace mode
+// -----------------------------------------------------------------------------
+
+.task-progress {
+  border-radius: @radius-xl;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-4;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: @sp-2;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  &__count {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__bar-bg {
+    height: 4px;
+    border-radius: @radius-full;
+    background: var(--color-bg-secondary);
+    margin-bottom: @sp-3;
+    overflow: hidden;
+
+    .dark & {
+      background: var(--color-bg-tertiary, @zinc-700);
+    }
+  }
+
+  &__bar-fill {
+    height: 100%;
+    border-radius: @radius-full;
+    background: var(--accent-500);
+    transition: width 300ms ease;
+  }
+
+  &__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: @sp-1-5;
+  }
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: @sp-2;
+  font-size: @text-sm;
+  color: var(--color-text-secondary);
+
+  &__icon {
+    height: 1rem;
+    width: 1rem;
+    flex-shrink: 0;
+  }
+
+  &__desc {
+    min-width: 0;
+  }
+
+  &--pending {
+    color: var(--color-text-tertiary);
+
+    .task-item__icon {
+      color: @zinc-400;
+    }
+  }
+
+  &--in-progress {
+    color: var(--color-text-primary);
+
+    .task-item__icon {
+      color: @blue-500;
+    }
+  }
+
+  &--done {
+    color: var(--color-text-secondary);
+
+    .task-item__icon {
+      color: @green-500;
+    }
+
+    .task-item__desc {
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+  }
+
+  &--failed {
+    color: @red-500;
+
+    .task-item__icon {
+      color: @red-500;
+    }
   }
 }

@@ -9,9 +9,12 @@ import logging
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
+if TYPE_CHECKING:
+    from cachibot.models.workspace import WorkspaceConfig
 from prompture import StreamEventType
 from prompture.exceptions import BudgetExceededError
 
@@ -65,6 +68,58 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+
+def _resolve_workspace_config(workspace_plugin: str) -> "WorkspaceConfig | None":
+    """Resolve workspace config from external or built-in plugin.
+
+    Checks EXTERNAL_PLUGINS for a matching manifest with workspace config,
+    then falls back to built-in plugin workspace_config property.
+    """
+    from cachibot.models.workspace import WorkspaceConfig
+    from cachibot.services.external_plugins import EXTERNAL_PLUGINS
+
+    # Check external plugins first
+    ext_manifest = EXTERNAL_PLUGINS.get(workspace_plugin)
+    if ext_manifest and ext_manifest.workspace:
+        ws = ext_manifest.workspace
+        return WorkspaceConfig(
+            display_name=ws.display_name or ext_manifest.display_name or ext_manifest.name,
+            icon=ws.icon,
+            description=ws.description,
+            system_prompt=ws.system_prompt,
+            default_artifact_type=ws.default_artifact_type,
+            toolbar=ws.toolbar,
+            auto_open_panel=ws.auto_open_panel,
+            accent_color=ws.accent_color,
+        )
+
+    # Check built-in plugins
+    from cachibot.plugins import CACHIBOT_PLUGINS
+    from cachibot.plugins.base import CachibotPlugin
+
+    cls = CACHIBOT_PLUGINS.get(workspace_plugin)
+    if cls and issubclass(cls, CachibotPlugin):
+        try:
+            from tukuy import PythonSandbox
+
+            from cachibot.config import Config
+            from cachibot.plugins.base import PluginContext
+
+            config = Config()
+            sandbox = PythonSandbox(
+                allowed_imports=[],
+                timeout_seconds=1,
+                allowed_read_paths=[],
+                allowed_write_paths=[],
+            )
+            ctx = PluginContext(config=config, sandbox=sandbox)
+            instance = cls(ctx)  # type: ignore[arg-type, call-arg]
+            return instance.workspace_config
+        except Exception:
+            pass
+
+    return None
 
 
 def get_ws_manager() -> ConnectionManager:
@@ -143,6 +198,7 @@ async def websocket_endpoint(
                 capabilities = payload.get("capabilities")  # Optional dict
                 tool_configs = payload.get("toolConfigs")  # Optional dict with per-tool settings
                 enabled_skill_ids = payload.get("enabledSkills")  # Optional list of skill IDs
+                workspace_plugin = payload.get("workspace")  # Plugin name or None
                 if not message:
                     await manager.send(client_id, WSMessage.error("Empty message"))
                     continue
@@ -227,6 +283,36 @@ async def websocket_endpoint(
                     except RuntimeError:
                         pass
 
+                # Async callback for proactive artifact emission from plugins
+                async def _artifact_sender(artifact: Any) -> None:
+                    from cachibot.models.artifact import Artifact as ArtifactModel
+
+                    if isinstance(artifact, ArtifactModel):
+                        a = artifact
+                    elif isinstance(artifact, dict):
+                        a = ArtifactModel(**artifact)
+                    else:
+                        return
+                    await manager.send(
+                        client_id,
+                        WSMessage.artifact(
+                            artifact_id=a.id,
+                            artifact_type=a.type.value if hasattr(a.type, "value") else str(a.type),
+                            title=a.title,
+                            content=a.content,
+                            language=a.language,
+                            metadata=a.metadata,
+                            plugin=a.plugin,
+                            version=a.version,
+                            message_id=a.message_id,
+                        ),
+                    )
+
+                # Resolve workspace config when a workspace plugin is specified
+                resolved_ws_config = None
+                if workspace_plugin:
+                    resolved_ws_config = _resolve_workspace_config(workspace_plugin)
+
                 agent = await build_bot_agent(
                     config,
                     bot_id=bot_id,
@@ -245,7 +331,10 @@ async def websocket_endpoint(
                     on_approval_needed=on_approval,
                     on_instruction_delta=_instruction_delta_sender,
                     on_model_fallback=_model_fallback_sync,
+                    on_artifact=_artifact_sender,
                     inject_coding_agent=True,
+                    workspace=workspace_plugin,
+                    workspace_config=resolved_ws_config,
                 )
 
                 # Extract replyToId from client payload
@@ -440,6 +529,24 @@ async def run_agent(
                             WSMessage.tool_end(
                                 event.data.get("id", ""),
                                 f"[Updated artifact: {result.get('id', '')}]",
+                            ),
+                        )
+                    elif isinstance(result, dict) and result.get("__workspace_progress__"):
+                        action = result.get("action", "")
+                        await manager.send(
+                            client_id,
+                            WSMessage.workspace_progress(
+                                action=action,
+                                tasks=result.get("tasks"),
+                                task_number=result.get("task_number"),
+                                status=result.get("status"),
+                            ),
+                        )
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Progress: {action}]",
                             ),
                         )
                     else:

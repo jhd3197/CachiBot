@@ -39,6 +39,19 @@ class PluginPermissions(BaseModel):
     allow_paths: list[str] = Field(default_factory=list)
 
 
+class WorkspaceManifest(BaseModel):
+    """Workspace mode configuration declared in plugin.toml [plugin.workspace]."""
+
+    display_name: str = ""
+    icon: str = "puzzle"
+    description: str = ""
+    system_prompt: str = ""
+    default_artifact_type: str | None = None
+    toolbar: list[str] = Field(default_factory=list)
+    auto_open_panel: bool = True
+    accent_color: str = ""
+
+
 class ViewConfig(BaseModel):
     """Configuration for view-type plugins."""
 
@@ -74,6 +87,7 @@ class ExternalPluginManifest(BaseModel):
     requires: PluginRequirementsManifest = Field(default_factory=PluginRequirementsManifest)
     permissions: PluginPermissions = Field(default_factory=PluginPermissions)
     view: ViewConfig | None = None
+    workspace: WorkspaceManifest | None = None
     config: list[PluginConfigParam] = Field(default_factory=list)
 
     @property

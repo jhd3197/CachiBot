@@ -8,6 +8,7 @@ import { useChatStore, useBotStore, useJobStore, getBotDefaultModel } from '../s
 import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
 import { useArtifactsStore } from '../stores/artifacts'
+import { useWorkspaceStore } from '../stores/workspace'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -352,6 +353,16 @@ export function useWebSocket() {
           break
         }
 
+        case 'workspace_progress': {
+          const payload = msg.payload as { action: string; tasks?: unknown[]; taskNumber?: number; status?: string }
+          useWorkspaceStore.getState().applyProgress(payload.action, {
+            tasks: payload.tasks as import('../stores/workspace').TaskItem[] | undefined,
+            taskNumber: payload.taskNumber,
+            status: payload.status,
+          })
+          break
+        }
+
         case 'error': {
           const payload = msg.payload as ErrorPayload
           setError(payload.message)
@@ -447,6 +458,7 @@ export function useWebSocket() {
         capabilities?: BotCapabilities
         toolConfigs?: ToolConfigs
         replyToId?: string
+        workspace?: string | null
       }
     ) => {
       const { setLoading, setError, clearToolCalls } = useChatStore.getState()

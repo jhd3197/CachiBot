@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Copy,
   RotateCcw,
@@ -298,8 +298,10 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
 // =============================================================================
 
 function MessageArtifactCards({ messageId }: { messageId: string }) {
-  const artifacts = useArtifactsStore((s) =>
-    Object.values(s.artifacts).filter((a) => a.messageId === messageId)
+  const allArtifacts = useArtifactsStore((s) => s.artifacts)
+  const artifacts = useMemo(
+    () => Object.values(allArtifacts).filter((a) => a.messageId === messageId),
+    [allArtifacts, messageId]
   )
   if (artifacts.length === 0) return null
 

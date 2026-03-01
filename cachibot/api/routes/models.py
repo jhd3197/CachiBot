@@ -238,6 +238,27 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     return ModelsResponse(groups=groups)
 
 
+class AllDefaultsResponse(BaseModel):
+    """All default model slots in one response."""
+
+    default: str = Field(description="Default chat model")
+    embedding: str = Field(description="Default embedding model")
+    utility: str = Field(description="Default utility model")
+
+
+@router.get("/models/defaults", response_model=AllDefaultsResponse)
+async def get_all_defaults(user: User = Depends(get_current_user)) -> AllDefaultsResponse:
+    """Get all default model slots in a single request."""
+    from cachibot.config import Config
+
+    config = Config.load()
+    return AllDefaultsResponse(
+        default=os.getenv("CACHIBOT_DEFAULT_MODEL", DEFAULT_MODEL),
+        embedding=config.knowledge.embedding_model,
+        utility=os.getenv("CACHIBOT_UTILITY_MODEL", ""),
+    )
+
+
 @router.get("/models/default", response_model=DefaultModelResponse)
 async def get_default_model(user: User = Depends(get_current_user)) -> DefaultModelResponse:
     """Get the current default model."""

@@ -7,10 +7,15 @@ single pipeline for environment resolution, model overrides, tool config
 merging, context building, and dynamic instructions.
 """
 
+from __future__ import annotations
+
 import copy
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cachibot.models.workspace import WorkspaceConfig
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.config import Config
@@ -119,8 +124,12 @@ async def build_bot_agent(
     on_approval_needed: Callable[..., Any] | None = None,
     on_instruction_delta: Callable[..., Any] | None = None,
     on_model_fallback: Callable[..., Any] | None = None,
+    on_artifact: Callable[..., Any] | None = None,
     # Feature flags
     inject_coding_agent: bool = False,
+    # Workspace mode
+    workspace: str | None = None,
+    workspace_config: "WorkspaceConfig | None" = None,
 ) -> CachibotAgent:
     """Build a fully-configured CachibotAgent.
 
@@ -188,6 +197,14 @@ async def build_bot_agent(
             enhanced_prompt, capabilities, disabled_capabilities
         )
 
+    # 6b. Workspace mode injection
+    if workspace and workspace_config and workspace_config.system_prompt:
+        enhanced_prompt = (enhanced_prompt or "") + (
+            f"\n\n## Workspace Mode\n"
+            f"You are in **{workspace_config.display_name}** mode.\n"
+            f"{workspace_config.system_prompt}"
+        )
+
     # 7. Construct CachibotAgent
     agent = CachibotAgent(
         config=agent_config,
@@ -203,7 +220,9 @@ async def build_bot_agent(
         disabled_capabilities=disabled_capabilities,
         on_instruction_delta=on_instruction_delta,
         on_model_fallback=on_model_fallback,
+        on_artifact=on_artifact,
         platform_metadata=platform_metadata,
+        workspace=workspace,
     )
 
     # 8. Dynamic instructions

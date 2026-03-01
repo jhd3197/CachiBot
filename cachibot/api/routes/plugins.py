@@ -122,6 +122,94 @@ async def get_plugin_skills(name: str) -> dict[str, Any]:
         return {"error": f"Failed to inspect plugin '{name}': {e}"}
 
 
+@router.get("/api/bots/{bot_id}/workspaces")
+async def get_bot_workspaces(bot_id: str) -> dict[str, Any]:
+    """Return workspace-capable plugins available for a specific bot.
+
+    Filters by:
+    1. Plugin declares a workspace config (external manifest or built-in property)
+    2. Plugin's capability key is enabled on this bot
+    3. Capability is not globally disabled
+    """
+    from cachibot.storage.repository import BotRepository
+
+    disabled_caps = set(await _platform_repo.get_disabled_capabilities())
+
+    # Fetch bot capabilities
+    bot_capabilities: dict[str, Any] = {}
+    try:
+        repo = BotRepository()
+        bot = await repo.get(bot_id)
+        if bot and bot.capabilities:
+            bot_capabilities = bot.capabilities
+    except Exception:
+        pass
+
+    # Build reverse map: plugin class -> capability name
+    plugin_to_cap: dict[str, str | None] = {}
+    for cap_name, classes in CAPABILITY_PLUGINS.items():
+        for cls in classes:
+            plugin_to_cap[cls.__name__] = cap_name
+    for cls in ALWAYS_ENABLED:
+        plugin_to_cap[cls.__name__] = None
+
+    workspaces: list[dict[str, Any]] = []
+
+    # Check external plugins
+    for ext_name, manifest in EXTERNAL_PLUGINS.items():
+        if not manifest.workspace:
+            continue
+        cap_key = manifest.capability_key
+        if cap_key in disabled_caps:
+            continue
+        if not bot_capabilities.get(cap_key, False):
+            continue
+
+        ws = manifest.workspace
+        workspaces.append({
+            "pluginName": ext_name,
+            "capabilityKey": cap_key,
+            "displayName": ws.display_name or manifest.display_name or ext_name,
+            "icon": ws.icon,
+            "description": ws.description,
+            "toolbar": ws.toolbar,
+            "accentColor": ws.accent_color,
+            "defaultArtifactType": ws.default_artifact_type,
+            "autoOpenPanel": ws.auto_open_panel,
+        })
+
+    # Check built-in plugins
+    for name, cls in CACHIBOT_PLUGINS.items():
+        if not issubclass(cls, CachibotPlugin):
+            continue
+        cap = plugin_to_cap.get(cls.__name__)
+        if cap and cap in disabled_caps:
+            continue
+        if cap and not bot_capabilities.get(cap, False):
+            continue
+
+        try:
+            instance = _instantiate_for_introspection(cls)
+            ws_config = instance.workspace_config
+            if not ws_config:
+                continue
+            workspaces.append({
+                "pluginName": name,
+                "capabilityKey": cap,
+                "displayName": ws_config.display_name,
+                "icon": ws_config.icon,
+                "description": ws_config.description,
+                "toolbar": ws_config.toolbar,
+                "accentColor": ws_config.accent_color,
+                "defaultArtifactType": ws_config.default_artifact_type,
+                "autoOpenPanel": ws_config.auto_open_panel,
+            })
+        except Exception:
+            continue
+
+    return {"workspaces": workspaces}
+
+
 def _instantiate_for_introspection(cls: type) -> Any:
     """Instantiate a plugin for metadata introspection.
 
