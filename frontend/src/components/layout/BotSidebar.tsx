@@ -28,6 +28,7 @@ import {
   Code2,
   X,
   Download,
+  Puzzle,
 } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'

@@ -35,6 +35,7 @@ import type { Artifact, ArtifactType } from '../../types'
 interface ArtifactPanelProps {
   artifact: Artifact
   onClose: () => void
+  style?: React.CSSProperties
 }
 
 const TYPE_ICONS: Record<ArtifactType, typeof Code> = {
@@ -59,7 +60,7 @@ const TYPE_LABELS: Record<ArtifactType, string> = {
   custom: 'Custom',
 }
 
-export function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps) {
+export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'content' | 'preview'>('content')
 
@@ -88,7 +89,7 @@ export function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps) {
   const showTabs = artifact.type === 'code' && artifact.language === 'html'
 
   return (
-    <div className="artifact-panel">
+    <div className="artifact-panel" style={style}>
       {/* Header */}
       <div className="artifact-panel__header">
         <div className="artifact-panel__title-row">

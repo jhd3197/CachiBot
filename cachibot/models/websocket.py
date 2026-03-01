@@ -33,6 +33,7 @@ class WSMessageType(str, Enum):
     MODEL_FALLBACK = "model_fallback"
     ARTIFACT = "artifact"
     ARTIFACT_UPDATE = "artifact_update"
+    WORKSPACE_PROGRESS = "workspace_progress"
     USAGE = "usage"
     ERROR = "error"
     DONE = "done"
@@ -425,6 +426,24 @@ class WSMessage(BaseModel):
         if version is not None:
             payload["version"] = version
         return cls(type=WSMessageType.ARTIFACT_UPDATE, payload=payload)
+
+    @classmethod
+    def workspace_progress(
+        cls,
+        action: str,
+        tasks: list[dict[str, Any]] | None = None,
+        task_number: int | None = None,
+        status: str | None = None,
+    ) -> "WSMessage":
+        """Create a workspace progress message (task checklist for workspace mode)."""
+        payload: dict[str, Any] = {"action": action}
+        if tasks is not None:
+            payload["tasks"] = tasks
+        if task_number is not None:
+            payload["taskNumber"] = task_number
+        if status is not None:
+            payload["status"] = status
+        return cls(type=WSMessageType.WORKSPACE_PROGRESS, payload=payload)
 
     @classmethod
     def job_update(

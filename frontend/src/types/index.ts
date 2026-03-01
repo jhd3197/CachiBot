@@ -495,6 +495,7 @@ export type WSMessageType =
   | 'connection_status'
   | 'artifact'
   | 'artifact_update'
+  | 'workspace_progress'
   | 'approval_needed'
   | 'usage'
   | 'error'

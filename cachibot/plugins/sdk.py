@@ -18,7 +18,10 @@ Usage::
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cachibot.plugins.base import PluginContext
 
 
 def artifact(
@@ -305,3 +308,57 @@ def custom_artifact(
         artifact_id=artifact_id,
         version=version,
     )
+
+
+async def emit_artifact(
+    ctx: PluginContext,
+    type: str,
+    title: str,
+    content: str,
+    *,
+    language: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    plugin: str | None = None,
+    artifact_id: str | None = None,
+    version: int = 1,
+) -> str | None:
+    """Proactively emit an artifact to the frontend via the on_artifact callback.
+
+    Unlike the ``artifact()`` helpers which return a dict for the tool result,
+    this function pushes the artifact immediately — useful for streaming
+    multiple artifacts from a single tool call or emitting artifacts from
+    background tasks.
+
+    Args:
+        ctx: The PluginContext (provides the on_artifact callback).
+        type: Artifact type (code, html, markdown, etc.).
+        title: Display title.
+        content: Artifact content.
+        language: Language for code artifacts.
+        metadata: Type-specific metadata.
+        plugin: Source plugin name.
+        artifact_id: Optional explicit ID.
+        version: Version number.
+
+    Returns:
+        The artifact ID if emitted, or None if no callback is available.
+    """
+    if ctx.on_artifact is None:
+        return None
+
+    from cachibot.models.artifact import Artifact as ArtifactModel
+    from cachibot.models.artifact import ArtifactType
+
+    aid = artifact_id or str(uuid.uuid4())
+    a = ArtifactModel(
+        id=aid,
+        type=ArtifactType(type),
+        title=title,
+        content=content,
+        language=language,
+        metadata=metadata or {},
+        plugin=plugin,
+        version=version,
+    )
+    await ctx.on_artifact(a)
+    return aid

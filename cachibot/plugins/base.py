@@ -16,6 +16,7 @@ from cachibot.config import Config
 
 if TYPE_CHECKING:
     from cachibot.models.artifact import Artifact
+    from cachibot.models.workspace import WorkspaceConfig
 
 
 @dataclass
@@ -52,6 +53,11 @@ class CachibotPlugin(TransformerPlugin):  # type: ignore[misc]
     def transformers(self) -> dict[str, Callable[..., Any]]:
         """CachiBot plugins don't provide transformers."""
         return {}
+
+    @property
+    def workspace_config(self) -> "WorkspaceConfig | None":
+        """Override to declare workspace mode support for this plugin."""
+        return None
 
     # -- Lifecycle hooks (override in subclasses as needed) --
 

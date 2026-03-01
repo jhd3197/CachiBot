@@ -32,6 +32,9 @@ import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
 import { ArtifactPanel } from '../artifacts/ArtifactPanel'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useWorkspaceStore } from '../../stores/workspace'
+import { WorkspaceSelector } from '../chat/WorkspaceSelector'
+import { TaskProgress } from '../chat/TaskProgress'
 import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
@@ -64,6 +67,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate } = useBotAccess(activeBotId)
+  const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
 
   // Use prop values if provided, otherwise fall back to WebSocket hook values
   const isConnected = isConnectedProp ?? wsIsConnected
@@ -176,6 +180,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       })
     return () => { cancelled = true }
   }, [codingAgentEnabled])
+
+  // Fetch available workspaces when bot changes
+  useEffect(() => {
+    if (!activeBotId) {
+      setAvailableWorkspaces([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/bots/${activeBotId}/workspaces`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setAvailableWorkspaces(data.workspaces || [])
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableWorkspaces([])
+      })
+    return () => { cancelled = true }
+  }, [activeBotId, setAvailableWorkspaces])
 
   // Filter agents by text typed after @
   const filteredAgents = availableAgents.filter(
@@ -773,6 +795,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
         replyToId: replyToMessage?.id,
+        workspace: activeWorkspace,
       })
     }
     setInput('')
@@ -788,6 +811,22 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
     textareaRef.current?.focus()
   }
+
+  // Handle workspace selection — creates a new chat and activates workspace
+  const handleWorkspaceSelect = useCallback((ws: import('../../stores/workspace').WorkspaceInfo) => {
+    if (activeWorkspace === ws.pluginName) {
+      clearWorkspace()
+      return
+    }
+    // If no chat exists, create one
+    if (!activeChatId && activeBotId) {
+      const newChatId = `chat-${Date.now()}`
+      addChat({ id: newChatId, botId: activeBotId, title: ws.displayName, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 0 })
+      setActiveChat(newChatId)
+    }
+    setActiveWorkspace(ws)
+    textareaRef.current?.focus()
+  }, [activeWorkspace, activeChatId, activeBotId, addChat, setActiveChat, setActiveWorkspace, clearWorkspace])
 
   // Handle input changes — detects @mentions for coding agents
   const handleInputChange = useCallback((value: string) => {
@@ -971,6 +1010,45 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     )
   }
 
+  // Artifact panel state (must be before any early returns)
+  const activeArtifactId = useArtifactsStore((s) => s.activeArtifactId)
+  const panelOpen = useArtifactsStore((s) => s.panelOpen)
+  const activeArtifact = useArtifactsStore((s) => activeArtifactId ? s.artifacts[activeArtifactId] : undefined)
+  const closeArtifactPanel = useArtifactsStore((s) => s.closePanel)
+  const panelWidthRatio = useArtifactsStore((s) => s.panelWidthRatio)
+  const setPanelWidthRatio = useArtifactsStore((s) => s.setPanelWidthRatio)
+
+  // Resize drag state
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !wrapperRef.current) return
+      const rect = wrapperRef.current.getBoundingClientRect()
+      const ratio = 1 - (ev.clientX - rect.left) / rect.width
+      setPanelWidthRatio(ratio)
+    }
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [setPanelWidthRatio])
+
+  const showPanel = panelOpen && activeArtifact
+
   // Empty state when no chat is selected - but still allow sending messages
   if (!activeChatId) {
     return (
@@ -1009,6 +1087,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 </button>
               ))}
             </div>
+            {availableWorkspaces.length > 0 && (
+              <WorkspaceSelector
+                workspaces={availableWorkspaces}
+                activeWorkspace={activeWorkspace}
+                onSelect={handleWorkspaceSelect}
+              />
+            )}
           </div>
         </div>
 
@@ -1065,15 +1150,9 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     )
   }
 
-  // Artifact panel state
-  const activeArtifactId = useArtifactsStore((s) => s.activeArtifactId)
-  const panelOpen = useArtifactsStore((s) => s.panelOpen)
-  const activeArtifact = useArtifactsStore((s) => activeArtifactId ? s.artifacts[activeArtifactId] : undefined)
-  const closeArtifactPanel = useArtifactsStore((s) => s.closePanel)
-
   return (
-    <div className={cn('chat-view-wrapper', panelOpen && activeArtifact && 'chat-view-wrapper--split')}>
-    <div className={cn('chat-view', panelOpen && activeArtifact && 'chat-view--with-panel')}>
+    <div ref={wrapperRef} className={cn('chat-view-wrapper', showPanel && 'chat-view-wrapper--split')}>
+    <div className={cn('chat-view', showPanel && 'chat-view--with-panel')} style={showPanel ? { flex: `0 0 ${(1 - panelWidthRatio) * 100}%` } : undefined}>
       {/* Chat header with bot info and settings */}
       <div className="chat-header">
         <div className="chat-header__bot-info">
@@ -1152,6 +1231,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             </div>
           )}
 
+          {/* Workspace task progress */}
+          {taskProgress && (
+            <div className="mt-6">
+              <TaskProgress progress={taskProgress} />
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -1179,6 +1265,30 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 <X className="h-4 w-4" />
               </button>
             </div>
+          )}
+          {/* Workspace badge */}
+          {workspaceConfig && (
+            <div
+              className="workspace-badge"
+              style={workspaceConfig.accentColor ? { borderColor: workspaceConfig.accentColor } : undefined}
+            >
+              <span className="workspace-badge__name">{workspaceConfig.displayName}</span>
+              <button
+                type="button"
+                className="workspace-badge__close"
+                onClick={clearWorkspace}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          {/* Workspace selector (shown when chat is empty) */}
+          {messages.length === 0 && availableWorkspaces.length > 0 && (
+            <WorkspaceSelector
+              workspaces={availableWorkspaces}
+              activeWorkspace={activeWorkspace}
+              onSelect={handleWorkspaceSelect}
+            />
           )}
           <div className="chat-input-container">
             {renderCommandMenu()}
@@ -1279,10 +1389,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
     </div>
     {/* Artifact side panel */}
-    {panelOpen && activeArtifact && (
+    {showPanel && (
       <>
-        <div className="artifact-divider" />
-        <ArtifactPanel artifact={activeArtifact} onClose={closeArtifactPanel} />
+        <div
+          className="artifact-divider"
+          onMouseDown={handleDividerMouseDown}
+        />
+        <ArtifactPanel
+          artifact={activeArtifact}
+          onClose={closeArtifactPanel}
+          style={{ flex: `0 0 ${panelWidthRatio * 100}%` }}
+        />
       </>
     )}
     </div>
