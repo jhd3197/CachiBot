@@ -33,3 +33,38 @@ def require_bot_ownership(record: T | None, bot_id: str, label: str = "Resource"
     if not record or record.bot_id != bot_id:  # type: ignore[union-attr]
         raise HTTPException(status_code=404, detail=f"{label} not found")
     return record
+
+
+def require_room_ownership(record: T | None, room_id: str, label: str = "Resource") -> T:
+    """Raise 404 if record is None or doesn't belong to the given room.
+
+    Mirrors :func:`require_bot_ownership` but checks ``room_id``.
+    """
+    if not record or record.room_id != room_id:  # type: ignore[union-attr]
+        raise HTTPException(status_code=404, detail=f"{label} not found")
+    return record
+
+
+def require_member(is_member: bool, label: str = "room") -> None:
+    """Raise 403 if the caller is not a member of *label*."""
+    if not is_member:
+        raise HTTPException(status_code=403, detail=f"Not a {label} member")
+
+
+def require_role(
+    actual_role: str | None,
+    required_role: str,
+    action: str = "perform this action",
+) -> None:
+    """Raise 403 unless *actual_role* matches *required_role*.
+
+    Example::
+
+        role = await member_repo.get_member_role(room_id, user.id)
+        require_role(role, RoomMemberRole.CREATOR, "update room settings")
+    """
+    if actual_role != required_role:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Only the {required_role} can {action}",
+        )

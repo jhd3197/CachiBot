@@ -1,0 +1,37 @@
+[plugin]
+name = "website_builder"
+display_name = "Website Builder"
+description = "Generate websites via multi-agent pipeline"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "globe"
+color = "#3b82f6"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = true
+network = true
+imports = ["agentsite"]
+
+[plugin.permissions]
+allow_env_vars = ["OPENAI_API_KEY"]
+allow_paths = ["~/.cachibot/websites"]
+
+[[plugin.config]]
+name = "model"
+display_name = "Model"
+type = "text"
+default = ""
+
+[[plugin.config]]
+name = "maxCost"
+display_name = "Max Cost"
+type = "number"
+default = 0

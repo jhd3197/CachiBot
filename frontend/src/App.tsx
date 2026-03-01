@@ -187,6 +187,22 @@ function App() {
         }
       />
       <Route
+        path="/:botId/plugins"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/plugins/:pluginName"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/:botId/settings"
         element={
           <ProtectedRoute>

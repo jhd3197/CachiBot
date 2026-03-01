@@ -397,13 +397,59 @@ async def run_agent(
                         ),
                     )
                 case StreamEventType.tool_result:
-                    await manager.send(
-                        client_id,
-                        WSMessage.tool_end(
-                            event.data.get("id", ""),
-                            str(event.data.get("result", "")),
-                        ),
-                    )
+                    result = event.data.get("result", "")
+                    # Detect artifact-shaped tool results
+                    if isinstance(result, dict) and result.get("__artifact__"):
+                        artifact_id = result.get("id") or str(uuid.uuid4())
+                        artifact_type = result.get("type", "code")
+                        await manager.send(
+                            client_id,
+                            WSMessage.artifact(
+                                artifact_id=artifact_id,
+                                artifact_type=artifact_type,
+                                title=result.get("title", "Untitled"),
+                                content=result.get("content", ""),
+                                language=result.get("language"),
+                                metadata=result.get("metadata"),
+                                plugin=result.get("plugin"),
+                                version=result.get("version", 1),
+                                message_id=response_msg_id,
+                            ),
+                        )
+                        # Also send as normal tool_end with a summary
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Artifact: {result.get('title', 'Untitled')}]",
+                            ),
+                        )
+                    elif isinstance(result, dict) and result.get("__artifact_update__"):
+                        await manager.send(
+                            client_id,
+                            WSMessage.artifact_update(
+                                artifact_id=result.get("id", ""),
+                                content=result.get("content"),
+                                title=result.get("title"),
+                                metadata=result.get("metadata"),
+                                version=result.get("version"),
+                            ),
+                        )
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Updated artifact: {result.get('id', '')}]",
+                            ),
+                        )
+                    else:
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                str(result),
+                            ),
+                        )
                 case StreamEventType.output:
                     agent_result = event.data  # AgentResult
 

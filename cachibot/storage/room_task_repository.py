@@ -3,20 +3,23 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import func as sa_func
+from sqlalchemy import select, update
 
 from cachibot.models.room_task import RoomTask, RoomTaskPriority, RoomTaskStatus
-from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.room_task import RoomTask as RoomTaskModel
 
 
-class RoomTaskRepository:
+class RoomTaskRepository(BaseRepository[RoomTaskModel, RoomTask]):
     """Repository for room task CRUD operations."""
+
+    _model = RoomTaskModel
 
     async def create(self, task: RoomTask) -> None:
         """Create a new room task."""
-        async with db.ensure_initialized()() as session:
-            obj = RoomTaskModel(
+        await self._add(
+            RoomTaskModel(
                 id=task.id,
                 room_id=task.room_id,
                 title=task.title,
@@ -37,17 +40,11 @@ class RoomTaskRepository:
                 created_at=task.created_at,
                 updated_at=task.updated_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get(self, task_id: str) -> RoomTask | None:
         """Get a task by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(RoomTaskModel).where(RoomTaskModel.id == task_id))
-            row = result.scalar_one_or_none()
-        if row is None:
-            return None
-        return self._row_to_entity(row)
+        return await self.get_by_id(task_id)
 
     async def get_by_room(self, room_id: str, status: str | None = None) -> list[RoomTask]:
         """Get all tasks for a room, optionally filtered by status."""
@@ -55,11 +52,7 @@ class RoomTaskRepository:
         if status:
             stmt = stmt.where(RoomTaskModel.status == status)
         stmt = stmt.order_by(RoomTaskModel.status, RoomTaskModel.position)
-
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_entity(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def update(self, task_id: str, **kwargs: Any) -> RoomTask | None:
         """Update task fields."""
@@ -86,46 +79,35 @@ class RoomTaskRepository:
             return await self.get(task_id)
         fields["updated_at"] = datetime.now(tz=timezone.utc)
 
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(RoomTaskModel).where(RoomTaskModel.id == task_id).values(**fields)
-            )
-            await session.commit()
+        await self._update(
+            update(RoomTaskModel).where(RoomTaskModel.id == task_id).values(**fields)
+        )
         return await self.get(task_id)
 
     async def reorder(self, task_id: str, status: str, position: float) -> RoomTask | None:
         """Move a task to a new status column and position."""
         now = datetime.now(tz=timezone.utc)
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(RoomTaskModel)
-                .where(RoomTaskModel.id == task_id)
-                .values(status=status, position=position, updated_at=now)
-            )
-            await session.commit()
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        count = await self._update(
+            update(RoomTaskModel)
+            .where(RoomTaskModel.id == task_id)
+            .values(status=status, position=position, updated_at=now)
+        )
+        if count == 0:
             return None
         return await self.get(task_id)
 
     async def delete(self, task_id: str) -> bool:
         """Delete a task. Returns True if deleted."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(RoomTaskModel).where(RoomTaskModel.id == task_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(task_id)
 
     async def get_max_position(self, room_id: str, status: str) -> float:
         """Get the maximum position value for a given room and status."""
-        from sqlalchemy import func as sa_func
-
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(sa_func.max(RoomTaskModel.position)).where(
-                    RoomTaskModel.room_id == room_id,
-                    RoomTaskModel.status == status,
-                )
+        val = await self._scalar(
+            select(sa_func.max(RoomTaskModel.position)).where(
+                RoomTaskModel.room_id == room_id,
+                RoomTaskModel.status == status,
             )
-            val = result.scalar_one_or_none()
+        )
         return float(val) if val is not None else 0.0
 
     def _row_to_entity(self, row: RoomTaskModel) -> RoomTask:

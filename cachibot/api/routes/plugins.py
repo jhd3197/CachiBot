@@ -12,6 +12,7 @@ from fastapi import APIRouter
 
 from cachibot.plugins import CACHIBOT_PLUGINS
 from cachibot.plugins.base import CachibotPlugin
+from cachibot.services.external_plugins import EXTERNAL_PLUGINS
 from cachibot.services.plugin_manager import ALWAYS_ENABLED, CAPABILITY_PLUGINS
 from cachibot.storage.repository import PlatformToolConfigRepository
 
@@ -49,19 +50,32 @@ async def list_plugins() -> dict[str, Any]:
             "skills": _get_plugin_skills_metadata(cls),
         }
 
+        # Check if this is an external plugin
+        # External plugins have their manifest name in EXTERNAL_PLUGINS,
+        # or are prefixed with "ext_" in CACHIBOT_PLUGINS
+        ext_name = name if name in EXTERNAL_PLUGINS else name.removeprefix("ext_")
+        ext_manifest = EXTERNAL_PLUGINS.get(ext_name)
+        plugin_data["external"] = ext_manifest is not None
+
         # Include manifest metadata if available
-        try:
-            instance = _instantiate_for_introspection(cls)
-            manifest = instance.manifest
-            plugin_data["displayName"] = manifest.display_name
-            plugin_data["icon"] = manifest.icon
-            plugin_data["color"] = manifest.color
-            plugin_data["group"] = manifest.group
-        except Exception:
-            plugin_data["displayName"] = name
-            plugin_data["icon"] = None
-            plugin_data["color"] = None
-            plugin_data["group"] = None
+        if ext_manifest:
+            plugin_data["displayName"] = ext_manifest.display_name or ext_manifest.name
+            plugin_data["icon"] = ext_manifest.ui.icon
+            plugin_data["color"] = ext_manifest.ui.color
+            plugin_data["group"] = ext_manifest.ui.group
+        else:
+            try:
+                instance = _instantiate_for_introspection(cls)
+                manifest = instance.manifest
+                plugin_data["displayName"] = manifest.display_name
+                plugin_data["icon"] = manifest.icon
+                plugin_data["color"] = manifest.color
+                plugin_data["group"] = manifest.group
+            except Exception:
+                plugin_data["displayName"] = name
+                plugin_data["icon"] = None
+                plugin_data["color"] = None
+                plugin_data["group"] = None
 
         result.append(plugin_data)
 

@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from cachibot.api.auth import get_current_user
-from cachibot.api.helpers import require_found
+from cachibot.api.helpers import require_found, require_member
 from cachibot.models.auth import User
 from cachibot.models.room import (
     ALLOWED_EMOJIS,
@@ -139,8 +139,7 @@ async def get_room(
     """Get room details."""
     room = require_found(await room_repo.get_room(room_id), "Room")
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     members = await member_repo.get_members(room_id)
     bots = await bot_repo.get_bots(room_id)
@@ -155,7 +154,7 @@ async def update_room(
     user: User = Depends(get_current_user),
 ) -> RoomResponse:
     """Update room details (creator only)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -203,7 +202,7 @@ async def delete_room(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete a room (creator only)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -224,7 +223,7 @@ async def invite_member(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Invite a user to the room by username (creator only)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -256,7 +255,7 @@ async def remove_member(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a member from the room (creator only, or self-leave)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
     # Allow self-leave or creator removal
     is_self = user.id == target_user_id
@@ -284,10 +283,9 @@ async def add_bot(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Add a bot to the room (enforces max 4)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     current_count = await bot_repo.get_bot_count(room_id)
     if current_count >= 4:
@@ -313,10 +311,9 @@ async def remove_bot(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a bot from the room (enforces min 2)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     current_count = await bot_repo.get_bot_count(room_id)
     if current_count <= 2:
@@ -333,7 +330,7 @@ async def update_bot_role(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Update a bot's role in the room (creator only)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
     role = await member_repo.get_member_role(room_id, user.id)
     if role != RoomMemberRole.CREATOR:
@@ -363,10 +360,9 @@ async def clear_room_messages(
     user: User = Depends(get_current_user),
 ) -> dict[str, int]:
     """Delete all messages in a room (members only)."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     deleted = await message_repo.delete_messages(room_id)
     return {"deleted": deleted}
@@ -380,10 +376,9 @@ async def get_room_messages(
     user: User = Depends(get_current_user),
 ) -> list[RoomMessageResponse]:
     """Get paginated room transcript."""
-    room = require_found(await room_repo.get_room(room_id), "Room")
+    require_found(await room_repo.get_room(room_id), "Room")
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     messages = await message_repo.get_messages(room_id, limit=limit, before=before)
 
@@ -415,8 +410,7 @@ async def add_reaction(
             detail=f"Invalid emoji. Allowed: {', '.join(ALLOWED_EMOJIS)}",
         )
 
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     reaction_id = str(uuid.uuid4())
     added = await reaction_repo.add_reaction(reaction_id, room_id, message_id, user.id, data.emoji)
@@ -443,10 +437,12 @@ async def remove_reaction(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove an emoji reaction from a message."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
-    require_found(await reaction_repo.remove_reaction(room_id, message_id, user.id, emoji), "Reaction")
+    require_found(
+        await reaction_repo.remove_reaction(room_id, message_id, user.id, emoji),
+        "Reaction",
+    )
 
     # Broadcast via WS
     from cachibot.api.room_websocket import room_manager
@@ -470,8 +466,7 @@ async def pin_message(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Pin a message in the room."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     pin_id = str(uuid.uuid4())
     pinned = await pin_repo.pin_message(pin_id, room_id, message_id, user.id)
@@ -497,8 +492,7 @@ async def unpin_message(
     user: User = Depends(get_current_user),
 ) -> None:
     """Unpin a message from the room."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     require_found(await pin_repo.unpin_message(room_id, message_id), "Pin")
 
@@ -518,8 +512,7 @@ async def get_pinned_messages(
     user: User = Depends(get_current_user),
 ) -> list[dict[str, str]]:
     """Get all pinned messages for a room."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     pins = await pin_repo.get_pinned_messages(room_id)
     return [pin.model_dump() for pin in pins]
@@ -537,8 +530,7 @@ async def add_bookmark(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Bookmark a message (personal, not shared)."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     bookmark_id = str(uuid.uuid4())
     added = await bookmark_repo.add_bookmark(bookmark_id, room_id, message_id, user.id)
@@ -579,8 +571,7 @@ async def get_automations(
     user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """Get all automations for a room."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
     automations = await automation_repo.get_automations(room_id)
     return [a.model_dump() for a in automations]
 
