@@ -21,6 +21,7 @@ class PluginScope(BaseModel):
     """Where the plugin is available."""
 
     contexts: list[str] = Field(default_factory=lambda: ["chat"])
+    allow_late_activation: bool = False
 
 
 class PluginRequirementsManifest(BaseModel):

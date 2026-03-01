@@ -23,3 +23,12 @@ imports = []
 [plugin.permissions]
 allow_env_vars = []
 allow_paths = []
+
+[plugin.workspace]
+display_name = "Document Writer"
+icon = "file-text"
+description = "Rich document editing workspace"
+accent_color = "#06b6d4"
+toolbar = ["create_document", "update_document"]
+default_artifact_type = "markdown"
+auto_open_panel = true

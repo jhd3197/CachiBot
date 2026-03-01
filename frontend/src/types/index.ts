@@ -807,6 +807,7 @@ export interface ExternalPluginInfo {
   group: string
   capabilityKey: string
   contexts: string[]
+  allowLateActivation: boolean
   requires: {
     python: string
     filesystem: boolean

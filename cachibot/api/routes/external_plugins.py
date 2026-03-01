@@ -19,6 +19,7 @@ from cachibot.services.external_plugins import (
     EXTERNAL_PLUGIN_ERRORS,
     EXTERNAL_PLUGINS,
     EXTERNAL_PLUGINS_DIR,
+    OFFICIAL_PLUGIN_NAMES,
     install_plugin_from_archive,
     reload_external_plugins,
     uninstall_plugin,
@@ -46,6 +47,7 @@ async def list_external_plugins() -> dict[str, Any]:
                 "group": manifest.ui.group,
                 "capabilityKey": manifest.capability_key,
                 "contexts": manifest.scope.contexts,
+                "allowLateActivation": manifest.scope.allow_late_activation,
                 "requires": {
                     "python": manifest.requires.python,
                     "filesystem": manifest.requires.filesystem,
@@ -77,6 +79,7 @@ async def list_external_plugins() -> dict[str, Any]:
                 ),
                 "loaded": error is None,
                 "error": error,
+                "official": manifest.name in OFFICIAL_PLUGIN_NAMES,
                 "external": True,
             }
         )
@@ -239,6 +242,13 @@ async def install_plugin(file: UploadFile) -> dict[str, Any]:
 @router.delete("/api/plugins/{name}")
 async def delete_plugin(name: str) -> dict[str, Any]:
     """Uninstall an external plugin (removes from disk and memory)."""
+    if name in OFFICIAL_PLUGIN_NAMES:
+        raise HTTPException(
+            400,
+            f"Cannot uninstall official plugin '{name}'. "
+            "Official plugins are managed by the CachiBot registry.",
+        )
+
     # Call lifecycle hook before removal
     plugin_cls = EXTERNAL_PLUGIN_CLASSES.get(name)
     if plugin_cls and hasattr(plugin_cls, "on_uninstall"):

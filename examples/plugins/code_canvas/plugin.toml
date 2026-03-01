@@ -23,3 +23,12 @@ imports = []
 [plugin.permissions]
 allow_env_vars = []
 allow_paths = []
+
+[plugin.workspace]
+display_name = "Code Canvas"
+icon = "code"
+description = "Canvas-style code editing workspace"
+accent_color = "#8b5cf6"
+toolbar = ["create_code", "update_code"]
+default_artifact_type = "code"
+auto_open_panel = true

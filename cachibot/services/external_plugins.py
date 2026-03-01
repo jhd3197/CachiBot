@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import io
 import logging
 import os
 import shutil
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,18 @@ EXTERNAL_PLUGIN_CLASSES: dict[str, type] = {}
 # Tracks which registry keys were injected by external plugins (for clean reload)
 _INJECTED_CAPABILITY_KEYS: set[str] = set()
 _INJECTED_PLUGIN_KEYS: set[str] = set()
+
+# Official plugin names (all official plugins, even ones skipped due to missing deps)
+OFFICIAL_PLUGIN_NAMES: set[str] = set()
+
+REGISTRY_URL = "https://cachibot.ai/plugins/registry"
+ARCHIVE_URL = "https://cachibot.ai/plugins/{name}/archive"
+FALLBACK_REGISTRY_URL = (
+    "https://raw.githubusercontent.com/jhd3197/CachiBot-Plugins/main/registry.json"
+)
+FALLBACK_ARCHIVE_URL = (
+    "https://raw.githubusercontent.com/jhd3197/CachiBot-Plugins/main/plugins/{name}"
+)
 
 
 def _parse_manifest(toml_path: Path) -> ExternalPluginManifest:
@@ -182,6 +196,121 @@ def _unregister_plugin(name: str) -> None:
     # Clean up sys.modules
     module_name = f"_ext_plugin_{name}"
     sys.modules.pop(module_name, None)
+
+
+async def install_official_plugins(plugins_dir: Path | None = None) -> set[str]:
+    """Fetch the official plugin registry and auto-install default plugins.
+
+    Downloads plugins from the CachiBot website (or GitHub fallback) and
+    extracts them to the plugins directory. Plugins are only installed if:
+    - They are marked ``default: true`` in the registry
+    - They don't already exist on disk (or have an ``.official`` marker
+      with an older version)
+
+    Returns the set of plugin names that were actually installed or updated.
+    """
+    import httpx
+
+    directory = plugins_dir or EXTERNAL_PLUGINS_DIR
+    directory.mkdir(parents=True, exist_ok=True)
+    installed: set[str] = set()
+
+    # Fetch registry and download plugins within a single client session
+    registry: dict | None = None
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for url in (REGISTRY_URL, FALLBACK_REGISTRY_URL):
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    registry = resp.json()
+                    break
+            except Exception:
+                continue
+
+        if not registry:
+            logger.debug("Could not fetch official plugin registry")
+            return installed
+
+        plugins = registry.get("plugins", [])
+
+        for meta in plugins:
+            name = meta.get("name", "")
+            if not name:
+                continue
+
+            # Track all official plugins
+            if meta.get("official"):
+                OFFICIAL_PLUGIN_NAMES.add(name)
+
+            # Only auto-install default plugins
+            if not meta.get("default"):
+                continue
+
+            plugin_dir = directory / name
+            marker = plugin_dir / ".official"
+            remote_version = meta.get("version", "0.0.0")
+
+            if plugin_dir.exists():
+                if not marker.exists():
+                    # User customized — skip
+                    logger.debug("Skipping official plugin '%s' (user-customized)", name)
+                    continue
+                # Check version
+                local_version = marker.read_text().strip()
+                if local_version >= remote_version:
+                    continue
+                # Newer version available — remove old and re-install
+                logger.info(
+                    "Updating official plugin '%s': %s -> %s",
+                    name, local_version, remote_version,
+                )
+                shutil.rmtree(plugin_dir, ignore_errors=True)
+
+            # Download and install
+            try:
+                await _download_and_extract_plugin(client, name, meta, directory)
+                # Write .official marker
+                marker = (directory / name) / ".official"
+                marker.write_text(remote_version)
+                installed.add(name)
+                logger.info("Installed official plugin: %s v%s", name, remote_version)
+            except Exception as exc:
+                logger.warning("Failed to install official plugin '%s': %s", name, exc)
+
+    return installed
+
+
+async def _download_and_extract_plugin(
+    client: "httpx.AsyncClient",
+    name: str,
+    meta: dict,
+    plugins_dir: Path,
+) -> None:
+    """Download a plugin archive or individual files and extract to plugins_dir/name/."""
+    plugin_dir = plugins_dir / name
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+
+    # Try archive endpoint first
+    archive_url = ARCHIVE_URL.format(name=name)
+    try:
+        resp = await client.get(archive_url)
+        if resp.status_code == 200:
+            buf = io.BytesIO(resp.content)
+            with zipfile.ZipFile(buf, "r") as zf:
+                zf.extractall(plugin_dir)
+            return
+    except Exception:
+        pass
+
+    # Fallback: download individual files from GitHub
+    files = meta.get("files", [])
+    for filename in files:
+        url = f"{FALLBACK_ARCHIVE_URL.format(name=name)}/{filename}"
+        resp = await client.get(url)
+        if resp.status_code == 200:
+            (plugin_dir / filename).write_bytes(resp.content)
+        else:
+            raise RuntimeError(f"Failed to download {filename} from {url}")
 
 
 def load_external_plugins(plugins_dir: Path | None = None) -> int:

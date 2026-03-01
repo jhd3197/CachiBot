@@ -133,6 +133,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     mark_current_version_good()
 
+    # Install official plugins from registry
+    try:
+        from cachibot.services.external_plugins import install_official_plugins
+
+        installed = await install_official_plugins()
+        if installed:
+            startup_logger.info(
+                "Installed %d official plugin(s): %s",
+                len(installed),
+                ", ".join(sorted(installed)),
+            )
+    except Exception as exc:
+        startup_logger.debug("Official plugin install skipped: %s", exc)
+
     # Load external plugins from ~/.cachibot/plugins/
     try:
         from cachibot.services.external_plugins import load_external_plugins
