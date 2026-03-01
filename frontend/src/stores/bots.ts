@@ -21,6 +21,7 @@ import type {
   Priority,
 } from '../types'
 import { syncBot, deleteBackendBot, archivePlatformChat, unarchivePlatformChat } from '../api/client'
+import { useArtifactsStore } from './artifacts'
 import { useRailStore } from './rail'
 
 // =============================================================================
@@ -280,7 +281,14 @@ export const useChatStore = create<ChatState>()(
           }
         }),
 
-      setActiveChat: (id) => set({ activeChatId: id }),
+      setActiveChat: (id) => {
+        const prev = get().activeChatId
+        set({ activeChatId: id })
+        // Close artifact panel when switching chats so stale artifacts don't leak
+        if (id !== prev) {
+          useArtifactsStore.getState().closePanel()
+        }
+      },
 
       getChatsByBot: (botId) => {
         const state = get()

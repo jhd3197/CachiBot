@@ -485,6 +485,90 @@
 }
 
 // -----------------------------------------------------------------------------
+// Document Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-document {
+  .flex-col();
+  height: 100%;
+
+  &--pdf {
+    height: 100%;
+  }
+
+  &__iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: white;
+    min-height: 400px;
+  }
+
+  &__bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: @sp-2 @sp-3;
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  &--card {
+    .flex-center();
+    flex-direction: column;
+    gap: @sp-4;
+    padding: @sp-8 @sp-6;
+    height: 100%;
+  }
+
+  &__card-icon {
+    .flex-center();
+    height: 4rem;
+    width: 4rem;
+    border-radius: @radius-lg;
+    background: rgba(var(--accent-500-rgb), 0.12);
+    color: var(--accent-600);
+  }
+
+  &__card-info {
+    .flex-col();
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  &__card-name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    text-align: center;
+    word-break: break-word;
+  }
+
+  &__card-meta {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1-5;
+    padding: @sp-2 @sp-4;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: white;
+    background: var(--accent-500);
+    border: none;
+    border-radius: @radius-md;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--accent-600);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Custom Renderer
 // -----------------------------------------------------------------------------
 

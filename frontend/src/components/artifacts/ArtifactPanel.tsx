@@ -30,6 +30,7 @@ import { SvgRenderer } from './renderers/SvgRenderer'
 import { MermaidRenderer } from './renderers/MermaidRenderer'
 import { ImageRenderer } from './renderers/ImageRenderer'
 import { CustomRenderer } from './renderers/CustomRenderer'
+import { DocumentRenderer } from './renderers/DocumentRenderer'
 import type { Artifact, ArtifactType } from '../../types'
 
 interface ArtifactPanelProps {
@@ -47,6 +48,7 @@ const TYPE_ICONS: Record<ArtifactType, typeof Code> = {
   react: Component,
   image: Image,
   custom: Puzzle,
+  document: FileText,
 }
 
 const TYPE_LABELS: Record<ArtifactType, string> = {
@@ -58,6 +60,7 @@ const TYPE_LABELS: Record<ArtifactType, string> = {
   react: 'React Component',
   image: 'Image',
   custom: 'Custom',
+  document: 'Document',
 }
 
 export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) {
@@ -73,6 +76,17 @@ export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) 
   }, [artifact.content])
 
   const handleDownload = useCallback(() => {
+    // For document artifacts, use the download URL directly
+    if (artifact.type === 'document' && artifact.metadata?.downloadUrl) {
+      const link = document.createElement('a')
+      link.href = artifact.metadata.downloadUrl as string
+      link.download = (artifact.metadata.fileName as string) ?? artifact.title
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+
     const ext = getFileExtension(artifact)
     const blob = new Blob([artifact.content], { type: getMimeType(artifact) })
     const url = URL.createObjectURL(blob)
@@ -195,6 +209,8 @@ function ArtifactContent({ artifact }: { artifact: Artifact }) {
       return <CodeRenderer artifact={artifact} />
     case 'custom':
       return <CustomRenderer artifact={artifact} />
+    case 'document':
+      return <DocumentRenderer artifact={artifact} />
     default:
       return (
         <pre className="artifact-code__pre">
@@ -218,6 +234,11 @@ function getFileExtension(artifact: Artifact): string {
       return '.mmd'
     case 'image':
       return '.png'
+    case 'document': {
+      const docType = artifact.metadata?.documentType as string | undefined
+      if (docType) return `.${docType}`
+      return '.pdf'
+    }
     default:
       return '.txt'
   }

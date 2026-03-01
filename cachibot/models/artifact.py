@@ -17,6 +17,7 @@ class ArtifactType(str, Enum):
     REACT = "react"
     IMAGE = "image"
     CUSTOM = "custom"
+    DOCUMENT = "document"
 
 
 class Artifact(BaseModel):
