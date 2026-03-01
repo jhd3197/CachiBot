@@ -453,7 +453,7 @@ export interface CodingAgentsResponse {
 // ARTIFACT TYPES
 // =============================================================================
 
-export type ArtifactType = 'code' | 'html' | 'markdown' | 'svg' | 'mermaid' | 'react' | 'image' | 'custom'
+export type ArtifactType = 'code' | 'html' | 'markdown' | 'svg' | 'mermaid' | 'react' | 'image' | 'custom' | 'document'
 
 export interface Artifact {
   id: string

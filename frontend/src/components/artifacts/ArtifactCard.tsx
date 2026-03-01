@@ -31,6 +31,7 @@ const TYPE_ICONS: Record<ArtifactType, typeof Code> = {
   react: Component,
   image: Image,
   custom: Puzzle,
+  document: FileText,
 }
 
 const TYPE_LABELS: Record<ArtifactType, string> = {
@@ -42,6 +43,7 @@ const TYPE_LABELS: Record<ArtifactType, string> = {
   react: 'React',
   image: 'Image',
   custom: 'Custom',
+  document: 'Document',
 }
 
 export function ArtifactCard({ artifact }: ArtifactCardProps) {

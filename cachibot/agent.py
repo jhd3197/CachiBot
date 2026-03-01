@@ -413,6 +413,9 @@ class CachibotAgent:
         ".webm",
         ".mov",
         ".avi",
+        ".pptx",
+        ".docx",
+        ".xlsx",
     }
 
     def _schedule_auto_capture(self, result: Any) -> None:

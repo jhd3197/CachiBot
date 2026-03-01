@@ -24,6 +24,33 @@ from cachibot.services.driver_factory import build_driver_with_key
 
 logger = logging.getLogger(__name__)
 
+
+async def _resolve_public_id(model: str) -> str:
+    """If *model* matches a public_id in model_toggles, return the real model_id.
+
+    Uses a raw query against the shared model_toggles table (managed by the
+    CachiBotWebsite codebase) so we don't need a full ORM model here.
+    Returns *model* unchanged when there is no match.
+    """
+    try:
+        from sqlalchemy import text as sa_text
+        from cachibot.storage.db import ensure_initialized
+
+        session_maker = ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(
+                sa_text("SELECT model_id FROM model_toggles WHERE public_id = :pid"),
+                {"pid": model},
+            )
+            row = result.first()
+            if row:
+                logger.debug("Resolved public_id %r → %r", model, row[0])
+                return row[0]
+    except Exception:
+        logger.debug("public_id resolution skipped for %r", model, exc_info=True)
+    return model
+
+
 # Instruction block appended to the system prompt when the codingAgent
 # capability is enabled, telling the LLM how to handle @agent mentions.
 CODING_AGENT_MENTION_INSTRUCTIONS = """
@@ -162,6 +189,10 @@ async def build_bot_agent(
     effective_model: str | None = None
     if bot_models and bot_models.get("default"):
         effective_model = bot_models["default"]
+
+    # 2b. Resolve public_id → real model_id (white-label alias support)
+    if effective_model:
+        effective_model = await _resolve_public_id(effective_model)
 
     if effective_model:
         agent_config = copy.deepcopy(config)

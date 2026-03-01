@@ -310,6 +310,48 @@ def custom_artifact(
     )
 
 
+def document_artifact(
+    title: str,
+    download_url: str,
+    *,
+    file_name: str,
+    file_size: int,
+    mime_type: str,
+    document_type: str,
+    asset_id: str | None = None,
+    artifact_id: str | None = None,
+    version: int = 1,
+) -> dict[str, Any]:
+    """Create a document artifact for PDF, PPTX, DOCX, or XLSX files.
+
+    Args:
+        title: Display title.
+        download_url: URL to download the document.
+        file_name: Original filename.
+        file_size: File size in bytes.
+        mime_type: MIME type of the document.
+        document_type: Short type label (pdf, pptx, docx, xlsx).
+        asset_id: Optional asset ID for reference.
+        artifact_id: Optional explicit ID.
+        version: Version number.
+    """
+    return artifact(
+        type="document",
+        title=title,
+        content=download_url,
+        metadata={
+            "fileName": file_name,
+            "fileSize": file_size,
+            "mimeType": mime_type,
+            "documentType": document_type,
+            "downloadUrl": download_url,
+            "assetId": asset_id,
+        },
+        artifact_id=artifact_id,
+        version=version,
+    )
+
+
 async def emit_artifact(
     ctx: PluginContext,
     type: str,

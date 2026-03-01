@@ -591,9 +591,20 @@ async def run_agent(
         response_text = (agent_result.output_text or "") if agent_result else ""
         run_usage = agent_result.run_usage if agent_result else {}
 
-        # Determine the actual model used for this response
+        # Determine the actual model used for this response.
+        # If bot was configured with a public_id, remap per_model keys
+        # so users never see the real provider model path.
         per_model = run_usage.get("per_model", {})
+        user_facing_model = (
+            (bot_models.get("default") if bot_models else None)
+            or agent.config.agent.model
+        )
         actual_model = next(iter(per_model), None) or agent.config.agent.model
+        if per_model and user_facing_model and actual_model != user_facing_model:
+            per_model = {
+                user_facing_model: v
+                for _k, v in per_model.items()
+            }
 
         # Parse [cite:MSG_ID] from response to determine bot's primary citation
         cited_ids = re.findall(r"\[cite:([a-f0-9-]+)\]", response_text)
