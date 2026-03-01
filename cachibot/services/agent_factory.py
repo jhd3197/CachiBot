@@ -220,6 +220,24 @@ async def build_bot_agent(
             f"{workspace_config.system_prompt}"
         )
 
+    # 6c. External plugin tool hints — inject system_prompt from enabled ext_* capabilities
+    if capabilities:
+        try:
+            from cachibot.services.external_plugins import EXTERNAL_PLUGINS
+
+            for cap_key, enabled in capabilities.items():
+                if not enabled or not cap_key.startswith("ext_"):
+                    continue
+                # Skip if already in workspace mode for this plugin (avoid double-injection)
+                plugin_name = cap_key.removeprefix("ext_")
+                if workspace and workspace == plugin_name:
+                    continue
+                manifest = EXTERNAL_PLUGINS.get(plugin_name)
+                if manifest and manifest.workspace and manifest.workspace.system_prompt:
+                    enhanced_prompt = (enhanced_prompt or "") + manifest.workspace.system_prompt
+        except Exception:
+            logger.debug("External plugin prompt injection skipped", exc_info=True)
+
     # 7. Construct CachibotAgent
     agent = CachibotAgent(
         config=agent_config,

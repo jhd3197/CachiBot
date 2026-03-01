@@ -44,3 +44,17 @@ accent_color = "#3b82f6"
 toolbar = ["build_website", "iterate_website", "list_websites"]
 default_artifact_type = "html"
 auto_open_panel = true
+system_prompt = """
+## Website Builder Tools
+You have access to `build_website`, `iterate_website`, and `list_websites` tools for generating complete websites.
+
+**When to use these tools:** Whenever the user asks you to build, create, or generate a website, landing page, portfolio site, or any multi-page web project, you MUST use `build_website` instead of writing HTML inline.
+
+**How to decide:**
+- If the user wants a complete website or landing page, use `build_website`.
+- If the user asks a quick question about web development or wants a brief reply, respond inline as normal.
+- If the user wants to refine or iterate on an existing website, use `iterate_website`.
+- To show the user their existing websites, use `list_websites`.
+
+Describe the desired website clearly when invoking the tool and let the builder pipeline handle generation.
+"""

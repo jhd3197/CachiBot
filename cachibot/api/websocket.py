@@ -5,6 +5,7 @@ Handles real-time streaming of agent events to clients.
 """
 
 import asyncio
+import json
 import logging
 import re
 import uuid
@@ -337,6 +338,23 @@ async def websocket_endpoint(
                     workspace_config=resolved_ws_config,
                 )
 
+                # Debug: log registered tools and ext capabilities
+                ext_caps = {
+                    k: v for k, v in (capabilities or {}).items()
+                    if k.startswith("ext_")
+                }
+                from cachibot.services.plugin_manager import CAPABILITY_PLUGINS
+                ext_registered = [k for k in CAPABILITY_PLUGINS if k.startswith("ext_")]
+                logger.info(
+                    "Agent built for bot=%s | tools=%s | ext_caps=%s"
+                    " | ext_registered=%s | workspace=%s",
+                    bot_id,
+                    sorted(agent.registry.names) if agent.registry else "NONE",
+                    ext_caps or "NONE",
+                    ext_registered or "NONE",
+                    workspace_plugin,
+                )
+
                 # Extract replyToId from client payload
                 reply_to_id = payload.get("replyToId")
 
@@ -487,6 +505,15 @@ async def run_agent(
                     )
                 case StreamEventType.tool_result:
                     result = event.data.get("result", "")
+                    # Prompture serializes tool results to JSON strings,
+                    # so parse back to dict for artifact marker detection.
+                    if isinstance(result, str):
+                        try:
+                            parsed = json.loads(result)
+                            if isinstance(parsed, dict):
+                                result = parsed
+                        except (json.JSONDecodeError, ValueError):
+                            pass
                     # Detect artifact-shaped tool results
                     if isinstance(result, dict) and result.get("__artifact__"):
                         artifact_id = result.get("id") or str(uuid.uuid4())

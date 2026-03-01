@@ -709,27 +709,6 @@ export interface PlatformChat {
   updatedAt: string
 }
 
-export interface PlatformMessage {
-  id: string
-  chatId: string
-  role: string
-  content: string
-  timestamp: string
-  metadata: Record<string, unknown>
-}
-
-export async function getPlatformChats(botId: string): Promise<PlatformChat[]> {
-  return request(`/bots/${botId}/chats`)
-}
-
-export async function getPlatformChatMessages(
-  botId: string,
-  chatId: string,
-  limit = 50
-): Promise<PlatformMessage[]> {
-  return request(`/bots/${botId}/chats/${chatId}/messages?limit=${limit}`)
-}
-
 export async function deletePlatformChat(botId: string, chatId: string): Promise<void> {
   return request(`/bots/${botId}/chats/${chatId}`, { method: 'DELETE' })
 }
@@ -760,9 +739,6 @@ export async function unarchivePlatformChat(botId: string, chatId: string): Prom
   return request(`/bots/${botId}/chats/${chatId}/_unarchive`, { method: 'POST' })
 }
 
-export async function getPlatformChatsIncludingArchived(botId: string): Promise<PlatformChat[]> {
-  return request(`/bots/${botId}/chats?include_archived=true`)
-}
 
 // =============================================================================
 // WORK MANAGEMENT API

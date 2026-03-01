@@ -145,17 +145,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 ", ".join(sorted(installed)),
             )
     except Exception as exc:
-        startup_logger.debug("Official plugin install skipped: %s", exc)
+        startup_logger.warning("Official plugin install failed: %s", exc)
 
     # Load external plugins from ~/.cachibot/plugins/
     try:
-        from cachibot.services.external_plugins import load_external_plugins
+        from cachibot.services.external_plugins import EXTERNAL_PLUGINS_DIR, load_external_plugins
 
+        startup_logger.info("External plugins directory: %s", EXTERNAL_PLUGINS_DIR)
         ext_count = load_external_plugins()
         if ext_count:
             startup_logger.info("Loaded %d external plugin(s)", ext_count)
+        else:
+            startup_logger.warning(
+                "No external plugins loaded (dir=%s, exists=%s)",
+                EXTERNAL_PLUGINS_DIR,
+                EXTERNAL_PLUGINS_DIR.exists(),
+            )
     except Exception as exc:
-        startup_logger.debug("External plugin loading skipped: %s", exc)
+        startup_logger.warning("External plugin loading failed: %s", exc)
 
     # Set up message processor for platform connections
     platform_manager = get_platform_manager()
