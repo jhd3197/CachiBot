@@ -343,17 +343,9 @@ function formatRelativeTime(iso: string): string {
 function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 'rooms'; onNavigate?: () => void }) {
   const navigate = useNavigate()
   const { activeBotId } = useBotStore()
-  const { getChatsByBot, activeChatId, setActiveChat, updateChat, deleteChat, clearMessages, syncPlatformChats, loadPlatformChatMessages, archiveChat } = useChatStore()
+  const { getChatsByBot, activeChatId, setActiveChat, updateChat, deleteChat, clearMessages, archiveChat } = useChatStore()
   const { setRooms, activeRoomId, setActiveRoom, getRoomsForBot } = useRoomStore()
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
-
-  // Sync platform chats (Telegram, Discord) from backend — only in chats mode
-  useEffect(() => {
-    if (mode !== 'chats') return
-    syncPlatformChats(botId)
-    const interval = setInterval(() => syncPlatformChats(botId), 60000)
-    return () => clearInterval(interval)
-  }, [botId, mode, syncPlatformChats])
 
   // Load rooms — only in rooms mode
   useEffect(() => {
@@ -372,11 +364,8 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
     return <MessageSquare className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
   }
 
-  const handleChatClick = async (chat: Chat) => {
+  const handleChatClick = (chat: Chat) => {
     setActiveChat(chat.id)
-    if (chat.platform) {
-      await loadPlatformChatMessages(botId, chat.id)
-    }
     const chatPath = chat.platform ? chat.platform : chat.id
     navigate(`/${botId}/chats/${chatPath}`)
     onNavigate?.()

@@ -77,7 +77,7 @@ import {
   addMember,
   removeMember,
 } from '../../api/groups'
-import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, getPlatformChats, clearBotPlatformData, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
+import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, clearBotPlatformData, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
@@ -2517,39 +2517,12 @@ function BotDataManager() {
   const [selectedItems, setSelectedItems] = useState<Map<string, Set<DataCategory>>>(new Map())
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [platformCounts, setPlatformCounts] = useState<Record<string, number>>({})
-  const [loadingPlatform, setLoadingPlatform] = useState(false)
-
-  // Load platform chat counts from backend
-  useEffect(() => {
-    const loadPlatformCounts = async () => {
-      setLoadingPlatform(true)
-      const counts: Record<string, number> = {}
-
-      for (const bot of bots) {
-        try {
-          const platformChats = await getPlatformChats(bot.id)
-          counts[bot.id] = platformChats.length
-        } catch {
-          counts[bot.id] = 0
-        }
-      }
-
-      setPlatformCounts(counts)
-      setLoadingPlatform(false)
-    }
-
-    loadPlatformCounts()
-  }, [bots])
-
   // Compute data info for each bot
   const botDataInfos = useMemo((): BotDataInfo[] => {
     return bots.map((bot) => {
       const allBotChats = chats.filter((c) => c.botId === bot.id)
-      // Local chats = chats WITHOUT platform field (pure local conversations)
       const localChats = allBotChats.filter((c) => !c.platform)
-      // Platform chats in local storage (synced from Telegram/Discord)
-      const localPlatformChats = allBotChats.filter((c) => c.platform)
+      const platformChats = allBotChats.filter((c) => c.platform)
 
       const localMessagesCount = localChats.reduce(
         (acc, chat) => acc + (messages[chat.id]?.length || 0),
@@ -2558,11 +2531,6 @@ function BotDataManager() {
       const botJobs = jobs.filter((j) => j.botId === bot.id)
       const botTasks = tasks.filter((t) => t.botId === bot.id)
       const hasUsageData = !!stats.byBot[bot.id]
-
-      // Platform count: max of backend count and local platform chats
-      // (they should be the same, but take max to ensure we show something)
-      const backendPlatformCount = platformCounts[bot.id] || 0
-      const effectivePlatformCount = Math.max(backendPlatformCount, localPlatformChats.length)
 
       return {
         botId: bot.id,
@@ -2573,10 +2541,10 @@ function BotDataManager() {
         jobsCount: botJobs.length,
         tasksCount: botTasks.length,
         hasUsageData,
-        platformChatsCount: effectivePlatformCount,
+        platformChatsCount: platformChats.length,
       }
     })
-  }, [bots, chats, messages, jobs, tasks, stats.byBot, platformCounts])
+  }, [bots, chats, messages, jobs, tasks, stats.byBot])
 
   // Toggle bot expansion
   const toggleBot = (botId: string) => {
@@ -2709,8 +2677,6 @@ function BotDataManager() {
         // Then, delete from backend database
         try {
           await clearBotPlatformData(botId)
-          // Update local platform count
-          setPlatformCounts((prev) => ({ ...prev, [botId]: 0 }))
         } catch (err) {
           console.error('Failed to clear platform data:', err)
           toast.error(`Failed to clear platform data for bot`)
@@ -2741,12 +2707,6 @@ function BotDataManager() {
       <div className="space-y-4">
         <p className="text-sm text-[var(--color-text-secondary)]">
           Clear specific data for each bot while keeping bot settings and connections intact.
-          {loadingPlatform && (
-            <span className="ml-2 text-[var(--color-text-secondary)]">
-              <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
-              Loading platform data...
-            </span>
-          )}
         </p>
 
         {/* Bot list */}

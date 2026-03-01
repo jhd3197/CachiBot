@@ -57,6 +57,21 @@ display_name = "Max Cost"
 type = "number"
 default = 0
 description = "Maximum cost in USD (0 = no limit)"
+
+# ─── Workspace / Canvas ───────────────────────────────────
+[plugin.workspace]
+display_name = "Website Builder"       # Name in workspace mode header
+icon = "globe"                         # Lucide icon for workspace
+description = "Website generation workspace"
+accent_color = "#3b82f6"               # Workspace UI accent color
+toolbar = ["build_website", "iterate_website", "list_websites"]
+default_artifact_type = "html"         # Default content type for artifacts
+auto_open_panel = true                 # Auto-open canvas on artifact creation
+system_prompt = """
+## Website Builder Tools
+You have access to `build_website`, `iterate_website`, and `list_websites` tools.
+When the user asks to build a website, you MUST use `build_website` instead of writing HTML inline.
+"""
 ```
 
 ## Section Reference
@@ -148,6 +163,48 @@ Use TOML's array-of-tables syntax (`[[plugin.config]]`) to declare user-configur
 | `secret`   | Password    | `string`       |
 | `path`     | Path picker | `string`       |
 | `url`      | URL input   | `string`       |
+
+### `[plugin.workspace]` -- Workspace / Canvas Configuration
+
+Declares how the plugin behaves in workspace mode and in the artifact canvas.
+
+| Field                  | Type       | Default    | Description                                                      |
+|------------------------|------------|------------|------------------------------------------------------------------|
+| `display_name`         | `string`   | `""`       | Name shown in the workspace mode header                          |
+| `icon`                 | `string`   | `"puzzle"` | Lucide icon for the workspace mode                               |
+| `description`          | `string`   | `""`       | Short description of the workspace                               |
+| `system_prompt`        | `string`   | `""`       | Instructions injected into the LLM system prompt when the plugin is enabled — tells the model when and how to use the plugin's tools |
+| `default_artifact_type`| `string`   | `null`     | Default content type for artifacts: `"markdown"`, `"html"`, `"code"`, `"svg"`, `"mermaid"`, `"react"` |
+| `toolbar`              | `string[]` | `[]`       | Skill names shown in the workspace toolbar                       |
+| `auto_open_panel`      | `bool`     | `true`     | Whether the canvas panel opens automatically when an artifact is created |
+| `accent_color`         | `string`   | `""`       | Hex color for workspace UI accents                               |
+
+#### `system_prompt` — Tool usage guidance
+
+The `system_prompt` field is **critical** for ensuring the LLM actually uses your plugin's tools. Without it, the model may respond with plain text instead of calling your create/update skills.
+
+Write a prompt that tells the LLM:
+1. What tools are available (e.g. `create_document`, `update_document`)
+2. **When** to use them (what kinds of user requests should trigger tool use)
+3. **When NOT** to use them (quick questions, brief replies)
+4. How to decide between create vs. update
+
+Example:
+
+```toml
+system_prompt = """
+## My Plugin Tools
+You have access to `create_thing` and `update_thing` tools.
+
+**When to use:** Whenever the user asks you to create [content type], you MUST use `create_thing` instead of responding inline.
+
+**When NOT to use:** If the user asks a quick question or wants a brief reply, respond inline as normal.
+
+To revise existing content, use `update_thing` with the document identifier.
+"""
+```
+
+The prompt is injected into the system message whenever the plugin's capability is enabled on a bot — both in regular mode and in workspace mode. In full workspace mode, the prompt is injected once (not duplicated).
 
 ## Capability Key
 

@@ -24,8 +24,57 @@ from cachibot.models.external_plugin import ExternalPluginManifest
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# WSL-aware plugins directory resolution
+# ---------------------------------------------------------------------------
+
+_SKIP_WIN_USERS = frozenset({"Public", "Default", "Default User", "All Users"})
+
+
+def _resolve_plugins_dir() -> Path:
+    """Resolve the external plugins directory, with WSL-to-Windows fallback.
+
+    In WSL environments ``Path.home()`` resolves to the Linux home
+    (e.g. ``/home/user``) while the user's ``.cachibot`` data may live
+    under the Windows home (``/mnt/c/Users/Juan/.cachibot``).  When the
+    Linux path doesn't exist, this function probes the Windows home
+    via ``/mnt/c/Users/*/`` and returns whichever directory has plugins.
+    """
+    primary = Path.home() / ".cachibot" / "plugins"
+    if primary.is_dir():
+        return primary
+
+    # Quick WSL detection via /proc/version
+    try:
+        version_text = Path("/proc/version").read_text()
+        if "microsoft" not in version_text.lower():
+            return primary
+    except Exception:
+        return primary
+
+    # WSL: look for .cachibot/plugins under Windows user profiles
+    for drive in ("c", "d"):
+        users_dir = Path(f"/mnt/{drive}/Users")
+        if not users_dir.is_dir():
+            continue
+        try:
+            for user_dir in users_dir.iterdir():
+                if not user_dir.is_dir() or user_dir.name in _SKIP_WIN_USERS:
+                    continue
+                candidate = user_dir / ".cachibot" / "plugins"
+                if candidate.is_dir():
+                    logger.info(
+                        "WSL detected — using Windows plugins dir: %s", candidate
+                    )
+                    return candidate
+        except PermissionError:
+            continue
+
+    return primary
+
+
 # Default directory for external plugins
-EXTERNAL_PLUGINS_DIR = Path.home() / ".cachibot" / "plugins"
+EXTERNAL_PLUGINS_DIR = _resolve_plugins_dir()
 
 # Module-level registry: name -> manifest (populated after loading)
 EXTERNAL_PLUGINS: dict[str, ExternalPluginManifest] = {}

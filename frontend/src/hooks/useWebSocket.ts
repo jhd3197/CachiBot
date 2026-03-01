@@ -187,7 +187,18 @@ export function useWebSocket() {
             const existingChats = chatStore.getChatsByBot(botId)
             const chatExists = existingChats.some(c => c.id === payload.chatId)
             if (!chatExists) {
-              chatStore.syncPlatformChats(botId)
+              // Add the chat directly from the WebSocket payload
+              chatStore.addChat({
+                id: payload.chatId,
+                botId,
+                title: payload.chatId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                messageCount: 0,
+                pinned: false,
+                platform: payload.platform as 'telegram' | 'discord' | null,
+                platformChatId: payload.chatId,
+              })
             }
           }
 
