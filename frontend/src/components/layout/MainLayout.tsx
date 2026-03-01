@@ -15,6 +15,8 @@ import {
   AutomationsView,
   ScriptEditorView,
   GlobalLogView,
+  PluginsView,
+  ExternalPluginView,
 } from '../views'
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
@@ -87,6 +89,7 @@ export function MainLayout() {
     automations: 'automations',
     voice: 'voice',
     tools: 'tools',
+    plugins: 'plugins',
     developer: 'developer',
     settings: 'settings',
   }
@@ -254,6 +257,14 @@ export function MainLayout() {
         return <VoiceView />
       case 'tools':
         return <ToolsView />
+      case 'plugins': {
+        // Sub-route: /:botId/plugins/:pluginName -> ExternalPluginView
+        const pluginName = pathParts[2]
+        if (pluginName) {
+          return <ExternalPluginView pluginName={pluginName} />
+        }
+        return <PluginsView />
+      }
       case 'developer':
         return <SettingsView />
       case 'settings':

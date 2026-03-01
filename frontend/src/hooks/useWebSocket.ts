@@ -7,6 +7,7 @@ import { wsClient } from '../api/websocket'
 import { useChatStore, useBotStore, useJobStore, getBotDefaultModel } from '../stores/bots'
 import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
+import { useArtifactsStore } from '../stores/artifacts'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -21,6 +22,8 @@ import type {
   ErrorPayload,
   UsagePayload,
   JobUpdatePayload,
+  Artifact,
+  ArtifactUpdatePayload,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -322,6 +325,30 @@ export function useWebSocket() {
           } else if (payload.action === 'deleted') {
             jobStore.deleteJob(payload.job.id)
           }
+          break
+        }
+
+        case 'artifact': {
+          const payload = msg.payload as Artifact & { messageId?: string }
+          const artifactChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          useArtifactsStore.getState().addArtifact({
+            id: payload.id,
+            type: payload.type,
+            title: payload.title,
+            content: payload.content,
+            language: payload.language,
+            metadata: payload.metadata,
+            plugin: payload.plugin,
+            version: payload.version ?? 1,
+            chatId: artifactChatId || undefined,
+            messageId: payload.messageId,
+          })
+          break
+        }
+
+        case 'artifact_update': {
+          const payload = msg.payload as ArtifactUpdatePayload
+          useArtifactsStore.getState().applyArtifactUpdate(payload)
           break
         }
 

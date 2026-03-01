@@ -31,6 +31,8 @@ class WSMessageType(str, Enum):
     APPROVAL_NEEDED = "approval_needed"
     INSTRUCTION_DELTA = "instruction_delta"
     MODEL_FALLBACK = "model_fallback"
+    ARTIFACT = "artifact"
+    ARTIFACT_UPDATE = "artifact_update"
     USAGE = "usage"
     ERROR = "error"
     DONE = "done"
@@ -371,6 +373,58 @@ class WSMessage(BaseModel):
         if error:
             payload["error"] = error
         return cls(type=WSMessageType.EXECUTION_END, payload=payload)
+
+    @classmethod
+    def artifact(
+        cls,
+        artifact_id: str,
+        artifact_type: str,
+        title: str,
+        content: str,
+        language: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        plugin: str | None = None,
+        version: int = 1,
+        message_id: str | None = None,
+    ) -> "WSMessage":
+        """Create an artifact message (rich content for side panel)."""
+        payload: dict[str, Any] = {
+            "id": artifact_id,
+            "type": artifact_type,
+            "title": title,
+            "content": content,
+            "version": version,
+        }
+        if language:
+            payload["language"] = language
+        if metadata:
+            payload["metadata"] = metadata
+        if plugin:
+            payload["plugin"] = plugin
+        if message_id:
+            payload["messageId"] = message_id
+        return cls(type=WSMessageType.ARTIFACT, payload=payload)
+
+    @classmethod
+    def artifact_update(
+        cls,
+        artifact_id: str,
+        content: str | None = None,
+        title: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        version: int | None = None,
+    ) -> "WSMessage":
+        """Create an artifact update message (partial update to existing artifact)."""
+        payload: dict[str, Any] = {"id": artifact_id}
+        if content is not None:
+            payload["content"] = content
+        if title is not None:
+            payload["title"] = title
+        if metadata is not None:
+            payload["metadata"] = metadata
+        if version is not None:
+            payload["version"] = version
+        return cls(type=WSMessageType.ARTIFACT_UPDATE, payload=payload)
 
     @classmethod
     def job_update(

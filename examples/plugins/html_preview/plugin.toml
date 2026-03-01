@@ -1,0 +1,25 @@
+[plugin]
+name = "html_preview"
+display_name = "HTML Preview"
+description = "Live HTML/CSS/JS preview in a sandboxed side panel"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "globe"
+color = "#f97316"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []

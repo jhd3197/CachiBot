@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from cachibot.api.auth import get_current_user, get_manager_or_admin_user
-from cachibot.api.helpers import require_found
+from cachibot.api.helpers import require_found, require_member
 from cachibot.models.auth import User, UserRole
 from cachibot.models.group import (
     AddMemberRequest,
@@ -91,9 +91,7 @@ async def get_group(
 
     # Access check: must be member or admin
     if user.role != UserRole.ADMIN:
-        is_member = await group_repo.is_member(group_id, user.id)
-        if not is_member:
-            raise HTTPException(status_code=403, detail="Not a member of this group")
+        require_member(await group_repo.is_member(group_id, user.id), "group")
 
     members_data = await group_repo.get_members(group_id)
     members = [
@@ -126,7 +124,7 @@ async def update_group(
     user: User = Depends(get_current_user),
 ) -> GroupResponse:
     """Update a group. Must be group owner or admin."""
-    group = require_found(await group_repo.get_group_by_id(group_id), "Group")
+    require_found(await group_repo.get_group_by_id(group_id), "Group")
 
     await _require_group_admin(group_id, user)
 
@@ -156,7 +154,7 @@ async def delete_group(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete a group. Must be group owner or admin."""
-    group = require_found(await group_repo.get_group_by_id(group_id), "Group")
+    require_found(await group_repo.get_group_by_id(group_id), "Group")
 
     await _require_group_admin(group_id, user)
 
@@ -170,7 +168,7 @@ async def add_member(
     user: User = Depends(get_current_user),
 ) -> GroupMemberResponse:
     """Add a member to a group. Must be group owner or admin."""
-    group = require_found(await group_repo.get_group_by_id(group_id), "Group")
+    require_found(await group_repo.get_group_by_id(group_id), "Group")
 
     await _require_group_admin(group_id, user)
 
@@ -197,7 +195,7 @@ async def remove_member(
     user: User = Depends(get_current_user),
 ) -> None:
     """Remove a member from a group. Must be group owner or admin."""
-    group = require_found(await group_repo.get_group_by_id(group_id), "Group")
+    require_found(await group_repo.get_group_by_id(group_id), "Group")
 
     await _require_group_admin(group_id, user)
 

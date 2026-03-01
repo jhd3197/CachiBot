@@ -39,6 +39,7 @@ from cachibot.models.automations import (
     TimelineEvent as TimelineEventModel,
 )
 from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.automations import (
     ExecutionDailySummary as ExecutionDailySummaryORM,
 )
@@ -59,13 +60,15 @@ from cachibot.storage.models.automations import (
 )
 
 
-class ScriptRepository:
+class ScriptRepository(BaseRepository[ScriptORM, ScriptModel]):
     """Repository for bot scripts (versioned Python code)."""
+
+    _model = ScriptORM
 
     async def save(self, script: ScriptModel) -> None:
         """Save a new script."""
-        async with db.ensure_initialized()() as session:
-            obj = ScriptORM(
+        await self._add(
+            ScriptORM(
                 id=script.id,
                 bot_id=script.bot_id,
                 name=script.name,
@@ -87,42 +90,36 @@ class ScriptRepository:
                 last_run_at=script.last_run_at,
                 success_rate=script.success_rate,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def update(self, script: ScriptModel) -> None:
         """Update an existing script."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ScriptORM)
-                .where(ScriptORM.id == script.id)
-                .values(
-                    name=script.name,
-                    description=script.description,
-                    source_code=script.source_code,
-                    language=script.language,
-                    status=script.status.value
-                    if isinstance(script.status, ScriptStatus)
-                    else script.status,
-                    current_version=script.current_version,
-                    tags=script.tags,
-                    updated_at=datetime.now(timezone.utc),
-                    timeout_seconds=script.timeout_seconds,
-                    max_memory_mb=script.max_memory_mb,
-                    allowed_imports=script.allowed_imports,
-                    run_count=script.run_count,
-                    last_run_at=script.last_run_at,
-                    success_rate=script.success_rate,
-                )
+        await self._update(
+            update(ScriptORM)
+            .where(ScriptORM.id == script.id)
+            .values(
+                name=script.name,
+                description=script.description,
+                source_code=script.source_code,
+                language=script.language,
+                status=script.status.value
+                if isinstance(script.status, ScriptStatus)
+                else script.status,
+                current_version=script.current_version,
+                tags=script.tags,
+                updated_at=datetime.now(timezone.utc),
+                timeout_seconds=script.timeout_seconds,
+                max_memory_mb=script.max_memory_mb,
+                allowed_imports=script.allowed_imports,
+                run_count=script.run_count,
+                last_run_at=script.last_run_at,
+                success_rate=script.success_rate,
             )
-            await session.commit()
+        )
 
     async def get(self, script_id: str) -> ScriptModel | None:
         """Get a script by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(ScriptORM).where(ScriptORM.id == script_id))
-            row = result.scalar_one_or_none()
-        return self._row_to_script(row) if row else None
+        return await self.get_by_id(script_id)
 
     async def get_by_bot(
         self, bot_id: str, status: ScriptStatus | None = None, limit: int = 50
@@ -133,50 +130,40 @@ class ScriptRepository:
             stmt = stmt.where(ScriptORM.status == status.value)
         stmt = stmt.order_by(ScriptORM.updated_at.desc()).limit(limit)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_script(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def delete(self, script_id: str) -> bool:
         """Delete a script by ID (cascades to versions)."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(ScriptORM).where(ScriptORM.id == script_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(script_id)
 
     async def update_status(self, script_id: str, status: ScriptStatus) -> None:
         """Update script status."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ScriptORM)
-                .where(ScriptORM.id == script_id)
-                .values(status=status.value, updated_at=now)
-            )
-            await session.commit()
+        await self._update(
+            update(ScriptORM)
+            .where(ScriptORM.id == script_id)
+            .values(status=status.value, updated_at=now)
+        )
 
     async def increment_run_count(self, script_id: str, success: bool) -> None:
         """Increment run count and update success rate atomically."""
         now = datetime.now(timezone.utc)
         success_val = 1 if success else 0
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ScriptORM)
-                .where(ScriptORM.id == script_id)
-                .values(
-                    success_rate=(
-                        (ScriptORM.run_count * ScriptORM.success_rate + success_val)
-                        / (ScriptORM.run_count + 1)
-                    ),
-                    run_count=ScriptORM.run_count + 1,
-                    last_run_at=now,
-                    updated_at=now,
-                )
+        await self._update(
+            update(ScriptORM)
+            .where(ScriptORM.id == script_id)
+            .values(
+                success_rate=(
+                    (ScriptORM.run_count * ScriptORM.success_rate + success_val)
+                    / (ScriptORM.run_count + 1)
+                ),
+                run_count=ScriptORM.run_count + 1,
+                last_run_at=now,
+                updated_at=now,
             )
-            await session.commit()
+        )
 
-    def _row_to_script(self, row: ScriptORM) -> ScriptModel:
+    def _row_to_entity(self, row: ScriptORM) -> ScriptModel:
         """Convert database row to Script pydantic model."""
         return ScriptModel(
             id=row.id,
@@ -200,13 +187,15 @@ class ScriptRepository:
         )
 
 
-class ScriptVersionRepository:
+class ScriptVersionRepository(BaseRepository[ScriptVersionORM, ScriptVersionModel]):
     """Repository for script versions (git-like history)."""
+
+    _model = ScriptVersionORM
 
     async def save(self, version: ScriptVersionModel) -> None:
         """Save a new script version."""
-        async with db.ensure_initialized()() as session:
-            obj = ScriptVersionORM(
+        await self._add(
+            ScriptVersionORM(
                 id=version.id,
                 script_id=version.script_id,
                 version_number=version.version_number,
@@ -222,40 +211,28 @@ class ScriptVersionRepository:
                 approved_at=version.approved_at,
                 created_at=version.created_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get(self, version_id: str) -> ScriptVersionModel | None:
         """Get a version by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ScriptVersionORM).where(ScriptVersionORM.id == version_id)
-            )
-            row = result.scalar_one_or_none()
-        return self._row_to_version(row) if row else None
+        return await self.get_by_id(version_id)
 
     async def get_by_script(self, script_id: str) -> list[ScriptVersionModel]:
         """Get all versions for a script."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ScriptVersionORM)
-                .where(ScriptVersionORM.script_id == script_id)
-                .order_by(ScriptVersionORM.version_number.desc())
-            )
-            rows = result.scalars().all()
-        return [self._row_to_version(row) for row in rows]
+        return await self._fetch_all(
+            select(ScriptVersionORM)
+            .where(ScriptVersionORM.script_id == script_id)
+            .order_by(ScriptVersionORM.version_number.desc())
+        )
 
     async def get_version(self, script_id: str, version_number: int) -> ScriptVersionModel | None:
         """Get a specific version of a script."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ScriptVersionORM).where(
-                    ScriptVersionORM.script_id == script_id,
-                    ScriptVersionORM.version_number == version_number,
-                )
+        return await self._fetch_one(
+            select(ScriptVersionORM).where(
+                ScriptVersionORM.script_id == script_id,
+                ScriptVersionORM.version_number == version_number,
             )
-            row = result.scalar_one_or_none()
-        return self._row_to_version(row) if row else None
+        )
 
     async def approve(
         self,
@@ -265,18 +242,16 @@ class ScriptVersionRepository:
     ) -> None:
         """Approve a script version."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ScriptVersionORM)
-                .where(
-                    ScriptVersionORM.script_id == script_id,
-                    ScriptVersionORM.version_number == version_number,
-                )
-                .values(approved=True, approved_by=approved_by, approved_at=now)
+        await self._update(
+            update(ScriptVersionORM)
+            .where(
+                ScriptVersionORM.script_id == script_id,
+                ScriptVersionORM.version_number == version_number,
             )
-            await session.commit()
+            .values(approved=True, approved_by=approved_by, approved_at=now)
+        )
 
-    def _row_to_version(self, row: ScriptVersionORM) -> ScriptVersionModel:
+    def _row_to_entity(self, row: ScriptVersionORM) -> ScriptVersionModel:
         """Convert database row to ScriptVersion pydantic model."""
         return ScriptVersionModel(
             id=row.id,
@@ -294,13 +269,15 @@ class ScriptVersionRepository:
         )
 
 
-class ExecutionLogRepository:
+class ExecutionLogRepository(BaseRepository[ExecutionLogORM, ExecutionLogModel]):
     """Repository for execution logs (unified tracking)."""
+
+    _model = ExecutionLogORM
 
     async def save(self, log: ExecutionLogModel) -> None:
         """Save a new execution log."""
-        async with db.ensure_initialized()() as session:
-            obj = ExecutionLogORM(
+        await self._add(
+            ExecutionLogORM(
                 id=log.id,
                 execution_type=log.execution_type,
                 source_type=log.source_type,
@@ -327,8 +304,7 @@ class ExecutionLogRepository:
                 metadata_json=log.metadata_json,
                 retained=log.retained,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def complete(
         self,
@@ -345,7 +321,7 @@ class ExecutionLogRepository:
     ) -> None:
         """Complete an execution log with final status and metrics."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             # Get started_at to compute duration
             result = await session.execute(
                 select(ExecutionLogORM.started_at).where(ExecutionLogORM.id == log_id)
@@ -382,7 +358,7 @@ class ExecutionLogRepository:
         data: dict[str, Any] | None = None,
     ) -> None:
         """Append a log line to an execution."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             # Get next sequence number
             result = await session.execute(
                 select(func.coalesce(func.max(ExecutionLogLineORM.seq), 0)).where(
@@ -405,12 +381,7 @@ class ExecutionLogRepository:
 
     async def get(self, log_id: str) -> ExecutionLogModel | None:
         """Get an execution log by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(ExecutionLogORM).where(ExecutionLogORM.id == log_id)
-            )
-            row = result.scalar_one_or_none()
-        return self._row_to_log(row) if row else None
+        return await self.get_by_id(log_id)
 
     async def get_by_bot(
         self,
@@ -444,10 +415,7 @@ class ExecutionLogRepository:
 
         stmt = stmt.order_by(ExecutionLogORM.started_at.desc()).limit(limit).offset(offset)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_log(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def get_running(self, bot_id: str | None = None) -> list[ExecutionLogModel]:
         """Get currently running executions."""
@@ -456,10 +424,7 @@ class ExecutionLogRepository:
             stmt = stmt.where(ExecutionLogORM.bot_id == bot_id)
         stmt = stmt.order_by(ExecutionLogORM.started_at.asc())
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_log(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def get_global(
         self,
@@ -489,10 +454,7 @@ class ExecutionLogRepository:
 
         stmt = stmt.order_by(ExecutionLogORM.started_at.desc()).limit(limit).offset(offset)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_log(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def get_stats(self, bot_id: str | None = None, period: str = "24h") -> dict[str, Any]:
         """Get execution stats for a period."""
@@ -520,7 +482,7 @@ class ExecutionLogRepository:
         if bot_id:
             stmt = stmt.where(ExecutionLogORM.bot_id == bot_id)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(stmt)
             row = result.one()
 
@@ -539,7 +501,7 @@ class ExecutionLogRepository:
     async def get_error_spotlight(self, days: int = 7) -> list[dict[str, Any]]:
         """Get error analysis grouped by error type."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(
                     ExecutionLogORM.error,
@@ -577,7 +539,7 @@ class ExecutionLogRepository:
     async def get_cost_analysis(self, days: int = 30, limit: int = 20) -> list[dict[str, Any]]:
         """Get cost analysis ranked by credits consumed."""
         since = datetime.now(timezone.utc) - timedelta(days=days)
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(
                     ExecutionLogORM.source_name,
@@ -618,17 +580,15 @@ class ExecutionLogRepository:
     async def cancel(self, log_id: str) -> bool:
         """Mark a running execution as cancelled."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(ExecutionLogORM)
-                .where(
-                    ExecutionLogORM.id == log_id,
-                    ExecutionLogORM.status == "running",
-                )
-                .values(status="cancelled", finished_at=now)
+        count = await self._update(
+            update(ExecutionLogORM)
+            .where(
+                ExecutionLogORM.id == log_id,
+                ExecutionLogORM.status == "running",
             )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+            .values(status="cancelled", finished_at=now)
+        )
+        return count > 0
 
     async def export_csv(
         self,
@@ -646,7 +606,7 @@ class ExecutionLogRepository:
             stmt = stmt.where(ExecutionLogORM.started_at <= to_date)
         stmt = stmt.order_by(ExecutionLogORM.started_at.desc()).limit(10000)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
 
@@ -689,7 +649,7 @@ class ExecutionLogRepository:
             )
         return output.getvalue()
 
-    def _row_to_log(self, row: ExecutionLogORM) -> ExecutionLogModel:
+    def _row_to_entity(self, row: ExecutionLogORM) -> ExecutionLogModel:
         """Convert database row to ExecutionLog pydantic model."""
         return ExecutionLogModel(
             id=row.id,
@@ -794,13 +754,15 @@ class ExecutionLogLineRepository:
             return int(result.rowcount)  # type: ignore[attr-defined]
 
 
-class TimelineEventRepository:
+class TimelineEventRepository(BaseRepository[TimelineEventORM, TimelineEventModel]):
     """Repository for timeline events."""
+
+    _model = TimelineEventORM
 
     async def save(self, event: TimelineEventModel) -> None:
         """Save a new timeline event."""
-        async with db.ensure_initialized()() as session:
-            obj = TimelineEventORM(
+        await self._add(
+            TimelineEventORM(
                 id=event.id,
                 bot_id=event.bot_id,
                 source_type=event.source_type,
@@ -818,8 +780,7 @@ class TimelineEventRepository:
                 commit_message=event.commit_message,
                 metadata_json=event.metadata_json,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_timeline(
         self,
@@ -838,28 +799,21 @@ class TimelineEventRepository:
             stmt = stmt.where(TimelineEventORM.event_type.in_(event_types))
         stmt = stmt.order_by(TimelineEventORM.event_at.desc()).limit(limit).offset(offset)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-
-        return [self._row_to_event(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def get_by_bot(
         self, bot_id: str, limit: int = 50, offset: int = 0
     ) -> list[TimelineEventModel]:
         """Get all timeline events for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(TimelineEventORM)
-                .where(TimelineEventORM.bot_id == bot_id)
-                .order_by(TimelineEventORM.event_at.desc())
-                .limit(limit)
-                .offset(offset)
-            )
-            rows = result.scalars().all()
-        return [self._row_to_event(row) for row in rows]
+        return await self._fetch_all(
+            select(TimelineEventORM)
+            .where(TimelineEventORM.bot_id == bot_id)
+            .order_by(TimelineEventORM.event_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
 
-    def _row_to_event(self, row: TimelineEventORM) -> TimelineEventModel:
+    def _row_to_entity(self, row: TimelineEventORM) -> TimelineEventModel:
         """Convert database row to TimelineEvent pydantic model."""
         return TimelineEventModel(
             id=row.id,

@@ -24,6 +24,7 @@ from cachibot.models.room import (
     RoomSettings,
 )
 from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.bot import Bot as BotModel
 from cachibot.storage.models.room import (
     Room as RoomModel,
@@ -52,13 +53,15 @@ from cachibot.storage.models.room import (
 from cachibot.storage.models.user import User as UserModel
 
 
-class RoomRepository:
+class RoomRepository(BaseRepository[RoomModel, Room]):
     """Repository for rooms."""
+
+    _model = RoomModel
 
     async def create_room(self, room: Room) -> None:
         """Create a new room."""
-        async with db.ensure_initialized()() as session:
-            obj = RoomModel(
+        await self._add(
+            RoomModel(
                 id=room.id,
                 title=room.title,
                 description=room.description,
@@ -68,29 +71,20 @@ class RoomRepository:
                 created_at=room.created_at,
                 updated_at=room.updated_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_room(self, room_id: str) -> Room | None:
         """Get a room by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(RoomModel).where(RoomModel.id == room_id))
-            row = result.scalar_one_or_none()
-        if row is None:
-            return None
-        return self._row_to_room(row)
+        return await self.get_by_id(room_id)
 
     async def get_rooms_for_user(self, user_id: str) -> list[Room]:
         """Get all rooms a user is a member of."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(RoomModel)
-                .join(RoomMemberModel, RoomModel.id == RoomMemberModel.room_id)
-                .where(RoomMemberModel.user_id == user_id)
-                .order_by(RoomModel.updated_at.desc())
-            )
-            rows = result.scalars().all()
-        return [self._row_to_room(row) for row in rows]
+        return await self._fetch_all(
+            select(RoomModel)
+            .join(RoomMemberModel, RoomModel.id == RoomMemberModel.room_id)
+            .where(RoomMemberModel.user_id == user_id)
+            .order_by(RoomModel.updated_at.desc())
+        )
 
     async def update_room(
         self,
@@ -110,24 +104,19 @@ class RoomRepository:
         if settings is not None:
             values["settings"] = settings.model_dump()
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(RoomModel).where(RoomModel.id == room_id).values(**values)
-            )
-            await session.commit()
+        count = await self._update(
+            update(RoomModel).where(RoomModel.id == room_id).values(**values)
+        )
 
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        if count == 0:
             return None
         return await self.get_room(room_id)
 
     async def delete_room(self, room_id: str) -> bool:
         """Delete a room (cascades to members, bots, messages)."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(RoomModel).where(RoomModel.id == room_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(room_id)
 
-    def _row_to_room(self, row: RoomModel) -> Room:
+    def _row_to_entity(self, row: RoomModel) -> Room:
         """Convert a database row to a Room."""
         settings_raw = row.settings if row.settings else {}
         return Room(
@@ -300,13 +289,15 @@ class RoomBotRepository:
             return result.scalar_one()
 
 
-class RoomMessageRepository:
+class RoomMessageRepository(BaseRepository[RoomMessageModel, RoomMessage]):
     """Repository for room messages."""
+
+    _model = RoomMessageModel
 
     async def save_message(self, message: RoomMessage) -> None:
         """Save a message to the room."""
-        async with db.ensure_initialized()() as session:
-            obj = RoomMessageModel(
+        await self._add(
+            RoomMessageModel(
                 id=message.id,
                 room_id=message.room_id,
                 sender_type=message.sender_type.value,
@@ -316,8 +307,7 @@ class RoomMessageRepository:
                 meta=message.metadata,
                 timestamp=message.timestamp,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_messages(
         self,
@@ -335,32 +325,28 @@ class RoomMessageRepository:
 
         stmt = stmt.order_by(RoomMessageModel.timestamp.desc()).limit(limit)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(stmt)
             rows = result.scalars().all()
 
-        return [self._row_to_message(row) for row in reversed(rows)]
+        return [self._row_to_entity(row) for row in reversed(rows)]
 
     async def get_message_count(self, room_id: str) -> int:
         """Get the number of messages in a room."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(func.count())
-                .select_from(RoomMessageModel)
-                .where(RoomMessageModel.room_id == room_id)
-            )
-            return result.scalar_one()
+        result = await self._scalar(
+            select(func.count())
+            .select_from(RoomMessageModel)
+            .where(RoomMessageModel.room_id == room_id)
+        )
+        return result or 0
 
     async def delete_messages(self, room_id: str) -> int:
         """Delete all messages in a room."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(RoomMessageModel).where(RoomMessageModel.room_id == room_id)
-            )
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+        return await self._delete(
+            delete(RoomMessageModel).where(RoomMessageModel.room_id == room_id)
+        )
 
-    def _row_to_message(self, row: RoomMessageModel) -> RoomMessage:
+    def _row_to_entity(self, row: RoomMessageModel) -> RoomMessage:
         """Convert a database row to a RoomMessage."""
         return RoomMessage(
             id=row.id,
@@ -617,8 +603,10 @@ class RoomBookmarkRepository:
 # =============================================================================
 
 
-class RoomAutomationRepository:
+class RoomAutomationRepository(BaseRepository[RoomAutomationModel, RoomAutomationResponse]):
     """Repository for room automations (trigger + action rules)."""
+
+    _model = RoomAutomationModel
 
     async def create(
         self,
@@ -632,7 +620,7 @@ class RoomAutomationRepository:
         created_by: str,
     ) -> RoomAutomationResponse:
         """Create a new automation."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             obj = RoomAutomationModel(
                 id=automation_id,
                 room_id=room_id,
@@ -646,27 +634,19 @@ class RoomAutomationRepository:
             session.add(obj)
             await session.commit()
             await session.refresh(obj)
-            return self._to_response(obj)
+            return self._row_to_entity(obj)
 
     async def get_automations(self, room_id: str) -> list[RoomAutomationResponse]:
         """Get all automations for a room."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(RoomAutomationModel)
-                .where(RoomAutomationModel.room_id == room_id)
-                .order_by(RoomAutomationModel.created_at)
-            )
-            rows = result.scalars().all()
-        return [self._to_response(r) for r in rows]
+        return await self._fetch_all(
+            select(RoomAutomationModel)
+            .where(RoomAutomationModel.room_id == room_id)
+            .order_by(RoomAutomationModel.created_at)
+        )
 
     async def get_automation(self, automation_id: str) -> RoomAutomationResponse | None:
         """Get a single automation by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(RoomAutomationModel).where(RoomAutomationModel.id == automation_id)
-            )
-            obj = result.scalar_one_or_none()
-        return self._to_response(obj) if obj else None
+        return await self.get_by_id(automation_id)
 
     async def update(
         self,
@@ -674,79 +654,67 @@ class RoomAutomationRepository:
         **kwargs: Any,
     ) -> RoomAutomationResponse | None:
         """Update automation fields."""
-        async with db.ensure_initialized()() as session:
-            fields: dict[str, Any] = {}
-            for key in (
-                "name",
-                "enabled",
-                "trigger_type",
-                "trigger_config",
-                "action_type",
-                "action_config",
-            ):
-                if key in kwargs and kwargs[key] is not None:
-                    fields[key] = kwargs[key]
-            if not fields:
-                return await self.get_automation(automation_id)
-            fields["updated_at"] = datetime.now(tz=timezone.utc)
-            await session.execute(
-                update(RoomAutomationModel)
-                .where(RoomAutomationModel.id == automation_id)
-                .values(**fields)
-            )
-            await session.commit()
+        fields: dict[str, Any] = {}
+        for key in (
+            "name",
+            "enabled",
+            "trigger_type",
+            "trigger_config",
+            "action_type",
+            "action_config",
+        ):
+            if key in kwargs and kwargs[key] is not None:
+                fields[key] = kwargs[key]
+        if not fields:
+            return await self.get_automation(automation_id)
+        fields["updated_at"] = datetime.now(tz=timezone.utc)
+        await self._update(
+            update(RoomAutomationModel)
+            .where(RoomAutomationModel.id == automation_id)
+            .values(**fields)
+        )
         return await self.get_automation(automation_id)
 
     async def delete(self, automation_id: str) -> bool:
         """Delete an automation. Returns True if deleted."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(RoomAutomationModel).where(RoomAutomationModel.id == automation_id)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(automation_id)
 
     async def increment_trigger_count(self, automation_id: str) -> None:
         """Increment the trigger count for an automation."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(RoomAutomationModel)
-                .where(RoomAutomationModel.id == automation_id)
-                .values(
-                    trigger_count=RoomAutomationModel.trigger_count + 1,
-                    updated_at=datetime.now(tz=timezone.utc),
-                )
+        await self._update(
+            update(RoomAutomationModel)
+            .where(RoomAutomationModel.id == automation_id)
+            .values(
+                trigger_count=RoomAutomationModel.trigger_count + 1,
+                updated_at=datetime.now(tz=timezone.utc),
             )
-            await session.commit()
+        )
 
     async def get_enabled_by_trigger(
         self, trigger_type: str, room_id: str | None = None
     ) -> list[RoomAutomationResponse]:
         """Get enabled automations by trigger type."""
-        async with db.ensure_initialized()() as session:
-            stmt = select(RoomAutomationModel).where(
-                RoomAutomationModel.enabled.is_(True),
-                RoomAutomationModel.trigger_type == trigger_type,
-            )
-            if room_id:
-                stmt = stmt.where(RoomAutomationModel.room_id == room_id)
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._to_response(r) for r in rows]
+        stmt = select(RoomAutomationModel).where(
+            RoomAutomationModel.enabled.is_(True),
+            RoomAutomationModel.trigger_type == trigger_type,
+        )
+        if room_id:
+            stmt = stmt.where(RoomAutomationModel.room_id == room_id)
+        return await self._fetch_all(stmt)
 
-    @staticmethod
-    def _to_response(obj: RoomAutomationModel) -> RoomAutomationResponse:
+    def _row_to_entity(self, row: RoomAutomationModel) -> RoomAutomationResponse:
+        """Convert a database row to a RoomAutomationResponse."""
         return RoomAutomationResponse(
-            id=obj.id,
-            roomId=obj.room_id,
-            name=obj.name,
-            enabled=obj.enabled,
-            triggerType=obj.trigger_type,
-            triggerConfig=obj.trigger_config,
-            actionType=obj.action_type,
-            actionConfig=obj.action_config,
-            createdBy=obj.created_by,
-            triggerCount=obj.trigger_count,
-            createdAt=obj.created_at.isoformat() if obj.created_at else "",
-            updatedAt=obj.updated_at.isoformat() if obj.updated_at else "",
+            id=row.id,
+            roomId=row.room_id,
+            name=row.name,
+            enabled=row.enabled,
+            triggerType=row.trigger_type,
+            triggerConfig=row.trigger_config,
+            actionType=row.action_type,
+            actionConfig=row.action_config,
+            createdBy=row.created_by,
+            triggerCount=row.trigger_count,
+            createdAt=row.created_at.isoformat() if row.created_at else "",
+            updatedAt=row.updated_at.isoformat() if row.updated_at else "",
         )

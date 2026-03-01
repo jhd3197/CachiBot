@@ -35,6 +35,7 @@ from cachibot.api.routes import (
     developer,
     documents,
     executions,
+    external_plugins,
     groups,
     health,
     instructions,
@@ -131,6 +132,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from cachibot.services.update_service import mark_current_version_good
 
     mark_current_version_good()
+
+    # Load external plugins from ~/.cachibot/plugins/
+    try:
+        from cachibot.services.external_plugins import load_external_plugins
+
+        ext_count = load_external_plugins()
+        if ext_count:
+            startup_logger.info("Loaded %d external plugin(s)", ext_count)
+    except Exception as exc:
+        startup_logger.debug("External plugin loading skipped: %s", exc)
 
     # Set up message processor for platform connections
     platform_manager = get_platform_manager()
@@ -280,6 +291,7 @@ def create_app(
     app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
+    app.include_router(external_plugins.router, tags=["external-plugins"])
     app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(scripts.router, tags=["scripts"])

@@ -30,6 +30,8 @@ import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
+import { ArtifactPanel } from '../artifacts/ArtifactPanel'
+import { useArtifactsStore } from '../../stores/artifacts'
 import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
@@ -1063,8 +1065,15 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     )
   }
 
+  // Artifact panel state
+  const activeArtifactId = useArtifactsStore((s) => s.activeArtifactId)
+  const panelOpen = useArtifactsStore((s) => s.panelOpen)
+  const activeArtifact = useArtifactsStore((s) => activeArtifactId ? s.artifacts[activeArtifactId] : undefined)
+  const closeArtifactPanel = useArtifactsStore((s) => s.closePanel)
+
   return (
-    <div className="chat-view">
+    <div className={cn('chat-view-wrapper', panelOpen && activeArtifact && 'chat-view-wrapper--split')}>
+    <div className={cn('chat-view', panelOpen && activeArtifact && 'chat-view--with-panel')}>
       {/* Chat header with bot info and settings */}
       <div className="chat-header">
         <div className="chat-header__bot-info">
@@ -1268,6 +1277,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </form>
       </div>
 
+    </div>
+    {/* Artifact side panel */}
+    {panelOpen && activeArtifact && (
+      <>
+        <div className="artifact-divider" />
+        <ArtifactPanel artifact={activeArtifact} onClose={closeArtifactPanel} />
+      </>
+    )}
     </div>
   )
 }

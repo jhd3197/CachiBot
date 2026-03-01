@@ -1,0 +1,25 @@
+[plugin]
+name = "doc_writer"
+display_name = "Document Writer"
+description = "Claude Artifacts-style document editing with rich markdown rendering"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "file-text"
+color = "#06b6d4"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []

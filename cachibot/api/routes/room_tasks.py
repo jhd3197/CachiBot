@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from cachibot.api.auth import get_current_user
-from cachibot.api.helpers import require_found
+from cachibot.api.helpers import require_found, require_member, require_room_ownership
 from cachibot.models.auth import User
 from cachibot.models.room_task import (
     CreateRoomTaskRequest,
@@ -79,8 +79,7 @@ def _stringify(val: Any) -> str | None:
 async def _check_room_member(room_id: str, user: User) -> None:
     """Verify room exists and user is a member."""
     require_found(await room_repo.get_room(room_id), "Room")
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
 
 @router.get("/{room_id}/tasks")
@@ -148,9 +147,7 @@ async def get_room_task(
 ) -> RoomTaskResponse:
     """Get a single task."""
     await _check_room_member(room_id, user)
-    task = await task_repo.get(task_id)
-    if task is None or task.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_room_ownership(await task_repo.get(task_id), room_id, "Task")
     return RoomTaskResponse.from_entity(task)
 
 
@@ -165,9 +162,7 @@ async def get_room_task_events(
     """Get activity history for a task."""
     await _check_room_member(room_id, user)
 
-    task = await task_repo.get(task_id)
-    if task is None or task.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    require_room_ownership(await task_repo.get(task_id), room_id, "Task")
 
     events = await event_repo.get_by_task(task_id, limit=limit, offset=offset)
     return [RoomTaskEventResponse.from_entity(e) for e in events]
@@ -183,9 +178,7 @@ async def update_room_task(
     """Update a task."""
     await _check_room_member(room_id, user)
 
-    existing = await task_repo.get(task_id)
-    if existing is None or existing.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    existing = require_room_ownership(await task_repo.get(task_id), room_id, "Task")
 
     kwargs: dict[str, Any] = {}
     if data.title is not None:
@@ -244,14 +237,15 @@ async def reorder_room_task(
     """Move a task to a new status column and position."""
     await _check_room_member(room_id, user)
 
-    existing = await task_repo.get(task_id)
-    if existing is None or existing.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    existing = require_room_ownership(await task_repo.get(task_id), room_id, "Task")
 
     old_status = _stringify(existing.status)
     new_status = _stringify(data.status)
 
-    updated = require_found(await task_repo.reorder(task_id, data.status.value, data.position), "Task")
+    updated = require_found(
+        await task_repo.reorder(task_id, data.status.value, data.position),
+        "Task",
+    )
 
     if old_status != new_status:
         event = _make_event(
@@ -277,9 +271,7 @@ async def delete_room_task(
     """Delete a task."""
     await _check_room_member(room_id, user)
 
-    existing = await task_repo.get(task_id)
-    if existing is None or existing.room_id != room_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    require_room_ownership(await task_repo.get(task_id), room_id, "Task")
 
     # Emit deleted event before deletion (will be cascaded away with the task)
     event = _make_event(
