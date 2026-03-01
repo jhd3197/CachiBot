@@ -8,7 +8,7 @@ Skills:
 
 from __future__ import annotations
 
-from tukuy.skills import Skill, skill
+from tukuy.skill import Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 from cachibot.plugins.sdk import artifact_update, markdown_artifact

@@ -139,7 +139,7 @@ async def get_bot_workspaces(bot_id: str) -> dict[str, Any]:
     bot_capabilities: dict[str, Any] = {}
     try:
         repo = BotRepository()
-        bot = await repo.get(bot_id)
+        bot = await repo.get_bot(bot_id)
         if bot and bot.capabilities:
             bot_capabilities = bot.capabilities
     except Exception:
