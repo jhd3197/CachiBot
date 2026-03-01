@@ -7,7 +7,7 @@ one skill with no dependencies, no config, no side effects.
 
 from __future__ import annotations
 
-from tukuy.skills import Skill, skill
+from tukuy.skill import Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
