@@ -96,10 +96,21 @@ class CachibotAgent:
     # Signature: (old_model: str, new_model: str, budget_state: Any) -> None
     on_model_fallback: Callable[..., Any] | None = None
 
+    # Async callback for proactive artifact emission from plugins.
+    # Signature: async (artifact: Artifact) -> None
+    on_artifact: Callable[..., Any] | None = None
+
+    # Active workspace plugin name (enables workspace progress tools).
+    workspace: str | None = None
+
     def __post_init__(self) -> None:
         """Initialize after dataclass creation."""
         self._setup_sandbox()
         self._build_registry_from_plugins()
+
+        # Inject workspace progress tools when workspace mode is active
+        if self.workspace:
+            self._inject_workspace_progress_tools()
 
         # Apply tool filtering if specified
         if self.allowed_tools is not None:
@@ -153,6 +164,7 @@ class CachibotAgent:
             tool_configs=self.tool_configs or {},
             bot_models=self.bot_models,
             on_tool_output=self.on_instruction_delta,
+            on_artifact=self.on_artifact,
         )
 
         # Build skill_config with llm_backend for instruction execution
@@ -252,6 +264,21 @@ class CachibotAgent:
                 exc_info=True,
             )
             return None
+
+    def _inject_workspace_progress_tools(self) -> None:
+        """Add workspace progress tools (plan_tasks, update_task) to the registry."""
+        from cachibot.plugins.workspace_progress import WorkspaceProgressPlugin
+
+        ctx = PluginContext(
+            config=self.config,
+            sandbox=self.sandbox,
+            bot_id=self.bot_id,
+            chat_id=self.chat_id,
+            tool_configs=self.tool_configs or {},
+        )
+        plugin = WorkspaceProgressPlugin(ctx)
+        for _name, skill_obj in plugin.skills.items():
+            self.registry.add_tukuy_skill(skill_obj)
 
     def _create_agent(self) -> None:
         """Create the Prompture agent with callbacks and SecurityContext."""
@@ -386,6 +413,9 @@ class CachibotAgent:
         ".webm",
         ".mov",
         ".avi",
+        ".pptx",
+        ".docx",
+        ".xlsx",
     }
 
     def _schedule_auto_capture(self, result: Any) -> None:

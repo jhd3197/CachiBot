@@ -10,10 +10,11 @@ import secrets
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access_level
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.storage.developer_repository import ApiKeyRepository, WebhookRepository
@@ -162,9 +163,7 @@ async def list_api_keys(bot_id: str) -> list[ApiKeyResponse]:
 )
 async def revoke_api_key(bot_id: str, key_id: str) -> dict[str, str]:
     """Revoke an API key."""
-    found = await key_repo.revoke_key(key_id)
-    if not found:
-        raise HTTPException(status_code=404, detail="API key not found")
+    require_found(await key_repo.revoke_key(key_id), "API key")
     return {"status": "revoked"}
 
 
@@ -235,20 +234,19 @@ async def update_webhook(
     body: UpdateWebhookRequest,
 ) -> WebhookResponse:
     """Update a webhook."""
-    found = await wh_repo.update_webhook(
-        webhook_id,
-        name=body.name,
-        url=body.url,
-        secret=body.secret,
-        events=body.events,
-        is_active=body.is_active,
+    require_found(
+        await wh_repo.update_webhook(
+            webhook_id,
+            name=body.name,
+            url=body.url,
+            secret=body.secret,
+            events=body.events,
+            is_active=body.is_active,
+        ),
+        "Webhook",
     )
-    if not found:
-        raise HTTPException(status_code=404, detail="Webhook not found")
 
-    wh = await wh_repo.get_webhook(webhook_id)
-    if not wh:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+    wh = require_found(await wh_repo.get_webhook(webhook_id), "Webhook")
     return _webhook_to_response(wh)
 
 
@@ -258,9 +256,7 @@ async def update_webhook(
 )
 async def delete_webhook(bot_id: str, webhook_id: str) -> dict[str, str]:
     """Delete a webhook."""
-    found = await wh_repo.delete_webhook(webhook_id)
-    if not found:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+    require_found(await wh_repo.delete_webhook(webhook_id), "Webhook")
     return {"status": "deleted"}
 
 
@@ -270,9 +266,7 @@ async def delete_webhook(bot_id: str, webhook_id: str) -> dict[str, str]:
 )
 async def test_webhook(bot_id: str, webhook_id: str) -> dict[str, object]:
     """Send a test payload to a webhook and return the response status."""
-    wh = await wh_repo.get_webhook(webhook_id)
-    if not wh:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+    wh = require_found(await wh_repo.get_webhook(webhook_id), "Webhook")
 
     test_payload = {
         "event": "test",

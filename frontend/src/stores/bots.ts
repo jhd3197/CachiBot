@@ -20,11 +20,9 @@ import type {
   TodoStatus,
   Priority,
 } from '../types'
-import { syncBot, deleteBackendBot, getPlatformChats, getPlatformChatMessages, archivePlatformChat, unarchivePlatformChat } from '../api/client'
+import { syncBot, deleteBackendBot, archivePlatformChat, unarchivePlatformChat } from '../api/client'
+import { useArtifactsStore } from './artifacts'
 import { useRailStore } from './rail'
-
-// Guard to prevent concurrent syncPlatformChats calls for the same bot
-const syncingBotIds = new Set<string>()
 
 // =============================================================================
 // BOT STORE
@@ -61,6 +59,14 @@ CachiBot is named after the Venezuelan *cachicamo* (armadillo) - a resilient, ar
 - Use tools when actions are needed
 - Explain what you're doing
 - When asked about yourself, refer to the information above - do not claim to be created by any other company`,
+}
+
+/**
+ * Get the effective default model for a bot.
+ * Prefers `bot.models.default` over the legacy `bot.model` field.
+ */
+export function getBotDefaultModel(bot: Bot): string {
+  return bot.models?.default || bot.model || ''
 }
 
 /**
@@ -197,6 +203,7 @@ interface ChatState {
   isLoading: boolean
   error: string | null
   replyToMessage: ChatMessage | null
+  pendingChatId: string | null
 
   // Actions
   addChat: (chat: Chat) => void
@@ -205,9 +212,7 @@ interface ChatState {
   setActiveChat: (id: string | null) => void
   getChatsByBot: (botId: string) => Chat[]
 
-  // Platform chat sync
-  syncPlatformChats: (botId: string) => Promise<void>
-  loadPlatformChatMessages: (botId: string, chatId: string) => Promise<void>
+  // Platform chat actions
   archiveChat: (botId: string, chatId: string) => Promise<void>
   unarchiveChat: (botId: string, chatId: string) => Promise<void>
 
@@ -222,6 +227,7 @@ interface ChatState {
 
   // Reply state
   setReplyTo: (message: ChatMessage | null) => void
+  setPendingChatId: (chatId: string | null) => void
 
   // UI State
   setThinking: (content: string | null) => void
@@ -248,6 +254,7 @@ export const useChatStore = create<ChatState>()(
       isLoading: false,
       error: null,
       replyToMessage: null,
+      pendingChatId: null,
 
       addChat: (chat) =>
         set((state) => ({
@@ -274,7 +281,14 @@ export const useChatStore = create<ChatState>()(
           }
         }),
 
-      setActiveChat: (id) => set({ activeChatId: id }),
+      setActiveChat: (id) => {
+        const prev = get().activeChatId
+        set({ activeChatId: id })
+        // Close artifact panel when switching chats so stale artifacts don't leak
+        if (id !== prev) {
+          useArtifactsStore.getState().closePanel()
+        }
+      },
 
       getChatsByBot: (botId) => {
         const state = get()
@@ -286,82 +300,6 @@ export const useChatStore = create<ChatState>()(
             if (!a.pinned && b.pinned) return 1
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           })
-      },
-
-      syncPlatformChats: async (botId) => {
-        if (syncingBotIds.has(botId)) return
-        syncingBotIds.add(botId)
-        try {
-          const platformChats = await getPlatformChats(botId)
-          set((state) => {
-            // Merge platform chats with existing chats
-            const existingIds = new Set(state.chats.map((c) => c.id))
-            const newChats = platformChats
-              .filter((pc) => !existingIds.has(pc.id))
-              .map((pc) => ({
-                id: pc.id,
-                botId: pc.botId,
-                title: pc.title,
-                createdAt: pc.createdAt,
-                updatedAt: pc.updatedAt,
-                messageCount: 0,
-                pinned: pc.pinned,
-                platform: pc.platform as 'telegram' | 'discord' | null,
-                platformChatId: pc.platformChatId,
-              }))
-
-            // Update existing platform chats
-            const updatedChats = state.chats.map((chat) => {
-              const platformChat = platformChats.find((pc) => pc.id === chat.id)
-              if (platformChat) {
-                return {
-                  ...chat,
-                  title: platformChat.title,
-                  updatedAt: platformChat.updatedAt,
-                  pinned: platformChat.pinned,
-                }
-              }
-              return chat
-            })
-
-            return {
-              chats: [...newChats, ...updatedChats],
-            }
-          })
-        } catch (err) {
-          console.warn('Failed to sync platform chats:', err)
-        } finally {
-          syncingBotIds.delete(botId)
-        }
-      },
-
-      loadPlatformChatMessages: async (botId, chatId) => {
-        try {
-          const messages = await getPlatformChatMessages(botId, chatId)
-          set((state) => ({
-            messages: {
-              ...state.messages,
-              [chatId]: messages.map((m) => {
-                // Extract toolCalls from metadata if present (persisted by message_processor)
-                const toolCalls = m.metadata?.toolCalls as ToolCall[] | undefined
-                const msg: ChatMessage = {
-                  id: m.id,
-                  role: m.role as 'user' | 'assistant' | 'system',
-                  content: m.content,
-                  timestamp: m.timestamp,
-                  metadata: m.metadata,
-                  replyToId: (m as unknown as Record<string, unknown>).replyToId as string | undefined,
-                }
-                if (toolCalls && toolCalls.length > 0) {
-                  msg.toolCalls = toolCalls
-                }
-                return msg
-              }),
-            },
-          }))
-        } catch (err) {
-          console.warn('Failed to load platform chat messages:', err)
-        }
       },
 
       archiveChat: async (botId, chatId) => {
@@ -381,8 +319,6 @@ export const useChatStore = create<ChatState>()(
       unarchiveChat: async (botId, chatId) => {
         try {
           await unarchivePlatformChat(botId, chatId)
-          // Re-sync to get the unarchived chat back
-          await get().syncPlatformChats(botId)
         } catch (err) {
           console.error('Failed to unarchive chat:', err)
           throw err
@@ -464,6 +400,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       setReplyTo: (message) => set({ replyToMessage: message }),
+      setPendingChatId: (chatId) => set({ pendingChatId: chatId }),
 
       clearMessages: (chatId) =>
         set((state) => ({

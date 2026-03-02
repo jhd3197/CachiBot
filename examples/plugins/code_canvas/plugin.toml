@@ -1,0 +1,47 @@
+[plugin]
+name = "code_canvas"
+display_name = "Code Canvas"
+description = "Canvas-style code editing in a side panel with syntax highlighting"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "code"
+color = "#8b5cf6"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []
+
+[plugin.workspace]
+display_name = "Code Canvas"
+icon = "code"
+description = "Canvas-style code editing workspace"
+accent_color = "#8b5cf6"
+toolbar = ["create_code", "update_code"]
+default_artifact_type = "code"
+auto_open_panel = true
+system_prompt = """
+## Code Canvas Tools
+You have access to `create_code` and `update_code` tools for producing code artifacts.
+
+**When to use these tools:** Whenever the user asks you to write, generate, or create code — scripts, functions, classes, modules, configuration files, or any programming artifact — you MUST use `create_code` instead of responding with inline code blocks.
+
+**How to decide:**
+- If the output is a complete or substantial piece of code (more than a short snippet), use `create_code`.
+- If the user asks a quick question or wants a brief explanation with a small code example, respond inline as normal.
+- If the user asks to modify or update existing code, use `update_code` with the document identifier.
+
+Always specify the appropriate language and give the artifact a descriptive title.
+"""

@@ -214,6 +214,8 @@ export interface BotCapabilities {
   imageGeneration: boolean    // generate_image (DALL-E, Imagen, Stability AI)
   audioGeneration: boolean    // generate_audio, transcribe_audio (TTS/STT)
   codingAgent: boolean        // coding_agent (Claude Code, Codex, Gemini CLI)
+  // Dynamic external plugin capabilities (ext_<name>)
+  [key: string]: boolean | undefined
 }
 
 export interface Bot {
@@ -448,6 +450,33 @@ export interface CodingAgentsResponse {
 }
 
 // =============================================================================
+// ARTIFACT TYPES
+// =============================================================================
+
+export type ArtifactType = 'code' | 'html' | 'markdown' | 'svg' | 'mermaid' | 'react' | 'image' | 'custom' | 'document'
+
+export interface Artifact {
+  id: string
+  type: ArtifactType
+  title: string
+  content: string
+  language?: string
+  metadata?: Record<string, unknown>
+  plugin?: string
+  version: number
+  chatId?: string
+  messageId?: string
+}
+
+export interface ArtifactUpdatePayload {
+  id: string
+  content?: string
+  title?: string
+  metadata?: Record<string, unknown>
+  version?: number
+}
+
+// =============================================================================
 // WEBSOCKET TYPES
 // =============================================================================
 
@@ -464,6 +493,9 @@ export type WSMessageType =
   | 'scheduled_notification'
   | 'document_status'
   | 'connection_status'
+  | 'artifact'
+  | 'artifact_update'
+  | 'workspace_progress'
   | 'approval_needed'
   | 'usage'
   | 'error'
@@ -617,7 +649,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'voice' | 'tools' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
 export type AppView = 'dashboard' | 'admin-logs' | 'settings'
@@ -710,6 +742,7 @@ export interface PluginInfo {
   color: string | null         // hex color
   group: string | null         // plugin group
   skills: (PluginSkillInfo | string)[]  // string[] if backend returns names only
+  external?: boolean           // true for external (user-installed) plugins
 }
 
 export interface PluginSkillInfo {
@@ -759,6 +792,47 @@ export interface ConfigParam {
   valuePlaceholder?: string
   // Code type
   language?: string
+}
+
+// External plugin info (from /api/plugins/external)
+export interface ExternalPluginInfo {
+  name: string
+  displayName: string
+  description: string
+  version: string
+  author: string
+  type: 'tool' | 'view'
+  icon: string
+  color: string
+  group: string
+  capabilityKey: string
+  contexts: string[]
+  allowLateActivation: boolean
+  requires: {
+    python: string
+    filesystem: boolean
+    network: boolean
+    imports: string[]
+  }
+  permissions: {
+    allowEnvVars: string[]
+    allowPaths: string[]
+  }
+  config: {
+    name: string
+    displayName: string
+    type: string
+    default: unknown
+    description: string
+  }[]
+  view: {
+    route: string
+    navLabel: string
+    navIcon: string
+  } | null
+  loaded: boolean
+  error: string | null
+  external: true
 }
 
 // =============================================================================

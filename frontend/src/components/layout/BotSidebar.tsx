@@ -28,20 +28,22 @@ import {
   Code2,
   X,
   Download,
+  Puzzle,
 } from 'lucide-react'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useBotStore, useChatStore, useTaskStore, useWorkStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { getRooms } from '../../api/rooms'
 import { useUIStore, type SettingsSection, type WorkSection, type AutomationSection } from '../../stores/ui'
 import { BotIconRenderer } from '../common/BotIconRenderer'
-import { ToolIconRenderer } from '../common/ToolIconRenderer'
+import { ToolIconRenderer, resolveIconName } from '../common/ToolIconRenderer'
 import { clearChatMessages } from '../../api/client'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
 import { cn, downloadJson, slugify } from '../../lib/utils'
 import { useBotAccess } from '../../hooks/useBotAccess'
+import { usePluginsStore } from '../../stores/plugins'
 import type { BotView, Chat, Task } from '../../types'
 
 type MinAccessLevel = 'viewer' | 'operator' | 'editor'
@@ -56,6 +58,7 @@ const navItems: { id: BotView; label: string; icon: React.ComponentType<{ classN
 
 const gearMenuItems: { id: BotView; label: string; icon: React.ComponentType<{ className?: string }>; minLevel: MinAccessLevel }[] = [
   { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor' },
+  { id: 'plugins', label: 'Plugins', icon: Puzzle, minLevel: 'editor' },
   { id: 'developer', label: 'Developer', icon: Code2, minLevel: 'editor' },
   { id: 'settings', label: 'Settings', icon: Settings, minLevel: 'editor' },
 ]
@@ -70,6 +73,7 @@ interface BotSidebarProps {
 
 export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { getActiveBot, activeView, setActiveView, activeBotId } = useBotStore()
   const { addChat, setActiveChat } = useChatStore()
   const { sidebarCollapsed } = useUIStore()
@@ -79,6 +83,12 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const [showSearch, setShowSearch] = useState(false)
   const [showCreatePicker, setShowCreatePicker] = useState(false)
   const [showCreateRoom, setShowCreateRoom] = useState(false)
+  const { plugins: externalPlugins, fetchPlugins: fetchExternalPlugins } = usePluginsStore()
+
+  // Fetch external plugins once
+  useEffect(() => {
+    fetchExternalPlugins()
+  }, [fetchExternalPlugins])
 
   // Close any open dropdown on click outside
   useEffect(() => {
@@ -96,9 +106,25 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const gearActive = GEAR_VIEW_IDS.has(activeView)
   const toolCount = activeBot.tools?.length ?? 0
 
+  // Compute enabled view-type external plugins
+  const capabilities: Record<string, boolean> = (activeBot.capabilities ?? {}) as Record<string, boolean>
+  const viewPluginNavItems = externalPlugins
+    .filter((p) => p.type === 'view' && p.view && p.loaded && capabilities[p.capabilityKey] === true)
+    .map((p) => ({
+      name: p.name,
+      label: p.view!.navLabel,
+      icon: resolveIconName(p.view!.navIcon),
+      route: p.view!.route,
+    }))
+
   const handleNavClick = (viewId: typeof activeView) => {
     setActiveView(viewId)
     navigate(`/${activeBotId}/${viewId}`)
+  }
+
+  const handlePluginNavClick = (pluginName: string) => {
+    setActiveView('plugins')
+    navigate(`/${activeBotId}/plugins/${pluginName}`)
   }
 
   const handleNewChat = () => {
@@ -227,6 +253,16 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
             onClick={() => handleNavClick(item.id)}
           />
         ))}
+        {/* Dynamic view-type external plugins */}
+        {viewPluginNavItems.map((vp) => (
+          <NavButton
+            key={`ext-${vp.name}`}
+            icon={vp.icon}
+            label={vp.label}
+            active={location.pathname === `/${activeBotId}/plugins/${vp.name}`}
+            onClick={() => handlePluginNavClick(vp.name)}
+          />
+        ))}
       </nav>
 
       {/* Content based on active view */}
@@ -307,17 +343,9 @@ function formatRelativeTime(iso: string): string {
 function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 'rooms'; onNavigate?: () => void }) {
   const navigate = useNavigate()
   const { activeBotId } = useBotStore()
-  const { getChatsByBot, activeChatId, setActiveChat, updateChat, deleteChat, clearMessages, syncPlatformChats, loadPlatformChatMessages, archiveChat } = useChatStore()
+  const { getChatsByBot, activeChatId, setActiveChat, updateChat, deleteChat, clearMessages, archiveChat } = useChatStore()
   const { setRooms, activeRoomId, setActiveRoom, getRoomsForBot } = useRoomStore()
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
-
-  // Sync platform chats (Telegram, Discord) from backend — only in chats mode
-  useEffect(() => {
-    if (mode !== 'chats') return
-    syncPlatformChats(botId)
-    const interval = setInterval(() => syncPlatformChats(botId), 60000)
-    return () => clearInterval(interval)
-  }, [botId, mode, syncPlatformChats])
 
   // Load rooms — only in rooms mode
   useEffect(() => {
@@ -336,11 +364,8 @@ function ChatList({ botId, mode, onNavigate }: { botId: string; mode: 'chats' | 
     return <MessageSquare className="sidebar-chat-item__icon sidebar-chat-item__icon--default" size={16} />
   }
 
-  const handleChatClick = async (chat: Chat) => {
+  const handleChatClick = (chat: Chat) => {
     setActiveChat(chat.id)
-    if (chat.platform) {
-      await loadPlatformChatMessages(botId, chat.id)
-    }
     const chatPath = chat.platform ? chat.platform : chat.id
     navigate(`/${botId}/chats/${chatPath}`)
     onNavigate?.()

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
-from cachibot.api.helpers import require_bot_ownership
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.instruction import (
@@ -152,9 +152,7 @@ async def get_custom_instruction(
     user: User = Depends(require_bot_access),
 ) -> InstructionResponse:
     """Get a custom instruction by ID."""
-    record = await repo.get(instruction_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    record = require_found(await repo.get(instruction_id), "Instruction")
     require_bot_ownership(record, bot_id, "Instruction")
     return InstructionResponse.from_model(record)
 
@@ -217,9 +215,7 @@ async def test_custom_instruction(
     from tukuy import SkillContext
     from tukuy.instruction import Instruction, InstructionDescriptor
 
-    record = await repo.get(instruction_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    record = require_found(await repo.get(instruction_id), "Instruction")
     require_bot_ownership(record, bot_id, "Instruction")
 
     # Build the instruction
@@ -280,9 +276,7 @@ async def list_versions(
     user: User = Depends(require_bot_access),
 ) -> list[InstructionVersionResponse]:
     """List version history for an instruction."""
-    record = await repo.get(instruction_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Instruction not found")
+    record = require_found(await repo.get(instruction_id), "Instruction")
     require_bot_ownership(record, bot_id, "Instruction")
 
     versions = await repo.get_versions(instruction_id)
@@ -323,7 +317,6 @@ async def rollback_instruction(
         version,
         author=f"user:{user.id}",
     )
-    if not updated:
-        raise HTTPException(status_code=404, detail=f"Version {version} not found")
+    updated = require_found(updated, f"Version {version}")
 
     return InstructionResponse.from_model(updated)

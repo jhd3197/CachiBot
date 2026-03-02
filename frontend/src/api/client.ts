@@ -220,6 +220,7 @@ export interface FollowUpQuestion {
 export interface GenerateQuestionsRequest {
   category: string
   description: string
+  mode?: 'user-focused' | 'task-focused'
 }
 
 // Non-streaming fallback
@@ -373,10 +374,10 @@ export async function streamBotNamesWithMeanings(
 }
 
 /**
- * Stream follow-up questions via SSE.
- * Calls onQuestion for each question as it arrives.
+ * Generic SSE question streamer — shared by bot and project follow-up question streams.
  */
-export async function streamFollowUpQuestions(
+async function streamQuestions(
+  endpoint: string,
   data: GenerateQuestionsRequest,
   callbacks: {
     onQuestion: (question: FollowUpQuestion) => void
@@ -386,11 +387,7 @@ export async function streamFollowUpQuestions(
   signal?: AbortSignal,
 ): Promise<void> {
   try {
-    for await (const { event, data: eventData } of fetchSSE(
-      '/creation/follow-up-questions/stream',
-      data,
-      signal,
-    )) {
+    for await (const { event, data: eventData } of fetchSSE(endpoint, data, signal)) {
       if (event === 'question') {
         callbacks.onQuestion(eventData as FollowUpQuestion)
       } else if (event === 'done') {
@@ -403,6 +400,22 @@ export async function streamFollowUpQuestions(
     if ((err as Error).name === 'AbortError') return
     callbacks.onError(err instanceof Error ? err.message : 'Stream failed')
   }
+}
+
+/**
+ * Stream follow-up questions via SSE.
+ * Calls onQuestion for each question as it arrives.
+ */
+export async function streamFollowUpQuestions(
+  data: GenerateQuestionsRequest,
+  callbacks: {
+    onQuestion: (question: FollowUpQuestion) => void
+    onDone: () => void
+    onError: (error: string) => void
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamQuestions('/creation/follow-up-questions/stream', data, callbacks, signal)
 }
 
 // Full prompt generation
@@ -522,6 +535,101 @@ export async function analyzeCreationContext(
   })
 }
 
+// =============================================================================
+// PROJECT CREATION API
+// =============================================================================
+
+export async function classifyPurpose(data: {
+  category: string
+  description: string
+}): Promise<{ classification: 'single' | 'project'; reason: string; confidence: number }> {
+  return request('/creation/classify-purpose', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+/**
+ * Stream project follow-up questions via SSE.
+ * Calls onQuestion for each question as it arrives.
+ */
+export async function streamProjectFollowUpQuestions(
+  data: GenerateQuestionsRequest,
+  callbacks: {
+    onQuestion: (question: FollowUpQuestion) => void
+    onDone: () => void
+    onError: (error: string) => void
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamQuestions('/creation/project-questions/stream', data, callbacks, signal)
+}
+
+export interface ProjectProposalResponse {
+  project_name: string
+  project_description: string
+  bots: Array<{
+    name: string
+    description: string
+    role: string
+    system_prompt: string
+    tone: string
+    expertise_level: string
+    response_length: string
+    personality_traits: string[]
+  }>
+  rooms: Array<{
+    name: string
+    description: string
+    response_mode: string
+    bot_names: string[]
+  }>
+}
+
+export async function generateProjectProposal(data: {
+  category: string
+  description: string
+  follow_up_answers: Array<{ question: string; answer: string }>
+}): Promise<ProjectProposalResponse> {
+  return request('/creation/generate-project-proposal', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export interface CreateProjectResponse {
+  bots: Array<{ temp_id: string; bot_id: string; name: string }>
+  rooms: Array<{ room_id: string; title: string }>
+}
+
+export async function createProject(data: {
+  bots: Array<{
+    temp_id: string
+    name: string
+    description: string
+    icon: string
+    color: string
+    system_prompt: string
+    model: string
+    tone: string
+    expertise_level: string
+    response_length: string
+    personality_traits: string[]
+  }>
+  rooms: Array<{
+    name: string
+    description: string
+    response_mode: string
+    bot_temp_ids: string[]
+    settings: Record<string, unknown>
+  }>
+}): Promise<CreateProjectResponse> {
+  return request('/creation/create-project', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 // Bot sync (for platform connections)
 export interface BotSyncData {
   id: string
@@ -601,27 +709,6 @@ export interface PlatformChat {
   updatedAt: string
 }
 
-export interface PlatformMessage {
-  id: string
-  chatId: string
-  role: string
-  content: string
-  timestamp: string
-  metadata: Record<string, unknown>
-}
-
-export async function getPlatformChats(botId: string): Promise<PlatformChat[]> {
-  return request(`/bots/${botId}/chats`)
-}
-
-export async function getPlatformChatMessages(
-  botId: string,
-  chatId: string,
-  limit = 50
-): Promise<PlatformMessage[]> {
-  return request(`/bots/${botId}/chats/${chatId}/messages?limit=${limit}`)
-}
-
 export async function deletePlatformChat(botId: string, chatId: string): Promise<void> {
   return request(`/bots/${botId}/chats/${chatId}`, { method: 'DELETE' })
 }
@@ -652,9 +739,6 @@ export async function unarchivePlatformChat(botId: string, chatId: string): Prom
   return request(`/bots/${botId}/chats/${chatId}/_unarchive`, { method: 'POST' })
 }
 
-export async function getPlatformChatsIncludingArchived(botId: string): Promise<PlatformChat[]> {
-  return request(`/bots/${botId}/chats?include_archived=true`)
-}
 
 // =============================================================================
 // WORK MANAGEMENT API
@@ -1088,7 +1172,6 @@ export async function deleteTodo(botId: string, todoId: string): Promise<void> {
 
 // Remote marketplace configuration
 const REMOTE_MARKETPLACE_URL = import.meta.env.VITE_MARKETPLACE_URL || ''
-const MARKETPLACE_CACHE_KEY = 'cachibot_marketplace_cache'
 const MARKETPLACE_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 interface CacheEntry<T> {
@@ -1096,14 +1179,17 @@ interface CacheEntry<T> {
   timestamp: number
 }
 
-function getMarketplaceCache<T>(key: string): T | null {
+/**
+ * Generic localStorage cache with TTL, shared by bot and room marketplaces.
+ */
+function getCached<T>(prefix: string, key: string): T | null {
   try {
-    const cached = localStorage.getItem(`${MARKETPLACE_CACHE_KEY}_${key}`)
+    const cached = localStorage.getItem(`${prefix}_${key}`)
     if (!cached) return null
 
     const entry: CacheEntry<T> = JSON.parse(cached)
     if (Date.now() - entry.timestamp > MARKETPLACE_CACHE_TTL) {
-      localStorage.removeItem(`${MARKETPLACE_CACHE_KEY}_${key}`)
+      localStorage.removeItem(`${prefix}_${key}`)
       return null
     }
     return entry.data
@@ -1112,14 +1198,17 @@ function getMarketplaceCache<T>(key: string): T | null {
   }
 }
 
-function setMarketplaceCache<T>(key: string, data: T): void {
+function setCached<T>(prefix: string, key: string, data: T): void {
   try {
     const entry: CacheEntry<T> = { data, timestamp: Date.now() }
-    localStorage.setItem(`${MARKETPLACE_CACHE_KEY}_${key}`, JSON.stringify(entry))
+    localStorage.setItem(`${prefix}_${key}`, JSON.stringify(entry))
   } catch {
     // Ignore cache errors (quota exceeded, etc.)
   }
 }
+
+const BOT_CACHE_PREFIX = 'cachibot_marketplace_cache'
+const ROOM_CACHE_PREFIX = 'cachibot_room_marketplace_cache'
 
 export interface MarketplaceTemplate {
   id: string
@@ -1160,96 +1249,101 @@ export interface InstallTemplateResponse {
  * Fetch templates from remote cachibot.com marketplace.
  * Returns null if fetch fails or remote is not configured.
  */
-async function fetchRemoteTemplates(
-  category?: string,
-  search?: string
-): Promise<TemplateListResponse | null> {
+/**
+ * Generic helper: fetch a list of templates from the remote marketplace.
+ * Shared by bot and room marketplace APIs.
+ */
+async function fetchRemoteList<T extends { source?: string }>(
+  path: string,
+  cachePrefix: string,
+  params: Record<string, string | undefined>,
+  skipCacheOnSearch = true,
+): Promise<(T & { source: 'remote' }) | null> {
   if (!REMOTE_MARKETPLACE_URL) return null
 
   try {
-    const cacheKey = `remote_templates_${category || ''}_${search || ''}`
+    const paramStr = Object.entries(params)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('_')
+    const cacheKey = `remote_${path.replace(/\//g, '_')}_${paramStr}`
+    const hasSearch = skipCacheOnSearch && params.search
 
-    // Check cache first (only for non-search)
-    if (!search) {
-      const cached = getMarketplaceCache<TemplateListResponse>(cacheKey)
+    if (!hasSearch) {
+      const cached = getCached<T>(cachePrefix, cacheKey)
       if (cached) return { ...cached, source: 'remote' }
     }
 
-    const params = new URLSearchParams()
-    if (category) params.set('category', category)
-    if (search) params.set('search', search)
-
-    const queryString = params.toString()
-    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/templates${queryString ? `?${queryString}` : ''}`
+    const urlParams = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) {
+      if (v) urlParams.set(k, v)
+    }
+    const qs = urlParams.toString()
+    const url = `${REMOTE_MARKETPLACE_URL}/${path}${qs ? `?${qs}` : ''}`
 
     const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
     })
-
     if (!response.ok) return null
 
-    const data: TemplateListResponse = await response.json()
-
-    // Cache non-search results
-    if (!search) {
-      setMarketplaceCache(cacheKey, data)
-    }
-
+    const data: T = await response.json()
+    if (!hasSearch) setCached(cachePrefix, cacheKey, data)
     return { ...data, source: 'remote' }
   } catch (err) {
-    console.warn('Failed to fetch from remote marketplace:', err)
+    console.warn(`Failed to fetch from remote marketplace (${path}):`, err)
     return null
   }
 }
 
 /**
- * Fetch a single template from remote marketplace.
+ * Generic helper: fetch a single item from the remote marketplace.
  */
+async function fetchRemoteItem<T>(
+  path: string,
+  cachePrefix: string,
+  cacheKey: string,
+): Promise<T | null> {
+  if (!REMOTE_MARKETPLACE_URL) return null
+
+  try {
+    const cached = getCached<T>(cachePrefix, cacheKey)
+    if (cached) return cached
+
+    const url = `${REMOTE_MARKETPLACE_URL}/${path}`
+    const response = await fetch(url)
+    if (!response.ok) return null
+
+    const data: T = await response.json()
+    setCached(cachePrefix, cacheKey, data)
+    return data
+  } catch (err) {
+    console.warn(`Failed to fetch from remote marketplace (${path}):`, err)
+    return null
+  }
+}
+
+async function fetchRemoteTemplates(
+  category?: string,
+  search?: string,
+): Promise<TemplateListResponse | null> {
+  return fetchRemoteList<TemplateListResponse>(
+    'marketplace/templates', BOT_CACHE_PREFIX,
+    { category, search },
+  )
+}
+
 async function fetchRemoteTemplate(templateId: string): Promise<MarketplaceTemplate | null> {
-  if (!REMOTE_MARKETPLACE_URL) return null
-
-  try {
-    const cacheKey = `remote_template_${templateId}`
-    const cached = getMarketplaceCache<MarketplaceTemplate>(cacheKey)
-    if (cached) return cached
-
-    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/templates/${templateId}`
-    const response = await fetch(url)
-
-    if (!response.ok) return null
-
-    const data: MarketplaceTemplate = await response.json()
-    setMarketplaceCache(cacheKey, data)
-    return data
-  } catch (err) {
-    console.warn('Failed to fetch template from remote marketplace:', err)
-    return null
-  }
+  return fetchRemoteItem<MarketplaceTemplate>(
+    `marketplace/templates/${templateId}`, BOT_CACHE_PREFIX,
+    `remote_template_${templateId}`,
+  )
 }
 
-/**
- * Fetch categories from remote marketplace.
- */
 async function fetchRemoteCategories(): Promise<MarketplaceCategory[] | null> {
-  if (!REMOTE_MARKETPLACE_URL) return null
-
-  try {
-    const cacheKey = 'remote_categories'
-    const cached = getMarketplaceCache<MarketplaceCategory[]>(cacheKey)
-    if (cached) return cached
-
-    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/categories`
-    const response = await fetch(url)
-
-    if (!response.ok) return null
-
-    const data: MarketplaceCategory[] = await response.json()
-    setMarketplaceCache(cacheKey, data)
-    return data
-  } catch (err) {
-    console.warn('Failed to fetch categories from remote marketplace:', err)
-    return null
-  }
+  return fetchRemoteItem<MarketplaceCategory[]>(
+    'marketplace/categories', BOT_CACHE_PREFIX,
+    'remote_categories',
+  )
 }
 
 /**
@@ -1323,26 +1417,11 @@ export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]>
  * Tries remote first, falls back to local API.
  */
 export async function getRoomMarketplaceCategories(): Promise<MarketplaceCategory[]> {
-  // Try remote first
-  if (REMOTE_MARKETPLACE_URL) {
-    try {
-      const cacheKey = 'remote_room_categories'
-      const cached = getRoomMarketplaceCache<MarketplaceCategory[]>(cacheKey)
-      if (cached) return cached
+  const remote = await fetchRemoteItem<MarketplaceCategory[]>(
+    'marketplace/room-categories', ROOM_CACHE_PREFIX, 'remote_room_categories',
+  )
+  if (remote) return remote
 
-      const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-categories`
-      const response = await fetch(url)
-      if (response.ok) {
-        const data: MarketplaceCategory[] = await response.json()
-        setRoomMarketplaceCache(cacheKey, data)
-        return data
-      }
-    } catch {
-      // Fall through to local
-    }
-  }
-
-  // Fall back to local
   try {
     return await request('/marketplace/room-categories')
   } catch {
@@ -1511,93 +1590,22 @@ import type {
   InstallRoomTemplateResponse,
 } from '../types'
 
-const ROOM_MARKETPLACE_CACHE_KEY = 'cachibot_room_marketplace_cache'
-
-function getRoomMarketplaceCache<T>(key: string): T | null {
-  try {
-    const cached = localStorage.getItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`)
-    if (!cached) return null
-    const entry: CacheEntry<T> = JSON.parse(cached)
-    if (Date.now() - entry.timestamp > MARKETPLACE_CACHE_TTL) {
-      localStorage.removeItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`)
-      return null
-    }
-    return entry.data
-  } catch {
-    return null
-  }
-}
-
-function setRoomMarketplaceCache<T>(key: string, data: T): void {
-  try {
-    const entry: CacheEntry<T> = { data, timestamp: Date.now() }
-    localStorage.setItem(`${ROOM_MARKETPLACE_CACHE_KEY}_${key}`, JSON.stringify(entry))
-  } catch {
-    // Ignore cache errors
-  }
-}
-
 async function fetchRemoteRoomTemplates(
   category?: string,
   search?: string,
   responseMode?: string,
 ): Promise<RoomTemplateListResponse | null> {
-  if (!REMOTE_MARKETPLACE_URL) return null
-
-  try {
-    const cacheKey = `remote_room_templates_${category || ''}_${search || ''}_${responseMode || ''}`
-    if (!search) {
-      const cached = getRoomMarketplaceCache<RoomTemplateListResponse>(cacheKey)
-      if (cached) return { ...cached, source: 'remote' }
-    }
-
-    const params = new URLSearchParams()
-    if (category) params.set('category', category)
-    if (search) params.set('search', search)
-    if (responseMode) params.set('response_mode', responseMode)
-
-    const queryString = params.toString()
-    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-templates${queryString ? `?${queryString}` : ''}`
-
-    const response = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    if (!response.ok) return null
-
-    const data: RoomTemplateListResponse = await response.json()
-
-    if (!search) {
-      setRoomMarketplaceCache(cacheKey, data)
-    }
-
-    return { ...data, source: 'remote' }
-  } catch (err) {
-    console.warn('Failed to fetch remote room templates:', err)
-    return null
-  }
+  return fetchRemoteList<RoomTemplateListResponse>(
+    'marketplace/room-templates', ROOM_CACHE_PREFIX,
+    { category, search, response_mode: responseMode },
+  )
 }
 
 async function fetchRemoteRoomTemplate(templateId: string): Promise<RoomMarketplaceTemplate | null> {
-  if (!REMOTE_MARKETPLACE_URL) return null
-
-  try {
-    const cacheKey = `remote_room_template_${templateId}`
-    const cached = getRoomMarketplaceCache<RoomMarketplaceTemplate>(cacheKey)
-    if (cached) return cached
-
-    const url = `${REMOTE_MARKETPLACE_URL}/marketplace/room-templates/${templateId}`
-    const response = await fetch(url)
-
-    if (!response.ok) return null
-
-    const data: RoomMarketplaceTemplate = await response.json()
-    setRoomMarketplaceCache(cacheKey, data)
-    return data
-  } catch (err) {
-    console.warn('Failed to fetch remote room template:', err)
-    return null
-  }
+  return fetchRemoteItem<RoomMarketplaceTemplate>(
+    `marketplace/room-templates/${templateId}`, ROOM_CACHE_PREFIX,
+    `remote_room_template_${templateId}`,
+  )
 }
 
 export async function getRoomMarketplaceTemplates(
@@ -1633,6 +1641,16 @@ export async function getRoomMarketplaceTemplate(templateId: string): Promise<Ro
 
 export async function installRoomMarketplaceTemplate(templateId: string): Promise<InstallRoomTemplateResponse> {
   return request(`/marketplace/room-templates/${templateId}/install`, { method: 'POST' })
+}
+
+/**
+ * Fire-and-forget: notify backend of a template view event for marketplace analytics.
+ */
+export function trackTemplateView(templateId: string, templateType: 'bot' | 'room'): void {
+  request('/marketplace/track-view', {
+    method: 'POST',
+    body: JSON.stringify({ template_id: templateId, template_type: templateType }),
+  }).catch(() => {}) // Fire-and-forget
 }
 
 export { ApiError }

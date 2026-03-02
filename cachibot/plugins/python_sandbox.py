@@ -2,6 +2,15 @@
 Python sandbox plugin — sandboxed python_execute tool with risk analysis.
 """
 
+from __future__ import annotations
+
+import asyncio
+import logging
+import mimetypes
+import shutil
+import uuid
+from pathlib import Path
+
 from prompture import ApprovalRequired
 from tukuy import analyze_python
 from tukuy.analysis.risk_scoring import RiskLevel as AnalysisRiskLevel
@@ -9,6 +18,130 @@ from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext
+
+logger = logging.getLogger(__name__)
+
+_DOCUMENT_EXTENSIONS = {".pdf", ".pptx", ".docx", ".xlsx"}
+
+_DOCUMENT_TYPES: dict[str, str] = {
+    ".pdf": "pdf",
+    ".pptx": "pptx",
+    ".docx": "docx",
+    ".xlsx": "xlsx",
+}
+
+
+def _snapshot_documents(workspace: Path) -> dict[str, float]:
+    """Return {path: mtime} for document files in the workspace."""
+    snap: dict[str, float] = {}
+    try:
+        for p in workspace.rglob("*"):
+            if p.is_file() and p.suffix.lower() in _DOCUMENT_EXTENSIONS:
+                snap[str(p)] = p.stat().st_mtime
+    except OSError:
+        pass
+    return snap
+
+
+def _diff_documents(before: dict[str, float], after: dict[str, float]) -> list[str]:
+    """Return paths of new or modified document files."""
+    changed: list[str] = []
+    for path, mtime in after.items():
+        if path not in before or mtime > before[path]:
+            changed.append(path)
+    return changed
+
+
+async def _emit_document_artifact(
+    ctx: PluginContext,
+    file_path: str,
+) -> None:
+    """Copy a generated document to the asset store and emit a document artifact."""
+    try:
+        from cachibot.models.artifact import Artifact as ArtifactModel
+        from cachibot.models.artifact import ArtifactType
+        from cachibot.models.asset import Asset
+        from cachibot.storage.asset_repository import AssetRepository
+
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            return
+
+        owner_id = ctx.chat_id or ""
+        if not owner_id:
+            return
+
+        asset_id = str(uuid.uuid4())
+        assets_base = Path.home() / ".cachibot" / "assets"
+        storage_dir = assets_base / "chat" / owner_id
+        storage_path = storage_dir / asset_id
+        storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+        shutil.copy2(str(path), str(storage_path))
+
+        mime_type, _ = mimetypes.guess_type(path.name)
+        mime_type = mime_type or "application/octet-stream"
+        file_size = path.stat().st_size
+        ext = path.suffix.lower()
+        doc_type = _DOCUMENT_TYPES.get(ext, "unknown")
+
+        from datetime import datetime, timezone
+
+        asset = Asset(
+            id=asset_id,
+            owner_type="chat",
+            owner_id=owner_id,
+            name=path.name,
+            original_filename=path.name,
+            content_type=mime_type,
+            size_bytes=file_size,
+            storage_path=str(storage_path),
+            uploaded_by_bot_id=ctx.bot_id,
+            metadata={"source": "generated", "tool": "python_execute"},
+            created_at=datetime.now(timezone.utc),
+        )
+
+        repo = AssetRepository()
+        await repo.create(asset)
+
+        download_url = f"/api/bots/{ctx.bot_id}/chats/{owner_id}/assets/{asset_id}/download"
+
+        artifact = ArtifactModel(
+            id=str(uuid.uuid4()),
+            type=ArtifactType.DOCUMENT,
+            title=path.name,
+            content=download_url,
+            metadata={
+                "fileName": path.name,
+                "fileSize": file_size,
+                "mimeType": mime_type,
+                "documentType": doc_type,
+                "downloadUrl": download_url,
+                "assetId": asset_id,
+            },
+        )
+
+        if ctx.on_artifact:
+            await ctx.on_artifact(artifact)
+
+        logger.debug(
+            "Emitted document artifact %s for %s",
+            artifact.id,
+            path.name,
+        )
+
+    except Exception:
+        logger.debug("Failed to emit document artifact for %s", file_path, exc_info=True)
+
+
+def _schedule_document_capture(ctx: PluginContext, changed_files: list[str]) -> None:
+    """Fire-and-forget async tasks to emit document artifacts for changed files."""
+    try:
+        loop = asyncio.get_running_loop()
+        for file_path in changed_files:
+            loop.create_task(_emit_document_artifact(ctx, file_path))
+    except RuntimeError:
+        pass  # No event loop — skip
 
 
 class PythonSandboxPlugin(CachibotPlugin):
@@ -138,6 +271,10 @@ class PythonSandboxPlugin(CachibotPlugin):
                     },
                 )
 
+            # Snapshot document files before execution
+            workspace = Path(str(ctx.config.workspace_path))
+            before = _snapshot_documents(workspace)
+
             result = ctx.sandbox.execute(code)
 
             # Get max output length from tool_configs or use default
@@ -147,6 +284,12 @@ class PythonSandboxPlugin(CachibotPlugin):
                 max_output_length = py_cfg.get("maxOutputLength", max_output_length)
 
             if result.success:
+                # Detect new/modified document files and emit artifacts
+                after = _snapshot_documents(workspace)
+                changed = _diff_documents(before, after)
+                if changed and ctx.on_artifact:
+                    _schedule_document_capture(ctx, changed)
+
                 output = result.output.strip() if result.output else ""
                 if result.return_value is not None:
                     if output:

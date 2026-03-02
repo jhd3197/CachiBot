@@ -35,6 +35,7 @@ from cachibot.api.routes import (
     developer,
     documents,
     executions,
+    external_plugins,
     groups,
     health,
     instructions,
@@ -131,6 +132,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from cachibot.services.update_service import mark_current_version_good
 
     mark_current_version_good()
+
+    # Install official plugins from registry
+    try:
+        from cachibot.services.external_plugins import install_official_plugins
+
+        installed = await install_official_plugins()
+        if installed:
+            startup_logger.info(
+                "Installed %d official plugin(s): %s",
+                len(installed),
+                ", ".join(sorted(installed)),
+            )
+    except Exception as exc:
+        startup_logger.warning("Official plugin install failed: %s", exc)
+
+    # Load external plugins from ~/.cachibot/plugins/
+    try:
+        from cachibot.services.external_plugins import EXTERNAL_PLUGINS_DIR, load_external_plugins
+
+        startup_logger.info("External plugins directory: %s", EXTERNAL_PLUGINS_DIR)
+        ext_count = load_external_plugins()
+        if ext_count:
+            startup_logger.info("Loaded %d external plugin(s)", ext_count)
+        else:
+            startup_logger.warning(
+                "No external plugins loaded (dir=%s, exists=%s)",
+                EXTERNAL_PLUGINS_DIR,
+                EXTERNAL_PLUGINS_DIR.exists(),
+            )
+    except Exception as exc:
+        startup_logger.warning("External plugin loading failed: %s", exc)
 
     # Set up message processor for platform connections
     platform_manager = get_platform_manager()
@@ -280,6 +312,7 @@ def create_app(
     app.include_router(platforms.router, tags=["platforms"])
     app.include_router(skills.router, tags=["skills"])
     app.include_router(plugins.router, tags=["plugins"])
+    app.include_router(external_plugins.router, tags=["external-plugins"])
     app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(scripts.router, tags=["scripts"])

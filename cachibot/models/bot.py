@@ -28,7 +28,7 @@ class Bot(BaseModel):
     description: str | None = None
     icon: str | None = None
     color: str | None = None
-    model: str
+    model: str  # Legacy — prefer default_model property
     models: dict[str, Any] | None = None  # Multi-model slots (BotModels shape)
     system_prompt: str = Field(alias="systemPrompt")
     capabilities: dict[str, Any] = Field(default_factory=dict)
@@ -37,6 +37,17 @@ class Bot(BaseModel):
 
     class Config:
         populate_by_name = True
+
+    @property
+    def default_model(self) -> str:
+        """Resolve the effective default model.
+
+        Prefers ``models["default"]`` (the new multi-slot system) over the
+        legacy ``model`` field.
+        """
+        if self.models and self.models.get("default"):
+            return str(self.models["default"])
+        return self.model
 
 
 class BotCreate(BaseModel):

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import get_current_user, require_bot_access
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import BotOwnership, User, UserRole
 from cachibot.models.bot import Bot, BotResponse
 from cachibot.models.group import (
@@ -90,9 +91,7 @@ async def get_bot(
     user: User = Depends(require_bot_access),
 ) -> BotResponse:
     """Get a specific bot."""
-    bot = await repo.get_bot(bot_id)
-    if bot is None:
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await repo.get_bot(bot_id), "Bot")
     return BotResponse.from_bot(bot)
 
 
@@ -130,9 +129,7 @@ async def delete_bot(
     user: User = Depends(require_bot_access),
 ) -> None:
     """Delete a bot."""
-    deleted = await repo.delete_bot(bot_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Bot not found")
+    require_found(await repo.delete_bot(bot_id), "Bot")
 
 
 # =============================================================================
@@ -167,9 +164,7 @@ async def activate_bot_skill(
 ) -> dict[str, str]:
     """Activate a skill for a bot."""
     # Verify skill exists
-    skill = await skills_repo.get_skill(body.skill_id)
-    if skill is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
+    require_found(await skills_repo.get_skill(body.skill_id), "Skill")
 
     await skills_repo.activate_skill(bot_id, body.skill_id)
     return {"status": "activated", "skill_id": body.skill_id}
@@ -182,9 +177,7 @@ async def deactivate_bot_skill(
     user: User = Depends(require_bot_access),
 ) -> None:
     """Deactivate a skill for a bot."""
-    deactivated = await skills_repo.deactivate_skill(bot_id, skill_id)
-    if not deactivated:
-        raise HTTPException(status_code=404, detail="Skill not activated for this bot")
+    require_found(await skills_repo.deactivate_skill(bot_id, skill_id), "Skill activation")
 
 
 # =============================================================================
@@ -355,9 +348,7 @@ async def export_bot(
 
     Returns a portable format that can be imported to recreate the bot.
     """
-    bot = await repo.get_bot(bot_id)
-    if bot is None:
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await repo.get_bot(bot_id), "Bot")
 
     # Get skills for the bot
     skill_ids = await skills_repo.get_bot_skills(bot_id)
@@ -515,9 +506,7 @@ async def share_bot_with_group(
     from cachibot.storage.group_repository import GroupRepository
 
     group_repo = GroupRepository()
-    group = await group_repo.get_group_by_id(body.group_id)
-    if group is None:
-        raise HTTPException(status_code=404, detail="Group not found")
+    group = require_found(await group_repo.get_group_by_id(body.group_id), "Group")
 
     try:
         record = await access_repo.share_bot(
@@ -551,9 +540,9 @@ async def update_bot_access(
     """Update access level for a bot-group pair. Bot owner or admin only."""
     await _require_bot_owner_or_admin(bot_id, user)
 
-    updated = await access_repo.update_access_level(bot_id, group_id, body.access_level)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Access record not found")
+    require_found(
+        await access_repo.update_access_level(bot_id, group_id, body.access_level), "Access record"
+    )
 
     return {"status": "updated", "access_level": body.access_level.value}
 
@@ -567,6 +556,4 @@ async def revoke_bot_access(
     """Revoke a group's access to a bot. Bot owner or admin only."""
     await _require_bot_owner_or_admin(bot_id, user)
 
-    revoked = await access_repo.revoke_access(bot_id, group_id)
-    if not revoked:
-        raise HTTPException(status_code=404, detail="Access record not found")
+    require_found(await access_repo.revoke_access(bot_id, group_id), "Access record")

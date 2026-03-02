@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from cachibot.api.helpers import require_found
 from cachibot.services.platform_manager import get_platform_manager
 from cachibot.storage.repository import ConnectionRepository
 
@@ -50,9 +51,7 @@ async def handle_custom_webhook(
         A simple acknowledgement dict.
     """
     # Validate connection exists and is a custom platform
-    connection = await repo.get_connection(connection_id)
-    if connection is None:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    connection = require_found(await repo.get_connection(connection_id), "Connection")
 
     if connection.platform.value != "custom":
         raise HTTPException(status_code=400, detail="Connection is not a custom platform")

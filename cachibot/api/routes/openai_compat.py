@@ -20,8 +20,9 @@ from pydantic import BaseModel
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.api.auth import resolve_api_key
+from cachibot.api.helpers import require_found
 from cachibot.config import Config
-from cachibot.services.agent_factory import resolve_bot_env
+from cachibot.services.agent_factory import _resolve_public_id, resolve_bot_env
 from cachibot.storage.repository import BotRepository
 
 logger = logging.getLogger(__name__)
@@ -97,16 +98,15 @@ async def chat_completions(
     bot_id, key_id = api_key_info
 
     # Load bot from DB
-    bot = await bot_repo.get_bot(bot_id)
-    if not bot:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await bot_repo.get_bot(bot_id), "Bot")
 
     # Resolve per-bot environment and driver
-    effective_model = bot.model
+    user_model = bot.model
     if bot.models and bot.models.get("default"):
-        effective_model = bot.models["default"]
+        user_model = bot.models["default"]
+
+    # Resolve public_id → real model_id (white-label support)
+    effective_model = await _resolve_public_id(user_model)
 
     config = Config.load(workspace=request.app.state.workspace)
     agent_config = copy.deepcopy(config)
@@ -146,7 +146,7 @@ async def chat_completions(
 
     if body.stream:
         return StreamingResponse(
-            _stream_response(agent, user_message, effective_model),
+            _stream_response(agent, user_message, user_model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -167,7 +167,7 @@ async def chat_completions(
                     response_text = event.data.output_text or response_text
                     run_usage = event.data.run_usage or {}
 
-    # Emit webhook event
+    # Emit webhook event (log the real model internally)
     try:
         from cachibot.services.webhook_delivery import emit_webhook_event
 
@@ -182,7 +182,7 @@ async def chat_completions(
     return ChatCompletionResponse(
         id=f"chatcmpl-{uuid.uuid4().hex[:24]}",
         created=int(time.time()),
-        model=effective_model,
+        model=user_model,
         choices=[
             ChatCompletionChoice(
                 index=0,
@@ -202,19 +202,20 @@ async def chat_completions(
 async def list_models(
     api_key_info: tuple[str, str] = Depends(resolve_api_key),
 ) -> ModelsResponse:
-    """Return the bot's configured model in OpenAI format."""
+    """Return the bot's configured model in OpenAI format.
+
+    Returns the public_id (white-label alias) so users never see
+    the real provider model path.
+    """
     bot_id, _ = api_key_info
 
-    bot = await bot_repo.get_bot(bot_id)
-    if not bot:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=404, detail="Bot not found")
+    bot = require_found(await bot_repo.get_bot(bot_id), "Bot")
 
     model_id = bot.model
     if bot.models and bot.models.get("default"):
         model_id = bot.models["default"]
 
+    # Don't resolve — keep the public_id as-is for the user
     return ModelsResponse(
         data=[
             ModelEntry(

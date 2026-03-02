@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 
 from cachibot.api.auth import get_admin_user
+from cachibot.api.helpers import require_found
 from cachibot.api.routes.executions import ExecutionLogResponse
 from cachibot.models.auth import User
 from cachibot.storage.automations_repository import ExecutionLogRepository
@@ -129,9 +130,7 @@ async def admin_cancel_execution(
     user: User = Depends(get_admin_user),
 ) -> dict[str, Any]:
     """Admin kill switch for a running execution."""
-    log = await exec_log_repo.get(exec_id)
-    if not log:
-        raise HTTPException(status_code=404, detail="Execution log not found")
+    log = require_found(await exec_log_repo.get(exec_id), "Execution log")
 
     cancelled = await exec_log_repo.cancel(exec_id)
     if not cancelled:

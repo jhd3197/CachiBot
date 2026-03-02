@@ -23,13 +23,14 @@ async def _extract_with_retry(
     last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
-            return await extract_with_model(
+            result = await extract_with_model(
                 model_cls,
                 text,
                 model_name,
                 instruction_template=instruction_template,
                 **kwargs,
             )
+            return dict(result)
         except Exception as e:
             last_error = e
             logger.warning(
@@ -311,6 +312,7 @@ CATEGORY_QUESTIONS = {
 async def generate_follow_up_questions(
     category: str,
     description: str,
+    mode: Literal["user-focused", "task-focused"] = "user-focused",
     model: str | None = None,
     bot_models: dict[str, Any] | None = None,
     resolved_env: Any | None = None,
@@ -321,6 +323,8 @@ async def generate_follow_up_questions(
     Args:
         category: The purpose category (e.g., fitness, cooking)
         description: The user's initial description
+        mode: Question generation mode. "user-focused" asks about the user's identity
+            and routine. "task-focused" asks about the bot's capabilities and tasks.
         model: Model to use for generation
         bot_models: Per-bot model slots (checked first for "utility")
         resolved_env: Per-bot resolved environment override
@@ -331,10 +335,58 @@ async def generate_follow_up_questions(
     if model is None:
         model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
 
-    prompt_text = (
-        "Generate 3 follow-up questions to learn about the USER so the bot can truly know them."
-    )
-    prompt_text += f"""
+    if mode == "task-focused":
+        prompt_text = (
+            "Generate 3 follow-up questions: 2 about the bot's task/capabilities "
+            "and 1 light personal question."
+        )
+        prompt_text += f"""
+
+## Context
+- Category: {category}
+- User's description: "{description}"
+
+## Requirements for questions:
+1. The first 2 questions should focus on what the bot should DO — \
+its tasks, capabilities, scope, and specific behaviors
+2. The 3rd question should be a light personal question (e.g., name, \
+how they want to be addressed)
+3. Include helpful placeholder text showing example answers
+4. Questions should help define the bot's role and responsibilities
+
+## Good question examples:
+- "What specific tasks should this bot handle on a daily basis?"
+- "Are there any boundaries or topics the bot should avoid?"
+- "What's your name so the bot can address you personally?"
+
+## Bad question examples (avoid these):
+- "What communication style do you prefer?" (too generic)
+- "What's your budget?" (irrelevant to bot capabilities)
+
+Generate exactly 3 questions — 2 task-focused, 1 personal."""
+
+        fallback_questions = [
+            FollowUpQuestion(
+                id="q1",
+                question="What specific tasks should this bot handle regularly?",
+                placeholder="e.g., Review pull requests, summarize daily standups, draft emails",
+            ),
+            FollowUpQuestion(
+                id="q2",
+                question=("Are there any boundaries or topics the bot should stay away from?"),
+                placeholder="e.g., Don't make financial decisions, avoid personal advice",
+            ),
+            FollowUpQuestion(
+                id="q3",
+                question="What's your name so the bot knows how to address you?",
+                placeholder="e.g., I'm Alex, just call me Alex",
+            ),
+        ]
+    else:
+        prompt_text = (
+            "Generate 3 follow-up questions to learn about the USER so the bot can truly know them."
+        )
+        prompt_text += f"""
 
 ## Context
 - Category: {category}
@@ -361,32 +413,33 @@ bot always remembers who the user is
 
 Generate exactly 3 questions that will help the bot KNOW the user personally."""
 
-    instruction = "Generate 3 follow-up questions with placeholders in JSON format:"
+        fallback_questions = CATEGORY_QUESTIONS.get(
+            category,
+            [
+                FollowUpQuestion(
+                    id="q1",
+                    question="What's your name and how should I address you?",
+                    placeholder="e.g., I'm Alex, call me Alex or just A",
+                ),
+                FollowUpQuestion(
+                    id="q2",
+                    question=(
+                        "Tell me about your typical day or week — what does your routine look like?"
+                    ),
+                    placeholder=("e.g., I work 9-5 remotely, gym in the morning, study at night"),
+                ),
+                FollowUpQuestion(
+                    id="q3",
+                    question="What specific tasks or reminders would you want me to help with?",
+                    placeholder=(
+                        "e.g., Track my workouts, remind me to meal prep on Sundays, "
+                        "help plan my week"
+                    ),
+                ),
+            ],
+        )
 
-    fallback_questions = CATEGORY_QUESTIONS.get(
-        category,
-        [
-            FollowUpQuestion(
-                id="q1",
-                question="What's your name and how should I address you?",
-                placeholder="e.g., I'm Alex, call me Alex or just A",
-            ),
-            FollowUpQuestion(
-                id="q2",
-                question=(
-                    "Tell me about your typical day or week — what does your routine look like?"
-                ),
-                placeholder=("e.g., I work 9-5 remotely, gym in the morning, study at night"),
-            ),
-            FollowUpQuestion(
-                id="q3",
-                question="What specific tasks or reminders would you want me to help with?",
-                placeholder=(
-                    "e.g., Track my workouts, remind me to meal prep on Sundays, help plan my week"
-                ),
-            ),
-        ],
-    )
+    instruction = "Generate 3 follow-up questions with placeholders in JSON format:"
 
     try:
         result = await _extract_with_retry(
@@ -683,6 +736,463 @@ User: {test_message}"""
         logger.warning("Preview generation failed, using fallback")
         return PreviewResponse(
             response="I'm ready to help! How can I assist you today?",
+        )
+
+
+# =============================================================================
+# PURPOSE CLASSIFICATION
+# =============================================================================
+
+
+class PurposeClassification(BaseModel):
+    """Whether a description implies a single bot or a team of bots."""
+
+    classification: Literal["single", "project"] = Field(
+        description="Whether this needs a single bot or a team of bots"
+    )
+    reason: str = Field(description="Brief explanation of why this classification was chosen")
+    confidence: float = Field(description="Confidence score between 0 and 1")
+
+
+async def classify_purpose(
+    category: str,
+    description: str,
+    model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
+) -> PurposeClassification:
+    """
+    Classify whether a description implies a single bot or a project with multiple bots.
+
+    Args:
+        category: The purpose category (e.g., fitness, coding)
+        description: The user's initial description
+        model: Model to use for classification
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
+
+    Returns:
+        PurposeClassification with classification, reason, and confidence
+    """
+    if model is None:
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
+
+    prompt_text = "Classify whether this description implies a single bot or a project/team."
+    prompt_text += f"""
+
+## Context
+- Category: {category}
+- Description: "{description}"
+
+## Classification Rules
+
+### Single Bot ("single"):
+- Personal assistant for one person
+- One specific task or domain
+- Individual use case
+- Simple Q&A or helper bot
+- Examples: "a fitness coach", "help me cook", "a coding buddy"
+
+### Project / Team ("project"):
+- Multiple distinct roles or specialists needed
+- Team workflow or pipeline
+- Multi-stage process requiring different expertise
+- Collaboration between specialized agents
+- Examples: "a content team with writer, editor, and SEO specialist", \
+"a dev team with architect, coder, and reviewer", \
+"a customer support pipeline with triage, response, and escalation"
+
+Analyze the description carefully and classify it."""
+
+    instruction = "Classify the purpose and provide reasoning in JSON format:"
+
+    try:
+        result = await _extract_with_retry(
+            PurposeClassification,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model  # type: ignore[attr-defined, no-any-return]
+    except Exception:
+        logger.exception("Purpose classification failed, defaulting to single")
+        return PurposeClassification(
+            classification="single",
+            reason="Classification failed — defaulting to single bot.",
+            confidence=0.5,
+        )
+
+
+# =============================================================================
+# PROJECT FOLLOW-UP QUESTIONS
+# =============================================================================
+
+
+async def generate_project_follow_up_questions(
+    category: str,
+    description: str,
+    model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
+) -> list[FollowUpQuestion]:
+    """
+    Generate follow-up questions for a project/team workflow.
+
+    These questions help gather context about the project's workflow stages,
+    goals, and the specializations needed.
+
+    Args:
+        category: The purpose category
+        description: The user's initial description
+        model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "utility")
+        resolved_env: Per-bot resolved environment override
+
+    Returns:
+        List of 2-3 project-focused follow-up questions
+    """
+    if model is None:
+        model = resolve_utility_model(bot_models=bot_models, resolved_env=resolved_env)
+
+    prompt_text = "Generate 2-3 follow-up questions about this project/team workflow."
+    prompt_text += f"""
+
+## Context
+- Category: {category}
+- Description: "{description}"
+
+## Requirements for questions:
+1. Ask about the workflow stages, pipeline steps, or team structure
+2. Ask about the project's primary goals and success criteria
+3. Ask about specific specializations or roles needed
+4. Questions should help design a team of AI bots that work together
+5. Include helpful placeholder text showing example answers
+
+## Good question examples:
+- "What are the main stages or steps in your workflow?"
+- "What specific roles or specializations do you need in this team?"
+- "What's the primary goal — what does success look like for this project?"
+
+Generate 2-3 questions that will help design the right team of bots."""
+
+    instruction = (
+        "Generate 2-3 project-focused follow-up questions with placeholders in JSON format:"
+    )
+
+    fallback_questions = [
+        FollowUpQuestion(
+            id="pq1",
+            question="What are the main stages or steps in your workflow?",
+            placeholder=("e.g., First we plan, then we draft, then review, then publish"),
+        ),
+        FollowUpQuestion(
+            id="pq2",
+            question="What specific roles or specializations do you need in this team?",
+            placeholder=("e.g., A project lead, a writer, a reviewer, and a QA specialist"),
+        ),
+    ]
+
+    try:
+        result = await _extract_with_retry(
+            FollowUpQuestions,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model.questions[:3]  # type: ignore[attr-defined, no-any-return]
+    except Exception:
+        logger.exception("Project follow-up question generation failed, using fallbacks")
+        return fallback_questions
+
+
+# =============================================================================
+# PROJECT PROPOSAL GENERATION
+# =============================================================================
+
+
+class ProposalBotSpec(BaseModel):
+    """Specification for a bot in a project proposal."""
+
+    name: str = Field(description="Bot name")
+    description: str = Field(description="One-line description of the bot's role")
+    role: str = Field(description="Bot role: default, lead, reviewer, observer, or specialist")
+    system_prompt: str = Field(description="Complete system prompt for this bot")
+    tone: str = Field(
+        default="friendly",
+        description="Tone: professional, friendly, casual, concise, playful, or witty",
+    )
+    expertise_level: str = Field(
+        default="expert",
+        description="Expertise level: beginner, intermediate, expert, or authority",
+    )
+    response_length: str = Field(
+        default="moderate",
+        description="Response length: brief, moderate, detailed, or comprehensive",
+    )
+    personality_traits: list[str] = Field(
+        default_factory=list,
+        description=(
+            "2-4 personality traits from: patient, assertive, creative, analytical, "
+            "empathetic, humorous, encouraging, direct, methodical, innovative"
+        ),
+    )
+
+
+class ProposalRoomSpec(BaseModel):
+    """Specification for a room in a project proposal."""
+
+    name: str = Field(description="Room name")
+    description: str = Field(description="One-line description of the room's purpose")
+    response_mode: str = Field(
+        description=(
+            "Response mode: parallel, sequential, chain, router, debate, "
+            "waterfall, relay, consensus, or interview"
+        )
+    )
+    bot_names: list[str] = Field(description="Names of bots assigned to this room")
+
+
+class ProjectProposalResult(BaseModel):
+    """Complete project proposal with bots and rooms."""
+
+    project_name: str = Field(description="Short project name")
+    project_description: str = Field(description="One-line project description")
+    bots: list[ProposalBotSpec] = Field(description="Proposed bots")
+    rooms: list[ProposalRoomSpec] = Field(description="Proposed rooms")
+
+
+_TONE_DIRECTIVES: dict[str, str] = {
+    "professional": "Maintain a professional, business-appropriate tone at all times.",
+    "friendly": "Communicate in a warm, approachable, and conversational manner.",
+    "casual": "Keep things relaxed, informal, and easy-going.",
+    "concise": "Be brief and to-the-point — minimize filler and unnecessary elaboration.",
+    "playful": "Bring a fun, lighthearted energy to your responses.",
+    "witty": "Use clever, sharp humor and smart observations in your communication.",
+}
+
+_EXPERTISE_DIRECTIVES: dict[str, str] = {
+    "beginner": "Explain concepts from the ground up, assuming no prior knowledge.",
+    "intermediate": "Assume a working knowledge of the basics and focus on practical application.",
+    "expert": "Speak at an advanced level, using precise terminology and skipping basics.",
+    "authority": "Communicate as a leading authority — cite nuance, trade-offs, and edge cases.",
+}
+
+_LENGTH_DIRECTIVES: dict[str, str] = {
+    "brief": "Keep responses short — aim for 1-3 sentences when possible.",
+    "moderate": "Provide balanced responses — enough detail without being verbose.",
+    "detailed": "Give thorough, well-structured responses with examples when helpful.",
+    "comprehensive": "Provide exhaustive, in-depth responses covering all angles.",
+}
+
+_TRAIT_DIRECTIVES: dict[str, str] = {
+    "patient": "Be patient and never rush the user — repeat or rephrase willingly.",
+    "assertive": "State your position confidently and don't hedge unnecessarily.",
+    "creative": "Think outside the box and offer inventive, unexpected solutions.",
+    "analytical": "Break down problems methodically with data-driven reasoning.",
+    "empathetic": "Show genuine understanding of the user's feelings and situation.",
+    "humorous": "Use appropriate humor to keep interactions engaging.",
+    "encouraging": "Motivate and uplift — celebrate progress and effort.",
+    "direct": "Get straight to the answer without preamble or fluff.",
+    "methodical": "Follow structured, step-by-step approaches to every task.",
+    "innovative": "Push boundaries and suggest cutting-edge approaches.",
+}
+
+
+def compose_system_prompt_with_personality(
+    core_prompt: str,
+    tone: str,
+    expertise_level: str,
+    response_length: str,
+    personality_traits: list[str],
+) -> str:
+    """Compose a full system prompt by appending a Communication Profile section.
+
+    The structured personality fields are translated into natural-language directives
+    and appended to the core system prompt. This keeps the core prompt focused on
+    domain knowledge and responsibilities while the profile handles communication style.
+    """
+    lines: list[str] = []
+
+    if tone in _TONE_DIRECTIVES:
+        lines.append(f"- **Tone:** {_TONE_DIRECTIVES[tone]}")
+    if expertise_level in _EXPERTISE_DIRECTIVES:
+        lines.append(f"- **Expertise Level:** {_EXPERTISE_DIRECTIVES[expertise_level]}")
+    if response_length in _LENGTH_DIRECTIVES:
+        lines.append(f"- **Response Length:** {_LENGTH_DIRECTIVES[response_length]}")
+
+    valid_traits = [t for t in personality_traits if t in _TRAIT_DIRECTIVES]
+    if valid_traits:
+        trait_lines = "; ".join(_TRAIT_DIRECTIVES[t] for t in valid_traits)
+        lines.append(f"- **Personality:** {trait_lines}")
+
+    if not lines:
+        return core_prompt
+
+    profile_section = "\n\n## Communication Profile\n" + "\n".join(lines)
+    return core_prompt.rstrip() + profile_section
+
+
+async def generate_project_proposal(
+    category: str,
+    description: str,
+    follow_up_answers: list[tuple[str, str]],
+    model: str | None = None,
+    bot_models: dict[str, Any] | None = None,
+    resolved_env: Any | None = None,
+) -> ProjectProposalResult:
+    """
+    Generate a complete project proposal with specialized bots and rooms.
+
+    Analyzes the project description and follow-up answers to design a team
+    of specialized AI bots organized into rooms with appropriate response modes.
+
+    Args:
+        category: The purpose category
+        description: The user's project description
+        follow_up_answers: List of (question, answer) pairs from follow-up questions
+        model: Model to use for generation
+        bot_models: Per-bot model slots (checked first for "default")
+        resolved_env: Per-bot resolved environment override
+
+    Returns:
+        ProjectProposalResult with project name, description, bots, and rooms
+    """
+    if model is None:
+        model = resolve_main_model(bot_models=bot_models, resolved_env=resolved_env)
+
+    # Format follow-up Q&A
+    qa_section = ""
+    if follow_up_answers:
+        qa_section = "\n## User's Answers\n"
+        for question, answer in follow_up_answers:
+            if answer.strip():
+                qa_section += f"- Q: {question}\n  A: {answer}\n"
+
+    prompt_text = "Design a team of specialized AI bots for this project."
+    prompt_text += f"""
+
+## Project Context
+- Category: {category}
+- Description: "{description}"
+{qa_section}
+## Your Task
+
+Design a team of AI bots that work together to accomplish this project.
+
+### Bot Naming Rules (CRITICAL)
+**FORBIDDEN names** — NEVER use any of these generic words as bot names:
+Lead, Leader, Specialist, Expert, Manager, Coordinator, Assistant, Helper, Advisor, Analyst, Bot
+
+**REQUIRED** — Each bot MUST have a creative, evocative, 1-2 word name that reflects its
+personality or domain. Think of names like characters or code-names:
+- Good examples: "Cipher" (security), "Quill" (writing), "Forge" (engineering),
+  "Prism" (analysis), "Echo" (communication), "Atlas" (research), "Spark" (ideas),
+  "Nexus" (coordination), "Sable" (design), "Meridian" (planning)
+- The name should hint at what the bot does without being a literal job title
+
+### For Each Bot, Provide:
+1. **name**: A creative, evocative name (see rules above)
+2. **description**: One-line description of its role
+3. **role**: default, lead, reviewer, observer, or specialist
+4. **system_prompt**: Comprehensive system prompt (300+ words) focused ONLY on:
+   - The bot's identity, expertise, and domain knowledge
+   - Its specific responsibilities within the team
+   - How it interacts with other bots
+   - DO NOT include communication style or tone in the system prompt — that goes in
+     the structured personality fields below
+5. **tone**: One of: professional, friendly, casual, concise, playful, witty
+6. **expertise_level**: One of: beginner, intermediate, expert, authority
+7. **response_length**: One of: brief, moderate, detailed, comprehensive
+8. **personality_traits**: Pick 2-4 from: patient, assertive, creative, analytical,
+   empathetic, humorous, encouraging, direct, methodical, innovative
+
+### Personality Diversity
+Each bot MUST have a distinct personality profile. Vary the tone, expertise level, and
+traits across the team so that bots feel like different characters, not clones.
+
+### Room Organization
+Organize the bots into rooms:
+1. Each room represents a workflow stage, discussion topic, or collaboration space
+2. Choose the appropriate response mode:
+   - parallel: All bots respond independently
+   - sequential: Bots respond one after another
+   - chain: Each bot builds on the previous bot's response
+   - router: One bot routes to the appropriate specialist
+   - debate: Bots argue different positions
+   - waterfall: Pipeline with conditional handoffs
+   - relay: Bots take turns in a rotating fashion
+   - consensus: Bots discuss and converge on a shared answer
+   - interview: One bot interviews the user, then hands off
+3. Assign the relevant bots to each room
+
+## Guidelines
+- Design the right number of bots for the project (typically 2-6)
+- Design the right number of rooms (typically 1-3)
+- Each bot should have a distinct specialty — avoid overlap
+- System prompts should be detailed and specific, not generic
+- Room assignments should make logical sense for the workflow
+- bot_names in rooms must exactly match the bot names you define"""
+
+    instruction = "Generate the complete project proposal with bots and rooms in JSON format:"
+
+    try:
+        result = await _extract_with_retry(
+            ProjectProposalResult,
+            prompt_text,
+            model,
+            instruction_template=instruction,
+        )
+        return result.model  # type: ignore[attr-defined, no-any-return]
+    except Exception:
+        logger.exception("Project proposal generation failed, using fallback")
+        return ProjectProposalResult(
+            project_name=f"{category.title()} Project",
+            project_description=description[:100] if description else "AI-assisted project",
+            bots=[
+                ProposalBotSpec(
+                    name="Nexus",
+                    description="Project coordinator who keeps the team aligned and on track",
+                    role="lead",
+                    system_prompt=(
+                        f"You are Nexus, the coordinator for a {category} project. "
+                        f"You synthesize input from all team members, identify blockers, "
+                        f"set priorities, and ensure the team moves toward its goals. "
+                        f"You track progress, mediate disagreements, and maintain a "
+                        f"holistic view of the project. When team members provide "
+                        f"conflicting advice, you weigh trade-offs and make clear "
+                        f"recommendations. Project context: {description}"
+                    ),
+                    tone="professional",
+                    expertise_level="expert",
+                    response_length="moderate",
+                    personality_traits=["assertive", "methodical", "direct"],
+                ),
+                ProposalBotSpec(
+                    name="Forge",
+                    description=f"Deep domain expert in {category} who handles the core work",
+                    role="specialist",
+                    system_prompt=(
+                        f"You are Forge, the domain expert for a {category} project. "
+                        f"You bring deep, hands-on expertise to every task. You don't "
+                        f"just advise — you build, analyze, and produce concrete output. "
+                        f"You explain your reasoning and flag edge cases that others "
+                        f"might miss. You take pride in precision and craftsmanship. "
+                        f"Project context: {description}"
+                    ),
+                    tone="friendly",
+                    expertise_level="authority",
+                    response_length="detailed",
+                    personality_traits=["creative", "analytical", "patient"],
+                ),
+            ],
+            rooms=[
+                ProposalRoomSpec(
+                    name="Main",
+                    description="Primary collaboration room",
+                    response_mode="parallel",
+                    bot_names=["Nexus", "Forge"],
+                ),
+            ],
         )
 
 

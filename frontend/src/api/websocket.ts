@@ -43,6 +43,7 @@ export class WebSocketClient extends BaseWebSocketClient<WSMessage> {
       toolConfigs?: ToolConfigs
       enabledSkills?: string[]
       replyToId?: string
+      workspace?: string | null
     }
   ): void {
     this.send('chat', {
@@ -56,6 +57,7 @@ export class WebSocketClient extends BaseWebSocketClient<WSMessage> {
       toolConfigs: options?.toolConfigs,
       enabledSkills: options?.enabledSkills,
       replyToId: options?.replyToId,
+      workspace: options?.workspace,
     })
   }
 

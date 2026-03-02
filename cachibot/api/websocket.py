@@ -5,13 +5,17 @@ Handles real-time streaming of agent events to clients.
 """
 
 import asyncio
+import json
 import logging
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+
+if TYPE_CHECKING:
+    from cachibot.models.workspace import WorkspaceConfig
 from prompture import StreamEventType
 from prompture.exceptions import BudgetExceededError
 
@@ -65,6 +69,58 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+
+def _resolve_workspace_config(workspace_plugin: str) -> "WorkspaceConfig | None":
+    """Resolve workspace config from external or built-in plugin.
+
+    Checks EXTERNAL_PLUGINS for a matching manifest with workspace config,
+    then falls back to built-in plugin workspace_config property.
+    """
+    from cachibot.models.workspace import WorkspaceConfig
+    from cachibot.services.external_plugins import EXTERNAL_PLUGINS
+
+    # Check external plugins first
+    ext_manifest = EXTERNAL_PLUGINS.get(workspace_plugin)
+    if ext_manifest and ext_manifest.workspace:
+        ws = ext_manifest.workspace
+        return WorkspaceConfig(
+            display_name=ws.display_name or ext_manifest.display_name or ext_manifest.name,
+            icon=ws.icon,
+            description=ws.description,
+            system_prompt=ws.system_prompt,
+            default_artifact_type=ws.default_artifact_type,
+            toolbar=ws.toolbar,
+            auto_open_panel=ws.auto_open_panel,
+            accent_color=ws.accent_color,
+        )
+
+    # Check built-in plugins
+    from cachibot.plugins import CACHIBOT_PLUGINS
+    from cachibot.plugins.base import CachibotPlugin
+
+    cls = CACHIBOT_PLUGINS.get(workspace_plugin)
+    if cls and issubclass(cls, CachibotPlugin):
+        try:
+            from tukuy import PythonSandbox
+
+            from cachibot.config import Config
+            from cachibot.plugins.base import PluginContext
+
+            config = Config()
+            sandbox = PythonSandbox(
+                allowed_imports=[],
+                timeout_seconds=1,
+                allowed_read_paths=[],
+                allowed_write_paths=[],
+            )
+            ctx = PluginContext(config=config, sandbox=sandbox)
+            instance = cls(ctx)  # type: ignore[arg-type, call-arg]
+            return instance.workspace_config
+        except Exception:
+            pass
+
+    return None
 
 
 def get_ws_manager() -> ConnectionManager:
@@ -143,6 +199,7 @@ async def websocket_endpoint(
                 capabilities = payload.get("capabilities")  # Optional dict
                 tool_configs = payload.get("toolConfigs")  # Optional dict with per-tool settings
                 enabled_skill_ids = payload.get("enabledSkills")  # Optional list of skill IDs
+                workspace_plugin = payload.get("workspace")  # Plugin name or None
                 if not message:
                     await manager.send(client_id, WSMessage.error("Empty message"))
                     continue
@@ -227,6 +284,36 @@ async def websocket_endpoint(
                     except RuntimeError:
                         pass
 
+                # Async callback for proactive artifact emission from plugins
+                async def _artifact_sender(artifact: Any) -> None:
+                    from cachibot.models.artifact import Artifact as ArtifactModel
+
+                    if isinstance(artifact, ArtifactModel):
+                        a = artifact
+                    elif isinstance(artifact, dict):
+                        a = ArtifactModel(**artifact)
+                    else:
+                        return
+                    await manager.send(
+                        client_id,
+                        WSMessage.artifact(
+                            artifact_id=a.id,
+                            artifact_type=a.type.value if hasattr(a.type, "value") else str(a.type),
+                            title=a.title,
+                            content=a.content,
+                            language=a.language,
+                            metadata=a.metadata,
+                            plugin=a.plugin,
+                            version=a.version,
+                            message_id=a.message_id,
+                        ),
+                    )
+
+                # Resolve workspace config when a workspace plugin is specified
+                resolved_ws_config = None
+                if workspace_plugin:
+                    resolved_ws_config = _resolve_workspace_config(workspace_plugin)
+
                 agent = await build_bot_agent(
                     config,
                     bot_id=bot_id,
@@ -245,7 +332,25 @@ async def websocket_endpoint(
                     on_approval_needed=on_approval,
                     on_instruction_delta=_instruction_delta_sender,
                     on_model_fallback=_model_fallback_sync,
+                    on_artifact=_artifact_sender,
                     inject_coding_agent=True,
+                    workspace=workspace_plugin,
+                    workspace_config=resolved_ws_config,
+                )
+
+                # Debug: log registered tools and ext capabilities
+                ext_caps = {k: v for k, v in (capabilities or {}).items() if k.startswith("ext_")}
+                from cachibot.services.plugin_manager import CAPABILITY_PLUGINS
+
+                ext_registered = [k for k in CAPABILITY_PLUGINS if k.startswith("ext_")]
+                logger.info(
+                    "Agent built for bot=%s | tools=%s | ext_caps=%s"
+                    " | ext_registered=%s | workspace=%s",
+                    bot_id,
+                    sorted(agent.registry.names) if agent.registry else "NONE",
+                    ext_caps or "NONE",
+                    ext_registered or "NONE",
+                    workspace_plugin,
                 )
 
                 # Extract replyToId from client payload
@@ -253,7 +358,15 @@ async def websocket_endpoint(
 
                 # Run agent in background task
                 current_task = asyncio.create_task(
-                    run_agent(agent, message, client_id, bot_id, chat_id, reply_to_id)
+                    run_agent(
+                        agent,
+                        message,
+                        client_id,
+                        bot_id,
+                        chat_id,
+                        reply_to_id,
+                        bot_models=bot_models,
+                    )
                 )
 
             elif msg_type == WSMessageType.CANCEL:
@@ -348,6 +461,7 @@ async def run_agent(
     bot_id: str | None = None,
     chat_id: str | None = None,
     reply_to_id: str | None = None,
+    bot_models: dict[str, str] | None = None,
 ) -> None:
     """Run the agent with streaming and send results to WebSocket client."""
     repo = KnowledgeRepository()
@@ -397,19 +511,103 @@ async def run_agent(
                         ),
                     )
                 case StreamEventType.tool_result:
-                    await manager.send(
-                        client_id,
-                        WSMessage.tool_end(
-                            event.data.get("id", ""),
-                            str(event.data.get("result", "")),
-                        ),
-                    )
+                    result = event.data.get("result", "")
+                    # Prompture serializes tool results to JSON strings,
+                    # so parse back to dict for artifact marker detection.
+                    if isinstance(result, str):
+                        try:
+                            parsed = json.loads(result)
+                            if isinstance(parsed, dict):
+                                result = parsed
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                    # Detect artifact-shaped tool results
+                    if isinstance(result, dict) and result.get("__artifact__"):
+                        artifact_id = result.get("id") or str(uuid.uuid4())
+                        artifact_type = result.get("type", "code")
+                        await manager.send(
+                            client_id,
+                            WSMessage.artifact(
+                                artifact_id=artifact_id,
+                                artifact_type=artifact_type,
+                                title=result.get("title", "Untitled"),
+                                content=result.get("content", ""),
+                                language=result.get("language"),
+                                metadata=result.get("metadata"),
+                                plugin=result.get("plugin"),
+                                version=result.get("version", 1),
+                                message_id=response_msg_id,
+                            ),
+                        )
+                        # Also send as normal tool_end with a summary
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Artifact: {result.get('title', 'Untitled')}]",
+                            ),
+                        )
+                    elif isinstance(result, dict) and result.get("__artifact_update__"):
+                        await manager.send(
+                            client_id,
+                            WSMessage.artifact_update(
+                                artifact_id=result.get("id", ""),
+                                content=result.get("content"),
+                                title=result.get("title"),
+                                metadata=result.get("metadata"),
+                                version=result.get("version"),
+                            ),
+                        )
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Updated artifact: {result.get('id', '')}]",
+                            ),
+                        )
+                    elif isinstance(result, dict) and result.get("__workspace_progress__"):
+                        action = result.get("action", "")
+                        await manager.send(
+                            client_id,
+                            WSMessage.workspace_progress(
+                                action=action,
+                                tasks=result.get("tasks"),
+                                task_number=result.get("task_number"),
+                                status=result.get("status"),
+                            ),
+                        )
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                f"[Progress: {action}]",
+                            ),
+                        )
+                    else:
+                        await manager.send(
+                            client_id,
+                            WSMessage.tool_end(
+                                event.data.get("id", ""),
+                                str(result),
+                            ),
+                        )
                 case StreamEventType.output:
                     agent_result = event.data  # AgentResult
 
         # Extract response text and usage from the AgentResult
         response_text = (agent_result.output_text or "") if agent_result else ""
         run_usage = agent_result.run_usage if agent_result else {}
+
+        # Determine the actual model used for this response.
+        # If bot was configured with a public_id, remap per_model keys
+        # so users never see the real provider model path.
+        per_model = run_usage.get("per_model", {})
+        user_facing_model = (
+            bot_models.get("default") if bot_models else None
+        ) or agent.config.agent.model
+        actual_model = next(iter(per_model), None) or agent.config.agent.model
+        if per_model and user_facing_model and actual_model != user_facing_model:
+            per_model = {user_facing_model: v for _k, v in per_model.items()}
 
         # Parse [cite:MSG_ID] from response to determine bot's primary citation
         cited_ids = re.findall(r"\[cite:([a-f0-9-]+)\]", response_text)
@@ -425,6 +623,7 @@ async def run_agent(
                 content=response_text,
                 timestamp=datetime.now(timezone.utc),
                 reply_to_id=bot_reply_to,
+                metadata={"model": actual_model},
             )
             await repo.save_bot_message(assistant_msg)
 

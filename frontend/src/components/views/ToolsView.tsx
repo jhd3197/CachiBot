@@ -159,6 +159,17 @@ export function ToolsView() {
 
   const isToolEnabled = (toolId: string) => activeBot.tools.includes(toolId)
 
+  const isCapabilityEnabled = (capKey: string | null) => {
+    if (!capKey) return true
+    return (activeBot.capabilities as Record<string, boolean | undefined>)?.[capKey] === true
+  }
+
+  const handleToggleCapability = (capKey: string) => {
+    const caps = (activeBot.capabilities ?? {}) as Record<string, boolean | undefined>
+    const newCaps = { ...caps, [capKey]: !caps[capKey] }
+    updateBot(activeBot.id, { capabilities: newCaps as typeof activeBot.capabilities })
+  }
+
   // Bulk enable/disable by risk level
   const riskLevels = ['safe', 'moderate', 'dangerous', 'critical'] as const
   const riskLevelConfig = {
@@ -337,7 +348,7 @@ export function ToolsView() {
                     <span className="tools-plugin-group__count">
                       {tools.length}
                     </span>
-                    {plugin.capability && (
+                    {plugin.capability && !plugin.external && (
                       <span className="tools-plugin-group__capability">
                         {plugin.capability}
                       </span>
@@ -347,9 +358,31 @@ export function ToolsView() {
                         always on
                       </span>
                     )}
+                    {plugin.external && plugin.capability && (
+                      <button
+                        onClick={() => handleToggleCapability(plugin.capability!)}
+                        className={cn(
+                          'ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                          isCapabilityEnabled(plugin.capability)
+                            ? 'bg-cachi-500/15 text-cachi-500'
+                            : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]'
+                        )}
+                        title={isCapabilityEnabled(plugin.capability) ? 'Disable plugin' : 'Enable plugin'}
+                      >
+                        {isCapabilityEnabled(plugin.capability) ? (
+                          <ToggleRight className="h-4 w-4" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4" />
+                        )}
+                        {isCapabilityEnabled(plugin.capability) ? 'Enabled' : 'Disabled'}
+                      </button>
+                    )}
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className={cn(
+                    'grid gap-3 sm:grid-cols-2 lg:grid-cols-3',
+                    plugin.external && plugin.capability && !isCapabilityEnabled(plugin.capability) && 'opacity-40 pointer-events-none'
+                  )}>
                     {tools.map((tool) => (
                       <ToolCard
                         key={tool.id}

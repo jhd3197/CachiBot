@@ -15,12 +15,13 @@ import {
   X,
   Cpu,
 } from 'lucide-react'
-import { useChatStore, useBotStore } from '../../stores/bots'
+import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
@@ -29,6 +30,11 @@ import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
+import { ArtifactPanel } from '../artifacts/ArtifactPanel'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useWorkspaceStore } from '../../stores/workspace'
+import { WorkspaceSelector } from '../chat/WorkspaceSelector'
+import { TaskProgress } from '../chat/TaskProgress'
 import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
@@ -61,12 +67,19 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate } = useBotAccess(activeBotId)
+  const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
 
   // Use prop values if provided, otherwise fall back to WebSocket hook values
   const isConnected = isConnectedProp ?? wsIsConnected
   const handleCancel = onCancel ?? wsCancel
   const [input, setInput] = useState('')
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const bot = useBotStore.getState().getActiveBot()
+    return bot ? getBotDefaultModel(bot) : ''
+  })
   const [flowUserInputs, setFlowUserInputs] = useState<string[]>([])
+  const justCreatedChatRef = useRef(false)
+  const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -146,6 +159,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
   const activeBot = getActiveBot()
 
+  // Sync selectedModel when the active bot changes
+  useEffect(() => {
+    const bot = useBotStore.getState().getActiveBot()
+    setSelectedModel(bot ? getBotDefaultModel(bot) : '')
+  }, [activeBotId])
+
   // Fetch available coding agents when codingAgent capability is on
   const codingAgentEnabled = activeBot?.capabilities?.codingAgent ?? false
   useEffect(() => {
@@ -163,6 +182,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       })
     return () => { cancelled = true }
   }, [codingAgentEnabled])
+
+  // Fetch available workspaces when bot changes
+  useEffect(() => {
+    if (!activeBotId) {
+      setAvailableWorkspaces([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/bots/${activeBotId}/workspaces`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setAvailableWorkspaces(data.workspaces || [])
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableWorkspaces([])
+      })
+    return () => { cancelled = true }
+  }, [activeBotId, setAvailableWorkspaces])
 
   // Filter agents by text typed after @
   const filteredAgents = availableAgents.filter(
@@ -570,9 +607,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
   }, [input])
 
+  // Trigger dock-in animation when transitioning from hero → active chat
+  useEffect(() => {
+    if (messages.length > 0 && justCreatedChatRef.current) {
+      justCreatedChatRef.current = false
+      setAnimateIsland(true)
+      const timer = setTimeout(() => setAnimateIsland(false), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [messages.length])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
+
+    // Flag for dock-in animation when transitioning from hero → active chat
+    if (messages.length === 0) {
+      justCreatedChatRef.current = true
+    }
 
     const trimmedInput = input.trim()
     const lowerInput = trimmedInput.toLowerCase()
@@ -747,15 +799,20 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         codingAgent: false,
       }
 
+      const effectiveModels: BotModels = {
+        ...(activeBot?.models || {}),
+        default: selectedModel || getBotDefaultModel(activeBot!) || '',
+      }
       wsSendMessage(trimmedInput, {
         systemPrompt: activeBot?.systemPrompt,
         botId: activeBot?.id,
         chatId: chatIdToUse ?? undefined,
-        model: activeBot?.model,
-        models: activeBot?.models,
+        model: selectedModel || activeBot?.model,
+        models: effectiveModels,
         capabilities: activeBot?.capabilities || defaultCapabilities,
         toolConfigs: activeBot?.toolConfigs,
         replyToId: replyToMessage?.id,
+        workspace: activeWorkspace,
       })
     }
     setInput('')
@@ -771,6 +828,22 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     }
     textareaRef.current?.focus()
   }
+
+  // Handle workspace selection — creates a new chat and activates workspace
+  const handleWorkspaceSelect = useCallback((ws: import('../../stores/workspace').WorkspaceInfo) => {
+    if (activeWorkspace === ws.pluginName) {
+      clearWorkspace()
+      return
+    }
+    // If no chat exists, create one
+    if (!activeChatId && activeBotId) {
+      const newChatId = `chat-${Date.now()}`
+      addChat({ id: newChatId, botId: activeBotId, title: ws.displayName, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 0 })
+      setActiveChat(newChatId)
+    }
+    setActiveWorkspace(ws)
+    textareaRef.current?.focus()
+  }, [activeWorkspace, activeChatId, activeBotId, addChat, setActiveChat, setActiveWorkspace, clearWorkspace])
 
   // Handle input changes — detects @mentions for coding agents
   const handleInputChange = useCallback((value: string) => {
@@ -954,51 +1027,63 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     )
   }
 
-  // Empty state when no chat is selected - but still allow sending messages
-  if (!activeChatId) {
+  // Artifact panel state (must be before any early returns)
+  const activeArtifactId = useArtifactsStore((s) => s.activeArtifactId)
+  const panelOpen = useArtifactsStore((s) => s.panelOpen)
+  const activeArtifact = useArtifactsStore((s) => activeArtifactId ? s.artifacts[activeArtifactId] : undefined)
+  const closeArtifactPanel = useArtifactsStore((s) => s.closePanel)
+  const panelWidthRatio = useArtifactsStore((s) => s.panelWidthRatio)
+  const setPanelWidthRatio = useArtifactsStore((s) => s.setPanelWidthRatio)
+
+  // Resize drag state
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDraggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !wrapperRef.current) return
+      const rect = wrapperRef.current.getBoundingClientRect()
+      const ratio = 1 - (ev.clientX - rect.left) / rect.width
+      setPanelWidthRatio(ratio)
+    }
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [setPanelWidthRatio])
+
+  const showPanel = panelOpen && activeArtifact
+
+  // Empty state — hero omnibox start state (no chat or chat with no messages)
+  if (messages.length === 0) {
     return (
-      <div className="chat-view">
-        {/* Welcome content */}
-        <div className="flex flex-1 items-center justify-center p-8">
-          <div className="max-w-md text-center">
-            <div
-              className="chat-empty__icon mx-auto"
-              style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
-            >
-              <BotIconRenderer
-                icon={activeBot?.icon || 'shield'}
-                size={48}
-                className="text-[var(--color-text-primary)]"
-              />
-            </div>
-            <h2 className="chat-empty__title">
-              Welcome to {activeBot?.name || 'CachiBot'}
-            </h2>
-            <p className="chat-empty__description">
-              {activeBot?.description || 'Start a new chat to begin working with your AI assistant.'}
-            </p>
-            <div className="chat-prompt-suggestions">
-              {['Write a Python script', 'Analyze this codebase', 'Help me debug an error'].map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => {
-                    setInput(prompt)
-                    textareaRef.current?.focus()
-                  }}
-                  className="chat-prompt-suggestions__item"
-                >
-                  <Sparkles className="h-4 w-4 text-cachi-500" />
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="chat-view chat-view--hero">
+        {/* Hero title */}
+        <div className="chat-hero">
+          <h2 className="chat-hero__title">
+            What can {activeBot?.name || 'CachiBot'} help you with today?
+          </h2>
+          <p className="chat-hero__subtitle">
+            {activeBot?.description || 'Start a conversation to get help with coding, analysis, and more.'}
+          </p>
         </div>
 
-        {/* Input area - allows starting a new chat */}
-        <div className="chat-panel__input-area">
-          <form onSubmit={handleSubmit} className="chat-panel__input-inner">
-            <div className="chat-input-container">
+        {/* Omnibox island */}
+        <div className="chat-island">
+          <form onSubmit={handleSubmit} className="chat-island__form">
+            <div className="chat-input-container chat-input-container--island">
               {renderCommandMenu()}
               {renderAgentMentionPopup()}
               <textarea
@@ -1030,8 +1115,13 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                 </button>
               </div>
             </div>
-            <div className="chat-status-bar">
-              <div className="chat-status-bar__indicator">
+            <div className="chat-island__footer">
+              <ModelPill
+                value={selectedModel}
+                onChange={setSelectedModel}
+                placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+              />
+              <span className="chat-island__status">
                 <span
                   className={cn(
                     'chat-status-bar__dot',
@@ -1039,17 +1129,26 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
                   )}
                 />
                 {isConnected ? 'Connected' : 'Disconnected'}
-              </div>
-              <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
+              </span>
+              <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
             </div>
           </form>
+
+          {availableWorkspaces.length > 0 && (
+            <WorkspaceSelector
+              workspaces={availableWorkspaces}
+              activeWorkspace={activeWorkspace}
+              onSelect={handleWorkspaceSelect}
+            />
+          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="chat-view">
+    <div ref={wrapperRef} className={cn('chat-view-wrapper', showPanel && 'chat-view-wrapper--split')}>
+    <div className={cn('chat-view', showPanel && 'chat-view--with-panel')} style={showPanel ? { flex: `0 0 ${(1 - panelWidthRatio) * 100}%` } : undefined}>
       {/* Chat header with bot info and settings */}
       <div className="chat-header">
         <div className="chat-header__bot-info">
@@ -1128,13 +1227,23 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             </div>
           )}
 
+          {/* Workspace task progress */}
+          {taskProgress && (
+            <div className="mt-6">
+              <TaskProgress progress={taskProgress} />
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Input area */}
-      <div className="chat-panel__input-area">
-        <form onSubmit={handleSubmit} className="chat-panel__input-inner">
+      {/* Input island — docked at bottom */}
+      <div className={cn(
+        'chat-island chat-island--docked',
+        animateIsland && 'chat-island--animate-in'
+      )}>
+        <form onSubmit={handleSubmit} className="chat-island__form">
           {/* Reply composer bar */}
           {replyToMessage && (
             <div className="chat-reply-bar">
@@ -1156,10 +1265,36 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               </button>
             </div>
           )}
-          <div className="chat-input-container">
+
+          {/* Workspace badge */}
+          {workspaceConfig && (
+            <div
+              className="workspace-badge"
+              style={workspaceConfig.accentColor ? { borderColor: workspaceConfig.accentColor } : undefined}
+            >
+              <span className="workspace-badge__name">{workspaceConfig.displayName}</span>
+              <button
+                type="button"
+                className="workspace-badge__close"
+                onClick={clearWorkspace}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {/* Workspace selector (shown when chat is empty) */}
+          {messages.length === 0 && availableWorkspaces.length > 0 && (
+            <WorkspaceSelector
+              workspaces={availableWorkspaces}
+              activeWorkspace={activeWorkspace}
+              onSelect={handleWorkspaceSelect}
+            />
+          )}
+
+          <div className="chat-input-container chat-input-container--island">
             {renderCommandMenu()}
-              {renderAgentMentionPopup()}
-            {/* Textarea */}
+            {renderAgentMentionPopup()}
             <textarea
               ref={textareaRef}
               value={input}
@@ -1177,7 +1312,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               className="chat-textarea"
             />
 
-            {/* Actions */}
             <div className="chat-input-btns">
               <button
                 type="button"
@@ -1210,21 +1344,23 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             </div>
           </div>
 
-          {/* Status bar */}
-          <div className="chat-status-bar">
-            <div className="chat-status-bar__left">
-              <span className="chat-status-bar__indicator">
-                <span
-                  className={cn(
-                    'chat-status-bar__dot',
-                    isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
-                  )}
-                />
-                <span className="chat-status-bar__label">{isConnected ? 'Connected' : 'Disconnected'}</span>
-              </span>
-              <span className="chat-status-bar__model">{activeBot?.model}</span>
-            </div>
-            <span className="chat-status-bar__hint">Press Enter to send, Shift+Enter for new line</span>
+          {/* Island footer — model pill + status + hint */}
+          <div className="chat-island__footer">
+            <ModelPill
+              value={selectedModel}
+              onChange={setSelectedModel}
+              placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+            />
+            <span className="chat-island__status">
+              <span
+                className={cn(
+                  'chat-status-bar__dot',
+                  isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
+                )}
+              />
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+            <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
           </div>
 
           {/* Creation flow indicator */}
@@ -1248,6 +1384,21 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         </form>
       </div>
 
+    </div>
+    {/* Artifact side panel */}
+    {showPanel && (
+      <>
+        <div
+          className="artifact-divider"
+          onMouseDown={handleDividerMouseDown}
+        />
+        <ArtifactPanel
+          artifact={activeArtifact}
+          onClose={closeArtifactPanel}
+          style={{ flex: `0 0 ${panelWidthRatio * 100}%` }}
+        />
+      </>
+    )}
     </div>
   )
 }

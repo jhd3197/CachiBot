@@ -14,6 +14,7 @@ import {
   getMarketplaceCategories,
   getRoomMarketplaceTemplates,
   getRoomMarketplaceCategories,
+  trackTemplateView,
   type MarketplaceTemplate,
   type MarketplaceCategory,
 } from '../../api/client'
@@ -267,7 +268,10 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, onRoomInstalled
                         <BotCard
                           key={template.id}
                           template={template}
-                          onClick={() => setSelectedTemplate(template)}
+                          onClick={() => {
+                            setSelectedTemplate(template)
+                            trackTemplateView(template.id, 'bot')
+                          }}
                         />
                       ))
                     )}
@@ -303,7 +307,10 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, onRoomInstalled
                         <RoomCard
                           key={template.id}
                           template={template}
-                          onClick={() => setSelectedRoomTemplate(template)}
+                          onClick={() => {
+                            setSelectedRoomTemplate(template)
+                            trackTemplateView(template.id, 'room')
+                          }}
                         />
                       ))
                     )}

@@ -69,6 +69,47 @@ _AUDIO_PATTERNS = ("tts", "whisper", "eleven_", "scribe")
 _EMBEDDING_PATTERNS = ("embed", "embedding", "bge-", "nomic-embed", "e5-", "minilm")
 
 
+async def _load_public_id_map() -> dict[str, str]:
+    """Load model_id → public_id mappings from the shared model_toggles table.
+
+    Returns a dict like {"openai/gpt-4o": "cachibot/gpt-4", ...}.
+    Only includes rows where public_id is set.
+    """
+    mapping: dict[str, str] = {}
+    try:
+        from sqlalchemy import text as sa_text
+
+        from cachibot.storage.db import ensure_initialized
+
+        session_maker = ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(
+                sa_text("SELECT model_id, public_id FROM model_toggles WHERE public_id IS NOT NULL")
+            )
+            for row in result:
+                mapping[row[0]] = row[1]
+    except Exception:
+        logger.debug("Could not load public_id mappings", exc_info=True)
+    return mapping
+
+
+async def _apply_public_ids(groups: dict[str, list[ModelInfo]]) -> dict[str, list[ModelInfo]]:
+    """Replace real model IDs with public_ids and regroup by new provider prefix."""
+    pid_map = await _load_public_id_map()
+    if not pid_map:
+        return groups
+
+    new_groups: dict[str, list[ModelInfo]] = {}
+    for _provider, models in groups.items():
+        for model in models:
+            public_id = pid_map.get(model.id)
+            if public_id:
+                model.id = public_id
+                model.provider = public_id.split("/", 1)[0] if "/" in public_id else model.provider
+            new_groups.setdefault(model.provider, []).append(model)
+    return new_groups
+
+
 @router.get("/models", response_model=ModelsResponse)
 async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     """
@@ -231,11 +272,35 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
             )
         )
 
+    # --- Apply public_id white-labeling from model_toggles ---
+    groups = await _apply_public_ids(groups)
+
     # Sort models within each group
     for provider in groups:
         groups[provider].sort(key=lambda m: m.id)
 
     return ModelsResponse(groups=groups)
+
+
+class AllDefaultsResponse(BaseModel):
+    """All default model slots in one response."""
+
+    default: str = Field(description="Default chat model")
+    embedding: str = Field(description="Default embedding model")
+    utility: str = Field(description="Default utility model")
+
+
+@router.get("/models/defaults", response_model=AllDefaultsResponse)
+async def get_all_defaults(user: User = Depends(get_current_user)) -> AllDefaultsResponse:
+    """Get all default model slots in a single request."""
+    from cachibot.config import Config
+
+    config = Config.load()
+    return AllDefaultsResponse(
+        default=os.getenv("CACHIBOT_DEFAULT_MODEL", DEFAULT_MODEL),
+        embedding=config.knowledge.embedding_model,
+        utility=os.getenv("CACHIBOT_UTILITY_MODEL", ""),
+    )
 
 
 @router.get("/models/default", response_model=DefaultModelResponse)

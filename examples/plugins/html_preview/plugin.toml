@@ -1,0 +1,47 @@
+[plugin]
+name = "html_preview"
+display_name = "HTML Preview"
+description = "Live HTML/CSS/JS preview in a sandboxed side panel"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "globe"
+color = "#f97316"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []
+
+[plugin.workspace]
+display_name = "HTML Preview"
+icon = "globe"
+description = "Live HTML/CSS/JS preview workspace"
+accent_color = "#f97316"
+toolbar = ["preview_html", "update_preview"]
+default_artifact_type = "html"
+auto_open_panel = true
+system_prompt = """
+## HTML Preview Tools
+You have access to `preview_html` and `update_preview` tools for producing live HTML/CSS/JS previews.
+
+**When to use these tools:** Whenever the user asks you to create an HTML page, web component, UI mockup, interactive demo, or any HTML/CSS/JS content that benefits from live preview, you MUST use `preview_html` instead of writing code inline.
+
+**How to decide:**
+- If the user wants to see a rendered HTML page, UI element, or interactive web content, use `preview_html`.
+- If the user asks a quick question about HTML/CSS or wants a brief code snippet, respond inline as normal.
+- If the user asks to modify or update an existing preview, use `update_preview` with the document identifier.
+
+Include complete HTML with any needed CSS and JavaScript, and give the preview a descriptive title.
+"""
