@@ -55,7 +55,7 @@ class AssetRepository(BaseRepository[AssetModel, Asset]):
 
             await session.execute(delete(AssetModel).where(AssetModel.id == asset_id))
             await session.commit()
-            return path
+            return str(path)
 
     def _row_to_entity(self, row: AssetModel) -> Asset:
         """Convert a database row to an Asset entity."""

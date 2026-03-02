@@ -138,7 +138,7 @@ async def update_note(
         content=data.content,
         tags=data.tags,
     )
-    require_found(updated, "Note")
+    updated = require_found(updated, "Note")
     return _note_to_response(updated)
 
 

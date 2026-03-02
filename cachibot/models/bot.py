@@ -46,7 +46,7 @@ class Bot(BaseModel):
         legacy ``model`` field.
         """
         if self.models and self.models.get("default"):
-            return self.models["default"]
+            return str(self.models["default"])
         return self.model
 
 

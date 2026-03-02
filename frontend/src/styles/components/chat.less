@@ -172,36 +172,6 @@
 }
 
 // -----------------------------------------------------------------------------
-// Prompt Suggestions — welcome prompt grid
-// -----------------------------------------------------------------------------
-
-.chat-prompt-suggestions {
-  display: grid;
-  gap: @sp-3;
-
-  &__item {
-    display: flex;
-    align-items: center;
-    gap: @sp-3;
-    border-radius: @radius-2xl;
-    border: 1px solid var(--color-border-primary);
-    background: var(--color-bg-primary);
-    padding: @sp-3 @sp-4;
-    text-align: left;
-    font-size: @text-sm;
-    color: var(--color-text-primary);
-    cursor: pointer;
-    .card-hover-lift();
-
-    &:hover {
-      border-color: var(--accent-500);
-      background: color-mix(in srgb, var(--accent-500) 5%, transparent);
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-500) 10%, transparent);
-    }
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Messages
 // -----------------------------------------------------------------------------
 
@@ -1596,7 +1566,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: @sp-2;
-  padding: @sp-2 0;
+  padding: @sp-4 0 @sp-2;
   justify-content: center;
 }
 
@@ -1851,20 +1821,6 @@
     gap: 0;
   }
 
-  // Prompt suggestions inside the island → horizontal row
-  .chat-prompt-suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: @sp-2;
-    margin-top: @sp-3;
-    justify-content: center;
-  }
-
-  .chat-prompt-suggestions__item {
-    padding: @sp-1-5 @sp-3;
-    font-size: @text-xs;
-  }
-
   // Docked modifier — anchored at bottom of active chat view
   &--docked {
     max-width: none;
@@ -1945,65 +1901,3 @@
 }
 
 // -----------------------------------------------------------------------------
-// Plugin Chips — horizontal row of toggleable capability chips
-// -----------------------------------------------------------------------------
-
-.plugin-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: @sp-1-5;
-  padding: @sp-1-5 @sp-1;
-  margin-bottom: @sp-2;
-
-  // Horizontal scroll on mobile
-  @media (max-width: (@screen-sm - 1)) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    .scrollbar-thin();
-    padding-bottom: @sp-1;
-  }
-}
-
-.plugin-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: @sp-1;
-  border-radius: @radius-full;
-  border: 1px solid var(--color-border-primary);
-  background: var(--color-bg-primary);
-  padding: @sp-1 @sp-2-5;
-  font-size: 11px;
-  font-weight: @font-medium;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-  .transition-colors();
-
-  .dark & {
-    background: var(--color-bg-secondary);
-    border-color: var(--color-border-secondary);
-  }
-
-  &:hover {
-    border-color: var(--color-border-secondary);
-    color: var(--color-text-primary);
-    background: var(--color-hover-bg);
-  }
-
-  // Active state — filled with plugin color (set inline via style)
-  &--active {
-    font-weight: @font-semibold;
-  }
-
-  &__icon {
-    height: 0.75rem;
-    width: 0.75rem;
-    flex-shrink: 0;
-  }
-
-  &__label {
-    line-height: 1;
-  }
-}

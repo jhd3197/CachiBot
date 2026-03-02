@@ -23,12 +23,13 @@ function loadMermaid(): Promise<void> {
       mermaidLoaded = true
       // Initialize mermaid with dark theme detection
       const isDark = document.documentElement.classList.contains('dark')
-      ;(window as unknown as Record<string, unknown>).mermaid &&
+      if ((window as unknown as Record<string, unknown>).mermaid) {
         (window as unknown as { mermaid: { initialize: (config: Record<string, unknown>) => void } }).mermaid.initialize({
           startOnLoad: false,
           theme: isDark ? 'dark' : 'default',
           securityLevel: 'strict',
         })
+      }
       resolve()
     }
     script.onerror = reject

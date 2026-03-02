@@ -29,7 +29,7 @@ class WorkspaceProgressPlugin(CachibotPlugin):
         )
 
     def _build_skills(self) -> dict[str, Skill]:
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="plan_tasks",
             description=(
                 "Create a task checklist for the current workspace operation. "
@@ -43,7 +43,7 @@ class WorkspaceProgressPlugin(CachibotPlugin):
             icon="list-checks",
             risk_level=RiskLevel.SAFE,
         )
-        def plan_tasks(tasks: list[str]) -> dict:
+        def plan_tasks(tasks: list[str]) -> dict[str, object]:
             """Create a task checklist for workspace progress tracking.
 
             Args:
@@ -52,16 +52,14 @@ class WorkspaceProgressPlugin(CachibotPlugin):
             Returns:
                 Progress marker dict routed by WebSocket handler
             """
-            task_items = [
-                {"description": desc, "status": "pending"} for desc in tasks
-            ]
+            task_items = [{"description": desc, "status": "pending"} for desc in tasks]
             return {
                 "__workspace_progress__": True,
                 "action": "plan",
                 "tasks": task_items,
             }
 
-        @skill(
+        @skill(  # type: ignore[untyped-decorator]
             name="update_task",
             description=(
                 "Update the status of a task in the workspace progress checklist. "
@@ -74,7 +72,7 @@ class WorkspaceProgressPlugin(CachibotPlugin):
             icon="check-circle",
             risk_level=RiskLevel.SAFE,
         )
-        def update_task(task_number: int, status: str) -> dict:
+        def update_task(task_number: int, status: str) -> dict[str, object]:
             """Update a task's status in the workspace progress checklist.
 
             Args:

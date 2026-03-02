@@ -17,7 +17,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from cachibot import __version__
-
 from cachibot.api.auth import get_current_user
 from cachibot.api.helpers import require_found
 from cachibot.config import Config
@@ -214,7 +213,9 @@ def _set_cache(key: str, data: list[Any] | dict[str, Any]) -> None:
     _remote_cache[key] = (time.time(), data)
 
 
-async def _track_remote_install(template_id: str, template_type: str, event: str = "install") -> None:
+async def _track_remote_install(
+    template_id: str, template_type: str, event: str = "install"
+) -> None:
     """Fire-and-forget: notify remote marketplace of an install event."""
     if not MARKETPLACE_URL:
         return
@@ -442,7 +443,7 @@ async def install_template(
         if local_template:
             template_data = local_template  # type: ignore[assignment]
 
-    require_found(template_data, "Template")
+    template_data = require_found(template_data, "Template")
 
     # Generate new bot ID
     bot_id = str(uuid.uuid4())

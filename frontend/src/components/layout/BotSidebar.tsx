@@ -107,7 +107,7 @@ export function BotSidebar({ onNavigate }: BotSidebarProps) {
   const toolCount = activeBot.tools?.length ?? 0
 
   // Compute enabled view-type external plugins
-  const capabilities = activeBot.capabilities ?? {}
+  const capabilities: Record<string, boolean> = (activeBot.capabilities ?? {}) as Record<string, boolean>
   const viewPluginNavItems = externalPlugins
     .filter((p) => p.type === 'view' && p.view && p.loaded && capabilities[p.capabilityKey] === true)
     .map((p) => ({

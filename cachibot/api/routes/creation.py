@@ -771,9 +771,7 @@ class CreateProjectBot(BaseModel):
     tone: str = Field(default="friendly", description="Communication tone")
     expertise_level: str = Field(default="expert", description="Expertise level")
     response_length: str = Field(default="moderate", description="Response length preference")
-    personality_traits: list[str] = Field(
-        default_factory=list, description="Personality traits"
-    )
+    personality_traits: list[str] = Field(default_factory=list, description="Personality traits")
 
 
 class CreateProjectRoom(BaseModel):

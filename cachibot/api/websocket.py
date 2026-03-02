@@ -339,11 +339,9 @@ async def websocket_endpoint(
                 )
 
                 # Debug: log registered tools and ext capabilities
-                ext_caps = {
-                    k: v for k, v in (capabilities or {}).items()
-                    if k.startswith("ext_")
-                }
+                ext_caps = {k: v for k, v in (capabilities or {}).items() if k.startswith("ext_")}
                 from cachibot.services.plugin_manager import CAPABILITY_PLUGINS
+
                 ext_registered = [k for k in CAPABILITY_PLUGINS if k.startswith("ext_")]
                 logger.info(
                     "Agent built for bot=%s | tools=%s | ext_caps=%s"
@@ -360,7 +358,15 @@ async def websocket_endpoint(
 
                 # Run agent in background task
                 current_task = asyncio.create_task(
-                    run_agent(agent, message, client_id, bot_id, chat_id, reply_to_id)
+                    run_agent(
+                        agent,
+                        message,
+                        client_id,
+                        bot_id,
+                        chat_id,
+                        reply_to_id,
+                        bot_models=bot_models,
+                    )
                 )
 
             elif msg_type == WSMessageType.CANCEL:
@@ -455,6 +461,7 @@ async def run_agent(
     bot_id: str | None = None,
     chat_id: str | None = None,
     reply_to_id: str | None = None,
+    bot_models: dict[str, str] | None = None,
 ) -> None:
     """Run the agent with streaming and send results to WebSocket client."""
     repo = KnowledgeRepository()
@@ -596,15 +603,11 @@ async def run_agent(
         # so users never see the real provider model path.
         per_model = run_usage.get("per_model", {})
         user_facing_model = (
-            (bot_models.get("default") if bot_models else None)
-            or agent.config.agent.model
-        )
+            bot_models.get("default") if bot_models else None
+        ) or agent.config.agent.model
         actual_model = next(iter(per_model), None) or agent.config.agent.model
         if per_model and user_facing_model and actual_model != user_facing_model:
-            per_model = {
-                user_facing_model: v
-                for _k, v in per_model.items()
-            }
+            per_model = {user_facing_model: v for _k, v in per_model.items()}
 
         # Parse [cite:MSG_ID] from response to determine bot's primary citation
         cited_ids = re.findall(r"\[cite:([a-f0-9-]+)\]", response_text)

@@ -107,7 +107,7 @@ class MessageRepository(BaseRepository[MessageModel, ChatMessage]):
     async def get_message_count(self) -> int:
         """Get total message count."""
         count = await self._scalar(select(func.count()).select_from(MessageModel))
-        return count  # type: ignore[return-value]
+        return int(count or 0)
 
     async def clear_messages(self) -> None:
         """Delete all messages."""
@@ -300,7 +300,7 @@ class KnowledgeRepository(BaseRepository[BotMessageModel, BotMessage]):
             .select_from(BotMessageModel)
             .where(BotMessageModel.bot_id == bot_id)
         )
-        return count  # type: ignore[return-value]
+        return int(count or 0)
 
     # ===== BOT INSTRUCTIONS =====
 
@@ -603,7 +603,7 @@ class KnowledgeRepository(BaseRepository[BotMessageModel, BotMessage]):
                 delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
             )
             await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+            return bool(result.rowcount > 0)
 
     async def get_chunks_by_document_light(self, document_id: str) -> list[dict[str, Any]]:
         """Get chunks for a document without embedding BLOBs."""

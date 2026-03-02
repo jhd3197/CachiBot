@@ -3,7 +3,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react'
-import { RefreshCw, ExternalLink } from 'lucide-react'
+import { RefreshCw, ExternalLink, Printer } from 'lucide-react'
 import type { Artifact } from '../../../types'
 
 interface HtmlRendererProps {
@@ -37,6 +37,25 @@ export function HtmlRenderer({ artifact }: HtmlRendererProps) {
     setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
+  const handlePrint = () => {
+    // Open in a new window to avoid sandbox restrictions, then trigger print
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.open()
+    printWindow.document.write(artifact.content)
+    printWindow.document.close()
+    // Wait for content/styles to load before printing
+    printWindow.addEventListener('load', () => {
+      printWindow.focus()
+      printWindow.print()
+    })
+    // Fallback if load already fired
+    setTimeout(() => {
+      printWindow.focus()
+      printWindow.print()
+    }, 500)
+  }
+
   return (
     <div className="artifact-html">
       <div className="artifact-html__toolbar">
@@ -46,6 +65,13 @@ export function HtmlRenderer({ artifact }: HtmlRendererProps) {
           title="Refresh preview"
         >
           <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={handlePrint}
+          className="artifact-code__action-btn"
+          title="Print / Save as PDF"
+        >
+          <Printer className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={handleOpenExternal}
@@ -58,7 +84,7 @@ export function HtmlRenderer({ artifact }: HtmlRendererProps) {
       <iframe
         key={key}
         ref={iframeRef}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-modals"
         className="artifact-html__iframe"
         title={artifact.title}
       />

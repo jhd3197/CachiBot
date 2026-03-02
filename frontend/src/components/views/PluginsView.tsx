@@ -84,7 +84,7 @@ export function PluginsView() {
 
   if (!activeBot) return null
 
-  const capabilities = activeBot.capabilities ?? {}
+  const capabilities: Record<string, boolean> = (activeBot.capabilities ?? {}) as Record<string, boolean>
 
   const filtered = plugins.filter((p) => {
     if (!search) return true

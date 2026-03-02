@@ -93,7 +93,8 @@ class UserRepository(BaseRepository[UserModel, UserInDB]):
 
     async def get_user_count(self) -> int:
         """Get total user count."""
-        return await self._scalar(select(func.count()).select_from(UserModel))
+        count = await self._scalar(select(func.count()).select_from(UserModel))
+        return int(count or 0)
 
     async def update_user(
         self,

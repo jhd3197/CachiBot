@@ -132,6 +132,6 @@ async def delete_contact(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a contact."""
-    contact = require_bot_ownership(await repo.get_contact(contact_id), bot_id, "Contact")
+    require_bot_ownership(await repo.get_contact(contact_id), bot_id, "Contact")
 
     await repo.delete_contact(contact_id)

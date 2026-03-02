@@ -351,7 +351,9 @@ class MessageProcessor:
             # falling back to effective_model (resolved from bot config + app default)
             per_model = run_usage.get("per_model", {})
             actual_model = (
-                next(iter(per_model)) if per_model else agent.config.agent.model or bot.default_model
+                next(iter(per_model))
+                if per_model
+                else agent.config.agent.model or bot.default_model
             )
             usage_metadata: dict[str, Any] = {
                 "tokens": run_usage.get("total_tokens", 0),
