@@ -4,7 +4,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { Copy, CheckCircle, Pencil, Eye } from 'lucide-react'
-import { cn, copyToClipboard } from '../../../lib/utils'
+import { copyToClipboard } from '../../../lib/utils'
 import type { Artifact } from '../../../types'
 
 interface CodeRendererProps {

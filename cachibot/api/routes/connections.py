@@ -191,9 +191,7 @@ async def delete_connection(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a connection."""
-    connection = require_bot_ownership(
-        await repo.get_connection(connection_id), bot_id, "Connection"
-    )
+    require_bot_ownership(await repo.get_connection(connection_id), bot_id, "Connection")
 
     # Disconnect if active
     manager = get_platform_manager()

@@ -1,22 +1,14 @@
 from __future__ import annotations
 
-from typing import TypeVar, overload
+from typing import Any, TypeVar
 
 from fastapi import HTTPException
 
 T = TypeVar("T")
 
 
-@overload
-def require_found(value: T | None, label: str = "Resource") -> T: ...
-
-
-@overload
-def require_found(value: bool, label: str = "Resource") -> bool: ...
-
-
-def require_found(value: T | None | bool, label: str = "Resource") -> T | bool:
-    """Raise 404 if *value* is ``None`` or falsy.
+def require_found(value: T | None, label: str = "Resource") -> T:
+    """Raise 404 if *value* is ``None`` or ``False``.
 
     Use for both "get-or-404" and "delete-or-404" patterns::
 
@@ -28,19 +20,19 @@ def require_found(value: T | None | bool, label: str = "Resource") -> T | bool:
     return value
 
 
-def require_bot_ownership(record: T | None, bot_id: str, label: str = "Resource") -> T:
+def require_bot_ownership(record: Any, bot_id: str, label: str = "Resource") -> Any:
     """Raise 404 if record is None or doesn't belong to the given bot."""
-    if not record or record.bot_id != bot_id:  # type: ignore[union-attr]
+    if not record or record.bot_id != bot_id:
         raise HTTPException(status_code=404, detail=f"{label} not found")
     return record
 
 
-def require_room_ownership(record: T | None, room_id: str, label: str = "Resource") -> T:
+def require_room_ownership(record: Any, room_id: str, label: str = "Resource") -> Any:
     """Raise 404 if record is None or doesn't belong to the given room.
 
     Mirrors :func:`require_bot_ownership` but checks ``room_id``.
     """
-    if not record or record.room_id != room_id:  # type: ignore[union-attr]
+    if not record or record.room_id != room_id:
         raise HTTPException(status_code=404, detail=f"{label} not found")
     return record
 

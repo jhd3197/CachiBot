@@ -25,7 +25,7 @@ interface PluginsState {
   uninstallPlugin: (name: string) => Promise<boolean>
 }
 
-export const usePluginsStore = create<PluginsState>((set, get) => ({
+export const usePluginsStore = create<PluginsState>((set) => ({
   plugins: [],
   loading: false,
   error: null,

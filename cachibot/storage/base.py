@@ -43,7 +43,7 @@ class BaseRepository(Generic[ModelT, EntityT]):
 
     @staticmethod
     @asynccontextmanager
-    async def _session():  # type: ignore[override]
+    async def _session() -> Any:
         """Yield an ``AsyncSession`` from the shared session maker."""
         async with db.ensure_initialized()() as session:
             yield session
@@ -98,14 +98,14 @@ class BaseRepository(Generic[ModelT, EntityT]):
         async with self._session() as session:
             result = await session.execute(stmt)
             await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+            return int(result.rowcount)
 
     async def _delete(self, stmt: Delete) -> int:
         """Execute a DELETE statement and commit. Returns affected row count."""
         async with self._session() as session:
             result = await session.execute(stmt)
             await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+            return int(result.rowcount)
 
     # ------------------------------------------------------------------
     # Common CRUD (use _model)

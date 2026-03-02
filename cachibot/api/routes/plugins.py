@@ -145,16 +145,6 @@ async def get_bot_workspaces(bot_id: str) -> dict[str, Any]:
     except Exception:
         pass
 
-    # For default bot, auto-enable official plugins
-    if bot_id == "default":
-        from cachibot.services.external_plugins import EXTERNAL_PLUGINS, OFFICIAL_PLUGIN_NAMES
-
-        for name in OFFICIAL_PLUGIN_NAMES:
-            manifest = EXTERNAL_PLUGINS.get(name)
-            if manifest:
-                cap_key = manifest.capability_key
-                bot_capabilities.setdefault(cap_key, True)
-
     # Build reverse map: plugin class -> capability name
     plugin_to_cap: dict[str, str | None] = {}
     for cap_name, classes in CAPABILITY_PLUGINS.items():
@@ -176,17 +166,19 @@ async def get_bot_workspaces(bot_id: str) -> dict[str, Any]:
             continue
 
         ws = manifest.workspace
-        workspaces.append({
-            "pluginName": ext_name,
-            "capabilityKey": cap_key,
-            "displayName": ws.display_name or manifest.display_name or ext_name,
-            "icon": ws.icon,
-            "description": ws.description,
-            "toolbar": ws.toolbar,
-            "accentColor": ws.accent_color,
-            "defaultArtifactType": ws.default_artifact_type,
-            "autoOpenPanel": ws.auto_open_panel,
-        })
+        workspaces.append(
+            {
+                "pluginName": ext_name,
+                "capabilityKey": cap_key,
+                "displayName": ws.display_name or manifest.display_name or ext_name,
+                "icon": ws.icon,
+                "description": ws.description,
+                "toolbar": ws.toolbar,
+                "accentColor": ws.accent_color,
+                "defaultArtifactType": ws.default_artifact_type,
+                "autoOpenPanel": ws.auto_open_panel,
+            }
+        )
 
     # Check built-in plugins
     for name, cls in CACHIBOT_PLUGINS.items():
@@ -203,17 +195,19 @@ async def get_bot_workspaces(bot_id: str) -> dict[str, Any]:
             ws_config = instance.workspace_config
             if not ws_config:
                 continue
-            workspaces.append({
-                "pluginName": name,
-                "capabilityKey": cap,
-                "displayName": ws_config.display_name,
-                "icon": ws_config.icon,
-                "description": ws_config.description,
-                "toolbar": ws_config.toolbar,
-                "accentColor": ws_config.accent_color,
-                "defaultArtifactType": ws_config.default_artifact_type,
-                "autoOpenPanel": ws_config.auto_open_panel,
-            })
+            workspaces.append(
+                {
+                    "pluginName": name,
+                    "capabilityKey": cap,
+                    "displayName": ws_config.display_name,
+                    "icon": ws_config.icon,
+                    "description": ws_config.description,
+                    "toolbar": ws_config.toolbar,
+                    "accentColor": ws_config.accent_color,
+                    "defaultArtifactType": ws_config.default_artifact_type,
+                    "autoOpenPanel": ws_config.auto_open_panel,
+                }
+            )
         except Exception:
             continue
 

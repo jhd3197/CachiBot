@@ -34,6 +34,7 @@ async def _resolve_public_id(model: str) -> str:
     """
     try:
         from sqlalchemy import text as sa_text
+
         from cachibot.storage.db import ensure_initialized
 
         session_maker = ensure_initialized()
@@ -45,7 +46,7 @@ async def _resolve_public_id(model: str) -> str:
             row = result.first()
             if row:
                 logger.debug("Resolved public_id %r → %r", model, row[0])
-                return row[0]
+                return str(row[0])
     except Exception:
         logger.debug("public_id resolution skipped for %r", model, exc_info=True)
     return model
@@ -156,7 +157,7 @@ async def build_bot_agent(
     inject_coding_agent: bool = False,
     # Workspace mode
     workspace: str | None = None,
-    workspace_config: "WorkspaceConfig | None" = None,
+    workspace_config: WorkspaceConfig | None = None,
 ) -> CachibotAgent:
     """Build a fully-configured CachibotAgent.
 
@@ -168,21 +169,6 @@ async def build_bot_agent(
     # 1. Disabled capabilities
     if disabled_capabilities is None:
         disabled_capabilities = await load_disabled_capabilities()
-
-    # 1b. Inject official plugin capabilities for default bot
-    if bot_id == "default":
-        try:
-            from cachibot.services.external_plugins import EXTERNAL_PLUGINS, OFFICIAL_PLUGIN_NAMES
-
-            if capabilities is None:
-                capabilities = {}
-            for name in OFFICIAL_PLUGIN_NAMES:
-                manifest = EXTERNAL_PLUGINS.get(name)
-                if manifest:
-                    cap_key = manifest.capability_key
-                    capabilities.setdefault(cap_key, True)
-        except Exception:
-            pass
 
     # 2. Model override — resolve effective model from bot_models["default"]
     agent_config = config

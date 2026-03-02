@@ -10,8 +10,6 @@ import {
   X,
   Copy,
   Download,
-  Maximize2,
-  Minimize2,
   Code,
   Globe,
   FileText,
@@ -63,11 +61,15 @@ const TYPE_LABELS: Record<ArtifactType, string> = {
   document: 'Document',
 }
 
+/** Plugins whose html artifacts should be labelled "Document" instead of "HTML Preview" */
+const DOCUMENT_PLUGINS = new Set(['pdf_document', 'resume_builder', 'doc_writer'])
+
 export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'content' | 'preview'>('content')
 
-  const Icon = TYPE_ICONS[artifact.type] || Puzzle
+  const isDocumentHtml = artifact.type === 'html' && artifact.plugin && DOCUMENT_PLUGINS.has(artifact.plugin)
+  const Icon = isDocumentHtml ? FileText : (TYPE_ICONS[artifact.type] || Puzzle)
 
   const handleCopy = useCallback(() => {
     copyToClipboard(artifact.content)
@@ -122,7 +124,9 @@ export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) 
 
         <div className="artifact-panel__meta-row">
           <span className="artifact-panel__badge">
-            {TYPE_LABELS[artifact.type] || artifact.type}
+            {artifact.type === 'html' && artifact.plugin && DOCUMENT_PLUGINS.has(artifact.plugin)
+              ? 'Document'
+              : TYPE_LABELS[artifact.type] || artifact.type}
           </span>
           {artifact.language && (
             <span className="artifact-panel__badge artifact-panel__badge--lang">

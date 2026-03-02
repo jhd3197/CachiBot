@@ -23,13 +23,14 @@ async def _extract_with_retry(
     last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
-            return await extract_with_model(
+            result = await extract_with_model(
                 model_cls,
                 text,
                 model_name,
                 instruction_template=instruction_template,
                 **kwargs,
             )
+            return dict(result)
         except Exception as e:
             last_error = e
             logger.warning(

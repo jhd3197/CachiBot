@@ -78,6 +78,7 @@ async def _load_public_id_map() -> dict[str, str]:
     mapping: dict[str, str] = {}
     try:
         from sqlalchemy import text as sa_text
+
         from cachibot.storage.db import ensure_initialized
 
         session_maker = ensure_initialized()

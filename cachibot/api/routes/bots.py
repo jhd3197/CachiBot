@@ -164,7 +164,7 @@ async def activate_bot_skill(
 ) -> dict[str, str]:
     """Activate a skill for a bot."""
     # Verify skill exists
-    skill = require_found(await skills_repo.get_skill(body.skill_id), "Skill")
+    require_found(await skills_repo.get_skill(body.skill_id), "Skill")
 
     await skills_repo.activate_skill(bot_id, body.skill_id)
     return {"status": "activated", "skill_id": body.skill_id}
@@ -540,7 +540,9 @@ async def update_bot_access(
     """Update access level for a bot-group pair. Bot owner or admin only."""
     await _require_bot_owner_or_admin(bot_id, user)
 
-    require_found(await access_repo.update_access_level(bot_id, group_id, body.access_level), "Access record")
+    require_found(
+        await access_repo.update_access_level(bot_id, group_id, body.access_level), "Access record"
+    )
 
     return {"status": "updated", "access_level": body.access_level.value}
 

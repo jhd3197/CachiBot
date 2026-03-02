@@ -317,6 +317,6 @@ async def rollback_instruction(
         version,
         author=f"user:{user.id}",
     )
-    require_found(updated, f"Version {version}")
+    updated = require_found(updated, f"Version {version}")
 
     return InstructionResponse.from_model(updated)

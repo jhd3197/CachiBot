@@ -13,12 +13,14 @@ import importlib
 import importlib.util
 import io
 import logging
-import os
 import shutil
 import sys
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import httpx
 
 from cachibot.models.external_plugin import ExternalPluginManifest
 
@@ -63,9 +65,7 @@ def _resolve_plugins_dir() -> Path:
                     continue
                 candidate = user_dir / ".cachibot" / "plugins"
                 if candidate.is_dir():
-                    logger.info(
-                        "WSL detected — using Windows plugins dir: %s", candidate
-                    )
+                    logger.info("WSL detected — using Windows plugins dir: %s", candidate)
                     return candidate
         except PermissionError:
             continue
@@ -107,7 +107,7 @@ def _parse_manifest(toml_path: Path) -> ExternalPluginManifest:
     try:
         import tomllib
     except ModuleNotFoundError:  # Python < 3.11
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
 
     raw = toml_path.read_bytes()
     data = tomllib.loads(raw.decode())
@@ -174,7 +174,7 @@ def _import_plugin_module(plugin_dir: Path, manifest: ExternalPluginManifest) ->
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        spec.loader.exec_module(module)
 
         # Find the CachibotPlugin subclass
         for attr_name in dir(module):
@@ -184,7 +184,7 @@ def _import_plugin_module(plugin_dir: Path, manifest: ExternalPluginManifest) ->
                 and issubclass(attr, CachibotPlugin)
                 and attr is not CachibotPlugin
             ):
-                return attr  # type: ignore[return-value]
+                return attr
 
         return None
     finally:
@@ -265,7 +265,7 @@ async def install_official_plugins(plugins_dir: Path | None = None) -> set[str]:
     installed: set[str] = set()
 
     # Fetch registry and download plugins within a single client session
-    registry: dict | None = None
+    registry: dict[str, Any] | None = None
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
         for url in (REGISTRY_URL, FALLBACK_REGISTRY_URL):
             try:
@@ -311,7 +311,9 @@ async def install_official_plugins(plugins_dir: Path | None = None) -> set[str]:
                 # Newer version available — remove old and re-install
                 logger.info(
                     "Updating official plugin '%s': %s -> %s",
-                    name, local_version, remote_version,
+                    name,
+                    local_version,
+                    remote_version,
                 )
                 shutil.rmtree(plugin_dir, ignore_errors=True)
 
@@ -330,9 +332,9 @@ async def install_official_plugins(plugins_dir: Path | None = None) -> set[str]:
 
 
 async def _download_and_extract_plugin(
-    client: "httpx.AsyncClient",
+    client: httpx.AsyncClient,
     name: str,
-    meta: dict,
+    meta: dict[str, Any],
     plugins_dir: Path,
 ) -> None:
     """Download a plugin archive or individual files and extract to plugins_dir/name/."""
@@ -424,7 +426,7 @@ def load_external_plugins(plugins_dir: Path | None = None) -> int:
                 plugin_key = f"ext_{plugin_key}"
 
             CACHIBOT_PLUGINS[plugin_key] = plugin_cls
-            CAPABILITY_PLUGINS[cap_key] = [plugin_cls]  # type: ignore[list-item]
+            CAPABILITY_PLUGINS[cap_key] = [plugin_cls]
 
             # Track injected keys for clean reload
             _INJECTED_CAPABILITY_KEYS.add(cap_key)
@@ -530,10 +532,10 @@ def install_plugin_from_archive(
 
         if zipfile.is_zipfile(archive_path):
             with zipfile.ZipFile(archive_path, "r") as zf:
-                zf.extractall(tmp)
+                zf.extractall(tmp)  # nosec B202 — zipfile, not tarfile
         elif tarfile.is_tarfile(archive_path):
             with tarfile.open(archive_path, "r:*") as tf:
-                tf.extractall(tmp, filter="data")
+                tf.extractall(tmp, filter="data")  # nosec B202 — filter="data" blocks unsafe members
         else:
             raise ValueError("Unsupported archive format. Use .zip or .tar.gz")
 
@@ -598,7 +600,7 @@ def _load_single_plugin(plugin_dir: Path, manifest: ExternalPluginManifest) -> N
         plugin_key = f"ext_{plugin_key}"
 
     CACHIBOT_PLUGINS[plugin_key] = plugin_cls
-    CAPABILITY_PLUGINS[cap_key] = [plugin_cls]  # type: ignore[list-item]
+    CAPABILITY_PLUGINS[cap_key] = [plugin_cls]
 
     _INJECTED_CAPABILITY_KEYS.add(cap_key)
     _INJECTED_PLUGIN_KEYS.add(plugin_key)

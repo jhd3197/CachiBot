@@ -166,7 +166,7 @@ async def update_room(
         description=data.description,
         settings=data.settings,
     )
-    require_found(updated, "Room")
+    updated = require_found(updated, "Room")
 
     # Sync live orchestrator with new settings
     if data.settings:
@@ -636,7 +636,7 @@ async def update_automation(
         action_type=req.action_type,
         action_config=req.action_config,
     )
-    require_found(updated, "Automation")
+    updated = require_found(updated, "Automation")
     return updated.model_dump()
 
 

@@ -513,7 +513,9 @@ async def rollback_to_version(
     script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
-    target_version = require_found(await version_repo.get_version(script_id, version_number), "Version")
+    target_version = require_found(
+        await version_repo.get_version(script_id, version_number), "Version"
+    )
 
     now = datetime.now(timezone.utc)
     new_version_num = script.current_version + 1

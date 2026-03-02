@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+
 import { useUIStore } from '../../stores/ui'
 
 interface ExternalPluginViewProps {

@@ -120,16 +120,18 @@ async def enable_plugin(name: str) -> dict[str, Any]:
     plugin_cls = EXTERNAL_PLUGIN_CLASSES.get(name)
     if plugin_cls and hasattr(plugin_cls, "on_enable"):
         try:
-            from cachibot.plugins.base import PluginContext
-            from cachibot.config import Config
-
             from tukuy import PythonSandbox
+
+            from cachibot.config import Config
+            from cachibot.plugins.base import PluginContext
 
             ctx = PluginContext(
                 config=Config(),
                 sandbox=PythonSandbox(
-                    allowed_imports=[], timeout_seconds=1,
-                    allowed_read_paths=[], allowed_write_paths=[],
+                    allowed_imports=[],
+                    timeout_seconds=1,
+                    allowed_read_paths=[],
+                    allowed_write_paths=[],
                 ),
             )
             instance = plugin_cls(ctx)
@@ -151,16 +153,18 @@ async def disable_plugin(name: str) -> dict[str, Any]:
     plugin_cls = EXTERNAL_PLUGIN_CLASSES.get(name)
     if plugin_cls and hasattr(plugin_cls, "on_disable"):
         try:
-            from cachibot.plugins.base import PluginContext
-            from cachibot.config import Config
-
             from tukuy import PythonSandbox
+
+            from cachibot.config import Config
+            from cachibot.plugins.base import PluginContext
 
             ctx = PluginContext(
                 config=Config(),
                 sandbox=PythonSandbox(
-                    allowed_imports=[], timeout_seconds=1,
-                    allowed_read_paths=[], allowed_write_paths=[],
+                    allowed_imports=[],
+                    timeout_seconds=1,
+                    allowed_read_paths=[],
+                    allowed_write_paths=[],
                 ),
             )
             instance = plugin_cls(ctx)
@@ -209,16 +213,18 @@ async def install_plugin(file: UploadFile) -> dict[str, Any]:
         plugin_cls = EXTERNAL_PLUGIN_CLASSES.get(manifest.name)
         if plugin_cls and hasattr(plugin_cls, "on_install"):
             try:
-                from cachibot.plugins.base import PluginContext
-                from cachibot.config import Config
-
                 from tukuy import PythonSandbox
+
+                from cachibot.config import Config
+                from cachibot.plugins.base import PluginContext
 
                 ctx = PluginContext(
                     config=Config(),
                     sandbox=PythonSandbox(
-                        allowed_imports=[], timeout_seconds=1,
-                        allowed_read_paths=[], allowed_write_paths=[],
+                        allowed_imports=[],
+                        timeout_seconds=1,
+                        allowed_read_paths=[],
+                        allowed_write_paths=[],
                     ),
                 )
                 instance = plugin_cls(ctx)
@@ -253,16 +259,18 @@ async def delete_plugin(name: str) -> dict[str, Any]:
     plugin_cls = EXTERNAL_PLUGIN_CLASSES.get(name)
     if plugin_cls and hasattr(plugin_cls, "on_uninstall"):
         try:
-            from cachibot.plugins.base import PluginContext
-            from cachibot.config import Config
-
             from tukuy import PythonSandbox
+
+            from cachibot.config import Config
+            from cachibot.plugins.base import PluginContext
 
             ctx = PluginContext(
                 config=Config(),
                 sandbox=PythonSandbox(
-                    allowed_imports=[], timeout_seconds=1,
-                    allowed_read_paths=[], allowed_write_paths=[],
+                    allowed_imports=[],
+                    timeout_seconds=1,
+                    allowed_read_paths=[],
+                    allowed_write_paths=[],
                 ),
             )
             instance = plugin_cls(ctx)

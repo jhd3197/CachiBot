@@ -21,7 +21,6 @@ import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
-import { PluginChips } from '../chat/PluginChips'
 import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
@@ -1084,7 +1083,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         {/* Omnibox island */}
         <div className="chat-island">
           <form onSubmit={handleSubmit} className="chat-island__form">
-            <PluginChips />
             <div className="chat-input-container chat-input-container--island">
               {renderCommandMenu()}
               {renderAgentMentionPopup()}
@@ -1135,23 +1133,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
               <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
             </div>
           </form>
-
-          {/* Prompt suggestions below input */}
-          <div className="chat-prompt-suggestions">
-            {['Write a Python script', 'Analyze this codebase', 'Help me debug an error'].map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => {
-                  setInput(prompt)
-                  textareaRef.current?.focus()
-                }}
-                className="chat-prompt-suggestions__item"
-              >
-                <Sparkles className="h-4 w-4 text-cachi-500" />
-                {prompt}
-              </button>
-            ))}
-          </div>
 
           {availableWorkspaces.length > 0 && (
             <WorkspaceSelector
@@ -1263,8 +1244,6 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         animateIsland && 'chat-island--animate-in'
       )}>
         <form onSubmit={handleSubmit} className="chat-island__form">
-          <PluginChips inChat={messages.length > 0} />
-
           {/* Reply composer bar */}
           {replyToMessage && (
             <div className="chat-reply-bar">

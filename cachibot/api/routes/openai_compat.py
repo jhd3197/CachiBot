@@ -22,7 +22,7 @@ from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynam
 from cachibot.api.auth import resolve_api_key
 from cachibot.api.helpers import require_found
 from cachibot.config import Config
-from cachibot.services.agent_factory import resolve_bot_env, _resolve_public_id
+from cachibot.services.agent_factory import _resolve_public_id, resolve_bot_env
 from cachibot.storage.repository import BotRepository
 
 logger = logging.getLogger(__name__)
