@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/hero.png" alt="CachiBot" width="800" />
+  <img width="650" alt="repository-cachibot" src="https://github.com/user-attachments/assets/96a41ff2-9d50-4327-924d-0e4ca9026e3a" />
 
   <h1>CachiBot</h1>
 
