@@ -8,10 +8,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.work import (
@@ -634,9 +635,7 @@ async def get_function(
     user: User = Depends(require_bot_access),
 ) -> FunctionResponse:
     """Get a function by ID."""
-    fn = await function_repo.get(function_id)
-    if fn is None or fn.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Function not found")
+    fn = require_bot_ownership(await function_repo.get(function_id), bot_id, "Function")
     return FunctionResponse.from_function(fn)
 
 
@@ -648,9 +647,7 @@ async def update_function(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> FunctionResponse:
     """Update a function."""
-    fn = await function_repo.get(function_id)
-    if fn is None or fn.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Function not found")
+    fn = require_bot_ownership(await function_repo.get(function_id), bot_id, "Function")
 
     if request.name is not None:
         fn.name = request.name
@@ -696,9 +693,7 @@ async def delete_function(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a function."""
-    fn = await function_repo.get(function_id)
-    if fn is None or fn.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Function not found")
+    require_bot_ownership(await function_repo.get(function_id), bot_id, "Function")
     await function_repo.delete(function_id)
 
 
@@ -710,9 +705,7 @@ async def run_function(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Instantiate a function as work."""
-    fn = await function_repo.get(function_id)
-    if fn is None or fn.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Function not found")
+    fn = require_bot_ownership(await function_repo.get(function_id), bot_id, "Function")
 
     now = datetime.now(timezone.utc)
     work_id = str(uuid.uuid4())
@@ -818,9 +811,7 @@ async def get_schedule(
     user: User = Depends(require_bot_access),
 ) -> ScheduleResponse:
     """Get a schedule by ID."""
-    schedule = await schedule_repo.get(schedule_id)
-    if schedule is None or schedule.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
     return ScheduleResponse.from_schedule(schedule)
 
 
@@ -832,9 +823,7 @@ async def update_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Update a schedule."""
-    schedule = await schedule_repo.get(schedule_id)
-    if schedule is None or schedule.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
 
     if request.name is not None:
         schedule.name = request.name
@@ -873,14 +862,10 @@ async def toggle_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScheduleResponse:
     """Toggle schedule enabled state."""
-    schedule = await schedule_repo.get(schedule_id)
-    if schedule is None or schedule.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
 
     await schedule_repo.toggle_enabled(schedule_id, not schedule.enabled)
-    schedule = await schedule_repo.get(schedule_id)
-    if schedule is None:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule = require_found(await schedule_repo.get(schedule_id), "Schedule")
     return ScheduleResponse.from_schedule(schedule)
 
 
@@ -891,9 +876,7 @@ async def delete_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a schedule."""
-    schedule = await schedule_repo.get(schedule_id)
-    if schedule is None or schedule.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Schedule not found")
+    require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
     await schedule_repo.delete(schedule_id)
 
 
@@ -1001,9 +984,7 @@ async def get_work(
     user: User = Depends(require_bot_access),
 ) -> WorkResponse:
     """Get work by ID."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -1018,9 +999,7 @@ async def update_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> WorkResponse:
     """Update work."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     if request.title is not None:
         work.title = request.title
@@ -1059,14 +1038,10 @@ async def start_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Start work (set status to in_progress)."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     await work_repo.update_status(work_id, WorkStatus.IN_PROGRESS)
-    work = await work_repo.get(work_id)
-    if work is None:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_found(await work_repo.get(work_id), "Work")
 
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -1081,9 +1056,7 @@ async def complete_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Complete work."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     work.status = WorkStatus.COMPLETED
     work.completed_at = datetime.now(timezone.utc)
@@ -1104,14 +1077,10 @@ async def fail_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Mark work as failed."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     await work_repo.update_status(work_id, WorkStatus.FAILED, error)
-    work = await work_repo.get(work_id)
-    if work is None:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_found(await work_repo.get(work_id), "Work")
 
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -1125,9 +1094,7 @@ async def cancel_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Cancel a running work item and its jobs."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     try:
         from cachibot.services.job_runner import get_job_runner
@@ -1138,9 +1105,7 @@ async def cancel_work(
         # Runner not available, just update status directly
         await work_repo.update_status(work_id, WorkStatus.CANCELLED)
 
-    work = await work_repo.get(work_id)
-    if work is None:
-        raise HTTPException(status_code=404, detail="Work not found")
+    work = require_found(await work_repo.get(work_id), "Work")
     tasks = await task_repo.get_by_work(work_id)
     completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
     return WorkResponse.from_work(work, len(tasks), completed)
@@ -1153,9 +1118,7 @@ async def delete_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete work (cascades to tasks and jobs)."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
     await work_repo.delete(work_id)
 
 
@@ -1171,9 +1134,7 @@ async def list_tasks(
     user: User = Depends(require_bot_access),
 ) -> list[TaskResponse]:
     """Get all tasks for work."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     tasks = await task_repo.get_by_work(work_id)
     return [TaskResponse.from_task(t) for t in tasks]
@@ -1186,9 +1147,7 @@ async def get_ready_tasks(
     user: User = Depends(require_bot_access),
 ) -> list[TaskResponse]:
     """Get tasks ready to run (all dependencies met)."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     tasks = await task_repo.get_ready_tasks(work_id)
     return [TaskResponse.from_task(t) for t in tasks]
@@ -1202,9 +1161,7 @@ async def create_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Create a new task."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     # Auto-assign order if not provided
     order = request.order
@@ -1239,9 +1196,7 @@ async def get_task(
     user: User = Depends(require_bot_access),
 ) -> TaskResponse:
     """Get a task by ID."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
     return TaskResponse.from_task(task)
 
 
@@ -1253,9 +1208,7 @@ async def update_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TaskResponse:
     """Update a task."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
 
     if request.title is not None:
         task.title = request.title
@@ -1291,9 +1244,7 @@ async def start_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Start a task (creates a job)."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
 
     await task_repo.update_status(task_id, TaskStatus.IN_PROGRESS)
 
@@ -1315,9 +1266,7 @@ async def start_task(
     )
     await job_repo.save(job)
 
-    task = await task_repo.get(task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_found(await task_repo.get(task_id), "Task")
     return TaskResponse.from_task(task)
 
 
@@ -1329,9 +1278,7 @@ async def complete_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Complete a task."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
 
     await task_repo.update_status(task_id, TaskStatus.COMPLETED, result=result)
 
@@ -1348,9 +1295,7 @@ async def complete_task(
         progress = completed / len(tasks) if tasks else 0
         await work_repo.update_progress(work.id, progress)
 
-    task = await task_repo.get(task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_found(await task_repo.get(task_id), "Task")
     return TaskResponse.from_task(task)
 
 
@@ -1362,9 +1307,7 @@ async def fail_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TaskResponse:
     """Fail a task."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
 
     # Check if we can retry
     if task.retry_count < task.max_retries:
@@ -1378,9 +1321,7 @@ async def fail_task(
     if latest_job:
         await job_repo.update_status(latest_job.id, JobStatus.FAILED, error=error)
 
-    task = await task_repo.get(task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = require_found(await task_repo.get(task_id), "Task")
     return TaskResponse.from_task(task)
 
 
@@ -1391,9 +1332,7 @@ async def delete_task(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a task."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
     await task_repo.delete(task_id)
 
 
@@ -1409,9 +1348,7 @@ async def list_jobs_for_task(
     user: User = Depends(require_bot_access),
 ) -> list[JobResponse]:
     """Get all jobs for a task."""
-    task = await task_repo.get(task_id)
-    if task is None or task.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+    require_bot_ownership(await task_repo.get(task_id), bot_id, "Task")
 
     jobs = await job_repo.get_by_task(task_id)
     return [JobResponse.from_job(j) for j in jobs]
@@ -1424,9 +1361,7 @@ async def list_jobs_for_work(
     user: User = Depends(require_bot_access),
 ) -> list[JobResponse]:
     """Get all jobs for work."""
-    work = await work_repo.get(work_id)
-    if work is None or work.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Work not found")
+    require_bot_ownership(await work_repo.get(work_id), bot_id, "Work")
 
     jobs = await job_repo.get_by_work(work_id)
     return [JobResponse.from_job(j) for j in jobs]
@@ -1449,9 +1384,7 @@ async def get_job(
     user: User = Depends(require_bot_access),
 ) -> JobResponse:
     """Get a job by ID."""
-    job = await job_repo.get(job_id)
-    if job is None or job.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = require_bot_ownership(await job_repo.get(job_id), bot_id, "Job")
     return JobResponse.from_job(job)
 
 
@@ -1463,14 +1396,10 @@ async def append_job_log(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> JobResponse:
     """Append a log entry to a job."""
-    job = await job_repo.get(job_id)
-    if job is None or job.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = require_bot_ownership(await job_repo.get(job_id), bot_id, "Job")
 
     await job_repo.append_log(job_id, request.level, request.message, request.data)
-    job = await job_repo.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = require_found(await job_repo.get(job_id), "Job")
     return JobResponse.from_job(job)
 
 
@@ -1482,14 +1411,10 @@ async def update_job_progress(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> JobResponse:
     """Update job progress."""
-    job = await job_repo.get(job_id)
-    if job is None or job.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = require_bot_ownership(await job_repo.get(job_id), bot_id, "Job")
 
     await job_repo.update_progress(job_id, progress)
-    job = await job_repo.get(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = require_found(await job_repo.get(job_id), "Job")
     return JobResponse.from_job(job)
 
 
@@ -1554,9 +1479,7 @@ async def get_todo(
     user: User = Depends(require_bot_access),
 ) -> TodoResponse:
     """Get a todo by ID."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
     return TodoResponse.from_todo(todo)
 
 
@@ -1568,9 +1491,7 @@ async def update_todo(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> TodoResponse:
     """Update a todo."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
 
     if request.title is not None:
         todo.title = request.title
@@ -1596,14 +1517,10 @@ async def mark_todo_done(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TodoResponse:
     """Mark a todo as done."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
 
     await todo_repo.update_status(todo_id, TodoStatus.DONE)
-    todo = await todo_repo.get(todo_id)
-    if todo is None:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_found(await todo_repo.get(todo_id), "Todo")
     return TodoResponse.from_todo(todo)
 
 
@@ -1614,14 +1531,10 @@ async def dismiss_todo(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> TodoResponse:
     """Dismiss a todo."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
 
     await todo_repo.update_status(todo_id, TodoStatus.DISMISSED)
-    todo = await todo_repo.get(todo_id)
-    if todo is None:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_found(await todo_repo.get(todo_id), "Todo")
     return TodoResponse.from_todo(todo)
 
 
@@ -1633,9 +1546,7 @@ async def convert_todo_to_work(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> WorkResponse:
     """Convert a todo to work."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    todo = require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
 
     now = datetime.now(timezone.utc)
     work = Work(
@@ -1664,7 +1575,5 @@ async def delete_todo(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a todo."""
-    todo = await todo_repo.get(todo_id)
-    if todo is None or todo.bot_id != bot_id:
-        raise HTTPException(status_code=404, detail="Todo not found")
+    require_bot_ownership(await todo_repo.get(todo_id), bot_id, "Todo")
     await todo_repo.delete(todo_id)

@@ -16,7 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Up
 from pydantic import BaseModel
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
-from cachibot.api.helpers import require_bot_ownership
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.knowledge import Document, DocumentStatus
@@ -179,9 +179,7 @@ async def get_document(
 ) -> DocumentResponse:
     """Get a specific document."""
     repo = KnowledgeRepository()
-    doc = await repo.get_document(document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = require_found(await repo.get_document(document_id), "Document")
     require_bot_ownership(doc, bot_id, "Document")
 
     return _doc_to_response(doc)
@@ -197,9 +195,7 @@ async def delete_document(
     repo = KnowledgeRepository()
 
     # Verify document exists and belongs to this bot
-    doc = await repo.get_document(document_id)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Document not found")
+    doc = require_found(await repo.get_document(document_id), "Document")
     require_bot_ownership(doc, bot_id, "Document")
 
     # Delete from database (chunks cascade)

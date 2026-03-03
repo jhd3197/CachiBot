@@ -1,11 +1,9 @@
 import { create } from 'zustand'
 import {
   getModels,
-  getDefaultModel,
+  getAllDefaults,
   setDefaultModel,
-  getDefaultEmbeddingModel,
   setDefaultEmbeddingModel,
-  getDefaultUtilityModel,
   setDefaultUtilityModel,
   type ModelsGrouped,
   type ModelInfo,
@@ -60,20 +58,18 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   refresh: async () => {
     set({ loading: true, error: null })
     try {
-      const [groups, defaultModel, defaultEmbeddingModel, defaultUtilityModel] = await Promise.all([
+      const [groups, defaults] = await Promise.all([
         getModels(),
-        getDefaultModel(),
-        getDefaultEmbeddingModel(),
-        getDefaultUtilityModel(),
+        getAllDefaults(),
       ])
       set({
         groups,
         imageGroups: filterGroups(groups, (m) => m.supports_image_generation),
         audioGroups: filterGroups(groups, (m) => m.supports_audio),
         embeddingGroups: filterGroups(groups, (m) => m.supports_embedding),
-        defaultModel,
-        defaultEmbeddingModel,
-        defaultUtilityModel,
+        defaultModel: defaults.default,
+        defaultEmbeddingModel: defaults.embedding,
+        defaultUtilityModel: defaults.utility,
         loading: false,
       })
     } catch (err) {

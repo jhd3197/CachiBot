@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/hero.png" alt="CachiBot" width="800" />
+  <img width="650" alt="repository-cachibot" src="https://github.com/user-attachments/assets/96a41ff2-9d50-4327-924d-0e4ca9026e3a" />
 
   <h1>CachiBot</h1>
 
@@ -141,7 +141,9 @@ cachi server                       # Short alias
 ### Multi-Agent Platform
 
 - **Unlimited Specialized Bots** — Create bots with custom system prompts, per-bot model routing, capability toggles, and isolated API keys per provider
+- **Project Creation** — Describe what you need and CachiBot designs an entire team of bots with distinct personalities, roles, and collaborative rooms — fully editable before creation
 - **Collaborative Rooms** — Run multiple bots together with 9 response modes: parallel, sequential, chain, router, debate, waterfall, relay, consensus, and interview
+- **Per-Message Model Switching** — Override the model for any individual message from an inline selector in the chat footer
 - **Bot Marketplace** — Pre-built bot and room templates for common use cases, installable from the dashboard
 
 ### Capability-Gated Plugin System
@@ -162,6 +164,27 @@ Every bot has a set of capability toggles that control which tools are available
 | Coding Agents | Spawn Claude Code, OpenAI Codex, or Gemini CLI as sub-agents |
 | Knowledge Base | Semantic search across uploaded documents and notes |
 | Custom Instructions | LLM-powered instruction packs (analysis, writing, developer) |
+
+**External plugins** can be installed from `.zip` archives or auto-installed from the official registry at startup. Each plugin declares its permissions in a `plugin.toml` manifest and is gated by the same capability system. Manage them from the Plugins view in the dashboard. See the [plugin docs](docs/plugins/README.md) for how to build your own.
+
+### Artifacts
+
+Bots can produce rich artifacts that render in a resizable side panel next to the chat:
+
+- **Code** — Syntax-highlighted with inline editing
+- **HTML** — Live sandboxed preview with print and refresh
+- **Mermaid** — Diagrams rendered from Mermaid syntax
+- **SVG** — Inline vector graphics
+- **Markdown** — Formatted document preview
+- **Images** — With fullscreen view and download
+- **Documents** — PDF embed, Office file download (DOCX, XLSX, PPTX)
+- **Custom** — Plugin-provided renderers via iframe
+
+Artifacts are streamed in real time over WebSocket as the bot generates them.
+
+### Workspace Mode
+
+Plugins can define workspace modes — focused contexts with a custom system prompt, toolbar, and live task progress. Select a workspace before chatting and the bot enters a structured workflow with a visible task checklist that updates as it works.
 
 ### Platform Integrations
 
@@ -218,6 +241,8 @@ CachiBot exposes `/v1/chat/completions` and `/v1/models` endpoints, so external 
 - **Content Pipeline** — Research bot + writer bot + image generator producing blog posts end-to-end
 - **DevOps Agent** — Monitor repos, run sandboxed scripts, send alerts to Slack on schedule
 - **Coding Assistant** — Bot that spawns Claude Code or Codex to handle complex coding tasks
+- **Website Builder** — Workspace-mode plugin that produces live HTML previews as artifacts while it builds
+- **Document Generator** — Bot that creates PDFs, DOCX, and PPTX files rendered inline in the chat
 
 ## Supported Providers
 

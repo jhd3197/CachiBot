@@ -68,10 +68,13 @@ export function DetailsStep() {
       const freshForm = useCreationStore.getState().form
       const categoryLabel = PURPOSE_CATEGORIES.find(c => c.id === freshForm.purposeCategory)?.label || 'General'
 
+      const mode = freshForm.creationPath === 'single' ? 'task-focused' : 'user-focused'
+
       await streamFollowUpQuestions(
         {
           category: categoryLabel,
           description: freshForm.purposeDescription,
+          mode,
         },
         {
           onQuestion: (question) => {
@@ -198,10 +201,14 @@ export function DetailsStep() {
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-cachi-400" />
           <div>
             <p className="text-sm font-medium text-[var(--color-text-primary)]">
-              Help {form.name} understand you better
+              {form.creationPath === 'single'
+                ? `Help us refine what ${form.name || 'your bot'} should do`
+                : `Help ${form.name} understand you better`}
             </p>
             <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              These answers will help create a personalized assistant just for you.
+              {form.creationPath === 'single'
+                ? 'These answers help tailor the bot to your specific needs.'
+                : 'These answers will help create a personalized assistant just for you.'}
             </p>
           </div>
         </div>

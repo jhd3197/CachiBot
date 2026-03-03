@@ -110,17 +110,20 @@ const toolIconMap: Record<string, LucideIcon> = {
   'todo_done': CircleCheck,
 }
 
-interface ToolIconRendererProps {
-  toolId: string
+export interface ToolIconRendererProps {
+  toolId?: string
+  name?: string  // Alias for icon — resolves via lucideIconMap
   icon?: string | null  // Lucide icon name from API
   className?: string
   size?: number
+  style?: React.CSSProperties
 }
 
-export function ToolIconRenderer({ toolId, icon, className, size = 20 }: ToolIconRendererProps) {
+export function ToolIconRenderer({ toolId, name, icon, className, size = 20, style }: ToolIconRendererProps) {
   // Prefer API-provided icon name, then fall back to legacy tool ID map
-  const IconComponent = (icon && lucideIconMap[icon]) || toolIconMap[toolId] || Wrench
-  return <IconComponent className={className} size={size} />
+  const resolvedIcon = icon || name
+  const IconComponent = (resolvedIcon && lucideIconMap[resolvedIcon]) || (toolId && toolIconMap[toolId]) || Wrench
+  return <IconComponent className={className} size={size} style={style} />
 }
 
 export function getToolIconComponent(toolId: string, icon?: string | null): LucideIcon {

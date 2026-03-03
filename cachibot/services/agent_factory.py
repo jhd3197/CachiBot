@@ -7,10 +7,15 @@ single pipeline for environment resolution, model overrides, tool config
 merging, context building, and dynamic instructions.
 """
 
+from __future__ import annotations
+
 import copy
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from cachibot.models.workspace import WorkspaceConfig
 
 from cachibot.agent import CachibotAgent, load_disabled_capabilities, load_dynamic_instructions
 from cachibot.config import Config
@@ -18,6 +23,34 @@ from cachibot.services.context_builder import get_context_builder
 from cachibot.services.driver_factory import build_driver_with_key
 
 logger = logging.getLogger(__name__)
+
+
+async def _resolve_public_id(model: str) -> str:
+    """If *model* matches a public_id in model_toggles, return the real model_id.
+
+    Uses a raw query against the shared model_toggles table (managed by the
+    CachiBotWebsite codebase) so we don't need a full ORM model here.
+    Returns *model* unchanged when there is no match.
+    """
+    try:
+        from sqlalchemy import text as sa_text
+
+        from cachibot.storage.db import ensure_initialized
+
+        session_maker = ensure_initialized()
+        async with session_maker() as session:
+            result = await session.execute(
+                sa_text("SELECT model_id FROM model_toggles WHERE public_id = :pid"),
+                {"pid": model},
+            )
+            row = result.first()
+            if row:
+                logger.debug("Resolved public_id %r → %r", model, row[0])
+                return str(row[0])
+    except Exception:
+        logger.debug("public_id resolution skipped for %r", model, exc_info=True)
+    return model
+
 
 # Instruction block appended to the system prompt when the codingAgent
 # capability is enabled, telling the LLM how to handle @agent mentions.
@@ -119,8 +152,12 @@ async def build_bot_agent(
     on_approval_needed: Callable[..., Any] | None = None,
     on_instruction_delta: Callable[..., Any] | None = None,
     on_model_fallback: Callable[..., Any] | None = None,
+    on_artifact: Callable[..., Any] | None = None,
     # Feature flags
     inject_coding_agent: bool = False,
+    # Workspace mode
+    workspace: str | None = None,
+    workspace_config: WorkspaceConfig | None = None,
 ) -> CachibotAgent:
     """Build a fully-configured CachibotAgent.
 
@@ -138,6 +175,10 @@ async def build_bot_agent(
     effective_model: str | None = None
     if bot_models and bot_models.get("default"):
         effective_model = bot_models["default"]
+
+    # 2b. Resolve public_id → real model_id (white-label alias support)
+    if effective_model:
+        effective_model = await _resolve_public_id(effective_model)
 
     if effective_model:
         agent_config = copy.deepcopy(config)
@@ -188,6 +229,32 @@ async def build_bot_agent(
             enhanced_prompt, capabilities, disabled_capabilities
         )
 
+    # 6b. Workspace mode injection
+    if workspace and workspace_config and workspace_config.system_prompt:
+        enhanced_prompt = (enhanced_prompt or "") + (
+            f"\n\n## Workspace Mode\n"
+            f"You are in **{workspace_config.display_name}** mode.\n"
+            f"{workspace_config.system_prompt}"
+        )
+
+    # 6c. External plugin tool hints — inject system_prompt from enabled ext_* capabilities
+    if capabilities:
+        try:
+            from cachibot.services.external_plugins import EXTERNAL_PLUGINS
+
+            for cap_key, enabled in capabilities.items():
+                if not enabled or not cap_key.startswith("ext_"):
+                    continue
+                # Skip if already in workspace mode for this plugin (avoid double-injection)
+                plugin_name = cap_key.removeprefix("ext_")
+                if workspace and workspace == plugin_name:
+                    continue
+                manifest = EXTERNAL_PLUGINS.get(plugin_name)
+                if manifest and manifest.workspace and manifest.workspace.system_prompt:
+                    enhanced_prompt = (enhanced_prompt or "") + manifest.workspace.system_prompt
+        except Exception:
+            logger.debug("External plugin prompt injection skipped", exc_info=True)
+
     # 7. Construct CachibotAgent
     agent = CachibotAgent(
         config=agent_config,
@@ -203,7 +270,9 @@ async def build_bot_agent(
         disabled_capabilities=disabled_capabilities,
         on_instruction_delta=on_instruction_delta,
         on_model_fallback=on_model_fallback,
+        on_artifact=on_artifact,
         platform_metadata=platform_metadata,
+        workspace=workspace,
     )
 
     # 8. Dynamic instructions

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.helpers import require_found
 from cachibot.models.auth import User
 from cachibot.models.skill import SkillInstallRequest, SkillResponse, SkillSource
 from cachibot.services.skills import (
@@ -57,9 +58,7 @@ async def get_skill(
     user: User = Depends(get_current_user),
 ) -> SkillResponse:
     """Get a specific skill by ID."""
-    skill = await repo.get_skill(skill_id)
-    if skill is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
+    skill = require_found(await repo.get_skill(skill_id), "Skill")
     return SkillResponse.from_skill(skill)
 
 
@@ -127,9 +126,7 @@ async def delete_skill(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete a skill by ID."""
-    skill = await repo.get_skill(skill_id)
-    if skill is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
+    skill = require_found(await repo.get_skill(skill_id), "Skill")
 
     # Delete the file if it exists
     if skill.filepath:

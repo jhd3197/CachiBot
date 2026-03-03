@@ -417,3 +417,97 @@
     color: var(--color-text-secondary);
   }
 }
+
+// =============================================================================
+// Model Pill — compact inline model selector for chat island footer
+// =============================================================================
+
+.model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: @sp-1-5;
+  border-radius: @radius-full;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  padding: @sp-0-5 @sp-2-5 @sp-0-5 @sp-2;
+  font-size: 11px;
+  font-family: @font-mono;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  .dark & {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-border-secondary);
+  }
+
+  &:hover {
+    border-color: var(--color-border-secondary);
+    color: var(--color-text-primary);
+  }
+
+  &--open {
+    border-color: var(--accent-500);
+    color: var(--color-text-primary);
+  }
+
+  &__cpu {
+    height: 0.75rem;
+    width: 0.75rem;
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+  }
+
+  &__name {
+    max-width: 12rem;
+    .truncate();
+    line-height: 1.4;
+
+    &--value {
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__chevron {
+    height: 0.625rem;
+    width: 0.625rem;
+    flex-shrink: 0;
+    color: var(--color-text-tertiary);
+    transition: transform 150ms ease;
+
+    &--open {
+      transform: rotate(180deg);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Dropdown — upward expanding popover
+  // -------------------------------------------------------------------------
+  &__dropdown {
+    position: fixed;
+    z-index: @z-modal;
+    background: var(--color-bg-dropdown);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: @radius-lg;
+    box-shadow: @shadow-xl, 0 0 0 1px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    animation: model-pill-slide-up 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+    .dark & {
+      box-shadow: @shadow-xl, 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    // Reuse model-select inner styles (search, list, groups, badges, manual, footer)
+  }
+}
+
+@keyframes model-pill-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

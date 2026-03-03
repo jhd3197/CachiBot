@@ -12,17 +12,20 @@ from sqlalchemy import delete, func, select, update
 
 from cachibot.models.auth import BotOwnership, User, UserInDB, UserRole
 from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.bot import BotOwnership as BotOwnershipModel
 from cachibot.storage.models.user import User as UserModel
 
 
-class UserRepository:
+class UserRepository(BaseRepository[UserModel, UserInDB]):
     """Repository for user operations."""
+
+    _model = UserModel
 
     async def create_user(self, user: UserInDB) -> None:
         """Create a new user."""
-        async with db.ensure_initialized()() as session:
-            obj = UserModel(
+        await self._add(
+            UserModel(
                 id=user.id,
                 email=user.email,
                 username=user.username,
@@ -37,45 +40,21 @@ class UserRepository:
                 created_by=user.created_by,
                 last_login=user.last_login,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_user_by_id(self, user_id: str) -> UserInDB | None:
         """Get a user by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(UserModel).where(UserModel.id == user_id))
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
-        return self._row_to_user(row)
+        return await self.get_by_id(user_id)
 
     async def get_user_by_email(self, email: str) -> UserInDB | None:
         """Get a user by email."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(UserModel).where(UserModel.email == email.lower())
-            )
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
-        return self._row_to_user(row)
+        return await self._fetch_one(select(UserModel).where(UserModel.email == email.lower()))
 
     async def get_user_by_username(self, username: str) -> UserInDB | None:
         """Get a user by username."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(UserModel).where(UserModel.username == username.lower())
-            )
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
-        return self._row_to_user(row)
+        return await self._fetch_one(
+            select(UserModel).where(UserModel.username == username.lower())
+        )
 
     async def get_user_by_identifier(self, identifier: str) -> UserInDB | None:
         """Get a user by email or username."""
@@ -88,7 +67,7 @@ class UserRepository:
 
     async def get_all_users(self, limit: int = 100, offset: int = 0) -> list[User]:
         """Get all users with pagination."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(UserModel).order_by(UserModel.created_at.desc()).limit(limit).offset(offset)
             )
@@ -114,9 +93,8 @@ class UserRepository:
 
     async def get_user_count(self) -> int:
         """Get total user count."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(func.count()).select_from(UserModel))
-            return result.scalar_one()
+        count = await self._scalar(select(func.count()).select_from(UserModel))
+        return int(count or 0)
 
     async def update_user(
         self,
@@ -141,31 +119,25 @@ class UserRepository:
         if not values:
             return True  # Nothing to update
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(UserModel).where(UserModel.id == user_id).values(**values)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        count = await self._update(
+            update(UserModel).where(UserModel.id == user_id).values(**values)
+        )
+        return count > 0
 
     async def update_password(self, user_id: str, password_hash: str) -> bool:
         """Update user password. Returns True if user was found and updated."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(UserModel).where(UserModel.id == user_id).values(password_hash=password_hash)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        count = await self._update(
+            update(UserModel).where(UserModel.id == user_id).values(password_hash=password_hash)
+        )
+        return count > 0
 
     async def update_last_login(self, user_id: str) -> None:
         """Update user's last login timestamp."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(UserModel)
-                .where(UserModel.id == user_id)
-                .values(last_login=datetime.now(timezone.utc))
-            )
-            await session.commit()
+        await self._update(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(last_login=datetime.now(timezone.utc))
+        )
 
     async def deactivate_user(self, user_id: str) -> bool:
         """Deactivate a user (soft delete). Returns True if user was found."""
@@ -177,9 +149,7 @@ class UserRepository:
         if exclude_user_id:
             stmt = stmt.where(UserModel.id != exclude_user_id)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none() is not None
+        return await self._scalar(stmt) is not None
 
     async def username_exists(self, username: str, exclude_user_id: str | None = None) -> bool:
         """Check if username already exists."""
@@ -187,22 +157,13 @@ class UserRepository:
         if exclude_user_id:
             stmt = stmt.where(UserModel.id != exclude_user_id)
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none() is not None
+        return await self._scalar(stmt) is not None
 
     async def get_user_by_website_id(self, website_user_id: int) -> UserInDB | None:
         """Get a user by their website INT user ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(UserModel).where(UserModel.website_user_id == website_user_id)
-            )
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
-        return self._row_to_user(row)
+        return await self._fetch_one(
+            select(UserModel).where(UserModel.website_user_id == website_user_id)
+        )
 
     async def update_website_fields(
         self,
@@ -225,14 +186,12 @@ class UserRepository:
         if not values:
             return True
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(UserModel).where(UserModel.id == user_id).values(**values)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        count = await self._update(
+            update(UserModel).where(UserModel.id == user_id).values(**values)
+        )
+        return count > 0
 
-    def _row_to_user(self, row: UserModel) -> UserInDB:
+    def _row_to_entity(self, row: UserModel) -> UserInDB:
         """Convert a database row to UserInDB object."""
         return UserInDB(
             id=row.id,

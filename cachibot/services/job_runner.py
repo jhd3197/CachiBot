@@ -378,12 +378,9 @@ class JobRunnerService:
         config = Config.load()
 
         # Apply bot model override
-        if bot.models and bot.models.get("default"):
+        if bot.default_model:
             config = copy.deepcopy(config)
-            config.agent.model = bot.models["default"]
-        elif bot.model:
-            config = copy.deepcopy(config)
-            config.agent.model = bot.model
+            config.agent.model = bot.default_model
 
         # Resolve per-bot environment (API keys, temperature, etc.)
         driver = None

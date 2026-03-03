@@ -1,0 +1,25 @@
+[plugin]
+name = "hello_world"
+display_name = "Hello World"
+description = "Minimal template plugin — one skill, no dependencies"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "sparkles"
+color = "#22c55e"
+group = "Examples"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []

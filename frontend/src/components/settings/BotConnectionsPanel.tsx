@@ -11,7 +11,7 @@ import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2
 import * as connectionsApi from '../../api/connections'
 import type { Connection, ConnectionPlatform, PlatformMeta, CustomPlatformSpec } from '../../api/connections'
 import { useBotStore, useChatStore } from '../../stores/bots'
-import { syncBot, getPlatformChatsIncludingArchived, unarchivePlatformChat, deletePlatformChat, type PlatformChat } from '../../api/client'
+import { syncBot, unarchivePlatformChat, deletePlatformChat, type PlatformChat } from '../../api/client'
 
 interface BotConnectionsPanelProps {
   botId: string
@@ -27,7 +27,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
   // Archived chats state
   const [showArchived, setShowArchived] = useState(false)
   const [archivedChats, setArchivedChats] = useState<PlatformChat[]>([])
-  const [loadingArchived, setLoadingArchived] = useState(false)
+  const [loadingArchived] = useState(false)
   const [archiveActionLoading, setArchiveActionLoading] = useState<string | null>(null)
 
   // Custom platform spec
@@ -266,18 +266,23 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     return platforms[platform]?.display_name || platform
   }
 
-  // Load archived chats when section is expanded
-  const loadArchivedChats = async () => {
-    setLoadingArchived(true)
-    try {
-      const allChats = await getPlatformChatsIncludingArchived(botId)
-      const archived = allChats.filter((c) => c.archived && c.platform)
-      setArchivedChats(archived)
-    } catch (e) {
-      console.error('Failed to load archived chats:', e)
-    } finally {
-      setLoadingArchived(false)
-    }
+  // Load archived chats from local state
+  const loadArchivedChats = () => {
+    const allChats = useChatStore.getState().getChatsByBot(botId)
+    const archived = allChats
+      .filter((c) => c.archived && c.platform)
+      .map((c): PlatformChat => ({
+        id: c.id,
+        botId: c.botId,
+        title: c.title,
+        platform: c.platform || null,
+        platformChatId: c.platformChatId || null,
+        pinned: c.pinned || false,
+        archived: true,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }))
+    setArchivedChats(archived)
   }
 
   const handleToggleArchived = () => {
@@ -293,7 +298,6 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
     try {
       await unarchivePlatformChat(botId, chatId)
       setArchivedChats((prev) => prev.filter((c) => c.id !== chatId))
-      useChatStore.getState().syncPlatformChats(botId)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to unarchive chat')
     } finally {
