@@ -18,8 +18,6 @@ View plugins embed a custom UI as an iframe in CachiBot's sidebar. Unlike tool p
     plugin.toml
     static/
         index.html      <-- Required: the view's entry point
-        style.css       <-- Optional: additional assets
-        app.js          <-- Optional: additional assets
 ```
 
 The `static/index.html` file is served by CachiBot at `/api/plugins/<name>/view`.
@@ -108,7 +106,7 @@ allow_paths = []
 A view plugin can also provide tool skills. Set `type = "view"` in the manifest and implement the `skills` property as usual. The plugin will appear both as a navigable view and as a tool provider.
 
 ```python
-from tukuy.skills import Skill, skill
+from tukuy.skill import Skill, skill
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
 
@@ -143,13 +141,6 @@ window.parent.postMessage({
 }, '*');
 ```
 
-## Static Asset Serving
+## Static Assets
 
-All files in the `static/` directory are served relative to the view's endpoint. Reference them with relative paths in your HTML:
-
-```html
-<link rel="stylesheet" href="style.css" />
-<script src="app.js"></script>
-```
-
-Note: Only `index.html` is served through the API endpoint in the current implementation. For additional static assets, inline them in `index.html` or use CDN links.
+Only `static/index.html` is served through the API endpoint. Additional CSS, JS, or images should be inlined in `index.html` or loaded from a CDN.

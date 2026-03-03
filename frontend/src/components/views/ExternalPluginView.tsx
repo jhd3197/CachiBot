@@ -44,7 +44,7 @@ export function ExternalPluginView({ pluginName }: ExternalPluginViewProps) {
           // Send current theme to iframe
           iframeRef.current.contentWindow?.postMessage(
             { type: 'theme', payload: { theme } },
-            '*'
+            window.location.origin
           )
           break
       }
@@ -61,7 +61,7 @@ export function ExternalPluginView({ pluginName }: ExternalPluginViewProps) {
   useEffect(() => {
     iframeRef.current?.contentWindow?.postMessage(
       { type: 'theme', payload: { theme } },
-      '*'
+      window.location.origin
     )
   }, [theme])
 
