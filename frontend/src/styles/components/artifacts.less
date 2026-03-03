@@ -1,0 +1,585 @@
+// =============================================================================
+// Artifacts — components/artifacts.less
+// Artifact panel, cards, renderers, and split-pane layout
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Split-pane Wrapper
+// -----------------------------------------------------------------------------
+
+.chat-view-wrapper {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+
+  &--split {
+    // chat-view already has flex:1 / min-width:0 in chat.less;
+    // this modifier is kept as a layout hook for future use.
+  }
+}
+
+.chat-view--with-panel {
+  // Constrain chat to left half when panel is open
+}
+
+.artifact-divider {
+  width: 4px;
+  margin: 0 -1.5px;
+  background: transparent;
+  border-left: 1px solid var(--color-border-primary);
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+  transition: border-color 0.15s;
+
+  &:hover,
+  &:active {
+    border-left-color: var(--accent-500);
+    border-left-width: 2px;
+    margin-left: -2px;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Artifact Panel — Side panel rendering artifacts
+// -----------------------------------------------------------------------------
+
+.artifact-panel {
+  .flex-col();
+  min-width: 280px;
+  height: 100%;
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+
+  &__header {
+    padding: @sp-3 @sp-4;
+    border-bottom: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+  }
+
+  &__title-row {
+    .flex-between();
+    margin-bottom: @sp-1;
+  }
+
+  &__title-group {
+    display: flex;
+    align-items: center;
+    gap: @sp-2;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    .truncate();
+  }
+
+  &__close {
+    .flex-center();
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: @radius-md;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__meta-row {
+    display: flex;
+    align-items: center;
+    gap: @sp-1-5;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 @sp-2;
+    height: 1.25rem;
+    font-size: 0.6875rem;
+    font-weight: @font-medium;
+    border-radius: @radius-full;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+
+    &--lang {
+      font-family: @font-mono;
+    }
+
+    &--version {
+      background: rgba(var(--accent-500-rgb), 0.15);
+      color: var(--accent-600);
+    }
+  }
+
+  &__tabs {
+    display: flex;
+    gap: @sp-0-5;
+    padding: @sp-1-5 @sp-4;
+    border-bottom: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    padding: @sp-1 @sp-2-5;
+    font-size: @text-xs;
+    font-weight: @font-medium;
+    color: var(--color-text-secondary);
+    border-radius: @radius-md;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      background: var(--accent-500);
+      color: white;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    overflow: auto;
+    .scrollbar-thin();
+  }
+
+  &__toolbar {
+    display: flex;
+    gap: @sp-1;
+    padding: @sp-2 @sp-4;
+    border-top: 1px solid var(--color-border-primary);
+    background: var(--color-bg-secondary);
+  }
+
+  &__tool-btn {
+    display: flex;
+    align-items: center;
+    gap: @sp-1;
+    padding: @sp-1 @sp-2;
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: @radius-md;
+    background: transparent;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Artifact Card — Inline preview in message bubbles
+// -----------------------------------------------------------------------------
+
+.artifact-card {
+  display: flex;
+  align-items: center;
+  gap: @sp-2-5;
+  width: 100%;
+  padding: @sp-2-5 @sp-3;
+  margin-top: @sp-2;
+  border: 1px solid var(--color-border-primary);
+  border-radius: @radius-lg;
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: var(--accent-400);
+    background: var(--color-bg-hover);
+  }
+
+  &__icon {
+    .flex-center();
+    height: 2rem;
+    width: 2rem;
+    border-radius: @radius-md;
+    background: rgba(var(--accent-500-rgb), 0.12);
+    color: var(--accent-600);
+    flex-shrink: 0;
+  }
+
+  &__info {
+    .flex-col();
+    min-width: 0;
+    flex: 1;
+    gap: @sp-0-5;
+  }
+
+  &__title {
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: var(--color-text-primary);
+    .truncate();
+    text-align: left;
+  }
+
+  &__meta {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+    text-align: left;
+  }
+
+  &__open {
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+  }
+}
+
+.chat-message__artifacts {
+  display: flex;
+  flex-direction: column;
+  gap: @sp-1-5;
+  margin-top: @sp-1;
+}
+
+// -----------------------------------------------------------------------------
+// Code Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-code {
+  height: 100%;
+  .flex-col();
+
+  &__header {
+    .flex-between();
+    padding: @sp-2 @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__lang {
+    font-size: @text-xs;
+    font-family: @font-mono;
+    color: var(--color-text-secondary);
+    font-weight: @font-medium;
+  }
+
+  &__actions {
+    display: flex;
+    gap: @sp-1;
+  }
+
+  &__action-btn {
+    .flex-center();
+    height: 1.5rem;
+    width: 1.5rem;
+    border-radius: @radius-sm;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__content {
+    flex: 1;
+    overflow: auto;
+    .scrollbar-thin();
+  }
+
+  &__pre {
+    margin: 0;
+    padding: @sp-4;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  &__editor {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    padding: @sp-4;
+    font-family: @font-mono;
+    font-size: @text-xs;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    .scrollbar-thin();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// HTML Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-html {
+  .flex-col();
+  height: 100%;
+
+  &__toolbar {
+    display: flex;
+    gap: @sp-1;
+    padding: @sp-1-5 @sp-3;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  &__iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: white;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Markdown Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-markdown {
+  padding: @sp-6 @sp-6;
+  overflow: auto;
+  .scrollbar-thin();
+}
+
+// -----------------------------------------------------------------------------
+// SVG Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-svg {
+  .flex-center();
+  padding: @sp-6;
+  overflow: auto;
+  .scrollbar-thin();
+
+  &__content {
+    max-width: 100%;
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Mermaid Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-mermaid {
+  .flex-center();
+  padding: @sp-6;
+  overflow: auto;
+  .scrollbar-thin();
+
+  &__loading {
+    font-size: @text-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__error {
+    padding: @sp-4;
+    font-size: @text-sm;
+    color: var(--color-error);
+
+    pre {
+      margin-top: @sp-2;
+      font-family: @font-mono;
+      font-size: @text-xs;
+      white-space: pre-wrap;
+    }
+  }
+
+  &__content {
+    max-width: 100%;
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Image Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-image {
+  .flex-col();
+  height: 100%;
+
+  &__actions {
+    display: flex;
+    gap: @sp-1;
+    padding: @sp-1-5 @sp-3;
+    justify-content: flex-end;
+  }
+
+  &__content {
+    flex: 1;
+    .flex-center();
+    overflow: auto;
+    padding: @sp-4;
+    .scrollbar-thin();
+  }
+
+  &__img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: @radius-md;
+  }
+
+  &__fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    .flex-center();
+    background: rgba(0, 0, 0, 0.9);
+    cursor: pointer;
+  }
+
+  &__fullscreen-close {
+    position: absolute;
+    top: @sp-4;
+    right: @sp-4;
+    .flex-center();
+    height: 2.5rem;
+    width: 2.5rem;
+    border-radius: @radius-full;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+
+  &__fullscreen-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    cursor: default;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Document Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-document {
+  .flex-col();
+  height: 100%;
+
+  &--pdf {
+    height: 100%;
+  }
+
+  &__iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: white;
+    min-height: 400px;
+  }
+
+  &__bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: @sp-2 @sp-3;
+    border-top: 1px solid var(--color-border-primary);
+  }
+
+  &--card {
+    .flex-center();
+    flex-direction: column;
+    gap: @sp-4;
+    padding: @sp-8 @sp-6;
+    height: 100%;
+  }
+
+  &__card-icon {
+    .flex-center();
+    height: 4rem;
+    width: 4rem;
+    border-radius: @radius-lg;
+    background: rgba(var(--accent-500-rgb), 0.12);
+    color: var(--accent-600);
+  }
+
+  &__card-info {
+    .flex-col();
+    align-items: center;
+    gap: @sp-1;
+  }
+
+  &__card-name {
+    font-size: @text-sm;
+    font-weight: @font-semibold;
+    color: var(--color-text-primary);
+    text-align: center;
+    word-break: break-word;
+  }
+
+  &__card-meta {
+    font-size: @text-xs;
+    color: var(--color-text-secondary);
+  }
+
+  &__download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: @sp-1-5;
+    padding: @sp-2 @sp-4;
+    font-size: @text-sm;
+    font-weight: @font-medium;
+    color: white;
+    background: var(--accent-500);
+    border: none;
+    border-radius: @radius-md;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--accent-600);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Custom Renderer
+// -----------------------------------------------------------------------------
+
+.artifact-custom {
+  .flex-col();
+  height: 100%;
+
+  &__iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: white;
+  }
+}

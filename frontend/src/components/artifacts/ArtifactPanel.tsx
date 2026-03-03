@@ -1,0 +1,264 @@
+/**
+ * Artifact side panel — renders artifacts alongside the chat.
+ *
+ * Displays a header with title, type badge, version, and close button,
+ * plus a content area that dispatches to type-specific renderers.
+ */
+
+import { useState, useCallback } from 'react'
+import {
+  X,
+  Copy,
+  Download,
+  Code,
+  Globe,
+  FileText,
+  Image,
+  GitBranch,
+  Component,
+  Puzzle,
+  Eye,
+  CheckCircle,
+} from 'lucide-react'
+import { cn, copyToClipboard } from '../../lib/utils'
+import { CodeRenderer } from './renderers/CodeRenderer'
+import { HtmlRenderer } from './renderers/HtmlRenderer'
+import { MarkdownArtifactRenderer } from './renderers/MarkdownRenderer'
+import { SvgRenderer } from './renderers/SvgRenderer'
+import { MermaidRenderer } from './renderers/MermaidRenderer'
+import { ImageRenderer } from './renderers/ImageRenderer'
+import { CustomRenderer } from './renderers/CustomRenderer'
+import { DocumentRenderer } from './renderers/DocumentRenderer'
+import type { Artifact, ArtifactType } from '../../types'
+
+interface ArtifactPanelProps {
+  artifact: Artifact
+  onClose: () => void
+  style?: React.CSSProperties
+}
+
+const TYPE_ICONS: Record<ArtifactType, typeof Code> = {
+  code: Code,
+  html: Globe,
+  markdown: FileText,
+  svg: Image,
+  mermaid: GitBranch,
+  react: Component,
+  image: Image,
+  custom: Puzzle,
+  document: FileText,
+}
+
+const TYPE_LABELS: Record<ArtifactType, string> = {
+  code: 'Code',
+  html: 'HTML Preview',
+  markdown: 'Document',
+  svg: 'SVG',
+  mermaid: 'Diagram',
+  react: 'React Component',
+  image: 'Image',
+  custom: 'Custom',
+  document: 'Document',
+}
+
+/** Plugins whose html artifacts should be labelled "Document" instead of "HTML Preview" */
+const DOCUMENT_PLUGINS = new Set(['pdf_document', 'resume_builder', 'doc_writer'])
+
+export function ArtifactPanel({ artifact, onClose, style }: ArtifactPanelProps) {
+  const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<'content' | 'preview'>('content')
+
+  const isDocumentHtml = artifact.type === 'html' && artifact.plugin && DOCUMENT_PLUGINS.has(artifact.plugin)
+  const Icon = isDocumentHtml ? FileText : (TYPE_ICONS[artifact.type] || Puzzle)
+
+  const handleCopy = useCallback(() => {
+    copyToClipboard(artifact.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [artifact.content])
+
+  const handleDownload = useCallback(() => {
+    // For document artifacts, use the download URL directly
+    if (artifact.type === 'document' && artifact.metadata?.downloadUrl) {
+      const link = document.createElement('a')
+      link.href = artifact.metadata.downloadUrl as string
+      link.download = (artifact.metadata.fileName as string) ?? artifact.title
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+
+    const ext = getFileExtension(artifact)
+    const blob = new Blob([artifact.content], { type: getMimeType(artifact) })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${artifact.title.replace(/[^a-zA-Z0-9_-]/g, '_')}${ext}`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [artifact])
+
+  // For code artifacts, show Code/Preview tabs when language is html
+  const showTabs = artifact.type === 'code' && artifact.language === 'html'
+
+  return (
+    <div className="artifact-panel" style={style}>
+      {/* Header */}
+      <div className="artifact-panel__header">
+        <div className="artifact-panel__title-row">
+          <div className="artifact-panel__title-group">
+            <Icon className="h-4 w-4 text-[var(--color-text-secondary)]" />
+            <h3 className="artifact-panel__title">{artifact.title}</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="artifact-panel__close"
+            title="Close panel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="artifact-panel__meta-row">
+          <span className="artifact-panel__badge">
+            {artifact.type === 'html' && artifact.plugin && DOCUMENT_PLUGINS.has(artifact.plugin)
+              ? 'Document'
+              : TYPE_LABELS[artifact.type] || artifact.type}
+          </span>
+          {artifact.language && (
+            <span className="artifact-panel__badge artifact-panel__badge--lang">
+              {artifact.language}
+            </span>
+          )}
+          {artifact.version > 1 && (
+            <span className="artifact-panel__badge artifact-panel__badge--version">
+              v{artifact.version}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar (for code/preview toggle) */}
+      {showTabs && (
+        <div className="artifact-panel__tabs">
+          <button
+            onClick={() => setActiveTab('content')}
+            className={cn(
+              'artifact-panel__tab',
+              activeTab === 'content' && 'artifact-panel__tab--active'
+            )}
+          >
+            <Code className="h-3.5 w-3.5" />
+            Code
+          </button>
+          <button
+            onClick={() => setActiveTab('preview')}
+            className={cn(
+              'artifact-panel__tab',
+              activeTab === 'preview' && 'artifact-panel__tab--active'
+            )}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </button>
+        </div>
+      )}
+
+      {/* Content area */}
+      <div className="artifact-panel__content">
+        {showTabs && activeTab === 'preview' ? (
+          <HtmlRenderer artifact={artifact} />
+        ) : (
+          <ArtifactContent artifact={artifact} />
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className="artifact-panel__toolbar">
+        <button onClick={handleCopy} className="artifact-panel__tool-btn">
+          {copied ? (
+            <><CheckCircle className="h-3.5 w-3.5 text-green-400" /> Copied</>
+          ) : (
+            <><Copy className="h-3.5 w-3.5" /> Copy</>
+          )}
+        </button>
+        <button onClick={handleDownload} className="artifact-panel__tool-btn">
+          <Download className="h-3.5 w-3.5" /> Download
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Dispatch to the correct renderer based on artifact type */
+function ArtifactContent({ artifact }: { artifact: Artifact }) {
+  switch (artifact.type) {
+    case 'code':
+      return <CodeRenderer artifact={artifact} />
+    case 'html':
+      return <HtmlRenderer artifact={artifact} />
+    case 'markdown':
+      return <MarkdownArtifactRenderer artifact={artifact} />
+    case 'svg':
+      return <SvgRenderer artifact={artifact} />
+    case 'mermaid':
+      return <MermaidRenderer artifact={artifact} />
+    case 'image':
+      return <ImageRenderer artifact={artifact} />
+    case 'react':
+      // React artifacts use the HTML renderer with a JSX wrapper
+      return <CodeRenderer artifact={artifact} />
+    case 'custom':
+      return <CustomRenderer artifact={artifact} />
+    case 'document':
+      return <DocumentRenderer artifact={artifact} />
+    default:
+      return (
+        <pre className="artifact-code__pre">
+          <code>{artifact.content}</code>
+        </pre>
+      )
+  }
+}
+
+function getFileExtension(artifact: Artifact): string {
+  switch (artifact.type) {
+    case 'code':
+      return artifact.language ? `.${artifact.language}` : '.txt'
+    case 'html':
+      return '.html'
+    case 'markdown':
+      return '.md'
+    case 'svg':
+      return '.svg'
+    case 'mermaid':
+      return '.mmd'
+    case 'image':
+      return '.png'
+    case 'document': {
+      const docType = artifact.metadata?.documentType as string | undefined
+      if (docType) return `.${docType}`
+      return '.pdf'
+    }
+    default:
+      return '.txt'
+  }
+}
+
+function getMimeType(artifact: Artifact): string {
+  switch (artifact.type) {
+    case 'html':
+      return 'text/html'
+    case 'markdown':
+      return 'text/markdown'
+    case 'svg':
+      return 'image/svg+xml'
+    case 'image':
+      return 'image/png'
+    default:
+      return 'text/plain'
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Copy,
   RotateCcw,
@@ -19,8 +19,10 @@ import {
 import { ReactionBar as ReactionBarLazy } from '../rooms/ReactionBar'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
+import { useArtifactsStore } from '../../stores/artifacts'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { ArtifactCard } from '../artifacts/ArtifactCard'
 import { cn, copyToClipboard, darkenColor } from '../../lib/utils'
 import type { ChatMessage, ToolCall, BotIcon, BotModels } from '../../types'
 
@@ -292,6 +294,27 @@ function MessageToolCallItem({ call }: { call: ToolCall }) {
 }
 
 // =============================================================================
+// MESSAGE ARTIFACT CARDS
+// =============================================================================
+
+function MessageArtifactCards({ messageId }: { messageId: string }) {
+  const allArtifacts = useArtifactsStore((s) => s.artifacts)
+  const artifacts = useMemo(
+    () => Object.values(allArtifacts).filter((a) => a.messageId === messageId),
+    [allArtifacts, messageId]
+  )
+  if (artifacts.length === 0) return null
+
+  return (
+    <div className="chat-message__artifacts">
+      {artifacts.map((artifact) => (
+        <ArtifactCard key={artifact.id} artifact={artifact} />
+      ))}
+    </div>
+  )
+}
+
+// =============================================================================
 // MESSAGE BUBBLE — SHARED COMPONENT
 // =============================================================================
 
@@ -479,6 +502,9 @@ export function MessageBubble({
         {!isUser && message.toolCalls && message.toolCalls.length > 0 && (
           <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls)} />
         )}
+
+        {/* Artifact cards — rendered inline when a message has associated artifacts */}
+        {!isUser && <MessageArtifactCards messageId={message.id} />}
 
         {/* Tool calls collapsible section */}
         {!isUser && showToolCalls && message.toolCalls && message.toolCalls.length > 0 && (

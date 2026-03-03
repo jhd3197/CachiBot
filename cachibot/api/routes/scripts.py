@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
-from cachibot.api.helpers import require_bot_ownership
+from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.automations import (
     AuthorType,
@@ -254,9 +254,7 @@ async def get_script(
     user: User = Depends(require_bot_access),
 ) -> ScriptResponse:
     """Get a script by ID."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
     return ScriptResponse.from_script(script)
 
@@ -271,9 +269,7 @@ async def update_script(
     """Update a script. If source code changed, creates a new version."""
     from cachibot.models.automations import TimelineEvent
 
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
     # Update fields
@@ -348,9 +344,7 @@ async def delete_script(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> None:
     """Delete a script and all its versions."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
     await script_repo.delete(script_id)
 
@@ -364,9 +358,7 @@ async def run_script(
     """Run a script manually by creating a Work item."""
     from cachibot.models.work import Priority, Work, WorkStatus
 
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
     if script.status != ScriptStatus.ACTIVE:
         raise HTTPException(status_code=422, detail="Script must be active to run")
@@ -421,9 +413,7 @@ async def activate_script(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptResponse:
     """Set a script's status to active."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
     await script_repo.update_status(script_id, ScriptStatus.ACTIVE)
@@ -438,9 +428,7 @@ async def disable_script(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptResponse:
     """Set a script's status to disabled."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
     await script_repo.update_status(script_id, ScriptStatus.DISABLED)
@@ -460,9 +448,7 @@ async def list_versions(
     user: User = Depends(require_bot_access),
 ) -> list[ScriptVersionResponse]:
     """List all versions of a script."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
     versions = await version_repo.get_by_script(script_id)
@@ -477,14 +463,10 @@ async def get_version(
     user: User = Depends(require_bot_access),
 ) -> ScriptVersionResponse:
     """Get a specific version of a script."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
-    version = await version_repo.get_version(script_id, version_number)
-    if not version:
-        raise HTTPException(status_code=404, detail="Version not found")
+    version = require_found(await version_repo.get_version(script_id, version_number), "Version")
     return ScriptVersionResponse.from_version(version)
 
 
@@ -496,14 +478,10 @@ async def approve_version(
     user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
 ) -> ScriptVersionResponse:
     """Approve a bot-created script version."""
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
-    version = await version_repo.get_version(script_id, version_number)
-    if not version:
-        raise HTTPException(status_code=404, detail="Version not found")
+    version = require_found(await version_repo.get_version(script_id, version_number), "Version")
     if version.approved:
         raise HTTPException(status_code=422, detail="Version already approved")
 
@@ -532,14 +510,12 @@ async def rollback_to_version(
     """Rollback a script to a previous version."""
     from cachibot.models.automations import TimelineEvent
 
-    script = await script_repo.get(script_id)
-    if script is None:
-        raise HTTPException(status_code=404, detail="Script not found")
+    script = require_found(await script_repo.get(script_id), "Script")
     require_bot_ownership(script, bot_id, "Script")
 
-    target_version = await version_repo.get_version(script_id, version_number)
-    if not target_version:
-        raise HTTPException(status_code=404, detail="Version not found")
+    target_version = require_found(
+        await version_repo.get_version(script_id, version_number), "Version"
+    )
 
     now = datetime.now(timezone.utc)
     new_version_num = script.current_version + 1

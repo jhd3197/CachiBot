@@ -3,17 +3,19 @@
 from sqlalchemy import select
 
 from cachibot.models.room_task import RoomTaskEvent, RoomTaskEventAction
-from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.room_task_event import RoomTaskEvent as RoomTaskEventModel
 
 
-class RoomTaskEventRepository:
+class RoomTaskEventRepository(BaseRepository[RoomTaskEventModel, RoomTaskEvent]):
     """Repository for room task event CRUD operations."""
+
+    _model = RoomTaskEventModel
 
     async def create(self, event: RoomTaskEvent) -> None:
         """Create a single event."""
-        async with db.ensure_initialized()() as session:
-            obj = RoomTaskEventModel(
+        await self._add(
+            RoomTaskEventModel(
                 id=event.id,
                 task_id=event.task_id,
                 room_id=event.room_id,
@@ -27,14 +29,13 @@ class RoomTaskEventRepository:
                 actor_bot_id=event.actor_bot_id,
                 created_at=event.created_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def create_many(self, events: list[RoomTaskEvent]) -> None:
         """Create multiple events in a single transaction."""
         if not events:
             return
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             for event in events:
                 session.add(
                     RoomTaskEventModel(
@@ -58,17 +59,13 @@ class RoomTaskEventRepository:
         self, task_id: str, limit: int = 50, offset: int = 0
     ) -> list[RoomTaskEvent]:
         """Get events for a task, most recent first."""
-        stmt = (
+        return await self._fetch_all(
             select(RoomTaskEventModel)
             .where(RoomTaskEventModel.task_id == task_id)
             .order_by(RoomTaskEventModel.created_at.desc())
             .limit(limit)
             .offset(offset)
         )
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-        return [self._row_to_entity(row) for row in rows]
 
     def _row_to_entity(self, row: RoomTaskEventModel) -> RoomTaskEvent:
         """Convert a database row to a RoomTaskEvent entity."""

@@ -30,7 +30,7 @@ from cachibot.models.knowledge import (
 from cachibot.models.platform_tools import PlatformToolConfig as PlatformToolConfigSchema
 from cachibot.models.platform_tools import PlatformToolConfigUpdate
 from cachibot.models.skill import BotSkillActivation, SkillDefinition, SkillSource
-from cachibot.storage import db
+from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.bot import Bot as BotModel
 from cachibot.storage.models.chat import Chat as ChatModel
 from cachibot.storage.models.connection import BotConnection as BotConnectionModel
@@ -62,33 +62,12 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-class MessageRepository:
+class MessageRepository(BaseRepository[MessageModel, ChatMessage]):
     """Repository for chat messages."""
 
-    async def save_message(self, message: ChatMessage) -> None:
-        """Save a message to the database."""
-        async with db.ensure_initialized()() as session:
-            obj = MessageModel(
-                id=message.id,
-                role=message.role.value,
-                content=message.content,
-                timestamp=message.timestamp,
-                meta=message.metadata,
-            )
-            session.add(obj)
-            await session.commit()
+    _model = MessageModel
 
-    async def get_message(self, message_id: str) -> ChatMessage | None:
-        """Get a message by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(MessageModel).where(MessageModel.id == message_id)
-            )
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
+    def _row_to_entity(self, row: MessageModel) -> ChatMessage:
         return ChatMessage(
             id=row.id,
             role=MessageRole(row.role),
@@ -97,46 +76,45 @@ class MessageRepository:
             metadata=row.meta,
         )
 
+    async def save_message(self, message: ChatMessage) -> None:
+        """Save a message to the database."""
+        await self._add(
+            MessageModel(
+                id=message.id,
+                role=message.role.value,
+                content=message.content,
+                timestamp=message.timestamp,
+                meta=message.metadata,
+            )
+        )
+
+    async def get_message(self, message_id: str) -> ChatMessage | None:
+        """Get a message by ID."""
+        return await self.get_by_id(message_id)
+
     async def get_messages(
         self,
         limit: int = 50,
         offset: int = 0,
     ) -> list[ChatMessage]:
         """Get messages with pagination."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(MessageModel)
-                .order_by(MessageModel.timestamp.desc())
-                .limit(limit)
-                .offset(offset)
-            )
-            rows = result.scalars().all()
-
-        return [
-            ChatMessage(
-                id=row.id,
-                role=MessageRole(row.role),
-                content=row.content,
-                timestamp=row.timestamp,
-                metadata=row.meta,
-            )
-            for row in reversed(rows)  # Return in chronological order
-        ]
+        stmt = (
+            select(MessageModel).order_by(MessageModel.timestamp.desc()).limit(limit).offset(offset)
+        )
+        messages = await self._fetch_all(stmt)
+        return list(reversed(messages))  # Return in chronological order
 
     async def get_message_count(self) -> int:
         """Get total message count."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(func.count()).select_from(MessageModel))
-            return result.scalar_one()
+        count = await self._scalar(select(func.count()).select_from(MessageModel))
+        return int(count or 0)
 
     async def clear_messages(self) -> None:
         """Delete all messages."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(delete(MessageModel))
-            await session.commit()
+        await self._delete(delete(MessageModel))
 
 
-class JobRepository:
+class JobRepository(BaseRepository[JobModel, Job]):
     """Repository for jobs/tasks.
 
     .. deprecated::
@@ -145,69 +123,9 @@ class JobRepository:
         ``cachibot.storage.automations_repository`` instead.
     """
 
-    async def save_job(self, job: Job) -> None:
-        """Save a job to the database."""
-        async with db.ensure_initialized()() as session:
-            obj = JobModel(
-                id=job.id,
-                status=job.status.value,
-                message_id=job.message_id,
-                created_at=job.created_at,
-                started_at=job.started_at,
-                completed_at=job.completed_at,
-                result=job.result,
-                error=job.error,
-                progress=job.progress,
-            )
-            session.add(obj)
-            await session.commit()
+    _model = JobModel
 
-    async def update_job(self, job: Job) -> None:
-        """Update an existing job."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(JobModel)
-                .where(JobModel.id == job.id)
-                .values(
-                    status=job.status.value,
-                    started_at=job.started_at,
-                    completed_at=job.completed_at,
-                    result=job.result,
-                    error=job.error,
-                    progress=job.progress,
-                )
-            )
-            await session.commit()
-
-    async def get_job(self, job_id: str) -> Job | None:
-        """Get a job by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(JobModel).where(JobModel.id == job_id))
-            row = result.scalar_one_or_none()
-
-        if row is None:
-            return None
-
-        return self._row_to_job(row)
-
-    async def get_jobs(
-        self,
-        status: JobStatus | None = None,
-        limit: int = 50,
-    ) -> list[Job]:
-        """Get jobs with optional status filter."""
-        stmt = select(JobModel)
-        if status:
-            stmt = stmt.where(JobModel.status == status.value)
-        stmt = stmt.order_by(JobModel.created_at.desc()).limit(limit)
-
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-
-        return [self._row_to_job(row) for row in rows]
-
-    def _row_to_job(self, row: JobModel) -> Job:
+    def _row_to_entity(self, row: JobModel) -> Job:
         """Convert a database row to a Job object."""
         return Job(
             id=row.id,
@@ -221,15 +139,72 @@ class JobRepository:
             progress=row.progress,
         )
 
+    async def save_job(self, job: Job) -> None:
+        """Save a job to the database."""
+        await self._add(
+            JobModel(
+                id=job.id,
+                status=job.status.value,
+                message_id=job.message_id,
+                created_at=job.created_at,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+                result=job.result,
+                error=job.error,
+                progress=job.progress,
+            )
+        )
 
-class KnowledgeRepository:
-    """Repository for knowledge base data (messages, instructions, documents, chunks)."""
+    async def update_job(self, job: Job) -> None:
+        """Update an existing job."""
+        await self._update(
+            update(JobModel)
+            .where(JobModel.id == job.id)
+            .values(
+                status=job.status.value,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+                result=job.result,
+                error=job.error,
+                progress=job.progress,
+            )
+        )
+
+    async def get_job(self, job_id: str) -> Job | None:
+        """Get a job by ID."""
+        return await self.get_by_id(job_id)
+
+    async def get_jobs(
+        self,
+        status: JobStatus | None = None,
+        limit: int = 50,
+    ) -> list[Job]:
+        """Get jobs with optional status filter."""
+        stmt = select(JobModel)
+        if status:
+            stmt = stmt.where(JobModel.status == status.value)
+        stmt = stmt.order_by(JobModel.created_at.desc()).limit(limit)
+        return await self._fetch_all(stmt)
+
+
+class KnowledgeRepository(BaseRepository[BotMessageModel, BotMessage]):
+    """Repository for knowledge base data (messages, instructions, documents, chunks).
+
+    Manages multiple ORM models; uses ``_session()`` for raw session access
+    rather than the single-model generic helpers.
+    """
+
+    # Not setting _model — this repo manages multiple models.
+
+    def _row_to_entity(self, row: BotMessageModel) -> BotMessage:
+        # Not used by generic helpers for this multi-model repo.
+        raise NotImplementedError
 
     # ===== BOT MESSAGES =====
 
     async def save_bot_message(self, message: BotMessage) -> None:
         """Save a message to bot's conversation history."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             obj = BotMessageModel(
                 id=message.id,
                 bot_id=message.bot_id,
@@ -250,7 +225,7 @@ class KnowledgeRepository:
         limit: int = 50,
     ) -> list[BotMessage]:
         """Get messages for a specific bot and chat."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotMessageModel)
                 .where(
@@ -282,7 +257,7 @@ class KnowledgeRepository:
         limit: int = 20,
     ) -> list[BotMessage]:
         """Get recent messages across all chats for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotMessageModel)
                 .where(BotMessageModel.bot_id == bot_id)
@@ -307,40 +282,31 @@ class KnowledgeRepository:
 
     async def delete_all_messages_for_bot(self, bot_id: str) -> int:
         """Delete all messages for a bot. Returns number of messages deleted."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotMessageModel).where(BotMessageModel.bot_id == bot_id)
-            )
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+        return await self._delete(delete(BotMessageModel).where(BotMessageModel.bot_id == bot_id))
 
     async def delete_messages_for_chat(self, bot_id: str, chat_id: str) -> int:
         """Delete all messages for a specific chat. Returns number deleted."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotMessageModel).where(
-                    BotMessageModel.bot_id == bot_id,
-                    BotMessageModel.chat_id == chat_id,
-                )
+        return await self._delete(
+            delete(BotMessageModel).where(
+                BotMessageModel.bot_id == bot_id,
+                BotMessageModel.chat_id == chat_id,
             )
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+        )
 
     async def get_message_count_for_bot(self, bot_id: str) -> int:
         """Get the count of messages for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(func.count())
-                .select_from(BotMessageModel)
-                .where(BotMessageModel.bot_id == bot_id)
-            )
-            return result.scalar_one()
+        count = await self._scalar(
+            select(func.count())
+            .select_from(BotMessageModel)
+            .where(BotMessageModel.bot_id == bot_id)
+        )
+        return int(count or 0)
 
     # ===== BOT INSTRUCTIONS =====
 
     async def get_instructions(self, bot_id: str) -> BotInstruction | None:
         """Get custom instructions for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
             )
@@ -363,7 +329,7 @@ class KnowledgeRepository:
         # Try to get existing
         existing = await self.get_instructions(bot_id)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             if existing:
                 await session.execute(
                     update(BotInstructionModel)
@@ -392,18 +358,16 @@ class KnowledgeRepository:
 
     async def delete_instructions(self, bot_id: str) -> bool:
         """Delete instructions for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        count = await self._delete(
+            delete(BotInstructionModel).where(BotInstructionModel.bot_id == bot_id)
+        )
+        return count > 0
 
     # ===== DOCUMENTS =====
 
     async def save_document(self, doc: Document) -> None:
         """Save document metadata."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             obj = BotDocumentModel(
                 id=doc.id,
                 bot_id=doc.bot_id,
@@ -421,7 +385,7 @@ class KnowledgeRepository:
 
     async def get_document(self, document_id: str) -> Document | None:
         """Get a document by ID."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotDocumentModel).where(BotDocumentModel.id == document_id)
             )
@@ -434,7 +398,7 @@ class KnowledgeRepository:
 
     async def get_documents_by_bot(self, bot_id: str) -> list[Document]:
         """Get all documents for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotDocumentModel)
                 .where(BotDocumentModel.bot_id == bot_id)
@@ -446,7 +410,7 @@ class KnowledgeRepository:
 
     async def document_exists_by_hash(self, bot_id: str, file_hash: str) -> bool:
         """Check if a document with this hash already exists for the bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotDocumentModel.id).where(
                     BotDocumentModel.bot_id == bot_id,
@@ -467,11 +431,9 @@ class KnowledgeRepository:
         if chunk_count is not None:
             values["chunk_count"] = chunk_count
 
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotDocumentModel).where(BotDocumentModel.id == document_id).values(**values)
-            )
-            await session.commit()
+        await self._update(
+            update(BotDocumentModel).where(BotDocumentModel.id == document_id).values(**values)
+        )
 
     async def update_document_embedding_info(
         self,
@@ -480,23 +442,19 @@ class KnowledgeRepository:
         embedding_dimensions: int,
     ) -> None:
         """Update embedding model info on a document after processing."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotDocumentModel)
-                .where(BotDocumentModel.id == document_id)
-                .values(embedding_model=embedding_model, embedding_dimensions=embedding_dimensions)
-            )
-            await session.commit()
+        await self._update(
+            update(BotDocumentModel)
+            .where(BotDocumentModel.id == document_id)
+            .values(embedding_model=embedding_model, embedding_dimensions=embedding_dimensions)
+        )
 
     async def delete_document(self, document_id: str) -> bool:
         """Delete a document and its chunks."""
-        async with db.ensure_initialized()() as session:
-            # Chunks deleted via CASCADE
-            result = await session.execute(
-                delete(BotDocumentModel).where(BotDocumentModel.id == document_id)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        # Chunks deleted via CASCADE
+        count = await self._delete(
+            delete(BotDocumentModel).where(BotDocumentModel.id == document_id)
+        )
+        return count > 0
 
     def _row_to_document(self, row: BotDocumentModel) -> Document:
         """Convert a database row to Document."""
@@ -520,7 +478,7 @@ class KnowledgeRepository:
         if not chunks:
             return
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             session.add_all(
                 [
                     DocChunkModel(
@@ -538,7 +496,7 @@ class KnowledgeRepository:
 
     async def get_chunks_by_document(self, document_id: str) -> list[DocChunk]:
         """Get all chunks for a document."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(DocChunkModel)
                 .where(DocChunkModel.document_id == document_id)
@@ -560,7 +518,7 @@ class KnowledgeRepository:
 
     async def get_all_chunks_by_bot(self, bot_id: str) -> list[DocChunk]:
         """Get all chunks for a bot (for vector search)."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(DocChunkModel)
                 .where(DocChunkModel.bot_id == bot_id)
@@ -582,18 +540,15 @@ class KnowledgeRepository:
 
     async def delete_chunks_by_document(self, document_id: str) -> int:
         """Delete all chunks for a document."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
-            )
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
+        return await self._delete(
+            delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
+        )
 
     # ===== KNOWLEDGE STATS =====
 
     async def get_knowledge_stats(self, bot_id: str) -> dict[str, Any]:
         """Get aggregated knowledge stats for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             # Document counts by status
             doc_result = await session.execute(
                 select(BotDocumentModel.status, func.count())
@@ -634,7 +589,7 @@ class KnowledgeRepository:
 
     async def reset_document_for_retry(self, document_id: str) -> bool:
         """Reset a failed document to processing status for retry."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 update(BotDocumentModel)
                 .where(
@@ -648,11 +603,11 @@ class KnowledgeRepository:
                 delete(DocChunkModel).where(DocChunkModel.document_id == document_id)
             )
             await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+            return bool(result.rowcount > 0)
 
     async def get_chunks_by_document_light(self, document_id: str) -> list[dict[str, Any]]:
         """Get chunks for a document without embedding BLOBs."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(
                     DocChunkModel.id,
@@ -677,7 +632,7 @@ class KnowledgeRepository:
 
     async def get_all_embeddings_by_bot(self, bot_id: str) -> list[dict[str, Any]]:
         """Get only embedding data for vector search (no content)."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(
                     DocChunkModel.id,
@@ -704,7 +659,7 @@ class KnowledgeRepository:
         if not chunk_ids:
             return []
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(DocChunkModel).where(DocChunkModel.id.in_(chunk_ids))
             )
@@ -723,13 +678,28 @@ class KnowledgeRepository:
         ]
 
 
-class NotesRepository:
+class NotesRepository(BaseRepository[BotNoteModel, BotNote]):
     """Repository for bot notes (persistent memory)."""
+
+    _model = BotNoteModel
+
+    def _row_to_entity(self, row: BotNoteModel) -> BotNote:
+        """Convert a database row to BotNote."""
+        return BotNote(
+            id=row.id,
+            bot_id=row.bot_id,
+            title=row.title,
+            content=row.content,
+            tags=row.tags if row.tags else [],
+            source=NoteSource(row.source),
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
     async def save_note(self, note: BotNote) -> None:
         """Save a new note."""
-        async with db.ensure_initialized()() as session:
-            obj = BotNoteModel(
+        await self._add(
+            BotNoteModel(
                 id=note.id,
                 bot_id=note.bot_id,
                 title=note.title,
@@ -739,15 +709,11 @@ class NotesRepository:
                 created_at=note.created_at,
                 updated_at=note.updated_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_note(self, note_id: str) -> BotNote | None:
         """Get a note by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(BotNoteModel).where(BotNoteModel.id == note_id))
-            row = result.scalar_one_or_none()
-        return self._row_to_note(row) if row else None
+        return await self.get_by_id(note_id)
 
     async def get_notes_by_bot(
         self,
@@ -789,12 +755,7 @@ class NotesRepository:
             )
 
         stmt = stmt.order_by(BotNoteModel.updated_at.desc()).limit(limit).offset(offset)
-
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-
-        return [self._row_to_note(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def update_note(
         self,
@@ -814,26 +775,21 @@ class NotesRepository:
         if tags is not None:
             values["tags"] = tags
 
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(BotNoteModel).where(BotNoteModel.id == note_id).values(**values)
-            )
-            await session.commit()
+        count = await self._update(
+            update(BotNoteModel).where(BotNoteModel.id == note_id).values(**values)
+        )
 
-        if result.rowcount == 0:  # type: ignore[attr-defined]
+        if count == 0:
             return None
         return await self.get_note(note_id)
 
     async def delete_note(self, note_id: str) -> bool:
         """Delete a note by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(BotNoteModel).where(BotNoteModel.id == note_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(note_id)
 
     async def get_all_tags(self, bot_id: str) -> list[str]:
         """Get all unique tags across all notes for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotNoteModel.tags).where(BotNoteModel.bot_id == bot_id)
             )
@@ -848,95 +804,25 @@ class NotesRepository:
     async def search_notes(self, bot_id: str, query: str, limit: int = 10) -> list[BotNote]:
         """Simple text search on title + content."""
         escaped = _escape_like(query)
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotNoteModel)
-                .where(
-                    BotNoteModel.bot_id == bot_id,
-                    BotNoteModel.title.ilike(f"%{escaped}%", escape="\\")
-                    | BotNoteModel.content.ilike(f"%{escaped}%", escape="\\"),
-                )
-                .order_by(BotNoteModel.updated_at.desc())
-                .limit(limit)
+        stmt = (
+            select(BotNoteModel)
+            .where(
+                BotNoteModel.bot_id == bot_id,
+                BotNoteModel.title.ilike(f"%{escaped}%", escape="\\")
+                | BotNoteModel.content.ilike(f"%{escaped}%", escape="\\"),
             )
-            rows = result.scalars().all()
-        return [self._row_to_note(row) for row in rows]
-
-    def _row_to_note(self, row: BotNoteModel) -> BotNote:
-        """Convert a database row to BotNote."""
-        return BotNote(
-            id=row.id,
-            bot_id=row.bot_id,
-            title=row.title,
-            content=row.content,
-            tags=row.tags if row.tags else [],
-            source=NoteSource(row.source),
-            created_at=row.created_at,
-            updated_at=row.updated_at,
+            .order_by(BotNoteModel.updated_at.desc())
+            .limit(limit)
         )
+        return await self._fetch_all(stmt)
 
 
-class ContactsRepository:
+class ContactsRepository(BaseRepository[BotContactModel, Contact]):
     """Repository for bot contacts."""
 
-    async def save_contact(self, contact: Contact) -> None:
-        """Save a new contact."""
-        async with db.ensure_initialized()() as session:
-            obj = BotContactModel(
-                id=contact.id,
-                bot_id=contact.bot_id,
-                name=contact.name,
-                details=contact.details,
-                created_at=contact.created_at,
-                updated_at=contact.updated_at,
-            )
-            session.add(obj)
-            await session.commit()
+    _model = BotContactModel
 
-    async def get_contact(self, contact_id: str) -> Contact | None:
-        """Get a contact by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotContactModel).where(BotContactModel.id == contact_id)
-            )
-            row = result.scalar_one_or_none()
-            return self._row_to_contact(row) if row else None
-
-    async def get_contacts_by_bot(self, bot_id: str) -> list[Contact]:
-        """Get all contacts for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotContactModel)
-                .where(BotContactModel.bot_id == bot_id)
-                .order_by(BotContactModel.name)
-            )
-            rows = result.scalars().all()
-            return [self._row_to_contact(row) for row in rows]
-
-    async def update_contact(self, contact: Contact) -> None:
-        """Update an existing contact."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotContactModel)
-                .where(BotContactModel.id == contact.id)
-                .values(
-                    name=contact.name,
-                    details=contact.details,
-                    updated_at=contact.updated_at,
-                )
-            )
-            await session.commit()
-
-    async def delete_contact(self, contact_id: str) -> bool:
-        """Delete a contact by ID. Returns True if deleted, False if not found."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotContactModel).where(BotContactModel.id == contact_id)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
-
-    def _row_to_contact(self, row: BotContactModel) -> Contact:
+    def _row_to_entity(self, row: BotContactModel) -> Contact:
         """Convert database row to Contact model."""
         return Contact(
             id=row.id,
@@ -947,181 +833,54 @@ class ContactsRepository:
             updated_at=row.updated_at,
         )
 
+    async def save_contact(self, contact: Contact) -> None:
+        """Save a new contact."""
+        await self._add(
+            BotContactModel(
+                id=contact.id,
+                bot_id=contact.bot_id,
+                name=contact.name,
+                details=contact.details,
+                created_at=contact.created_at,
+                updated_at=contact.updated_at,
+            )
+        )
 
-class ConnectionRepository:
+    async def get_contact(self, contact_id: str) -> Contact | None:
+        """Get a contact by ID."""
+        return await self.get_by_id(contact_id)
+
+    async def get_contacts_by_bot(self, bot_id: str) -> list[Contact]:
+        """Get all contacts for a bot."""
+        return await self._fetch_all(
+            select(BotContactModel)
+            .where(BotContactModel.bot_id == bot_id)
+            .order_by(BotContactModel.name)
+        )
+
+    async def update_contact(self, contact: Contact) -> None:
+        """Update an existing contact."""
+        await self._update(
+            update(BotContactModel)
+            .where(BotContactModel.id == contact.id)
+            .values(
+                name=contact.name,
+                details=contact.details,
+                updated_at=contact.updated_at,
+            )
+        )
+
+    async def delete_contact(self, contact_id: str) -> bool:
+        """Delete a contact by ID. Returns True if deleted, False if not found."""
+        return await self.delete_by_id(contact_id)
+
+
+class ConnectionRepository(BaseRepository[BotConnectionModel, BotConnection]):
     """Repository for bot platform connections."""
 
-    async def save_connection(self, connection: BotConnection) -> None:
-        """Save a new connection."""
-        from cachibot.services.encryption import get_encryption_service
+    _model = BotConnectionModel
 
-        enc = get_encryption_service()
-        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
-
-        async with db.ensure_initialized()() as session:
-            obj = BotConnectionModel(
-                id=connection.id,
-                bot_id=connection.bot_id,
-                platform=connection.platform.value,
-                name=connection.name,
-                status=connection.status.value,
-                config_encrypted=encrypted_config,
-                message_count=connection.message_count,
-                last_activity=connection.last_activity,
-                error=connection.error,
-                auto_connect=connection.auto_connect,
-                created_at=connection.created_at,
-                updated_at=connection.updated_at,
-            )
-            session.add(obj)
-            await session.commit()
-
-    async def get_connection(self, connection_id: str) -> BotConnection | None:
-        """Get a connection by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotConnectionModel).where(BotConnectionModel.id == connection_id)
-            )
-            row = result.scalar_one_or_none()
-            return self._row_to_connection(row) if row else None
-
-    async def get_connections_by_bot(self, bot_id: str) -> list[BotConnection]:
-        """Get all connections for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotConnectionModel)
-                .where(BotConnectionModel.bot_id == bot_id)
-                .order_by(BotConnectionModel.created_at.desc())
-            )
-            rows = result.scalars().all()
-            return [self._row_to_connection(row) for row in rows]
-
-    async def get_all_connected(self) -> list[BotConnection]:
-        """Get all connections with 'connected' status."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotConnectionModel).where(
-                    BotConnectionModel.status == ConnectionStatus.connected.value
-                )
-            )
-            rows = result.scalars().all()
-            return [self._row_to_connection(row) for row in rows]
-
-    async def update_connection(self, connection: BotConnection) -> None:
-        """Update an existing connection."""
-        from cachibot.services.encryption import get_encryption_service
-
-        enc = get_encryption_service()
-        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
-
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotConnectionModel)
-                .where(BotConnectionModel.id == connection.id)
-                .values(
-                    name=connection.name,
-                    status=connection.status.value,
-                    config_encrypted=encrypted_config,
-                    message_count=connection.message_count,
-                    last_activity=connection.last_activity,
-                    error=connection.error,
-                    updated_at=connection.updated_at,
-                )
-            )
-            await session.commit()
-
-    async def update_connection_status(
-        self,
-        connection_id: str,
-        status: ConnectionStatus,
-        error: str | None = None,
-    ) -> None:
-        """Update connection status and optionally error message."""
-        now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotConnectionModel)
-                .where(BotConnectionModel.id == connection_id)
-                .values(
-                    status=status.value,
-                    error=error,
-                    updated_at=now,
-                )
-            )
-            await session.commit()
-
-    async def increment_message_count(self, connection_id: str) -> None:
-        """Increment message count and update last_activity."""
-        try:
-            now = datetime.now(timezone.utc)
-            async with db.ensure_initialized()() as session:
-                await session.execute(
-                    update(BotConnectionModel)
-                    .where(BotConnectionModel.id == connection_id)
-                    .values(
-                        message_count=BotConnectionModel.message_count + 1,
-                        last_activity=now,
-                        updated_at=now,
-                    )
-                )
-                await session.commit()
-        except Exception:
-            logger.warning(
-                "Failed to increment message count for chat %s",
-                connection_id,
-                exc_info=True,
-            )
-
-    async def delete_connection(self, connection_id: str) -> bool:
-        """Delete a connection by ID. Returns True if deleted, False if not found."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotConnectionModel).where(BotConnectionModel.id == connection_id)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
-
-    async def bulk_reset_connected(self) -> int:
-        """Reset all non-disconnected connections to disconnected in a single query."""
-        now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(BotConnectionModel)
-                .where(
-                    BotConnectionModel.status.in_(
-                        [
-                            ConnectionStatus.connected.value,
-                            ConnectionStatus.connecting.value,
-                            ConnectionStatus.error.value,
-                        ]
-                    )
-                )
-                .values(status=ConnectionStatus.disconnected.value, updated_at=now)
-            )
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
-
-    async def get_auto_connect_connections(self) -> list[BotConnection]:
-        """Get all connections marked for auto-connect."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(BotConnectionModel).where(BotConnectionModel.auto_connect.is_(True))
-            )
-            rows = result.scalars().all()
-            return [self._row_to_connection(row) for row in rows]
-
-    async def set_auto_connect(self, connection_id: str, auto_connect: bool) -> None:
-        """Set the auto_connect flag for a connection."""
-        now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(BotConnectionModel)
-                .where(BotConnectionModel.id == connection_id)
-                .values(auto_connect=auto_connect, updated_at=now)
-            )
-            await session.commit()
-
-    def _row_to_connection(self, row: BotConnectionModel) -> BotConnection:
+    def _row_to_entity(self, row: BotConnectionModel) -> BotConnection:
         """Convert database row to BotConnection model."""
         from cachibot.services.encryption import get_encryption_service
 
@@ -1143,13 +902,170 @@ class ConnectionRepository:
             updated_at=row.updated_at,
         )
 
+    async def save_connection(self, connection: BotConnection) -> None:
+        """Save a new connection."""
+        from cachibot.services.encryption import get_encryption_service
 
-class BotRepository:
+        enc = get_encryption_service()
+        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
+
+        await self._add(
+            BotConnectionModel(
+                id=connection.id,
+                bot_id=connection.bot_id,
+                platform=connection.platform.value,
+                name=connection.name,
+                status=connection.status.value,
+                config_encrypted=encrypted_config,
+                message_count=connection.message_count,
+                last_activity=connection.last_activity,
+                error=connection.error,
+                auto_connect=connection.auto_connect,
+                created_at=connection.created_at,
+                updated_at=connection.updated_at,
+            )
+        )
+
+    async def get_connection(self, connection_id: str) -> BotConnection | None:
+        """Get a connection by ID."""
+        return await self.get_by_id(connection_id)
+
+    async def get_connections_by_bot(self, bot_id: str) -> list[BotConnection]:
+        """Get all connections for a bot."""
+        return await self._fetch_all(
+            select(BotConnectionModel)
+            .where(BotConnectionModel.bot_id == bot_id)
+            .order_by(BotConnectionModel.created_at.desc())
+        )
+
+    async def get_all_connected(self) -> list[BotConnection]:
+        """Get all connections with 'connected' status."""
+        return await self._fetch_all(
+            select(BotConnectionModel).where(
+                BotConnectionModel.status == ConnectionStatus.connected.value
+            )
+        )
+
+    async def update_connection(self, connection: BotConnection) -> None:
+        """Update an existing connection."""
+        from cachibot.services.encryption import get_encryption_service
+
+        enc = get_encryption_service()
+        encrypted_config = enc.encrypt_connection_config(connection.config, connection.bot_id)
+
+        await self._update(
+            update(BotConnectionModel)
+            .where(BotConnectionModel.id == connection.id)
+            .values(
+                name=connection.name,
+                status=connection.status.value,
+                config_encrypted=encrypted_config,
+                message_count=connection.message_count,
+                last_activity=connection.last_activity,
+                error=connection.error,
+                updated_at=connection.updated_at,
+            )
+        )
+
+    async def update_connection_status(
+        self,
+        connection_id: str,
+        status: ConnectionStatus,
+        error: str | None = None,
+    ) -> None:
+        """Update connection status and optionally error message."""
+        now = datetime.now(timezone.utc)
+        await self._update(
+            update(BotConnectionModel)
+            .where(BotConnectionModel.id == connection_id)
+            .values(
+                status=status.value,
+                error=error,
+                updated_at=now,
+            )
+        )
+
+    async def increment_message_count(self, connection_id: str) -> None:
+        """Increment message count and update last_activity."""
+        try:
+            now = datetime.now(timezone.utc)
+            await self._update(
+                update(BotConnectionModel)
+                .where(BotConnectionModel.id == connection_id)
+                .values(
+                    message_count=BotConnectionModel.message_count + 1,
+                    last_activity=now,
+                    updated_at=now,
+                )
+            )
+        except Exception:
+            logger.warning(
+                "Failed to increment message count for chat %s",
+                connection_id,
+                exc_info=True,
+            )
+
+    async def delete_connection(self, connection_id: str) -> bool:
+        """Delete a connection by ID. Returns True if deleted, False if not found."""
+        return await self.delete_by_id(connection_id)
+
+    async def bulk_reset_connected(self) -> int:
+        """Reset all non-disconnected connections to disconnected in a single query."""
+        now = datetime.now(timezone.utc)
+        return await self._update(
+            update(BotConnectionModel)
+            .where(
+                BotConnectionModel.status.in_(
+                    [
+                        ConnectionStatus.connected.value,
+                        ConnectionStatus.connecting.value,
+                        ConnectionStatus.error.value,
+                    ]
+                )
+            )
+            .values(status=ConnectionStatus.disconnected.value, updated_at=now)
+        )
+
+    async def get_auto_connect_connections(self) -> list[BotConnection]:
+        """Get all connections marked for auto-connect."""
+        return await self._fetch_all(
+            select(BotConnectionModel).where(BotConnectionModel.auto_connect.is_(True))
+        )
+
+    async def set_auto_connect(self, connection_id: str, auto_connect: bool) -> None:
+        """Set the auto_connect flag for a connection."""
+        now = datetime.now(timezone.utc)
+        await self._update(
+            update(BotConnectionModel)
+            .where(BotConnectionModel.id == connection_id)
+            .values(auto_connect=auto_connect, updated_at=now)
+        )
+
+
+class BotRepository(BaseRepository[BotModel, Bot]):
     """Repository for bot configuration (synced from frontend)."""
+
+    _model = BotModel
+
+    def _row_to_entity(self, row: BotModel) -> Bot:
+        """Convert database row to Bot model."""
+        return Bot(
+            id=row.id,
+            name=row.name,
+            description=row.description,
+            icon=row.icon,
+            color=row.color,
+            model=row.model,
+            systemPrompt=row.system_prompt,
+            capabilities=row.capabilities if row.capabilities else {},
+            models=row.models,
+            createdAt=row.created_at,
+            updatedAt=row.updated_at,
+        )
 
     async def upsert_bot(self, bot: Bot) -> None:
         """Create or update a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             existing = await session.get(BotModel, bot.id)
             if existing:
                 existing.name = bot.name
@@ -1181,49 +1097,40 @@ class BotRepository:
 
     async def get_bot(self, bot_id: str) -> Bot | None:
         """Get a bot by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(BotModel).where(BotModel.id == bot_id))
-            row = result.scalar_one_or_none()
-            return self._row_to_bot(row) if row else None
+        return await self.get_by_id(bot_id)
 
     async def get_all_bots(self) -> list[Bot]:
         """Get all bots."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(BotModel).order_by(BotModel.name))
-            rows = result.scalars().all()
-            return [self._row_to_bot(row) for row in rows]
+        return await self._fetch_all(select(BotModel).order_by(BotModel.name))
 
     async def delete_bot(self, bot_id: str) -> bool:
         """Delete a bot by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(BotModel).where(BotModel.id == bot_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
-
-    def _row_to_bot(self, row: BotModel) -> Bot:
-        """Convert database row to Bot model."""
-        return Bot(
-            id=row.id,
-            name=row.name,
-            description=row.description,
-            icon=row.icon,
-            color=row.color,
-            model=row.model,
-            systemPrompt=row.system_prompt,
-            capabilities=row.capabilities if row.capabilities else {},
-            models=row.models,
-            createdAt=row.created_at,
-            updatedAt=row.updated_at,
-        )
+        return await self.delete_by_id(bot_id)
 
 
-class ChatRepository:
+class ChatRepository(BaseRepository[ChatModel, Chat]):
     """Repository for chats (including platform conversations)."""
+
+    _model = ChatModel
+
+    def _row_to_entity(self, row: ChatModel) -> Chat:
+        """Convert database row to Chat model."""
+        return Chat(
+            id=row.id,
+            bot_id=row.bot_id,
+            title=row.title,
+            platform=row.platform,
+            platform_chat_id=row.platform_chat_id,
+            pinned=row.pinned,
+            archived=row.archived,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
     async def create_chat(self, chat: Chat) -> None:
         """Create a new chat."""
-        async with db.ensure_initialized()() as session:
-            obj = ChatModel(
+        await self._add(
+            ChatModel(
                 id=chat.id,
                 bot_id=chat.bot_id,
                 title=chat.title,
@@ -1234,15 +1141,11 @@ class ChatRepository:
                 created_at=chat.created_at,
                 updated_at=chat.updated_at,
             )
-            session.add(obj)
-            await session.commit()
+        )
 
     async def get_chat(self, chat_id: str) -> Chat | None:
         """Get a chat by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(ChatModel).where(ChatModel.id == chat_id))
-            row = result.scalar_one_or_none()
-            return self._row_to_chat(row) if row else None
+        return await self.get_by_id(chat_id)
 
     async def get_or_create_platform_chat(
         self,
@@ -1256,7 +1159,7 @@ class ChatRepository:
 
         Returns None if the chat exists but is archived (won't recreate archived chats).
         """
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(ChatModel).where(
                     ChatModel.bot_id == bot_id,
@@ -1266,7 +1169,7 @@ class ChatRepository:
             )
             row = result.scalar_one_or_none()
             if row:
-                chat = self._row_to_chat(row)
+                chat = self._row_to_entity(row)
                 # Return None for archived chats - don't process messages
                 if chat.archived:
                     return None
@@ -1306,79 +1209,64 @@ class ChatRepository:
         if not include_archived:
             stmt = stmt.where(ChatModel.archived.is_(False))
         stmt = stmt.order_by(ChatModel.pinned.desc(), ChatModel.updated_at.desc())
-
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(stmt)
-            rows = result.scalars().all()
-            return [self._row_to_chat(row) for row in rows]
+        return await self._fetch_all(stmt)
 
     async def update_chat(self, chat: Chat) -> None:
         """Update a chat."""
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ChatModel)
-                .where(ChatModel.id == chat.id)
-                .values(
-                    title=chat.title,
-                    pinned=chat.pinned,
-                    archived=chat.archived,
-                    updated_at=chat.updated_at,
-                )
+        await self._update(
+            update(ChatModel)
+            .where(ChatModel.id == chat.id)
+            .values(
+                title=chat.title,
+                pinned=chat.pinned,
+                archived=chat.archived,
+                updated_at=chat.updated_at,
             )
-            await session.commit()
+        )
 
     async def archive_chat(self, chat_id: str, archived: bool = True) -> bool:
         """Archive or unarchive a chat. Returns True if chat was found."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                update(ChatModel)
-                .where(ChatModel.id == chat_id)
-                .values(archived=archived, updated_at=now)
-            )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        count = await self._update(
+            update(ChatModel)
+            .where(ChatModel.id == chat_id)
+            .values(archived=archived, updated_at=now)
+        )
+        return count > 0
 
     async def update_chat_timestamp(self, chat_id: str) -> None:
         """Update the chat's updated_at timestamp."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(ChatModel).where(ChatModel.id == chat_id).values(updated_at=now)
-            )
-            await session.commit()
+        await self._update(update(ChatModel).where(ChatModel.id == chat_id).values(updated_at=now))
 
     async def delete_chat(self, chat_id: str) -> bool:
         """Delete a chat by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(ChatModel).where(ChatModel.id == chat_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        return await self.delete_by_id(chat_id)
 
     async def delete_all_chats_for_bot(self, bot_id: str) -> int:
         """Delete all chats for a bot. Returns number of chats deleted."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(ChatModel).where(ChatModel.bot_id == bot_id))
-            await session.commit()
-            return int(result.rowcount)  # type: ignore[attr-defined]
-
-    def _row_to_chat(self, row: ChatModel) -> Chat:
-        """Convert database row to Chat model."""
-        return Chat(
-            id=row.id,
-            bot_id=row.bot_id,
-            title=row.title,
-            platform=row.platform,
-            platform_chat_id=row.platform_chat_id,
-            pinned=row.pinned,
-            archived=row.archived,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-        )
+        return await self._delete(delete(ChatModel).where(ChatModel.bot_id == bot_id))
 
 
-class SkillsRepository:
+class SkillsRepository(BaseRepository[SkillModel, SkillDefinition]):
     """Repository for skill definitions and bot skill activations."""
+
+    _model = SkillModel
+
+    def _row_to_entity(self, row: SkillModel) -> SkillDefinition:
+        """Convert database row to SkillDefinition model."""
+        return SkillDefinition(
+            id=row.id,
+            name=row.name,
+            description=row.description or "",
+            version=row.version or "1.0.0",
+            author=row.author,
+            tags=row.tags if row.tags else [],
+            requires_tools=row.requires_tools if row.requires_tools else [],
+            instructions=row.instructions,
+            source=SkillSource(row.source) if row.source else SkillSource.LOCAL,
+            filepath=row.filepath,
+        )
 
     # ===== SKILLS =====
 
@@ -1386,7 +1274,7 @@ class SkillsRepository:
         """Create or update a skill definition."""
         now = datetime.now(timezone.utc)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             existing = await session.get(SkillModel, skill.id)
             if existing:
                 existing.name = skill.name
@@ -1420,56 +1308,27 @@ class SkillsRepository:
 
     async def get_skill(self, skill_id: str) -> SkillDefinition | None:
         """Get a skill by ID."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(SkillModel).where(SkillModel.id == skill_id))
-            row = result.scalar_one_or_none()
-            return self._row_to_skill(row) if row else None
+        return await self.get_by_id(skill_id)
 
     async def get_all_skills(self) -> list[SkillDefinition]:
         """Get all skill definitions."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(select(SkillModel).order_by(SkillModel.name))
-            rows = result.scalars().all()
-            return [self._row_to_skill(row) for row in rows]
+        return await self._fetch_all(select(SkillModel).order_by(SkillModel.name))
 
     async def get_skills_by_source(self, source: SkillSource) -> list[SkillDefinition]:
         """Get skills filtered by source."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(SkillModel)
-                .where(SkillModel.source == source.value)
-                .order_by(SkillModel.name)
-            )
-            rows = result.scalars().all()
-            return [self._row_to_skill(row) for row in rows]
+        return await self._fetch_all(
+            select(SkillModel).where(SkillModel.source == source.value).order_by(SkillModel.name)
+        )
 
     async def delete_skill(self, skill_id: str) -> bool:
         """Delete a skill by ID. Also removes all bot activations."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(delete(SkillModel).where(SkillModel.id == skill_id))
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
-
-    def _row_to_skill(self, row: SkillModel) -> SkillDefinition:
-        """Convert database row to SkillDefinition model."""
-        return SkillDefinition(
-            id=row.id,
-            name=row.name,
-            description=row.description or "",
-            version=row.version or "1.0.0",
-            author=row.author,
-            tags=row.tags if row.tags else [],
-            requires_tools=row.requires_tools if row.requires_tools else [],
-            instructions=row.instructions,
-            source=SkillSource(row.source) if row.source else SkillSource.LOCAL,
-            filepath=row.filepath,
-        )
+        return await self.delete_by_id(skill_id)
 
     # ===== BOT SKILL ACTIVATIONS =====
 
     async def get_bot_skills(self, bot_id: str) -> list[str]:
         """Get list of enabled skill IDs for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotSkillModel.skill_id).where(
                     BotSkillModel.bot_id == bot_id,
@@ -1480,24 +1339,21 @@ class SkillsRepository:
 
     async def get_bot_skill_definitions(self, bot_id: str) -> list[SkillDefinition]:
         """Get full skill definitions for all enabled skills of a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                select(SkillModel)
-                .join(BotSkillModel, SkillModel.id == BotSkillModel.skill_id)
-                .where(
-                    BotSkillModel.bot_id == bot_id,
-                    BotSkillModel.enabled.is_(True),
-                )
-                .order_by(SkillModel.name)
+        return await self._fetch_all(
+            select(SkillModel)
+            .join(BotSkillModel, SkillModel.id == BotSkillModel.skill_id)
+            .where(
+                BotSkillModel.bot_id == bot_id,
+                BotSkillModel.enabled.is_(True),
             )
-            rows = result.scalars().all()
-            return [self._row_to_skill(row) for row in rows]
+            .order_by(SkillModel.name)
+        )
 
     async def activate_skill(self, bot_id: str, skill_id: str) -> None:
         """Activate a skill for a bot."""
         now = datetime.now(timezone.utc)
 
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             existing = await session.get(BotSkillModel, (bot_id, skill_id))
             if existing:
                 existing.enabled = True
@@ -1515,19 +1371,17 @@ class SkillsRepository:
 
     async def deactivate_skill(self, bot_id: str, skill_id: str) -> bool:
         """Deactivate a skill for a bot."""
-        async with db.ensure_initialized()() as session:
-            result = await session.execute(
-                delete(BotSkillModel).where(
-                    BotSkillModel.bot_id == bot_id,
-                    BotSkillModel.skill_id == skill_id,
-                )
+        count = await self._delete(
+            delete(BotSkillModel).where(
+                BotSkillModel.bot_id == bot_id,
+                BotSkillModel.skill_id == skill_id,
             )
-            await session.commit()
-            return bool(result.rowcount > 0)  # type: ignore[attr-defined]
+        )
+        return count > 0
 
     async def is_skill_activated(self, bot_id: str, skill_id: str) -> bool:
         """Check if a skill is activated for a bot."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotSkillModel.bot_id).where(
                     BotSkillModel.bot_id == bot_id,
@@ -1539,7 +1393,7 @@ class SkillsRepository:
 
     async def get_skill_activation(self, bot_id: str, skill_id: str) -> BotSkillActivation | None:
         """Get activation details for a bot/skill pair."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(BotSkillModel).where(
                     BotSkillModel.bot_id == bot_id,
@@ -1557,21 +1411,30 @@ class SkillsRepository:
             )
 
 
-class PlatformToolConfigRepository:
+class PlatformToolConfigRepository(
+    BaseRepository[PlatformToolConfigModel, PlatformToolConfigSchema],
+):
     """Repository for platform-wide tool visibility configuration."""
 
+    _model = PlatformToolConfigModel
     _ROW_ID = "default"
+
+    def _row_to_entity(self, row: PlatformToolConfigModel) -> PlatformToolConfigSchema:
+        return PlatformToolConfigSchema(
+            disabled_capabilities=row.disabled_capabilities or [],
+            disabled_skills=row.disabled_skills or [],
+        )
 
     async def get_config(self) -> PlatformToolConfigSchema:
         """Return the global tool config, creating the default row if missing."""
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             result = await session.execute(
                 select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)
             )
             row = result.scalar_one_or_none()
 
         if row is None:
-            # First access — upsert the default row
+            # First access -- upsert the default row
             return await self._upsert_default()
 
         return PlatformToolConfigSchema(
@@ -1601,18 +1464,16 @@ class PlatformToolConfigRepository:
             else current.disabled_skills
         )
 
-        async with db.ensure_initialized()() as session:
-            await session.execute(
-                update(PlatformToolConfigModel)
-                .where(PlatformToolConfigModel.id == self._ROW_ID)
-                .values(
-                    disabled_capabilities=caps,
-                    disabled_skills=skills,
-                    updated_at=now,
-                    updated_by=user_id,
-                )
+        await self._update(
+            update(PlatformToolConfigModel)
+            .where(PlatformToolConfigModel.id == self._ROW_ID)
+            .values(
+                disabled_capabilities=caps,
+                disabled_skills=skills,
+                updated_at=now,
+                updated_by=user_id,
             )
-            await session.commit()
+        )
 
         return PlatformToolConfigSchema(
             disabled_capabilities=caps,
@@ -1632,7 +1493,7 @@ class PlatformToolConfigRepository:
     async def _upsert_default(self) -> PlatformToolConfigSchema:
         """Insert the default row if it doesn't exist."""
         now = datetime.now(timezone.utc)
-        async with db.ensure_initialized()() as session:
+        async with self._session() as session:
             # Check again inside the session to avoid races
             result = await session.execute(
                 select(PlatformToolConfigModel).where(PlatformToolConfigModel.id == self._ROW_ID)

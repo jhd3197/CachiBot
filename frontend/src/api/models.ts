@@ -86,6 +86,17 @@ export async function getModels(): Promise<ModelsGrouped> {
 }
 
 /**
+ * Get all default model slots in a single request
+ */
+export async function getAllDefaults(): Promise<{
+  default: string
+  embedding: string
+  utility: string
+}> {
+  return request('/models/defaults')
+}
+
+/**
  * Get the current default model
  */
 export async function getDefaultModel(): Promise<string> {

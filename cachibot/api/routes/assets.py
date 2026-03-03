@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from cachibot.api.auth import get_current_user
+from cachibot.api.helpers import require_found, require_member
 from cachibot.models.asset import Asset, AssetResponse
 from cachibot.models.auth import User
 from cachibot.storage.asset_repository import AssetRepository
@@ -38,11 +39,8 @@ async def list_room_assets(
     user: User = Depends(get_current_user),
 ) -> list[AssetResponse]:
     """Get all assets for a room."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_found(await room_repo.get_room(room_id), "Room")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     assets = await asset_repo.get_by_owner("room", room_id)
     return [AssetResponse.from_entity(a) for a in assets]
@@ -55,11 +53,8 @@ async def upload_room_asset(
     user: User = Depends(get_current_user),
 ) -> AssetResponse:
     """Upload a file asset to a room."""
-    room = await room_repo.get_room(room_id)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_found(await room_repo.get_room(room_id), "Room")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     asset_id = str(uuid.uuid4())
     storage_dir = ASSETS_BASE / "room" / room_id
@@ -92,8 +87,7 @@ async def get_room_asset(
     user: User = Depends(get_current_user),
 ) -> AssetResponse:
     """Get asset metadata."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     asset = await asset_repo.get(asset_id)
     if asset is None or asset.owner_type != "room" or asset.owner_id != room_id:
@@ -108,8 +102,7 @@ async def download_room_asset(
     user: User = Depends(get_current_user),
 ) -> FileResponse:
     """Download an asset file."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
     asset = await asset_repo.get(asset_id)
     if asset is None or asset.owner_type != "room" or asset.owner_id != room_id:
@@ -132,12 +125,9 @@ async def delete_room_asset(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete an asset."""
-    if not await member_repo.is_member(room_id, user.id):
-        raise HTTPException(status_code=403, detail="Not a room member")
+    require_member(await member_repo.is_member(room_id, user.id))
 
-    storage_path = await asset_repo.delete(asset_id)
-    if storage_path is None:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    storage_path = require_found(await asset_repo.delete(asset_id), "Asset")
 
     # Clean up file on disk
     try:
@@ -238,9 +228,7 @@ async def delete_chat_asset(
     user: User = Depends(get_current_user),
 ) -> None:
     """Delete an asset."""
-    storage_path = await asset_repo.delete(asset_id)
-    if storage_path is None:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    storage_path = require_found(await asset_repo.delete(asset_id), "Asset")
 
     try:
         Path(storage_path).unlink(missing_ok=True)

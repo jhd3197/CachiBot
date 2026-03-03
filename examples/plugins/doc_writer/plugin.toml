@@ -1,0 +1,47 @@
+[plugin]
+name = "doc_writer"
+display_name = "Document Writer"
+description = "Claude Artifacts-style document editing with rich markdown rendering"
+version = "0.1.0"
+author = "CachiBot Team"
+type = "tool"
+
+[plugin.ui]
+icon = "file-text"
+color = "#06b6d4"
+group = "Creative"
+
+[plugin.scope]
+contexts = ["chat", "room"]
+
+[plugin.requires]
+python = ">=3.10"
+filesystem = false
+network = false
+imports = []
+
+[plugin.permissions]
+allow_env_vars = []
+allow_paths = []
+
+[plugin.workspace]
+display_name = "Document Writer"
+icon = "file-text"
+description = "Rich document editing workspace"
+accent_color = "#06b6d4"
+toolbar = ["create_document", "update_document"]
+default_artifact_type = "markdown"
+auto_open_panel = true
+system_prompt = """
+## Document Writer Tools
+You have access to `create_document` and `update_document` tools for producing rich content.
+
+**When to use these tools:** Whenever the user asks you to write, draft, or create substantial written content — articles, blog posts, reports, documentation, essays, guides, tutorials, emails, letters, proposals, or any other structured text — you MUST use `create_document` instead of responding with inline text.
+
+**How to decide:**
+- If the output is a self-contained piece of writing (more than a couple of sentences), use `create_document`.
+- If the user asks a quick question or wants a brief conversational reply, respond inline as normal.
+- If the user asks you to revise or edit an existing document, use `update_document` with the document identifier.
+
+Always choose an appropriate title and use markdown formatting in the document content.
+"""

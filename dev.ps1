@@ -262,19 +262,32 @@ if ($Mode -eq "validate") {
 $startBackend = $Mode -in "backend", "browser", "desktop", "all"
 $startFrontend = $Mode -in "frontend", "browser", "desktop", "all"
 
+# --- Helper: kill a process and its entire child tree ---
+function Stop-ProcessTree([int]$ParentId) {
+    # Recursively kill children first, then the parent
+    Get-CimInstance Win32_Process -Filter "ParentProcessId=$ParentId" -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-ProcessTree $_.ProcessId }
+    Stop-Process -Id $ParentId -Force -ErrorAction SilentlyContinue
+}
+
 # --- Kill stale processes on required ports ---
 $ports = @()
 if ($startBackend)  { $ports += 5870 }
 if ($startFrontend) { $ports += 5173 }
 
 foreach ($port in $ports) {
-    $lines = netstat -ano | Select-String ":$port\s.*LISTENING"
+    # Collect all PIDs associated with this port (LISTENING + ESTABLISHED + orphaned workers)
+    $stalePids = @()
+    $lines = netstat -ano | Select-String ":$port\s"
     foreach ($line in $lines) {
         if ($line -match '\s(\d+)\s*$') {
-            $stalePid = $Matches[1]
-            Write-Host "[dev] Killing stale process on port $port (PID $stalePid)" -ForegroundColor Yellow
-            Stop-Process -Id $stalePid -Force -ErrorAction SilentlyContinue
+            $pid = [int]$Matches[1]
+            if ($pid -ne 0 -and $stalePids -notcontains $pid) { $stalePids += $pid }
         }
+    }
+    foreach ($stalePid in $stalePids) {
+        Write-Host "[dev] Killing stale process tree on port $port (PID $stalePid)" -ForegroundColor Yellow
+        Stop-ProcessTree $stalePid
     }
 }
 $startElectron = $Mode -in "desktop", "all"
@@ -415,7 +428,7 @@ try {
     Write-Host ""
     Write-Host "[dev] Shutting down..." -ForegroundColor Cyan
     foreach ($p in $procs) {
-        if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+        if (-not $p.HasExited) { Stop-ProcessTree $p.Id }
     }
     Remove-Item Env:\ELECTRON_DEV_URL -ErrorAction SilentlyContinue
     Write-Host "[dev] Done." -ForegroundColor Green
