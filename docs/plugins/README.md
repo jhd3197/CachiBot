@@ -50,7 +50,7 @@ allow_paths = []
 # my_plugin.py
 from __future__ import annotations
 
-from tukuy.skills import Skill, skill
+from tukuy.skill import Skill, skill
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
 

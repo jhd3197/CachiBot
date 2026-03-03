@@ -121,7 +121,6 @@ export function useWebSocket() {
           const payload = msg.payload as MessagePayload
           // Use ref for current chat, or fall back to pending chat ID
           const chatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
-          console.log('[WS] Message received:', { role: payload.role, chatId, refValue: activeChatIdRef.current, pendingChatId: useChatStore.getState().pendingChatId })
           if (chatId) {
             const messageId = payload.messageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
             // Accumulate assistant messages by messageId (streaming)

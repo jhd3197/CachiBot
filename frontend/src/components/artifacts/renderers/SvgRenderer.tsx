@@ -3,25 +3,18 @@
  */
 
 import { useMemo } from 'react'
+import DOMPurify from 'dompurify'
 import type { Artifact } from '../../../types'
 
 interface SvgRendererProps {
   artifact: Artifact
 }
 
-/**
- * Basic SVG sanitization — strips script tags and event handlers.
- */
-function sanitizeSvg(svg: string): string {
-  // Remove script tags
-  let clean = svg.replace(/<script[\s\S]*?<\/script>/gi, '')
-  // Remove on* event attributes
-  clean = clean.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '')
-  return clean
-}
-
 export function SvgRenderer({ artifact }: SvgRendererProps) {
-  const sanitized = useMemo(() => sanitizeSvg(artifact.content), [artifact.content])
+  const sanitized = useMemo(
+    () => DOMPurify.sanitize(artifact.content, { USE_PROFILES: { svg: true, svgFilters: true } }),
+    [artifact.content]
+  )
 
   return (
     <div className="artifact-svg">

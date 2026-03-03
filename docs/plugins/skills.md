@@ -4,10 +4,10 @@ Skills are the functions your plugin exposes to the LLM. When a bot has your plu
 
 ## The `@skill()` Decorator
 
-Skills are created using the `@skill()` decorator from `tukuy.skills`. The decorator inspects your function's signature and docstring to auto-generate a JSON Schema that the LLM uses to understand what arguments to pass.
+Skills are created using the `@skill()` decorator from `tukuy.skill`. The decorator inspects your function's signature and docstring to auto-generate a JSON Schema that the LLM uses to understand what arguments to pass.
 
 ```python
-from tukuy.skills import skill
+from tukuy.skill import skill
 
 @skill(
     name="translate",
@@ -111,7 +111,7 @@ Parameters with default values are optional. Parameters without defaults are `re
 The `CachibotPlugin` base class requires a `skills` property that returns a `dict[str, Skill]`. The standard pattern is to build skills in a `_build_skills()` method and capture the `Skill` object via `fn.__skill__`:
 
 ```python
-from tukuy.skills import Skill, skill
+from tukuy.skill import Skill, skill
 from cachibot.plugins.base import CachibotPlugin, PluginContext
 
 
