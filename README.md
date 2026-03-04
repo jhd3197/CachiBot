@@ -4,7 +4,7 @@
   <h1>CachiBot</h1>
 
   <p><strong>The Armored AI Agent</strong></p>
-  <p><em>Visual. Transparent. Secure.</em></p>
+  <p><em>Lightweight. Modular. Armored.</em></p>
 
   <p>
     <a href="https://cachibot.ai">Website</a> ·
@@ -49,9 +49,43 @@
 
 ## Why CachiBot?
 
-Most AI platforms force you to choose: chatbot UIs with no automation, workflow builders with no conversational AI, or developer frameworks that take weeks to ship.
+### Lean by Default
 
-**CachiBot gives you all three.** Build specialized bots, deploy them to any messaging platform, run them in collaborative rooms, and automate workflows — all from a visual dashboard with full transparency into what your agents are doing.
+Most AI agent frameworks install the kitchen sink. CachiBot doesn't.
+
+```
+pip install cachibot
+```
+
+That gives you a fully functional AI agent with tool use, sandboxed code execution, file operations, and 14+ LLM providers. The full install tree is **~36 packages** — mostly small, pure-Python libraries. No FastAPI. No SQLAlchemy. No torch. No numpy. No 200MB embedding models downloading on first run.
+
+Pick exactly what you need — mix and match:
+
+```bash
+pip install cachibot                          # just the agent
+pip install cachibot[server]                  # + web dashboard
+pip install cachibot[server,telegram]         # + dashboard + Telegram
+pip install cachibot[server,knowledge]        # + dashboard + RAG
+pip install cachibot[server,discord,slack]    # + dashboard + Discord + Slack
+pip install cachibot[full]                    # everything
+```
+
+| Extra | What It Adds |
+|-------|-------------|
+| `server` | Web dashboard, database, auth, WebSocket streaming |
+| `knowledge` | RAG pipeline — PDF/DOCX ingestion, vector search, embeddings |
+| `telegram` | Telegram bot adapter |
+| `discord` | Discord bot adapter |
+| `slack` | Slack bot adapter |
+| `teams` | Microsoft Teams bot adapter |
+| `platforms` | All platform adapters |
+| `full` | All of the above |
+
+Or skip Python entirely — grab the `cachi` standalone binary from [Releases](https://github.com/jhd3197/CachiBot/releases). One file. No runtime.
+
+### Full Platform When You Need It
+
+CachiBot scales from a terminal command to a multi-agent platform. Build specialized bots, deploy them to any messaging platform, run them in collaborative rooms, and automate workflows — all from a visual dashboard with full transparency into what your agents are doing.
 
 
 ![arepa-war](https://github.com/user-attachments/assets/5996fc02-0c4c-4a61-a998-f007189494fd)
@@ -87,16 +121,20 @@ irm cachibot.ai/install.ps1 | iex
 ### pip
 
 ```bash
-pip install cachibot
+pip install cachibot           # agent only — see "Lean by Default" above for all extras
+cachibot server                # start the dashboard (requires cachibot[server])
 ```
 
-Then start the server:
+### Standalone Binaries
 
-```bash
-cachibot server
-```
+Pre-built binaries on every release — no Python required:
 
-Open **http://localhost:5870** — the frontend is bundled and served automatically. No separate build step.
+| Binary | What It Is | Platforms |
+|--------|-----------|-----------|
+| `cachi` | Terminal agent (CLI only) | Linux x64, macOS ARM64, Windows x64 |
+| `cachibot-server-mini` | Web dashboard + database + auth | Linux x64 |
+
+The mini server is the full web UI without knowledge base or platform integrations — runs on a Raspberry Pi, a $5/mo VPS, anywhere. Grab them from [GitHub Releases](https://github.com/jhd3197/CachiBot/releases).
 
 ### Docker
 
@@ -123,17 +161,24 @@ export MOONSHOT_API_KEY="your-key"     # Kimi
 
 ### CLI Usage
 
+Works with both `cachibot` and the short alias `cachi`:
+
 ```bash
-cachibot server                    # Start the dashboard
-cachibot "summarize this project"  # Run a single task
-cachibot                           # Interactive mode
-cachibot --model claude/sonnet     # Override model
-cachibot --workspace ./my-project  # Set workspace
-cachibot --approve                 # Require approval for each action
-cachibot --verbose                 # Show thinking process
-cachibot diagnose                  # Check installation health
-cachibot repair                    # Fix corrupted installation
-cachi server                       # Short alias
+cachi "summarize this project"    # Run a single task
+cachi                             # Interactive mode
+cachi --model claude/sonnet       # Override model
+cachi --workspace ./my-project    # Set workspace
+cachi --approve                   # Require approval for each action
+cachi --verbose                   # Show thinking process
+```
+
+With `cachibot[server]` installed:
+
+```bash
+cachi server                      # Start the web dashboard
+cachi db migrate                  # Run database migrations
+cachi diagnose                    # Check installation health
+cachi repair                      # Fix corrupted installation
 ```
 
 ## Features
@@ -301,7 +346,7 @@ cd CachiBot
 
 # Backend
 python -m venv venv && source venv/bin/activate  # or .\venv\Scripts\activate on Windows
-pip install -e ".[dev]"
+pip install -e ".[full,dev]"
 
 # Frontend
 cd frontend && npm install && cd ..
