@@ -9,8 +9,6 @@ import logging
 import uuid
 from pathlib import Path
 
-import pymupdf
-
 from cachibot.models.knowledge import DocChunk, DocumentStatus
 from cachibot.services.vector_store import VectorStore, get_vector_store
 from cachibot.storage.repository import KnowledgeRepository
@@ -101,6 +99,8 @@ class DocumentProcessor:
 
     def _extract_pdf(self, file_path: Path) -> str:
         """Extract text from PDF using PyMuPDF."""
+        import pymupdf
+
         doc = pymupdf.open(file_path)
         try:
             # Join pages with form feed character (standard page separator)

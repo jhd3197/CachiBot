@@ -21,7 +21,6 @@ from rich.theme import Theme
 from cachibot import __version__
 from cachibot.agent import CachibotAgent
 from cachibot.config import Config
-from cachibot.db_commands import db_app, setup_db_app
 
 # Custom theme for Cachibot
 CACHIBOT_THEME = Theme(
@@ -45,9 +44,14 @@ app = typer.Typer(
     no_args_is_help=False,
 )
 
-# Database management sub-commands
-app.add_typer(db_app, name="db", help="Database management commands")
-app.add_typer(setup_db_app, name="setup-db", help="Database setup wizards")
+# Database management sub-commands (requires server extras)
+try:
+    from cachibot.db_commands import db_app, setup_db_app
+
+    app.add_typer(db_app, name="db", help="Database management commands")
+    app.add_typer(setup_db_app, name="setup-db", help="Database setup wizards")
+except ImportError:
+    pass
 
 # Telemetry sub-commands
 telemetry_app = typer.Typer(name="telemetry", help="Anonymous telemetry management")
@@ -352,7 +356,11 @@ def server(
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload (dev mode)"),
 ) -> None:
     """Start the Cachibot API server."""
-    from cachibot.api.server import run_server as start_api_server
+    try:
+        from cachibot.api.server import run_server as start_api_server
+    except ImportError:
+        console.print("[error]Server deps not installed. Run: pip install cachibot\\[server][/]")
+        raise typer.Exit(1)
 
     console.print(f"[info]Starting Cachibot server on http://{host}:{port}[/]")
     start_api_server(host=host, port=port, workspace=workspace, reload=reload)
@@ -375,9 +383,15 @@ def reset_password(
     import hashlib
 
     async def _reset() -> None:
-        from cachibot.services.auth_service import get_auth_service
-        from cachibot.storage import db
-        from cachibot.storage.user_repository import UserRepository
+        try:
+            from cachibot.services.auth_service import get_auth_service
+            from cachibot.storage import db
+            from cachibot.storage.user_repository import UserRepository
+        except ImportError:
+            console.print(
+                "[error]Server deps not installed. Run: pip install cachibot\\[server][/]"
+            )
+            raise typer.Exit(1)
 
         await db.init_db()
         repo = UserRepository()
@@ -423,7 +437,11 @@ def repair() -> None:
     Detects tilde-prefixed corrupted packages left by interrupted pip installs,
     removes them, force-reinstalls the current version, and verifies the result.
     """
-    from cachibot.services.update_service import repair_installation
+    try:
+        from cachibot.services.update_service import repair_installation
+    except ImportError:
+        console.print("[error]Server deps not installed. Run: pip install cachibot\\[server][/]")
+        raise typer.Exit(1)
 
     console.print("[info]Running installation repair...[/]\n")
     ok, detail = asyncio.run(repair_installation())
@@ -448,12 +466,16 @@ def repair() -> None:
 @app.command("diagnose")
 def diagnose() -> None:
     """Run installation diagnostics and show environment info."""
-    from cachibot.services.update_service import (
-        _is_venv,
-        _python_info,
-        detect_corruption,
-        verify_installation,
-    )
+    try:
+        from cachibot.services.update_service import (
+            _is_venv,
+            _python_info,
+            detect_corruption,
+            verify_installation,
+        )
+    except ImportError:
+        console.print("[error]Server deps not installed. Run: pip install cachibot\\[server][/]")
+        raise typer.Exit(1)
 
     console.print("[info]CachiBot Installation Diagnostics[/]\n")
 

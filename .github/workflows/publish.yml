@@ -111,9 +111,24 @@ jobs:
             > ```
             > Then open the app normally. This only needs to be done once.
 
+            ### CLI Binary (Terminal Only)
+            | Platform | Download | Size |
+            |----------|----------|------|
+            | **Linux** (x64) | [`cachi-linux-x64.tar.gz`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/cachi-linux-x64.tar.gz) | — |
+            | **macOS** (Apple Silicon) | [`cachi-mac-arm64.tar.gz`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/cachi-mac-arm64.tar.gz) | — |
+            | **Windows** (x64) | [`cachi-win-x64.zip`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/cachi-win-x64.zip) | — |
+
+            ### Mini Server (Dashboard — no Python required)
+            | Platform | Download | Size |
+            |----------|----------|------|
+            | **Linux** (x64) | [`cachibot-server-mini-linux-x64.tar.gz`](https://github.com/${{ github.repository }}/releases/download/v${{ steps.bump_version.outputs.new_version }}/cachibot-server-mini-linux-x64.tar.gz) | — |
+
+            > Lightweight server with web dashboard, database, and auth. No knowledge base or platform integrations. Ideal for Raspberry Pi, VPS, and edge deployments.
+
             ### Python Package (pip)
             ```bash
-            pip install cachibot==${{ steps.bump_version.outputs.new_version }}
+            pip install cachibot==${{ steps.bump_version.outputs.new_version }}          # CLI only
+            pip install cachibot[full]==${{ steps.bump_version.outputs.new_version }}     # CLI + server + all extras
             ```
 
             ---
@@ -222,7 +237,7 @@ jobs:
         shell: bash
         run: |
           echo "${{ needs.release.outputs.new_version }}" > VERSION
-          pip install -e .
+          pip install -e ".[full]"
           pip install pyinstaller
 
       - name: Clean __pycache__
@@ -274,6 +289,157 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: dist/cachibot-server/
+
+  # =========================================================================
+  # 2b. Build CLI-only binary with PyInstaller  (3 platforms)
+  # =========================================================================
+  build-cli:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: cachi-linux-x64
+            archive_name: cachi-linux-x64.tar.gz
+            archive_cmd: tar -czf
+          - os: macos-latest
+            artifact: cachi-mac-arm64
+            archive_name: cachi-mac-arm64.tar.gz
+            archive_cmd: tar -czf
+          - os: windows-latest
+            artifact: cachi-win-x64
+            archive_name: cachi-win-x64.zip
+            archive_cmd: zip -r
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot (core only) + PyInstaller
+        shell: bash
+        run: |
+          echo "${{ needs.release.outputs.new_version }}" > VERSION
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Clean __pycache__
+        shell: bash
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build CLI binary
+        run: pyinstaller cachibot-cli.spec --clean
+
+      - name: Smoke test CLI binary
+        shell: bash
+        run: |
+          BINARY="./dist/cachi/cachi"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BINARY="./dist/cachi/cachi.exe"
+          fi
+          "$BINARY" --help
+          echo "CLI smoke test passed"
+
+      - name: Archive CLI binary
+        shell: bash
+        run: |
+          cd dist
+          if [[ "${{ matrix.archive_name }}" == *.zip ]]; then
+            ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
+          else
+            ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
+          fi
+
+      - name: Upload CLI archive to GitHub Release
+        shell: bash
+        run: |
+          gh release upload "v${{ needs.release.outputs.new_version }}" \
+            "dist/${{ matrix.archive_name }}" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =========================================================================
+  # 2c. Build mini server binary (Linux only — for Pi / VPS / edge)
+  # =========================================================================
+  build-server-mini:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot (server extras) + PyInstaller
+        run: |
+          echo "${{ needs.release.outputs.new_version }}" > VERSION
+          pip install -e ".[server]"
+          pip install pyinstaller
+
+      - name: Clean __pycache__
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build mini server binary
+        run: pyinstaller cachibot-server-mini.spec --clean
+
+      - name: Smoke test mini server binary
+        timeout-minutes: 2
+        run: |
+          PORT=15870
+          ./dist/cachibot-server-mini/cachibot-server-mini --port $PORT --host 127.0.0.1 &
+          SERVER_PID=$!
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null 2>&1; then
+              echo "Server healthy after ${i}s"
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server exited prematurely"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          HEALTH=$(curl -sf "http://127.0.0.1:$PORT/api/health")
+          echo "Health: $HEALTH"
+
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+          echo "Mini server smoke test passed"
+
+      - name: Archive mini server binary
+        run: |
+          cd dist
+          tar -czf cachibot-server-mini-linux-x64.tar.gz cachibot-server-mini/
+
+      - name: Upload to GitHub Release
+        run: |
+          gh release upload "v${{ needs.release.outputs.new_version }}" \
+            "dist/cachibot-server-mini-linux-x64.tar.gz" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =========================================================================
   # 3. Build Electron desktop app  (3 platforms)
@@ -355,8 +521,8 @@ jobs:
           files-folder: ${{ github.workspace }}/release
           files-folder-filter: exe
 
-      # Re-upload signed Windows exe to GitHub Release
-      - name: Upload signed exe to release
+      # Re-upload signed Windows exe and regenerate latest.yml
+      - name: Upload signed exe and update latest.yml
         if: matrix.platform == 'win'
         shell: bash
         run: |
@@ -365,6 +531,12 @@ jobs:
           EXE_PATH="${{ github.workspace }}/release/${EXE_NAME}"
           if [[ -f "$EXE_PATH" ]]; then
             gh release upload "v${VERSION}" "$EXE_PATH" --clobber
+            SHA512=$(openssl dgst -sha512 -binary "$EXE_PATH" | openssl base64 -A)
+            SIZE=$(wc -c < "$EXE_PATH" | tr -d ' ')
+            RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+            printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: '\''%s'\''\n' \
+              "$VERSION" "$EXE_NAME" "$SHA512" "$SIZE" "$EXE_NAME" "$SHA512" "$RELEASE_DATE" > latest.yml
+            gh release upload "v${VERSION}" latest.yml --clobber
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -422,7 +594,7 @@ jobs:
   # 5. Update release body with actual asset sizes
   # =========================================================================
   update-release:
-    needs: [release, build-desktop, build-mobile]
+    needs: [release, build-cli, build-server-mini, build-desktop, build-mobile]
     runs-on: ubuntu-latest
 
     steps:
