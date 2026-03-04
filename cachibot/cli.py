@@ -388,7 +388,9 @@ def reset_password(
             from cachibot.storage import db
             from cachibot.storage.user_repository import UserRepository
         except ImportError:
-            console.print("[error]Server deps not installed. Run: pip install cachibot\\[server][/]")
+            console.print(
+                "[error]Server deps not installed. Run: pip install cachibot\\[server][/]"
+            )
             raise typer.Exit(1)
 
         await db.init_db()
