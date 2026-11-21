@@ -9,15 +9,17 @@ On PostgreSQL: uses pgvector for native cosine distance search.
 On SQLite: loads embeddings into memory and computes cosine similarity with numpy.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 from sqlalchemy import select
 
 if TYPE_CHECKING:
+    import numpy as np
     from fastembed import TextEmbedding
     from prompture.drivers.async_embedding_base import AsyncEmbeddingDriver
 
@@ -27,6 +29,19 @@ from cachibot.storage.models.knowledge import DocChunk as DocChunkORM
 from cachibot.storage.repository import KnowledgeRepository
 
 logger = logging.getLogger(__name__)
+
+
+def _require_numpy() -> Any:
+    """Import numpy lazily so the server can boot without it installed."""
+    try:
+        import numpy as np
+    except ImportError as e:
+        raise RuntimeError(
+            "numpy is required for knowledge base embeddings. "
+            'Install it with: pip install "cachibot[server]"'
+        ) from e
+    return np
+
 
 # Prefixes that indicate a fastembed model (not a provider/model format)
 _FASTEMBED_PREFIXES = ("BAAI/", "sentence-transformers/", "jinaai/")
@@ -65,7 +80,7 @@ class VectorStore:
         """Check if the model uses provider/model format (not a fastembed model)."""
         return not any(self.model_name.startswith(prefix) for prefix in _FASTEMBED_PREFIXES)
 
-    def _get_async_driver(self) -> "AsyncEmbeddingDriver":
+    def _get_async_driver(self) -> AsyncEmbeddingDriver:
         """Lazily instantiate a Prompture async embedding driver."""
         if self._async_driver is None:
             from prompture.drivers.embedding_registry import get_async_embedding_driver_for_model
@@ -73,7 +88,7 @@ class VectorStore:
             self._async_driver = get_async_embedding_driver_for_model(self.model_name)
         return self._async_driver
 
-    def _get_embedder(self) -> "TextEmbedding":
+    def _get_embedder(self) -> TextEmbedding:
         """Lazily load the fastembed model (fallback for local models)."""
         if self._embedder is None:
             from fastembed import TextEmbedding
@@ -107,12 +122,14 @@ class VectorStore:
 
         Both pgvector and VectorType (SQLite) accept list[float].
         """
+        np = _require_numpy()
         if isinstance(embedding, np.ndarray):
             return embedding.tolist()  # type: ignore[no-any-return]
         return list(embedding)
 
     def _embed_sync(self, texts: list[str]) -> list[np.ndarray]:
         """Synchronous embedding generation via fastembed (for use in executor)."""
+        np = _require_numpy()
         embedder = self._get_embedder()
         # fastembed returns a generator; convert to list
         embeddings = list(embedder.embed(texts))
@@ -141,6 +158,7 @@ class VectorStore:
 
     async def _embed_via_driver(self, texts: list[str]) -> list[np.ndarray]:
         """Generate embeddings using a Prompture async embedding driver."""
+        np = _require_numpy()
         driver = self._get_async_driver()
         result = await driver.embed(texts, {})
         raw_embeddings = result["embeddings"]
@@ -228,6 +246,7 @@ class VectorStore:
         min_score: float,
     ) -> list[SearchResult]:
         """Search using in-memory cosine similarity (SQLite fallback)."""
+        np = _require_numpy()
         # Load all embeddings for this bot
         async with db.ensure_initialized()() as session:
             result = await session.execute(

@@ -60,6 +60,7 @@ server = [
     "bcrypt>=4.0.0",
     "PyJWT>=2.8.0",
     "cryptography>=42.0.0",
+    "numpy>=1.24",
 ]
 knowledge = [
     "fastembed>=0.4.0",
