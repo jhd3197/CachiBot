@@ -85,8 +85,8 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "httpx>=0.27.0",
-    "ruff>=0.5.0",
-    "mypy>=1.10.0",
+    "ruff>=0.5.0,<0.18",
+    "mypy>=1.10.0,<2.5",
     "bandit>=1.7.0",
 ]
 
@@ -122,6 +122,10 @@ line-length = 100
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["N815"]
 
+[tool.ruff.format]
+# Prose/docs are not source code — don't reformat Markdown reports.
+exclude = ["*.md"]
+
 [tool.mypy]
 python_version = "3.10"
 strict = true
@@ -135,6 +139,8 @@ module = [
     "prompture",
     "prompture.*",
     "tomllib",
+    "tomli",
+    "tomli_w",
     "croniter",
     "yaml",
     "aiofiles",

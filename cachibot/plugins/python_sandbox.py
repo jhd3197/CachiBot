@@ -17,7 +17,7 @@ from tukuy.analysis.risk_scoring import RiskLevel as AnalysisRiskLevel
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class PythonSandboxPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="python_execute",
             description="Execute Python code safely in a sandbox. "
             "Use this to run Python scripts, calculations, data processing, "
@@ -303,7 +303,7 @@ class PythonSandboxPlugin(CachibotPlugin):
             else:
                 return f"Error: {result.error}"
 
-        return {"python_execute": python_execute.__skill__}
+        return {"python_execute": skill_of(python_execute)}
 
     @property
     def skills(self) -> dict[str, Skill]:

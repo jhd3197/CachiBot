@@ -7,7 +7,7 @@ Gives bots persistent memory they can write to and read from.
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class NotesPlugin(CachibotPlugin):
@@ -32,7 +32,7 @@ class NotesPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="note_save",
             description="Save a note to your persistent memory. "
             "Use this to remember important information, user preferences, "
@@ -97,7 +97,7 @@ class NotesPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error saving note: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="note_search",
             description="Search your saved notes by keyword or tags. "
             "Use this to recall information you previously saved.",
@@ -157,7 +157,7 @@ class NotesPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error searching notes: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="note_list",
             description="List your saved notes, optionally filtered by tags.",
             category="knowledge",
@@ -214,9 +214,9 @@ class NotesPlugin(CachibotPlugin):
                 return f"Error listing notes: {e}"
 
         return {
-            "note_save": note_save.__skill__,
-            "note_search": note_search.__skill__,
-            "note_list": note_list.__skill__,
+            "note_save": skill_of(note_save),
+            "note_search": skill_of(note_search),
+            "note_list": skill_of(note_list),
         }
 
     @property

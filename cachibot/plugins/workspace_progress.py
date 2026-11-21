@@ -9,7 +9,7 @@ to the frontend for inline task checklist display.
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class WorkspaceProgressPlugin(CachibotPlugin):
@@ -29,7 +29,7 @@ class WorkspaceProgressPlugin(CachibotPlugin):
         )
 
     def _build_skills(self) -> dict[str, Skill]:
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="plan_tasks",
             description=(
                 "Create a task checklist for the current workspace operation. "
@@ -59,7 +59,7 @@ class WorkspaceProgressPlugin(CachibotPlugin):
                 "tasks": task_items,
             }
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="update_task",
             description=(
                 "Update the status of a task in the workspace progress checklist. "
@@ -92,8 +92,8 @@ class WorkspaceProgressPlugin(CachibotPlugin):
             }
 
         return {
-            "plan_tasks": plan_tasks.__skill__,
-            "update_task": update_task.__skill__,
+            "plan_tasks": skill_of(plan_tasks),
+            "update_task": skill_of(update_task),
         }
 
     @property
