@@ -116,7 +116,7 @@ The plugin loader scans `~/.cachibot/plugins/` on startup. Your plugin will appe
 - **[Artifacts](artifacts.md)** -- How to emit artifacts (code, HTML, diagrams) from skills
 - **[Views](views.md)** -- How to build view-type plugins with embedded UIs
 - **[Lifecycle Hooks](lifecycle.md)** -- Lifecycle hooks and the `PluginContext`
-- **[Examples](examples.md)** -- Walkthrough of the reference plugins in `examples/plugins/`
+- **[Examples](examples.md)** -- Walkthrough of the reference plugin in `examples/plugins/` (more in [CachiBot-Plugins](https://github.com/jhd3197/CachiBot-Plugins))
 
 ## Installation Methods
 
