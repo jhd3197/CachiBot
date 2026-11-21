@@ -8,9 +8,10 @@ and outgoing messages are sent via the Graph API.
 
 import logging
 import time
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import aiohttp
+if TYPE_CHECKING:
+    import aiohttp
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.services.adapters.base import (
@@ -22,6 +23,16 @@ from cachibot.services.adapters.base import (
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _require_aiohttp() -> Any:
+    """Import aiohttp lazily so the server can boot without it installed."""
+    try:
+        import aiohttp
+    except ImportError as e:
+        raise RuntimeError("aiohttp is not installed. Run: pip install aiohttp") from e
+    return aiohttp
+
 
 GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
 
@@ -74,6 +85,8 @@ class WhatsAppAdapter(BasePlatformAdapter):
             raise ValueError("WhatsApp phone_number_id is required")
         if not self._access_token:
             raise ValueError("WhatsApp access_token is required")
+
+        aiohttp = _require_aiohttp()
 
         self._session = aiohttp.ClientSession(
             headers={

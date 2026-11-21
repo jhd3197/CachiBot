@@ -8,9 +8,10 @@ Outbound responses are POSTed to the user's base URL.
 
 import logging
 import time
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import aiohttp
+if TYPE_CHECKING:
+    import aiohttp
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.services.adapters.base import (
@@ -22,6 +23,15 @@ from cachibot.services.adapters.base import (
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _require_aiohttp() -> Any:
+    """Import aiohttp lazily so the server can boot without it installed."""
+    try:
+        import aiohttp
+    except ImportError as e:
+        raise RuntimeError("aiohttp is not installed. Run: pip install aiohttp") from e
+    return aiohttp
 
 
 @AdapterRegistry.register("custom")
@@ -70,6 +80,7 @@ class CustomAdapter(BasePlatformAdapter):
         if api_key:
             headers["X-API-Key"] = api_key
 
+        aiohttp = _require_aiohttp()
         self._session = aiohttp.ClientSession(headers=headers)
 
         # Optionally ping the base URL to verify reachability (warn on failure, don't block)
@@ -101,6 +112,7 @@ class CustomAdapter(BasePlatformAdapter):
         if not self._session or not self._running:
             return False
 
+        aiohttp = _require_aiohttp()
         try:
             formatted = self.format_outgoing_message(message)
             payload: dict[str, Any] = {
@@ -132,6 +144,7 @@ class CustomAdapter(BasePlatformAdapter):
         if not self._session or not self._running:
             return
 
+        aiohttp = _require_aiohttp()
         try:
             async with self._session.post(
                 f"{self._base_url}/typing",
@@ -150,6 +163,7 @@ class CustomAdapter(BasePlatformAdapter):
         if not self._session or not self._running:
             return
 
+        aiohttp = _require_aiohttp()
         try:
             async with self._session.post(
                 f"{self._base_url}/read",
@@ -168,6 +182,7 @@ class CustomAdapter(BasePlatformAdapter):
         if not self._session or not self._running:
             return
 
+        aiohttp = _require_aiohttp()
         try:
             async with self._session.post(
                 f"{self._base_url}/status",
@@ -183,6 +198,7 @@ class CustomAdapter(BasePlatformAdapter):
         if not self._session or not self._running:
             return AdapterHealth(healthy=False, details={"running": False})
 
+        aiohttp = _require_aiohttp()
         try:
             start = time.monotonic()
             async with self._session.head(

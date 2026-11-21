@@ -9,9 +9,10 @@ import hashlib
 import hmac
 import logging
 import time
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import aiohttp
+if TYPE_CHECKING:
+    import aiohttp
 
 from cachibot.models.connection import BotConnection, ConnectionPlatform
 from cachibot.models.platform import PlatformResponse
@@ -19,6 +20,16 @@ from cachibot.services.adapters.base import BasePlatformAdapter, MessageHandler,
 from cachibot.services.adapters.registry import AdapterRegistry
 
 logger = logging.getLogger(__name__)
+
+
+def _require_aiohttp() -> Any:
+    """Import aiohttp lazily so the server can boot without it installed."""
+    try:
+        import aiohttp
+    except ImportError as e:
+        raise RuntimeError("aiohttp is not installed. Run: pip install aiohttp") from e
+    return aiohttp
+
 
 LINE_API_BASE = "https://api.line.me"
 
@@ -59,6 +70,8 @@ class LineAdapter(BasePlatformAdapter):
             raise ValueError("LINE channel_access_token is required")
         if not self._channel_secret:
             raise ValueError("LINE channel_secret is required")
+
+        aiohttp = _require_aiohttp()
 
         try:
             self._session = aiohttp.ClientSession(
