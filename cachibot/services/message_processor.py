@@ -97,7 +97,9 @@ def _extract_pdf_text(pdf: IncomingMedia) -> str:
         return ""
 
     try:
-        doc = pymupdf.open(stream=pdf.data, filetype="pdf")
+        # pymupdf's inline types are incomplete (open is an alias of the
+        # untyped Document class), so treat the document as opaque here.
+        doc: Any = pymupdf.open(stream=pdf.data, filetype="pdf")  # type: ignore[no-untyped-call]
         pages: list[str] = []
         for page in doc:
             pages.append(page.get_text())

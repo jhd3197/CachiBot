@@ -12,7 +12,7 @@ from typing import Any
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class ImageGenerationPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="generate_image",
             description="Generate an image from a text prompt. "
             "Supports OpenAI DALL-E 3, Google Imagen 3, Stability AI, and Grok/xAI Aurora. "
@@ -229,7 +229,7 @@ class ImageGenerationPlugin(CachibotPlugin):
 
             return "\n".join(parts)
 
-        return {"generate_image": generate_image.__skill__}
+        return {"generate_image": skill_of(generate_image)}
 
     @property
     def skills(self) -> dict[str, Skill]:

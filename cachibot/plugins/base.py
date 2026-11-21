@@ -7,12 +7,25 @@ workspace-scoped, capability-gated tool architecture.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from tukuy import PythonSandbox
 from tukuy.plugins.base import TransformerPlugin
+from tukuy.skill import Skill
 
 from cachibot.config import Config
+
+__all__ = ["CachibotPlugin", "PluginContext", "skill_of"]
+
+
+def skill_of(fn: Callable[..., Any]) -> Skill:
+    """Return the Skill that tukuy's @skill decorator attached to *fn*.
+
+    The decorator is typed to return the original callable, so the attached
+    ``__skill__`` attribute is only visible through an opaque reference.
+    """
+    return cast(Skill, cast(Any, fn).__skill__)
+
 
 if TYPE_CHECKING:
     from cachibot.models.artifact import Artifact
@@ -38,7 +51,7 @@ class PluginContext:
     on_artifact: Callable[["Artifact"], Any] | None = None
 
 
-class CachibotPlugin(TransformerPlugin):  # type: ignore[misc]
+class CachibotPlugin(TransformerPlugin):
     """Base class for CachiBot plugins.
 
     Subclasses expose skills (tool functions) but no transformers,

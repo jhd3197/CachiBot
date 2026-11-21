@@ -115,17 +115,11 @@ class ScriptSandbox:
             exec_globals["__context__"] = context or {}
             exec_globals["params"] = (context or {}).get("params", {})
 
-            # Capture stdout
-            stdout_capture = io.StringIO()
-
-            result = sandbox.execute(
-                source_code,
-                extra_globals=exec_globals,
-                stdout=stdout_capture,
-            )
+            # Tukuy captures stdout internally and returns it in result.output
+            result = sandbox.execute(source_code, globals_dict=exec_globals)
 
             elapsed_ms = int((time.monotonic() - start) * 1000)
-            output = stdout_capture.getvalue()
+            output = result.output
 
             # Truncate output if too large
             if len(output) > self.resource_limits.max_output_chars:
@@ -134,7 +128,7 @@ class ScriptSandbox:
             if result.success:
                 return ScriptExecutionResult(
                     success=True,
-                    output=output or str(result.result),
+                    output=output or str(result.return_value),
                     exit_code=0,
                     duration_ms=elapsed_ms,
                 )

@@ -156,6 +156,8 @@ class CachibotAgent:
 
     def _build_registry_from_plugins(self) -> None:
         """Build the tool registry from enabled plugins."""
+        if self.sandbox is None:
+            raise RuntimeError("Sandbox is not initialized")
         ctx = PluginContext(
             config=self.config,
             sandbox=self.sandbox,
@@ -269,6 +271,8 @@ class CachibotAgent:
         """Add workspace progress tools (plan_tasks, update_task) to the registry."""
         from cachibot.plugins.workspace_progress import WorkspaceProgressPlugin
 
+        if self.sandbox is None:
+            raise RuntimeError("Sandbox is not initialized")
         ctx = PluginContext(
             config=self.config,
             sandbox=self.sandbox,

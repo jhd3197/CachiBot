@@ -8,6 +8,7 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
+from typing import Any
 
 from cachibot.models.knowledge import DocChunk, DocumentStatus
 from cachibot.services.vector_store import VectorStore, get_vector_store
@@ -101,7 +102,9 @@ class DocumentProcessor:
         """Extract text from PDF using PyMuPDF."""
         import pymupdf
 
-        doc = pymupdf.open(file_path)
+        # pymupdf's inline types are incomplete (open is an alias of the
+        # untyped Document class), so treat the document as opaque here.
+        doc: Any = pymupdf.open(file_path)  # type: ignore[no-untyped-call]
         try:
             # Join pages with form feed character (standard page separator)
             pages = []
