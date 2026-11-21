@@ -8,7 +8,7 @@ Gives bots the ability to search and list their knowledge base
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class KnowledgePlugin(CachibotPlugin):
@@ -33,7 +33,7 @@ class KnowledgePlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         get_bot_id = self._get_bot_id
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="kb_search",
             description="Search your knowledge base for relevant information. "
             "Searches both uploaded documents (via vector similarity) and saved notes "
@@ -106,7 +106,7 @@ class KnowledgePlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error searching knowledge base: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="kb_list",
             description="List all documents and notes in your knowledge base. "
             "Shows document names, statuses, note counts, and overall stats. "
@@ -186,8 +186,8 @@ class KnowledgePlugin(CachibotPlugin):
                 return f"Error listing knowledge base: {e}"
 
         return {
-            "kb_search": kb_search.__skill__,
-            "kb_list": kb_list.__skill__,
+            "kb_search": skill_of(kb_search),
+            "kb_list": skill_of(kb_list),
         }
 
     @property

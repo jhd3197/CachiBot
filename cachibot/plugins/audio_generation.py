@@ -14,7 +14,7 @@ from typing import Any
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class AudioGenerationPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="generate_audio",
             description="Convert text to speech audio. "
             "Supports OpenAI TTS (tts-1, tts-1-hd) and ElevenLabs voices. "
@@ -213,7 +213,7 @@ class AudioGenerationPlugin(CachibotPlugin):
 
             return "\n".join(parts)
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="transcribe_audio",
             description="Transcribe audio to text using speech-to-text. "
             "Supports OpenAI Whisper and ElevenLabs Scribe. "
@@ -368,8 +368,8 @@ class AudioGenerationPlugin(CachibotPlugin):
             return "\n".join(parts)
 
         return {
-            "generate_audio": generate_audio.__skill__,
-            "transcribe_audio": transcribe_audio.__skill__,
+            "generate_audio": skill_of(generate_audio),
+            "transcribe_audio": skill_of(transcribe_audio),
         }
 
     @property

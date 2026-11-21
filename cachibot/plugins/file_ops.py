@@ -7,7 +7,7 @@ from pathlib import Path
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 _ENCODING_OPTIONS = ["utf-8", "ascii", "latin-1", "utf-16"]
 
@@ -40,7 +40,7 @@ class FileOpsPlugin(CachibotPlugin):
         ctx = self.ctx
         resolve = self._resolve_path
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="file_read",
             description="Read the contents of a file.",
             category="file",
@@ -95,11 +95,11 @@ class FileOpsPlugin(CachibotPlugin):
                         f"exceeds limit of {max_size} bytes"
                     )
 
-                return ctx.sandbox.read_file(str(full_path), encoding=encoding)  # type: ignore[no-any-return]
+                return ctx.sandbox.read_file(str(full_path), encoding=encoding)
             except Exception as e:
                 return f"Error reading file: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="file_write",
             description="Write content to a file. Creates the file if it doesn't exist.",
             category="file",
@@ -158,7 +158,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error writing file: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="file_list",
             description="List files in a directory.",
             category="file",
@@ -205,7 +205,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing files: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="file_edit",
             description="Edit a file by replacing a specific string with new content.",
             category="file",
@@ -278,7 +278,7 @@ class FileOpsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error editing file: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="file_info",
             description="Get metadata about a file (size, modified time, type).",
             category="file",
@@ -323,11 +323,11 @@ class FileOpsPlugin(CachibotPlugin):
                 return f"Error getting file info: {e}"
 
         return {
-            "file_read": file_read.__skill__,
-            "file_write": file_write.__skill__,
-            "file_list": file_list.__skill__,
-            "file_edit": file_edit.__skill__,
-            "file_info": file_info.__skill__,
+            "file_read": skill_of(file_read),
+            "file_write": skill_of(file_write),
+            "file_list": skill_of(file_list),
+            "file_edit": skill_of(file_edit),
+            "file_info": skill_of(file_info),
         }
 
     @property
