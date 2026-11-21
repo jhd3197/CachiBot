@@ -18,7 +18,7 @@ from pathlib import Path
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +220,7 @@ class CodingAgentPlugin(CachibotPlugin):
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="coding_agent",
             description=(
                 "Spawn an external AI coding agent to autonomously complete a "
@@ -346,7 +346,7 @@ class CodingAgentPlugin(CachibotPlugin):
                 logger.error("coding_agent(%s) failed: %s", cli.value, exc, exc_info=True)
                 return f"Error running {cli.value} ({type(exc).__name__}): {exc}"
 
-        return {"coding_agent": coding_agent.__skill__}
+        return {"coding_agent": skill_of(coding_agent)}
 
     @property
     def skills(self) -> dict[str, Skill]:

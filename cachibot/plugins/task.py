@@ -5,7 +5,7 @@ Task plugin — always-enabled task_complete tool.
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class TaskPlugin(CachibotPlugin):
@@ -20,7 +20,7 @@ class TaskPlugin(CachibotPlugin):
         return PluginManifest(name="task", display_name="Task", icon="check-circle", group="Core")
 
     def _build_skills(self) -> dict[str, Skill]:
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="task_complete",
             description="Signal that the current task is complete. "
             "Call this when you have finished helping the user with their request.",
@@ -42,7 +42,7 @@ class TaskPlugin(CachibotPlugin):
             """
             return f"Task completed: {summary}"
 
-        return {"task_complete": task_complete.__skill__}
+        return {"task_complete": skill_of(task_complete)}
 
     @property
     def skills(self) -> dict[str, Skill]:

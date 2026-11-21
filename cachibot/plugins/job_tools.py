@@ -14,7 +14,7 @@ that the JobRunnerService picks up and executes asynchronously.
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class JobToolsPlugin(CachibotPlugin):
@@ -43,7 +43,7 @@ class JobToolsPlugin(CachibotPlugin):
         get_bot_id = self._get_bot_id
         get_chat_id = self._get_chat_id
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="job_create",
             description="Create a background job (work item with tasks) that runs asynchronously. "
             "Use this for long-running or multi-step tasks that should not block the conversation.",
@@ -138,7 +138,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating job: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="job_status",
             description="Check the status of a background job (work item) and its tasks.",
             category="work",
@@ -215,7 +215,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error checking job status: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="job_cancel",
             description="Cancel a running background job.",
             category="work",
@@ -269,7 +269,7 @@ class JobToolsPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error cancelling job: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="job_list",
             description="List background jobs for this bot.",
             category="work",
@@ -332,10 +332,10 @@ class JobToolsPlugin(CachibotPlugin):
                 return f"Error listing jobs: {e}"
 
         return {
-            "job_create": job_create.__skill__,
-            "job_status": job_status.__skill__,
-            "job_cancel": job_cancel.__skill__,
-            "job_list": job_list.__skill__,
+            "job_create": skill_of(job_create),
+            "job_status": skill_of(job_status),
+            "job_cancel": skill_of(job_cancel),
+            "job_list": skill_of(job_list),
         }
 
     @property

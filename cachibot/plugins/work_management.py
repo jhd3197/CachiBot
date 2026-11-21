@@ -5,7 +5,7 @@ Work management plugin — work_create, work_list, work_update, todo_create, tod
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
-from cachibot.plugins.base import CachibotPlugin, PluginContext
+from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
 
 
 class WorkManagementPlugin(CachibotPlugin):
@@ -34,7 +34,7 @@ class WorkManagementPlugin(CachibotPlugin):
         get_bot_id = self._get_bot_id
         get_chat_id = self._get_chat_id
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="work_create",
             description="Create a new work item with optional tasks. "
             "Use this to create structured work that can be tracked and executed.",
@@ -156,7 +156,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating work: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="work_list",
             description="List work items for this bot.",
             category="work",
@@ -207,7 +207,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing work: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="work_update",
             description="Update a work item's status or progress.",
             category="work",
@@ -273,7 +273,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error updating work: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="todo_create",
             description="Create a todo or timed reminder. "
             "Use this to capture ideas, reminders, or tasks for later. "
@@ -401,7 +401,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating todo: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="todo_list",
             description="List todos for this bot.",
             category="work",
@@ -451,7 +451,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing todos: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="todo_done",
             description="Mark a todo as done.",
             category="work",
@@ -484,7 +484,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error marking todo done: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="schedule_create",
             description="Schedule a one-time or recurring action. "
             "Use this to set reminders, schedule messages, or plan future tasks. "
@@ -658,7 +658,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error creating schedule: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="schedule_list",
             description="List scheduled actions for this bot.",
             category="work",
@@ -708,7 +708,7 @@ class WorkManagementPlugin(CachibotPlugin):
             except Exception as e:
                 return f"Error listing schedules: {e}"
 
-        @skill(  # type: ignore[untyped-decorator]
+        @skill(
             name="schedule_delete",
             description="Delete a scheduled action.",
             category="work",
@@ -740,15 +740,15 @@ class WorkManagementPlugin(CachibotPlugin):
                 return f"Error deleting schedule: {e}"
 
         return {
-            "work_create": work_create.__skill__,
-            "work_list": work_list.__skill__,
-            "work_update": work_update.__skill__,
-            "todo_create": todo_create.__skill__,
-            "todo_list": todo_list.__skill__,
-            "todo_done": todo_done.__skill__,
-            "schedule_create": schedule_create.__skill__,
-            "schedule_list": schedule_list.__skill__,
-            "schedule_delete": schedule_delete.__skill__,
+            "work_create": skill_of(work_create),
+            "work_list": skill_of(work_list),
+            "work_update": skill_of(work_update),
+            "todo_create": skill_of(todo_create),
+            "todo_list": skill_of(todo_list),
+            "todo_done": skill_of(todo_done),
+            "schedule_create": skill_of(schedule_create),
+            "schedule_list": skill_of(schedule_list),
+            "schedule_delete": skill_of(schedule_delete),
         }
 
     @property

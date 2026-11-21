@@ -265,10 +265,23 @@ def _fetch_github_release_notes(version: str) -> tuple[str | None, str | None]:
         return None, None
 
 
+def _parse_version(raw: str | None) -> Version | None:
+    """Parse a version string, tolerating a leading 'v' and unparseable input."""
+    if not raw:
+        return None
+    text = raw.strip()
+    if text.startswith(("v", "V")):
+        text = text[1:]
+    try:
+        return Version(text)
+    except Exception:
+        return None
+
+
 def _check_updates_sync() -> UpdateCheckResponse:
     """Synchronous update check (runs in thread)."""
-    current = Version(__version__)
     is_docker = _is_docker()
+    current = _parse_version(__version__)
 
     try:
         pypi_data = _fetch_pypi_json()
@@ -279,13 +292,19 @@ def _check_updates_sync() -> UpdateCheckResponse:
             is_docker=is_docker,
         )
 
-    # Find latest stable and latest pre-release
+    if current is None:
+        logger.warning("Cannot compare versions: unparseable current version %r", __version__)
+        return UpdateCheckResponse(
+            current_version=__version__,
+            is_docker=is_docker,
+        )
+
+    # Find latest stable and latest pre-release (skip unparseable entries)
     all_versions: list[Version] = []
     for v_str in pypi_data.get("releases", {}):
-        try:
-            all_versions.append(Version(v_str))
-        except Exception:
-            continue
+        v = _parse_version(v_str)
+        if v is not None:
+            all_versions.append(v)
 
     stable_versions = [v for v in all_versions if not v.is_prerelease and not v.is_devrelease]
     pre_versions = [v for v in all_versions if v.is_prerelease or v.is_devrelease]
@@ -295,10 +314,11 @@ def _check_updates_sync() -> UpdateCheckResponse:
 
     # Determine target version for release notes
     target = latest_stable
+    # Only report an update when the candidate is strictly newer than current.
     update_available = latest_stable is not None and latest_stable > current
-    prerelease_available = latest_pre is not None and latest_pre > current
-    if latest_pre and (not latest_stable or latest_pre > latest_stable):
-        prerelease_available = True
+    # Pre-releases are only offered to installs that are themselves pre-release.
+    current_is_prerelease = current.is_prerelease or current.is_devrelease
+    prerelease_available = current_is_prerelease and latest_pre is not None and latest_pre > current
 
     # Fetch release notes for the latest stable
     release_notes = None
