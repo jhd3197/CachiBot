@@ -23,8 +23,18 @@ Work is never lost: branches are never force-deleted here, the parent tree
 is never reset or cleaned, and a worktree with uncommitted or unmerged
 changes is never removed.
 
-All functions are synchronous (subprocess-based); the service runs them
-with ``asyncio.to_thread``. Merges are serialized per repo by the service.
+All functions are synchronous (subprocess-based); the service runs every
+git-invoking one with ``asyncio.to_thread`` (subprocesses have a timeout, so
+a blocked git can never stall the event loop). Merges are serialized per
+repo by the service.
+
+Service-created commits and merges (the worktree commit and the
+``--no-ff`` merge back) run with ``--no-verify``: user git hooks must never
+run — or hang — as part of a side task. Identity is never passed explicitly
+except the local fallback: git uses the repository's configured
+user.name/user.email, and only when none is set does the service supply
+``-c user.name=CachiBot -c user.email=cachibot@localhost`` for its own
+commits.
 """
 
 from __future__ import annotations
@@ -35,6 +45,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cachibot.config import cachibot_data_dir
 from cachibot.models.side_task import SideTask
 
 logger = logging.getLogger(__name__)
@@ -51,7 +62,7 @@ _FALLBACK_EMAIL = "cachibot@localhost"
 
 def worktrees_base_dir() -> Path:
     """Directory that holds all side task worktrees (outside user repos)."""
-    return Path.home() / ".cachibot" / "worktrees"
+    return cachibot_data_dir() / "worktrees"
 
 
 def side_branch_name(side_task: SideTask) -> str:
@@ -326,12 +337,14 @@ def merge_side_branch(workspace: Path, side_task: SideTask) -> MergeOutcome:
 
     # The merge may create a commit in the parent repo: use its configured
     # identity, falling back to a local one via -c only when none is set.
+    # --no-verify so user hooks can never run (or hang) here.
     result = _git(
         workspace,
         *_identity_args(workspace),
         "merge",
         "--no-ff",
         "--no-edit",
+        "--no-verify",
         branch,
         check=False,
         timeout=600,
