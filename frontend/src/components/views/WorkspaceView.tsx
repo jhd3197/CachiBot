@@ -471,7 +471,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
               <button
                 type="button"
                 className="v2-btn v2-btn--secondary"
-                onClick={() => navigate(`/${targetBotId}/automations`)}
+                onClick={() => navigate(`/${targetBotId}/routines`)}
               >
                 Routines
               </button>

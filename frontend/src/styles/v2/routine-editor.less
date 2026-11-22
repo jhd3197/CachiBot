@@ -1,0 +1,445 @@
+// =============================================================================
+// Routine editor — styles/v2/routine-editor.less
+// Single narrow column (design view 13). Values from
+// docs/design/cachibot-v2-final-views/source/13-routine-editor.html
+// =============================================================================
+
+.routine {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.routine__column {
+  width: 100%;
+  // Design source (13-routine-editor.html): column max-width 680px,
+  // page padding 32px 24px 64px, column gap 24px
+  max-width: 680px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 24px 16px 48px;
+  }
+}
+
+// ── Header: back + title + close ─────────────────────────────────────────────
+
+.routine__header {
+  display: flex;
+  align-items: center;
+}
+
+.routine__title {
+  margin: 0 auto;
+  font-size: 16px;
+  font-weight: @font-semibold;
+}
+
+.routine__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--v2-radius-icon-btn);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  flex: none;
+
+  &:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+}
+
+// ── Status row: Active switch + Delete / Test run ────────────────────────────
+
+.routine__status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.routine__switch {
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  border: 0;
+  padding: 3px;
+  cursor: pointer;
+  background: var(--v2-bg-button);
+  display: flex;
+  align-items: center;
+  flex: none;
+
+  &[aria-checked='true'] {
+    background: var(--v2-text);
+  }
+}
+
+.routine__switch-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--v2-text-tertiary);
+  display: block;
+
+  .routine__switch[aria-checked='true'] & {
+    background: var(--v2-bg-main);
+    margin-left: auto;
+  }
+}
+
+.routine__switch-label {
+  font-size: 14px;
+}
+
+.routine__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.routine__btn-secondary {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--v2-bg-button);
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-semibold;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// ── Fields ───────────────────────────────────────────────────────────────────
+
+.routine__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routine__label {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.routine__label-note {
+  color: var(--v2-text-tertiary);
+}
+
+.routine__input,
+.routine__textarea {
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--v2-bg-inset);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-row);
+  padding: 0 12px;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--v2-border-strong);
+  }
+
+  &::placeholder {
+    color: var(--v2-text-tertiary);
+  }
+}
+
+.routine__input {
+  height: 40px;
+}
+
+.routine__textarea {
+  padding: 10px 12px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 76px;
+}
+
+// ── Triggers ─────────────────────────────────────────────────────────────────
+
+.routine__triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routine__trigger-card {
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routine__trigger-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+
+  strong {
+    font-weight: @font-semibold;
+  }
+}
+
+.routine__trigger-summary-icon {
+  color: var(--v2-text-secondary);
+  flex: none;
+}
+
+.routine__trigger-summary-detail {
+  color: var(--v2-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.routine__trigger-remove {
+  margin-left: auto;
+}
+
+.routine__trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  flex-wrap: wrap;
+}
+
+.routine__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--v2-border);
+  border-radius: 9px;
+  color: var(--v2-text);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+
+  select& {
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: var(--v2-border-strong);
+    }
+  }
+
+  input& {
+    cursor: text;
+  }
+}
+
+.routine__chip--narrow {
+  width: 84px;
+}
+
+.routine__chip-select {
+  appearance: none;
+  border: 0;
+  padding: 0 14px 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
+
+  option {
+    color: #1a1a1a;
+    background: #ffffff;
+  }
+}
+
+.routine__add-trigger {
+  height: 44px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &:hover {
+    color: var(--v2-text);
+    border-color: var(--v2-border-strong);
+  }
+}
+
+.routine__helper {
+  margin: 0;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.routine__notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  line-height: 1.55;
+}
+
+.routine__input:disabled,
+.routine__textarea:disabled,
+.routine__chip:disabled,
+.routine__chip-select:disabled,
+.routine__check input:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+// ── Advanced ─────────────────────────────────────────────────────────────────
+
+.routine__advanced-toggle {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  svg {
+    transition: transform 150ms ease;
+  }
+
+  &--open svg {
+    transform: rotate(180deg);
+  }
+}
+
+.routine__advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+  padding: 14px;
+}
+
+.routine__advanced-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .routine__label {
+    flex: none;
+    width: 180px;
+  }
+
+  .routine__input,
+  .routine__chip {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+}
+
+.routine__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--v2-text);
+  cursor: pointer;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--v2-green);
+    cursor: pointer;
+  }
+}
+
+.routine__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  line-height: 1.6;
+}
+
+// ── Save / states ────────────────────────────────────────────────────────────
+
+.routine__save {
+  align-self: flex-start;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--v2-text);
+  color: var(--v2-bg-main);
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-semibold;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.routine__loading,
+.routine__error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--v2-text-secondary);
+  font-size: 14px;
+}

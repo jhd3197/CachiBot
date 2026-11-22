@@ -133,7 +133,7 @@ export function ChatMoreMenu({ bot, chat, onClose }: ChatMoreMenuProps) {
         <V2MenuItem
           icon={<Clock size={16} strokeWidth={1.8} />}
           suffix={routines && routines > 0 ? routines : undefined}
-          onClick={() => go(`/${bot.id}/automations`)}
+          onClick={() => go(`/${bot.id}/routines`)}
         >
           Routines
         </V2MenuItem>
