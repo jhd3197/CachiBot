@@ -38,6 +38,7 @@ from cachibot.plugins import (
     PlatformPlugin,
     PluginContext,
     PythonSandboxPlugin,
+    SideTaskToolsPlugin,
     TaskPlugin,
     WorkManagementPlugin,
 )
@@ -56,7 +57,7 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     "webAccess": [WebPlugin, HttpPlugin],
     "dataOperations": [SqlPlugin, CompressionPlugin],
     "connections": [PlatformPlugin],
-    "workManagement": [WorkManagementPlugin, JobToolsPlugin],
+    "workManagement": [WorkManagementPlugin, JobToolsPlugin, SideTaskToolsPlugin],
     "imageGeneration": [ImageGenerationPlugin],
     "audioGeneration": [AudioGenerationPlugin],
     "codingAgent": [CodingAgentPlugin],

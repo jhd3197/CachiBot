@@ -58,6 +58,10 @@ class CachibotAgent:
     # Acts as a secondary filter on top of capability-based plugin selection.
     allowed_tools: set[str] | None = None
 
+    # Optional set of tools to remove from the registry (e.g. the side task
+    # starters inside a side task's own chat — side tasks are one level deep)
+    excluded_tools: set[str] | None = None
+
     # Optional per-tool configuration (timeouts, limits, etc.)
     tool_configs: dict[str, Any] | None = None
 
@@ -116,6 +120,12 @@ class CachibotAgent:
         if self.allowed_tools is not None:
             valid_tools = self.allowed_tools & set(self.registry.names)
             self.registry = self.registry.subset(valid_tools)
+
+        # Apply explicit exclusions if specified
+        if self.excluded_tools:
+            remaining = [name for name in self.registry.names if name not in self.excluded_tools]
+            if len(remaining) != len(self.registry.names):
+                self.registry = self.registry.subset(remaining)
 
         self._create_agent()
 

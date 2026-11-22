@@ -48,6 +48,7 @@ class SideTask(Base):
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     kind: Mapped[str] = mapped_column(String, nullable=False, server_default="side")
     group_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    group_title: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Status
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="waiting_for_slot")

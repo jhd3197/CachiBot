@@ -28,6 +28,7 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
                 prompt=side_task.prompt,
                 kind=side_task.kind.value,
                 group_id=side_task.group_id,
+                group_title=side_task.group_title,
                 status=side_task.status.value,
                 needs_you_reason=side_task.needs_you_reason,
                 started_by=side_task.started_by.value,
@@ -56,6 +57,7 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
                 prompt=side_task.prompt,
                 kind=side_task.kind.value,
                 group_id=side_task.group_id,
+                group_title=side_task.group_title,
                 status=side_task.status.value,
                 needs_you_reason=side_task.needs_you_reason,
                 worktree_path=side_task.worktree_path,
@@ -92,6 +94,14 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
     async def get_by_chat(self, chat_id: str) -> SideTask | None:
         """Get the side task that owns a chat (if the chat is a side task)."""
         return await self._fetch_one(select(SideTaskModel).where(SideTaskModel.chat_id == chat_id))
+
+    async def get_by_group(self, group_id: str) -> list[SideTask]:
+        """Get all side tasks of one helper group, oldest first."""
+        return await self._fetch_all(
+            select(SideTaskModel)
+            .where(SideTaskModel.group_id == group_id)
+            .order_by(SideTaskModel.created_at.asc())
+        )
 
     async def get_by_statuses(self, statuses: list[SideTaskStatus]) -> list[SideTask]:
         """Get side tasks in any of the given statuses (all bots)."""
@@ -152,6 +162,7 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
             prompt=row.prompt,
             kind=row.kind,  # type: ignore[arg-type]
             group_id=row.group_id,
+            group_title=row.group_title,
             status=row.status,  # type: ignore[arg-type]
             needs_you_reason=row.needs_you_reason,
             started_by=row.started_by,  # type: ignore[arg-type]

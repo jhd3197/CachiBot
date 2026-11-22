@@ -30,6 +30,7 @@ from cachibot.plugins.knowledge import KnowledgePlugin
 from cachibot.plugins.notes import NotesPlugin
 from cachibot.plugins.platform import PlatformPlugin
 from cachibot.plugins.python_sandbox import PythonSandboxPlugin
+from cachibot.plugins.side_tasks import SideTaskToolsPlugin
 from cachibot.plugins.task import TaskPlugin
 from cachibot.plugins.work_management import WorkManagementPlugin
 
@@ -43,6 +44,7 @@ CACHIBOT_PLUGINS: dict[str, type[CachibotPlugin] | type[TransformerPlugin]] = {
     "python_sandbox": PythonSandboxPlugin,
     "platform": PlatformPlugin,
     "work_management": WorkManagementPlugin,
+    "side_tasks": SideTaskToolsPlugin,
     "job_tools": JobToolsPlugin,
     "image_generation": ImageGenerationPlugin,
     "audio_generation": AudioGenerationPlugin,
@@ -73,6 +75,7 @@ __all__ = [
     "NotesPlugin",
     "FileOpsPlugin",
     "PythonSandboxPlugin",
+    "SideTaskToolsPlugin",
     "PlatformPlugin",
     "WorkManagementPlugin",
     "ImageGenerationPlugin",
