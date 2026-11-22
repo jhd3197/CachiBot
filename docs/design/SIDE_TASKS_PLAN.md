@@ -7,7 +7,7 @@ Design: `docs/design/cachibot-v2-final-views/` views 11a (side tasks in the chat
 | Need | From the design |
 |---|---|
 | A child chat of a parent chat, same bot, its own messages and a short name | 11a/11b header "CachiBot / Update the changelog" |
-| Its own copy of the files: a git worktree on a `side/<name>` branch in a repo, else a folder copy; nothing reaches the parent until "Bring into main task" | 11b sub-line, 11c Files |
+| Its own copy of the files: a git worktree on a `side/<name>` branch (git is required — a non-git workspace can't start a side task); nothing reaches the parent until it's merged back | 11b sub-line, 11c Files |
 | Reports back: one card in the parent chat with the states running / needs you / done (Bring in, View changes, Discard) / brought in | 11c States |
 | Helpers: bot-started side tasks shown as one group card ("3 helpers · 1 of 3 done", "Waiting for a slot") | 11a, 11c |
 | Four ways to start: More › Do this on the side, + › Side task, saying it, or the bot deciding | 11c |
@@ -30,19 +30,29 @@ Design: `docs/design/cachibot-v2-final-views/` views 11a (side tasks in the chat
 | **Rooms orchestrator** (multi-bot turn-taking) | `services/room_orchestrator.py` | Not relevant: side tasks are the same bot, not several bots. |
 | **Chats** | `chats` table | **Missing a parent link.** No `parent_chat_id`, no side-task title or status on the chat. |
 
+## Decisions (decided)
+
+1. **File isolation: git worktrees only.** A side task gets `git worktree add -b side/<slug>`; there is no plain-copy fallback. Git is required: if the workspace isn't a git repo, starting a side task fails with a clear error.
+2. **Bring-back: automatic merge.** When a side task finishes, its changes merge back automatically (no review gate). If the merge conflicts, nothing is lost: the branch/worktree stays, the side task becomes `needs_you` with reason "merge conflict", and the merge result (files changed, merge commit sha) is always recorded on the record so the card can show it.
+3. **Concurrency: 4 running per parent chat.** At most 4 side tasks run at once per main task (parent chat); the rest queue in `waiting_for_slot` and are promoted FIFO when a slot frees.
+4. **Restart: resume.** Side tasks survive a server restart: running ones are re-queued and resumed from their persisted chat history when the server comes back, queued ones stay queued, and the per-parent limit still applies.
+
 ## Phase E plan
 
 ### E1, backend model and runner (about 2 days)
-- Migration: `chats.parent_chat_id`, `chats.kind` (`main` / `side` / `helper`), `chats.side_status`. Link to a Work row (`work.parent_work_id` = parent chat's run) for status, progress and Runs.
-- `SideTaskService`: start (from a message, a composer prompt or a bot tool), at most 4 running per parent with a waiting queue (new `waiting_for_slot` state), stop (cascades to children), and the states running / needs_you / done / brought_in / discarded.
-- Run each side task through the job runner with its own chat history: output streams into the child chat; approvals and questions emit `approval_needed` / `side_task_update` WebSocket events that work even when the chat isn't open.
-- Parent stop → `cancel_work` on all children (extend the WS `cancel` handler).
-- Tests that run without PostgreSQL (service-level with in-memory repos), like the schedule fix.
+- Migration: `chats.parent_chat_id` and a `side_tasks` table (id, bot_id, parent_chat_id, chat_id, title, prompt, kind, group_id, status, needs_you_reason, started_by, worktree/branch/base_commit placeholders for E2, merged_commit/merged_files for E2, error, timestamps, work_id link to a Work row).
+- `SideTaskService`: start (from a message, a composer prompt or a bot tool), at most 4 running per parent chat with a waiting queue (new `waiting_for_slot` state, promoted FIFO), stop (cascades from the parent's cancel), states running / needs_you / done (E2 adds merged / needs_you-on-conflict), and restart resume.
+- Git is required from E1 on: `start` fails with a clear error when the workspace isn't a git repo (the worktree itself arrives in E2).
+- Run each side task through the agent in the background, independent of any WebSocket: output persists into the side task's own chat (same persistence the WebSocket turn uses); approvals reuse the existing `approval_needed` broadcast path; every state change broadcasts a `side_task_update` WebSocket event with the full record.
+- Parent stop → all its side tasks stop (extend the WS `cancel` handler).
+- On startup, side tasks in `running` are re-queued and resumed from persisted chat history; `waiting_for_slot` ones stay queued; the limit of 4 per parent still applies.
+- Tests that run without PostgreSQL (SQLite in a tmp dir, agent run mocked, real git in tmp dirs), like the schedule fix.
 
-### E2, files: worktree or copy, then bring in (about 2–3 days)
-- Make the workspace per run: the parent uses `workspace_path`. A side task gets `git worktree add -b side/<slug>` when the workspace is a git repo, else a copy of the folder under `.cachibot/side/<id>`.
-- Point the tools (`file_ops`, `python_execute`, coding agents) at the side task's workspace through `PluginContext`/config. Today they read the global `config.workspace_path`, so this touches several plugins.
-- "View changes": diff (git diff for worktrees, file diff for copies). "Bring into main task": merge the side branch, or copy the changed files back, with conflict reporting. "Discard": remove the worktree or copy.
+### E2, files: worktree and automatic bring-back (about 2–3 days)
+- A side task gets `git worktree add -b side/<slug>` (from `.cachibot/side/<id>`) when it starts — no folder-copy fallback; git is enforced in E1. Fill `worktree_path`, `branch`, `base_commit` on the record.
+- Point the tools (`file_ops`, `python_execute`, coding agents) at the side task's worktree through `PluginContext`/config. Today they read the global `config.workspace_path`, so this touches several plugins.
+- On finish, merge the `side/<slug>` branch back automatically: record `merged_files` and the `merged_commit` sha, and mark the side task `merged`. On merge conflict, do not lose work: keep the branch/worktree, mark the side task `needs_you` with reason "merge conflict", and surface it.
+- "View changes": diff against the base commit. "Discard": remove the worktree and delete the side branch.
 - This is the riskiest part: path isolation must be enforced or a side task could write into the parent's files.
 
 ### E3, bot-started helpers (about 1–1.5 days)
@@ -57,10 +67,4 @@ Design: `docs/design/cachibot-v2-final-views/` views 11a (side tasks in the chat
 - Start points: More › Do this on the side (message actions), + › Side task (composer), plus bot-started.
 
 ### Estimate
-**About 7–10 working days** (E1 2, E2 2–3, E3 1–1.5, E4 2–3), as 4–5 PRs into dev, each green on its own. E2 needs a decision from Juan first (see below). Computer-related parts of 11c (labeled windows, preview counts) stay out until the computer backend exists.
-
-### Decisions for Juan
-1. When the workspace isn't a git repo, is a folder copy OK (it can be large), or should side tasks require git?
-2. Should "Bring into main task" merge automatically when there are no conflicts, or always show the diff first?
-3. Should the limit of 4 be per parent chat or per bot? The design says "up to 4 run at once"; per parent is simpler.
-4. Should side tasks keep running when the server restarts? Today stuck runs can't resume (that's the D1 "stuck" banner). Resuming needs persisted chat state per side task.
+**About 7–10 working days** (E1 2, E2 2–3, E3 1–1.5, E4 2–3), as 4–5 PRs into dev, each green on its own. E2 builds on the decisions above (worktrees only, automatic merge with conflict → needs_you). Computer-related parts of 11c (labeled windows, preview counts) stay out until the computer backend exists.

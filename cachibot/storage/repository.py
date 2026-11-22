@@ -1123,6 +1123,7 @@ class ChatRepository(BaseRepository[ChatModel, Chat]):
             platform_chat_id=row.platform_chat_id,
             pinned=row.pinned,
             archived=row.archived,
+            parent_chat_id=row.parent_chat_id,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -1138,6 +1139,7 @@ class ChatRepository(BaseRepository[ChatModel, Chat]):
                 platform_chat_id=chat.platform_chat_id,
                 pinned=chat.pinned,
                 archived=chat.archived,
+                parent_chat_id=chat.parent_chat_id,
                 created_at=chat.created_at,
                 updated_at=chat.updated_at,
             )

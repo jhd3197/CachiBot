@@ -24,6 +24,7 @@ class WSMessageType(str, Enum):
     CONNECTION_STATUS = "connection_status"  # Platform connection state changes
     DOCUMENT_STATUS = "document_status"  # Document processing progress
     JOB_UPDATE = "job_update"  # Job/work execution progress
+    SIDE_TASK_UPDATE = "side_task_update"  # Side task state change (full record)
     EXECUTION_START = "execution_start"  # New execution began
     EXECUTION_LOG = "execution_log"  # Live log line
     EXECUTION_PROGRESS = "execution_progress"  # Progress update
@@ -471,3 +472,8 @@ class WSMessage(BaseModel):
         if logs:
             payload["logs"] = logs
         return cls(type=WSMessageType.JOB_UPDATE, payload=payload)
+
+    @classmethod
+    def side_task_update(cls, payload: dict[str, Any]) -> "WSMessage":
+        """Create a side task update (full record, camelCase keys)."""
+        return cls(type=WSMessageType.SIDE_TASK_UPDATE, payload=payload)

@@ -33,6 +33,13 @@ from cachibot.models.config import ConfigResponse, ConfigUpdate
 # Deprecated — legacy job system. Use cachibot.models.work (Job, JobStatus) instead.
 from cachibot.models.job import Job as LegacyJob  # noqa: F401
 from cachibot.models.job import JobStatus as LegacyJobStatus  # noqa: F401
+from cachibot.models.side_task import (
+    SideTask,
+    SideTaskKind,
+    SideTaskList,
+    SideTaskStartedBy,
+    SideTaskStatus,
+)
 from cachibot.models.skill import (
     BotSkillActivation,
     BotSkillRequest,
@@ -134,6 +141,12 @@ __all__ = [
     "TodoList",
     "FunctionList",
     "ScheduleList",
+    # Side Tasks
+    "SideTask",
+    "SideTaskKind",
+    "SideTaskStatus",
+    "SideTaskStartedBy",
+    "SideTaskList",
     # Automation System - Enums
     "ScriptStatus",
     "AuthorType",
