@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
-import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity, History } from 'lucide-react'
+import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity, History, MoreHorizontal } from 'lucide-react'
 import { BotListSidebar } from './BotListSidebar'
+import { ChatMoreMenu } from '../chat/ChatMoreMenu'
 import {
   ChatView,
   RoomsView,
@@ -25,6 +26,7 @@ import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { BotAvatar } from '../common/Avatar'
 import { ChatsSheet } from '../chat/ChatsSheet'
+import { GlobalSearchDialog } from '../common/GlobalSearchDialog'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
@@ -251,6 +253,20 @@ export function MainLayout() {
     return () => document.removeEventListener('keydown', handler)
   }, [mobileMenuOpen, setMobileMenuOpen])
 
+  // Global search (design 12): Ctrl/Cmd+K anywhere opens the search dialog
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setShowGlobalSearch(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+  const searchBotId = urlBotId ?? activeBotId ?? bots[0]?.id ?? null
+
   const renderActiveView = () => {
     // App-level views take precedence (determined by URL)
     if (appView) {
@@ -325,6 +341,7 @@ export function MainLayout() {
   // bot title + "Earlier chats" into one row (design 02, <1024px).
   const chatRouteActive = !appView && (!botView || botView === 'chats')
   const [showMobileChats, setShowMobileChats] = useState(false)
+  const [showMobileMore, setShowMobileMore] = useState(false)
 
   return (
     <div className="app-shell ui-v2">
@@ -346,7 +363,7 @@ export function MainLayout() {
           mobileMenuOpen && 'app-shell__nav--open'
         )}
       >
-        <BotListSidebar onNavigate={() => setMobileMenuOpen(false)} />
+        <BotListSidebar onNavigate={() => setMobileMenuOpen(false)} onOpenSearch={() => setShowGlobalSearch(true)} />
       </div>
 
       {/* Main content area */}
@@ -383,15 +400,35 @@ export function MainLayout() {
             </div>
           )}
           {chatRouteActive && headerBot && (
-            <button
-              type="button"
-              className="v2-icon-btn"
-              aria-label="Earlier chats"
-              title="Earlier chats"
-              onClick={() => setShowMobileChats(true)}
-            >
-              <History size={18} strokeWidth={1.8} />
-            </button>
+            <div className="app-shell__mobile-actions">
+              <button
+                type="button"
+                className="v2-icon-btn"
+                aria-label="Earlier chats"
+                title="Earlier chats"
+                onClick={() => setShowMobileChats(true)}
+              >
+                <History size={18} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                className="v2-icon-btn"
+                aria-label="More"
+                title="More"
+                aria-haspopup="menu"
+                aria-expanded={showMobileMore}
+                onClick={(e) => { e.stopPropagation(); setShowMobileMore((o) => !o) }}
+              >
+                <MoreHorizontal size={18} strokeWidth={1.8} />
+              </button>
+              {showMobileMore && (
+                <ChatMoreMenu
+                  bot={headerBot}
+                  chat={chats.find((c) => c.id === activeChatId) ?? null}
+                  onClose={() => setShowMobileMore(false)}
+                />
+              )}
+            </div>
           )}
         </div>
         <UpdateBanner />
@@ -414,6 +451,15 @@ export function MainLayout() {
       {/* "Earlier chats" from the mobile top bar (chat header is folded away) */}
       {showMobileChats && headerBot && (
         <ChatsSheet bot={headerBot} onClose={() => setShowMobileChats(false)} />
+      )}
+
+      {/* Global search (sidebar search icon + Ctrl/Cmd K, design 12/13) */}
+      {showGlobalSearch && (
+        <GlobalSearchDialog
+          botId={searchBotId}
+          onNavigate={(path) => { setShowGlobalSearch(false); navigate(path) }}
+          onClose={() => setShowGlobalSearch(false)}
+        />
       )}
     </div>
   )

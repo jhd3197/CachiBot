@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Send,
   Square,
@@ -16,6 +16,8 @@ import {
   Cpu,
   History,
   ArrowDown,
+  Mic,
+  MoreHorizontal,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -37,6 +39,8 @@ import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubbleV2, isMediaResult } from '../chat/MessageBubble'
 import { ErrorCard, ApprovalCard, StoppedLine } from '../chat/ChatCards'
+import { ChatMoreMenu } from '../chat/ChatMoreMenu'
+import { VoiceMode } from '../chat/VoiceMode'
 import { FindInChatBar } from '../chat/FindInChatBar'
 import { ArtifactPanel } from '../artifacts/ArtifactPanel'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -113,12 +117,13 @@ function clearFindMarks(root: HTMLElement) {
 
 export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: ChatViewProps) {
   const navigate = useNavigate()
-  const { activeChatId, messages: messagesByChat, thinking, toolCalls, isLoading, error: runError, addMessage, addChat, setActiveChat, updateMessage, replyToMessage, setReplyTo } = useChatStore()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { activeChatId, chats, messages: messagesByChat, thinking, toolCalls, isLoading, error: runError, addMessage, addChat, setActiveChat, updateMessage, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
-  const { canOperate } = useBotAccess(activeBotId)
+  const { canOperate, canEdit: canEditBot } = useBotAccess(activeBotId)
   const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
 
   // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
@@ -135,6 +140,8 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
   const [showChats, setShowChats] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [voiceMode, setVoiceMode] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -226,6 +233,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   }, [input, filteredCommands.length])
 
   const activeBot = getActiveBot()
+
+  // ?voice=1 deep link (the /:botId/voice route redirects here): enter voice
+  // mode once the view is mounted, then strip the param from the URL.
+  useEffect(() => {
+    if (searchParams.get('voice') === '1') {
+      setVoiceMode(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('voice')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   // Sync selectedModel when the active bot changes
   useEffect(() => {
@@ -1358,6 +1376,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
           rows={1}
           className="v2-composer__input"
         />
+        {canOperate && !isInCreationFlow && (
+          <button
+            type="button"
+            className="v2-composer__talk"
+            title="Talk"
+            aria-label="Talk"
+            onClick={() => setVoiceMode(true)}
+          >
+            <Mic size={18} strokeWidth={1.8} />
+          </button>
+        )}
         {isLoading ? (
           <button
             type="button"
@@ -1442,30 +1471,67 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
 
   const showPanel = panelOpen && activeArtifact
 
-  // Chat header — just the bot (design view 02), plus Earlier chats.
+  // Chat header — just the bot (design views 02/14): the bot name opens Bot
+  // settings, the history icon keeps "Earlier chats", and the "..." menu
+  // holds Runs / Routines / Knowledge / plugin pages / Export / Clear.
   // Rendered in every chat state, including the empty hero. Below 1024px
   // the whole row is hidden (mobile top bar carries avatar/name/history).
+  // A Files button (design 14) lands here in phase D4 — space is reserved.
   const chatHeader = (
     <>
       <div className="chat-header">
         <div className="chat-header__bot-info">
           {activeBot && (
-            <BotAvatar color={activeBot.color} name={activeBot.name} size={30} />
+            <>
+              <BotAvatar color={activeBot.color} name={activeBot.name} size={30} />
+              {canEditBot ? (
+                <button
+                  type="button"
+                  className="chat-header__name chat-header__name--link"
+                  title="Bot settings"
+                  onClick={() => {
+                    useUIStore.getState().setSettingsSection('general')
+                    navigate(`/${activeBot.id}/settings`)
+                  }}
+                >
+                  {activeBot.name}
+                </button>
+              ) : (
+                <h2 className="chat-header__name">{activeBot.name}</h2>
+              )}
+            </>
           )}
-          <h2 className="chat-header__name">
-            {activeBot?.name || 'CachiBot'}
-          </h2>
         </div>
         {activeBot && (
-          <button
-            type="button"
-            className="v2-icon-btn"
-            aria-label="Earlier chats"
-            title="Earlier chats"
-            onClick={() => setShowChats(true)}
-          >
-            <History size={18} strokeWidth={1.8} />
-          </button>
+          <div className="chat-header__actions">
+            <button
+              type="button"
+              className="v2-icon-btn"
+              aria-label="Earlier chats"
+              title="Earlier chats"
+              onClick={() => setShowChats(true)}
+            >
+              <History size={18} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              className="v2-icon-btn"
+              aria-label="More"
+              title="More"
+              aria-haspopup="menu"
+              aria-expanded={showMoreMenu}
+              onClick={(e) => { e.stopPropagation(); setShowMoreMenu((o) => !o) }}
+            >
+              <MoreHorizontal size={18} strokeWidth={1.8} />
+            </button>
+            {showMoreMenu && (
+              <ChatMoreMenu
+                bot={activeBot}
+                chat={activeChatId ? chats.find((c) => c.id === activeChatId) ?? null : null}
+                onClose={() => setShowMoreMenu(false)}
+              />
+            )}
+          </div>
         )}
       </div>
       {showChats && activeBot && (
@@ -1479,6 +1545,18 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     : creationFlow.step === 'name'
       ? 'Type a number (1-4), your own name, or "more"...'
       : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
+
+  // Voice mode (design 15): the same chat switches to voice — big avatar,
+  // live transcript lines, bottom bar with mic/waveform/Interrupt/Back.
+  // Transcripts are saved into this chat by the voice pipeline.
+  if (voiceMode && activeBot && canOperate) {
+    return (
+      <div className="chat-view">
+        {chatHeader}
+        <VoiceMode bot={activeBot} ensureChat={ensureChatId} onExit={() => setVoiceMode(false)} />
+      </div>
+    )
+  }
 
   // Empty state — hero omnibox start state (no chat or chat with no messages)
   if (messages.length === 0) {

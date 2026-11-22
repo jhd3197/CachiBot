@@ -1211,6 +1211,7 @@ export interface Room {
   members: RoomMember[]
   bots: RoomBot[]
   messageCount: number
+  lastMessage?: RoomMessage | null
   createdAt: string
   updatedAt: string
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, Paperclip } from 'lucide-react'
+import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, FolderOpen, MoreHorizontal } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
+import { useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useRoomWebSocket } from '../../hooks/useRoomWebSocket'
 import { getRoomMessages, getRoom } from '../../api/rooms'
@@ -14,6 +15,8 @@ import { DashboardCardsView } from './DashboardCardsView'
 import { TimelineView } from './TimelineView'
 import { RoomTasksView } from './RoomTasksView'
 import { AssetsView } from '../common/AssetsView'
+import { BotAvatar } from '../common/Avatar'
+import { V2Menu, V2MenuItem, V2MenuLabel, V2MenuDivider } from '../common/V2Menu'
 import { useAuthStore } from '../../stores/auth'
 import { downloadJson, slugify } from '../../lib/utils'
 import type { Room } from '../../types'
@@ -24,9 +27,11 @@ interface RoomPanelProps {
 
 export function RoomPanel({ roomId }: RoomPanelProps) {
   const { messages, botStates, botActivity, typingUsers, onlineUsers, setMessages, updateRoom, deleteRoom, setActiveRoom, chainStep, routeDecision, activeToolCalls, thinkingContent, instructionDeltas, consensusState, interviewState, viewMode, setViewMode } = useRoomStore()
+  const { bots } = useBotStore()
   const { showThinking } = useUIStore()
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMore, setShowMore] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Connect WebSocket only after the initial REST load finishes so that
@@ -114,23 +119,50 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   const isCreator = user?.id === room.creatorId
   const currentView = viewMode[roomId] || 'chat'
 
+  // Members line per design 13 ("Writer, Researcher and you") — real names
+  const membersLine = (() => {
+    const names = room.bots.map((b) => b.botName).filter(Boolean)
+    const others = room.members
+      .filter((m) => m.userId !== user?.id)
+      .map((m) => m.username)
+      .filter(Boolean)
+    const all = [...names, ...others]
+    if (all.length === 0) return 'you'
+    return all.length <= 2
+      ? `${all.join(', ')} and you`
+      : `${all.slice(0, -1).join(', ')} and you`
+  })()
+
   return (
     <div className="room-panel">
-      {/* Header */}
-      <div className="room-panel__header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <h2 className="room-panel__title">
-            {room.title}
-          </h2>
+      {/* Header (design 13): stacked bot avatars, room name, members line,
+          Files + More on the right. Presence counters stay (real data); the
+          legacy view toggle/export/settings live in the More menu. */}
+      <div className="v2-room-header">
+        <div className="v2-room-header__id">
+          <span className="v2-room-header__avatars">
+            {room.bots.slice(0, 4).map((b) => {
+              const bot = bots.find((bot) => bot.id === b.botId)
+              return (
+                <BotAvatar
+                  key={b.botId}
+                  color={bot?.color || '#4ade80'}
+                  name={b.botName || 'Bot'}
+                  size={22}
+                />
+              )
+            })}
+          </span>
+          <span className="v2-room-header__names">
+            <span className="v2-room-header__title">{room.title}</span>
+            <span className="v2-room-header__members">{membersLine}</span>
+          </span>
           {!isConnected && (
-            <span className="room-panel__reconnecting">
-              Reconnecting...
-            </span>
+            <span className="room-panel__reconnecting">Reconnecting...</span>
           )}
         </div>
 
-        <div className="room-panel__actions">
-          {/* Presence counters */}
+        <div className="v2-room-header__actions">
           <div className="room-panel__counters">
             <div className="room-panel__counter">
               <Users size={13} />
@@ -142,74 +174,76 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
             </div>
           </div>
 
-          <div className="room-panel__divider" />
+          <button
+            type="button"
+            className="v2-icon-btn"
+            title="Files"
+            aria-label="Files"
+            onClick={() => setViewMode(roomId, 'assets')}
+          >
+            <FolderOpen size={17} strokeWidth={1.8} />
+          </button>
 
-          {/* View mode toggle */}
-          <div className="room-panel__view-toggle">
+          <div className="v2-room-header__more">
             <button
-              onClick={() => setViewMode(roomId, 'chat')}
-              className={`room-panel__view-btn ${currentView === 'chat' ? 'room-panel__view-btn--active' : ''}`}
-              title="Chat view"
+              type="button"
+              className="v2-icon-btn"
+              title="More"
+              aria-label="More"
+              aria-haspopup="menu"
+              aria-expanded={showMore}
+              onClick={(e) => { e.stopPropagation(); setShowMore((o) => !o) }}
             >
-              <MessageSquare size={14} />
+              <MoreHorizontal size={18} strokeWidth={1.8} />
             </button>
-            <button
-              onClick={() => setViewMode(roomId, 'cards')}
-              className={`room-panel__view-btn ${currentView === 'cards' ? 'room-panel__view-btn--active' : ''}`}
-              title="Dashboard cards"
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode(roomId, 'timeline')}
-              className={`room-panel__view-btn ${currentView === 'timeline' ? 'room-panel__view-btn--active' : ''}`}
-              title="Timeline view"
-            >
-              <Clock size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode(roomId, 'tasks')}
-              className={`room-panel__view-btn ${currentView === 'tasks' ? 'room-panel__view-btn--active' : ''}`}
-              title="Tasks"
-            >
-              <CheckSquare size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode(roomId, 'assets')}
-              className={`room-panel__view-btn ${currentView === 'assets' ? 'room-panel__view-btn--active' : ''}`}
-              title="Assets"
-            >
-              <Paperclip size={14} />
-            </button>
-          </div>
-
-          <div className="room-panel__divider" />
-
-          {/* Toolbar buttons */}
-          <div className="room-panel__toolbar">
-            <button
-              onClick={() => {
-                const msgs = useRoomStore.getState().messages[roomId] || []
-                const date = new Date().toISOString().slice(0, 10)
-                downloadJson({
-                  room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
-                  messages: msgs,
-                  exportedAt: new Date().toISOString(),
-                }, `room-${slugify(room.title)}-${date}.json`)
-              }}
-              className="room-panel__icon-btn"
-              title="Export JSON"
-            >
-              <Download size={15} />
-            </button>
-            {isCreator && (
-              <button
-                onClick={() => setShowSettings(true)}
-                className="room-panel__icon-btn"
-                title="Settings"
-              >
-                <Settings size={15} />
-              </button>
+            {showMore && (
+              <V2Menu className="v2-room-header__menu" onClose={() => setShowMore(false)}>
+                <V2MenuLabel>View</V2MenuLabel>
+                {(
+                  [
+                    ['chat', 'Chat', MessageSquare],
+                    ['cards', 'Dashboard cards', LayoutGrid],
+                    ['timeline', 'Timeline', Clock],
+                    ['tasks', 'Tasks', CheckSquare],
+                  ] as const
+                ).map(([mode, label, Icon]) => (
+                  <V2MenuItem
+                    key={mode}
+                    icon={<Icon size={16} strokeWidth={1.8} />}
+                    suffix={currentView === mode ? '✓' : undefined}
+                    onClick={() => { setViewMode(roomId, mode); setShowMore(false) }}
+                  >
+                    {label}
+                  </V2MenuItem>
+                ))}
+                <V2MenuDivider />
+                <V2MenuItem
+                  icon={<Download size={16} strokeWidth={1.8} />}
+                  onClick={() => {
+                    const msgs = useRoomStore.getState().messages[roomId] || []
+                    const date = new Date().toISOString().slice(0, 10)
+                    downloadJson({
+                      room: { id: room.id, title: room.title, description: room.description, settings: room.settings, members: room.members, bots: room.bots, createdAt: room.createdAt, updatedAt: room.updatedAt },
+                      messages: msgs,
+                      exportedAt: new Date().toISOString(),
+                    }, `room-${slugify(room.title)}-${date}.json`)
+                    setShowMore(false)
+                  }}
+                >
+                  Export JSON
+                </V2MenuItem>
+                {isCreator && (
+                  <>
+                    <V2MenuDivider />
+                    <V2MenuItem
+                      icon={<Settings size={16} strokeWidth={1.8} />}
+                      onClick={() => { setShowMore(false); setShowSettings(true) }}
+                    >
+                      Room settings
+                    </V2MenuItem>
+                  </>
+                )}
+              </V2Menu>
             )}
           </div>
         </div>
@@ -315,12 +349,13 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
         </div>
       )}
 
-      {/* Input */}
+      {/* Input — v2 composer (design 13) */}
       <InputArea
         onSend={sendMessage}
         onTyping={sendTyping}
         bots={room.bots}
         isConnected={isConnected}
+        placeholder="Message the room · type @ to pick a bot"
       />
 
       {/* Settings dialog */}
