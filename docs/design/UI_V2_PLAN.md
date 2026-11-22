@@ -77,8 +77,8 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
 | 17 | Routine editor | `/:botId/automations` | **Phase D2**. Automations become Routines. |
 | 18 | Bot settings | `/:botId/settings` | **Phase D3**: General, Knowledge, Skills, What it can use, Connections, Computer (hidden until backend), Advanced. |
-| 19 | App settings | `/settings` | **Phase D5**: General, Appearance, Models, Data, People, Advanced, About. |
-| 20 | Activity log | `/admin/logs` | **Phase D5**: admins only, linked from Runs. |
+| 19 | App settings | `/settings` | **Done (Phase D5)**. General, Appearance, Models, Data, People, Advanced, About in one 640px column. |
+| 20 | Activity log | `/admin/logs` | **Done (Phase D5)**. Admins only; grid of every run with filters and expandable real error/output. |
 
 ## Phase A scope (this branch)
 
@@ -465,16 +465,126 @@ into the chat More menu under "From plugins" (hidden when none).
 - **Room voice mic** (view 13's room composer shows a mic) — the voice
   pipeline is per bot chat; no room voice exists, so the room composer omits
   the mic.
-- **Dedicated "Your account" page** — links to `/settings` until app
-  settings D5 gives it a real home.
+- **Dedicated "Your account" page** — D5 gives it a real home: the Your
+  account block in Settings › General (with change-password), deep-linked
+  from the account menu as `/settings/account`.
 - **Voice PTT mode / voice settings** — the old VoiceView page carried a
   PTT/VAD toggle; the v2 voice mode uses the saved preference and exposes no
   settings UI (D-phase concern).
 
+## Phase D5 scope (App settings view 19 + Activity log view 20)
+
+### App settings (`AppSettingsView` rewritten, `styles/v2/settings.less`)
+
+One narrow 640px column (exact values from `source/19-app-settings.html`:
+padding 32px 24px 64px, top bar 32px back/title/close buttons, 30px section
+pills, sections separated by 28px padding + hairline, 48px rows with a right
+28px action, 40px bordered select rows, 40x24 switch). Section pills deep-link
+to `/settings/<section>`; **legacy deep links keep working via aliases**:
+`keys` → models, `users`/`groups` → people, `account` → general (scrolls to
+the Your account block). Unknown/unauthorized tabs redirect to `/settings`.
+Bare `/settings` no longer auto-scrolls (the header + pills stay visible);
+section links scroll smoothly. Old tabs → new sections: everything keeps its
+name except keys/users/groups (mapped as above).
+
+Data source per element (all real; nothing placeholder):
+
+| Element | Source | Notes |
+|---|---|---|
+| Your account (username/email rows) | `useAuthStore().user` | Real profile from the auth API. |
+| Change password | `POST /api/auth/change-password` | The API existed but had no UI; the dialog hashes via the existing `api/auth.ts` helper (same as login). |
+| Show thinking / Show cost | `useUIStore` + `PUT /api/config` (`show_thinking`/`show_cost`) | Same dual write as the quick settings dialog. |
+| Time zone / Workspace rows | `useConfigStore().config` (`timezone`, `workspacePath` from `GET /api/config`) | Read-only — no endpoint changes them, so no fake "Change" control (the old Browse button was a dead no-op and is gone). |
+| Start on boot | `window.electronAPI.get/setStartOnBoot` | Electron only; hidden in the browser (as before). |
+| Mobile pairing + firewall | `POST /api/mobile/pair-token`, firewall status/enable endpoints | QR modal logic unchanged, restyled row trigger. |
+| Setup wizard | existing onboarding store → `/onboarding` | Unchanged behavior. |
+| Theme | `useUIStore.setTheme` | Design's exact segmented control (4px padding, 12px radius, 30px options). |
+| Accent color / sidebar collapsed | `useUIStore` | Existing palette data; v2 ring styling. |
+| Default/utility/embedding models | `useModelsStore` (+ `PUT /api/config` `{model}` for the default, mirroring the quick settings dialog) | `ModelSelect` in the design's 40px box. |
+| Providers | `useProvidersStore` (`configured`, `masked_value`, `extra_keys`) + models count from `useModelsStore().groups` | Design rows: name + "Key added"/"No key" (endpoints: "Endpoint set"/"No endpoint"), Add key/Change opens inline edit (save/remove/show, Azure extra keys kept). The big CachiBot.ai promo banner was dropped — its two links live on the CachiBot.ai provider row (Sign up / Dashboard). |
+| Keep runs and logs | `GET /api/bots/{id}/executions/stats` → `retentionDays` | Same key Runs uses; row hidden when the API can't be reached (no Change — no endpoint). |
+| Export everything / Import | `localStorage` backup (existing export) + new real import | Import restores the exact keys Export writes, then reloads. The old Import button was a dead no-op. |
+| Telemetry | `useTelemetryStore` + telemetry preview/reset endpoints | Toggle uses the shared `.v2-switch`; view-report and reset-ID modals kept. |
+| Bot data manager | local chat/job/task/usage stores + `clearBotPlatformData` | Component kept as-is (inner markup/classes untouched) inside the Data section. |
+| Clear cache / Delete all data | existing electron `clearCache` / localStorage clear | Danger row per design (red title, "Can't be undone"), confirm modals kept. |
+| People (manager+) | `GET /api/auth/users` count (admins) + `GET /api/groups` | Users row → `/users` (the full management page stays reachable); Groups row opens the existing groups manager inline (create/delete group, members). Hidden entirely for regular users (pill + section), never greyed. |
+| Activity log row (Advanced) | admins only → `/admin/logs` | Per the design's Admins badge. |
+| Server row | `window.location.host` | Read-only — no server-switch UI exists, so no "Change". |
+| Agent settings | `PUT /api/config` (`approve_actions`, `temperature`, `max_iterations`) + local config store | The old Advanced tab rendered these with no-op handlers (fake controls); they now really persist via the same endpoint the quick settings dialog uses. Sandbox timeout dropped (PUT doesn't accept it). |
+| Keyboard shortcuts | static list | Informational, matches real shortcuts. |
+| Version / update check | `useUpdateStore` (pip) / `window.electronAPI` (desktop) + `GET /api/health` | "Check again" re-runs the real check; "up to date" only claimed from a real check result. |
+| Source code | https://github.com/jhd3197/CachiBot | The old sidebar GitHub link, now the design's Source code row. Build/Python/Platform rows from health info. |
+
+Account menu (`BotListSidebar`) deep links: Your account →
+`/settings/account`, Settings → `/settings/general`, Usage →
+`/dashboard/usage`, People → `/users` (admins), Activity log → `/admin/logs`
+(admins), About and help → `/settings/about`.
+
+### Activity log (`GlobalLogView` rewritten, `styles/v2/activity-log.less`)
+
+Admins only (route already requires admin). 980px column per
+`source/20-activity-log.html` (padding 32px 24px 64px, back link to
+Settings › Advanced, 26px H1, chips 32px/16px radius, grid table
+84px/150px/170px/1fr/76px/56px with a 12px tertiary header, rows 11px 12px
+radius 10, expanded card at margin-left 108px). All data from the existing
+`admin_executions` API:
+
+| Element | Source | Notes |
+|---|---|---|
+| Rows | `GET /api/admin/executions?from_date=&limit=200` | Time (HH:MM:SS, tabular), bot (20px `BotAvatar` + name; falls back to the real botId when the local bot store doesn't know the backend id), tool (`executionType`, mono), what (`sourceName`), result, took (`0.4s`/`0:41` formats). |
+| Result | `status` | Done / Failed (error+timeout, red) / Running (blue) / Cancelled / Needs you (`credit_exhausted`, amber — same mapping Runs uses). |
+| Chips | All / Failed · N / Running · N | Counts from the loaded rows; Failed/Running hidden at 0 (never an always-empty chip); active chip falls back to All when its count hits 0. **Blocked chip: hidden — see "not backed yet".** "Cancel all" appears only while executions are running (real `POST /executions/cancel-all`). |
+| Bot filter / period | client-side bot dropdown; Today / 7 days / 30 days → `from_date` | Today = local midnight, matching the design's "Today ▾". |
+| Export | `GET /api/admin/executions/export` | Server CSV, respects bot + period. |
+| Expanded card | the log's real `error` (pre) / `output` (pre) | The design's "Stopped before running: …" explanation sentence is the blocked-state copy — dropped with the Blocked state. Actions: Open the chat (only when `chatId` is set), Copy details (real JSON of the row), Cancel (running only). |
+| Errors section | `GET /api/admin/executions/errors?days=7` | Error spotlight kept from the old dashboard, restyled; hidden when empty. |
+| Costs section | `GET /api/admin/executions/costs?days=30` | Per-bot cost table kept from the old dashboard, restyled; hidden when empty. |
+
+### Backend changes
+
+None. Both views use existing endpoints (`/api/config` PUT, auth
+change-password, admin executions). No new tests needed.
+
+### Behavior changes
+
+- Settings is a single scrolling column; the old left tab rail is gone.
+  Pills jump between sections and are also the deep links.
+- The old Advanced tab's sandbox timeout / approval / temperature / max
+  iterations controls were non-functional (no-op handlers); approval,
+  temperature and max iterations now persist via `PUT /api/config`, the
+  sandbox timeout is hidden (no write endpoint).
+- The old Data tab's Import button did nothing; Import now restores a real
+  export.
+- Your account finally has a home (General section) and change-password has
+  a UI for the long-existing API.
+- Activity log period filter defaults to Today (the design's "Today ▾");
+  the old logs/errors/costs tabs became the table + two sections below it.
+- Mobile top bar label for `/admin/logs` is "Activity log" (was "Exec logs").
+
+### Phase D5 - not backed yet (hidden, no fake data)
+
+- **Activity log "Blocked" state** (chip, amber status, and the "Stopped
+  before running: … / Nothing was read." explanation card) — the
+  executions API has no blocked status and no policy-reason fields; nothing
+  ever writes them. Failed runs get the same visual treatment with their
+  real `error` text instead.
+- **Design's General-section controls** Language ("English") and Open on
+  start ("Workspace") — no language/locale or start-page setting exists.
+  (Time zone is shown read-only from the real server config.)
+- **Models "Budget" row** ("$20 · switches to cheaper models at 80%") — no
+  budget/limit backend exists.
+- **Advanced "Developer mode" toggle** ("Show raw events and IDs") — no
+  developer-mode setting exists; the real developer-ish surfaces (platform
+  tools dialog) stay where they were (wizard/command palette).
+- **About "Licenses" row** — no license inventory endpoint/file exists.
+- **Server "Change" action** — no server-switch UI/endpoint (value shown
+  read-only), same as the removed dead "Browse" workspace button.
+- **User invites** (People) — no invite API exists; user management is the
+  real `/users` page (create/edit/deactivate), groups the real groups API.
+
 ## Later phases
 
-- **Phase D** — D1 Runs (16), D2 Routine editor (17), D3 Bot settings (18),
-  D4 Files sheet (10), D5 App settings + Activity log (19, 20).
+- **Phase D** — D2 Routine editor (17), D3 Bot settings (18), D4 Files sheet (10).
 - **Phase E (proposal)** — side tasks (11a–c); needs backend support.
 - **The bot's computer** (views 04–09, 11): requires a new backend. Not
   started; the Computer button and preview pane stay hidden.
