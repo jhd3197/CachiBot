@@ -733,7 +733,7 @@ class SideTaskService:
             try:
                 await asyncio.wait_for(event.wait(), timeout=_APPROVAL_TIMEOUT_SECONDS)
                 return bool(manager.approval_results.pop(approval_id, False))
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 return not config.agent.approve_actions
             finally:
                 manager.pending_approvals.pop(approval_id, None)
