@@ -4,10 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
-from cachibot.api.auth import get_current_user
+from cachibot.api.auth import get_current_user, require_bot_access
 from cachibot.api.helpers import require_found, require_member
 from cachibot.models.asset import Asset, AssetResponse
 from cachibot.models.auth import User
@@ -141,6 +141,22 @@ async def delete_room_asset(
 # =============================================================================
 
 
+@chat_asset_router.get("/{bot_id}/assets")
+async def list_bot_assets(
+    bot_id: str,
+    limit: int = Query(200, ge=1, le=500),
+    user: User = Depends(require_bot_access),
+) -> list[AssetResponse]:
+    """Get all chat assets across a bot's chats, newest first.
+
+    Covers platform chats (matched via the chats table) and local browser
+    chats (matched via the bot id recorded in the asset metadata at upload
+    time). Room assets are excluded.
+    """
+    assets = await asset_repo.get_by_bot(bot_id, limit=limit)
+    return [AssetResponse.from_entity(a) for a in assets]
+
+
 @chat_asset_router.get("/{bot_id}/chats/{chat_id}/assets")
 async def list_chat_assets(
     bot_id: str,
@@ -178,6 +194,9 @@ async def upload_chat_asset(
         size_bytes=len(content),
         storage_path=str(storage_path),
         uploaded_by_user_id=user.id,
+        # Lets the bot-level listing attribute this asset even though a local
+        # browser chat has no row in the chats table.
+        metadata={"bot_id": bot_id},
         created_at=datetime.now(timezone.utc),
     )
     await asset_repo.create(asset)

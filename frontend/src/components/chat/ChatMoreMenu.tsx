@@ -10,6 +10,7 @@ import {
   Wrench,
   Puzzle,
   Code2,
+  FolderOpen,
   type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -29,6 +30,9 @@ interface ChatMoreMenuProps {
   bot: Bot
   chat: Chat | null
   onClose: () => void
+  /** Mobile top bar has no room for the Files pill — it opens the sheet from
+   * this menu instead (design 10's header button is the desktop home). */
+  onOpenFiles?: () => void
 }
 
 /**
@@ -41,7 +45,7 @@ interface ChatMoreMenuProps {
  * Runs → /runs?bot={bot} (D1), Routines → /{bot}/automations (D2),
  * Tools/Plugins/Developer → their existing pages until Bot settings D3.
  */
-export function ChatMoreMenu({ bot, chat, onClose }: ChatMoreMenuProps) {
+export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuProps) {
   const navigate = useNavigate()
   const { canOperate, canEdit } = useBotAccess(bot.id)
   const { setSettingsSection } = useUIStore()
@@ -128,6 +132,11 @@ export function ChatMoreMenu({ bot, chat, onClose }: ChatMoreMenuProps) {
     <V2Menu className="chat-header__menu" onClose={onClose}>
       <V2MenuLabel>{bot.name}</V2MenuLabel>
 
+      {onOpenFiles && (
+        <V2MenuItem icon={<FolderOpen size={16} strokeWidth={1.8} />} onClick={onOpenFiles}>
+          Files
+        </V2MenuItem>
+      )}
       {canEdit && (
         <V2MenuItem icon={<Pencil size={16} strokeWidth={1.8} />} onClick={() => go(`/${bot.id}/settings`, 'general')}>
           Bot settings

@@ -709,6 +709,14 @@ export interface PlatformChat {
   updatedAt: string
 }
 
+/** A bot chat as listed by the backend (includes platform chats). */
+export type BotChatEntry = PlatformChat
+
+/** List all chats of a bot known to the backend (platform conversations). */
+export async function getBotChats(botId: string, includeArchived = false): Promise<BotChatEntry[]> {
+  return request(`/bots/${botId}/chats?include_archived=${includeArchived}`)
+}
+
 export async function deletePlatformChat(botId: string, chatId: string): Promise<void> {
   return request(`/bots/${botId}/chats/${chatId}`, { method: 'DELETE' })
 }

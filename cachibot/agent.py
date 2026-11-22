@@ -496,7 +496,7 @@ class CachibotAgent:
                 size_bytes=path.stat().st_size,
                 storage_path=str(storage_path),
                 uploaded_by_bot_id=self.bot_id,
-                metadata={"source": "generated", "tool": "file_write"},
+                metadata={"source": "generated", "tool": "file_write", "bot_id": self.bot_id},
                 created_at=datetime.now(timezone.utc),
             )
 

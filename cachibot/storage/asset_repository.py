@@ -1,10 +1,11 @@
 """Repository for assets (file attachments)."""
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 from cachibot.models.asset import Asset
 from cachibot.storage.base import BaseRepository
 from cachibot.storage.models.asset import Asset as AssetModel
+from cachibot.storage.models.chat import Chat as ChatModel
 
 
 class AssetRepository(BaseRepository[AssetModel, Asset]):
@@ -41,6 +42,27 @@ class AssetRepository(BaseRepository[AssetModel, Asset]):
             select(AssetModel)
             .where(AssetModel.owner_type == owner_type, AssetModel.owner_id == owner_id)
             .order_by(AssetModel.created_at.desc())
+        )
+
+    async def get_by_bot(self, bot_id: str, limit: int = 200) -> list[Asset]:
+        """Get chat assets belonging to a bot, newest first.
+
+        An asset belongs to a bot when its chat row does (platform chats) or
+        when the bot id was recorded in its metadata at upload time (local
+        browser chats have no chats row). Room assets are never included.
+        """
+        chat_ids = select(ChatModel.id).where(ChatModel.bot_id == bot_id)
+        return await self._fetch_all(
+            select(AssetModel)
+            .where(
+                AssetModel.owner_type == "chat",
+                or_(
+                    AssetModel.owner_id.in_(chat_ids),
+                    AssetModel.metadata_json["bot_id"].as_string() == bot_id,
+                ),
+            )
+            .order_by(AssetModel.created_at.desc())
+            .limit(limit)
         )
 
     async def delete(self, asset_id: str) -> str | None:

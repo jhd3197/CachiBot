@@ -27,6 +27,7 @@ import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { BotAvatar } from '../common/Avatar'
 import { ChatsSheet } from '../chat/ChatsSheet'
+import { FilesSheet } from '../chat/FilesSheet'
 import { GlobalSearchDialog } from '../common/GlobalSearchDialog'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
@@ -346,6 +347,7 @@ export function MainLayout() {
   const chatRouteActive = !appView && (!botView || botView === 'chats')
   const [showMobileChats, setShowMobileChats] = useState(false)
   const [showMobileMore, setShowMobileMore] = useState(false)
+  const [showMobileFiles, setShowMobileFiles] = useState(false)
 
   return (
     <div className="app-shell ui-v2">
@@ -430,6 +432,7 @@ export function MainLayout() {
                   bot={headerBot}
                   chat={chats.find((c) => c.id === activeChatId) ?? null}
                   onClose={() => setShowMobileMore(false)}
+                  onOpenFiles={() => { setShowMobileMore(false); setShowMobileFiles(true) }}
                 />
               )}
             </div>
@@ -452,9 +455,12 @@ export function MainLayout() {
       />
       <UpdateDialog />
 
-      {/* "Earlier chats" from the mobile top bar (chat header is folded away) */}
+      {/* "Earlier chats" + Files from the mobile top bar (chat header is folded away) */}
       {showMobileChats && headerBot && (
         <ChatsSheet bot={headerBot} onClose={() => setShowMobileChats(false)} />
+      )}
+      {showMobileFiles && headerBot && (
+        <FilesSheet bot={headerBot} onClose={() => setShowMobileFiles(false)} />
       )}
 
       {/* Global search (sidebar search icon + Ctrl/Cmd K, design 12/13) */}

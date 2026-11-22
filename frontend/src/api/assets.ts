@@ -77,6 +77,11 @@ export async function deleteRoomAsset(roomId: string, assetId: string): Promise<
 // CHAT ASSETS
 // =============================================================================
 
+/** All chat assets across a bot's chats (platform + local), newest first. */
+export async function getBotAssets(botId: string, limit = 200): Promise<Asset[]> {
+  return request(`/bots/${botId}/assets?limit=${limit}`)
+}
+
 export async function getChatAssets(botId: string, chatId: string): Promise<Asset[]> {
   return request(`/bots/${botId}/chats/${chatId}/assets`)
 }
