@@ -61,8 +61,8 @@ class SideTask(BaseModel):
     """A side task: child chat of a parent chat, run by the same bot.
 
     Workspace fields (worktree_path, branch, base_commit) and merge result
-    fields (merged_commit, merged_files) are filled in by E2; the columns
-    exist from E1 so E2 only writes values.
+    fields (merged_commit, merged_files, conflict_files) are filled in by
+    E2; the columns exist from E1 so E2 only writes values.
     """
 
     model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
@@ -93,6 +93,7 @@ class SideTask(BaseModel):
     # Merge result (E2)
     merged_commit: str | None = Field(default=None)
     merged_files: list[dict[str, Any]] = Field(default_factory=list)
+    conflict_files: list[str] = Field(default_factory=list)
 
     # Results
     error: str | None = Field(default=None)

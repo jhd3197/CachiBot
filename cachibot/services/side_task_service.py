@@ -10,20 +10,34 @@ the rest queue in ``waiting_for_slot`` and are promoted FIFO when a slot
 frees. On server startup, side tasks that were ``running`` are re-queued
 and resumed from their persisted chat history; the limit still applies.
 
-File isolation (git worktrees on ``side/<slug>`` branches) arrives in E2;
-from E1 the workspace is required to be a git repo, and E2 only fills in
-the worktree fields on the record.
+File isolation: each side task gets a git worktree on a
+``side/<slug>-<short id>`` branch (created from the workspace HEAD when the
+record first moves to running, reused across restarts). The workspace must
+be a git repo or start fails with a clear error.
+
+Bring-back: when the turn finishes successfully the side task's changes are
+committed in the worktree and merged back into the parent workspace's
+current branch automatically (``git merge --no-ff``, serialized per repo).
+A clean merge records ``merged_commit`` / ``merged_files`` and removes the
+worktree and branch. No changes -> ``done`` with nothing to merge. A merge
+conflict (or git refusing because the parent tree has local changes in the
+same files) aborts the merge — the parent tree ends exactly as before — and
+the side task becomes ``needs_you`` (reason ``merge_conflict``) with the
+branch and worktree kept so no work is lost.
 """
 
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import subprocess
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
+from cachibot.config import Config
 from cachibot.models.chat_model import Chat
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.side_task import (
@@ -33,6 +47,7 @@ from cachibot.models.side_task import (
     SideTaskStatus,
 )
 from cachibot.models.work import Work, WorkStatus
+from cachibot.services import side_task_worktrees as worktrees
 from cachibot.storage.repository import ChatRepository, KnowledgeRepository
 from cachibot.storage.side_task_repository import SideTaskRepository
 from cachibot.storage.work_repository import WorkRepository
@@ -47,6 +62,25 @@ _RESUME_HISTORY_LIMIT = 100
 
 # How long an approval request waits for a user answer over WebSocket
 _APPROVAL_TIMEOUT_SECONDS = 300
+
+# Reason recorded on needs_you when an automatic merge back fails
+NEEDS_YOU_MERGE_CONFLICT = "merge_conflict"
+
+# Serializes merges into the same repository (side tasks of one parent run
+# concurrently, and retry-merge can arrive while another merge is running)
+_merge_locks: dict[Path, asyncio.Lock] = {}
+_merge_locks_guard = asyncio.Lock()
+
+
+async def _merge_lock_for(workspace: Path) -> asyncio.Lock:
+    """Return the per-repository merge lock for a workspace."""
+    key = await asyncio.to_thread(worktrees.repo_toplevel, workspace)
+    async with _merge_locks_guard:
+        lock = _merge_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _merge_locks[key] = lock
+    return lock
 
 
 class SideTaskStartError(ValueError):
@@ -158,8 +192,6 @@ class SideTaskService:
 
     async def _ensure_git_workspace(self) -> None:
         """Side tasks require a git workspace (E2 creates the worktree)."""
-        from cachibot.config import Config
-
         workspace = Config.load().workspace_path
 
         def _check() -> bool:
@@ -267,6 +299,130 @@ class SideTaskService:
         self._launch(side_task)
         return side_task
 
+    async def retry_merge(self, side_task_id: str) -> SideTask | None:
+        """Retry merging back a side task stuck on a merge conflict.
+
+        For the user to call after fixing things in either tree (resolving
+        in the side worktree, or changing the parent so it merges cleanly).
+        Any pending changes in the worktree are committed first. On success
+        the side task becomes ``merged`` and the worktree/branch are
+        cleaned up; on another conflict it stays ``needs_you`` with the
+        updated conflict paths. Work is never lost along the way.
+        """
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None:
+            return None
+        if (
+            side_task.status != SideTaskStatus.NEEDS_YOU
+            or side_task.needs_you_reason != NEEDS_YOU_MERGE_CONFLICT
+        ):
+            raise SideTaskStartError(
+                "retry-merge is only for a side task waiting on a merge conflict"
+            )
+
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+
+        # The worktree may have been removed while the conflict waited;
+        # recreate it from the branch when possible.
+        await self._prepare_worktree(side_task)
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None or not side_task.worktree_path or not side_task.branch:
+            raise SideTaskStartError("Side task has no workspace to merge from")
+
+        # Commit any changes the user made while resolving (in either tree's
+        # favor); without this their edits would be left uncommitted.
+        await asyncio.to_thread(
+            worktrees.commit_all_changes,
+            Path(side_task.worktree_path),
+            f"Side task: {side_task.title}",
+        )
+
+        async with await _merge_lock_for(workspace):
+            outcome = await asyncio.to_thread(worktrees.merge_side_branch, workspace, side_task)
+
+        if outcome.merged:
+            side_task.merged_commit = outcome.merged_commit
+            side_task.merged_files = outcome.merged_files
+            side_task.conflict_files = []
+            side_task.needs_you_reason = None
+            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
+            await self._sync_work_status(side_task)
+            return await self._repo.get(side_task_id)
+
+        if outcome.conflict_files:
+            side_task.conflict_files = outcome.conflict_files
+            await self._repo.update(side_task)
+            await self._broadcast(side_task)
+            return side_task
+
+        if outcome.error and "no longer exists" in outcome.error:
+            # The branch was merged or deleted by hand while it waited:
+            # nothing left to bring back.
+            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            side_task.needs_you_reason = None
+            await self._transition(side_task, SideTaskStatus.DONE, finished=True)
+            await self._sync_work_status(side_task)
+            return await self._repo.get(side_task_id)
+
+        raise SideTaskStartError(outcome.error or "git merge failed")
+
+    async def discard(self, side_task_id: str) -> SideTask | None:
+        """Discard a stopped, failed or needs_you side task for good.
+
+        Removes the worktree (force: the user explicitly threw the work
+        away) and deletes the branch with -D — the only place a side branch
+        is ever force-deleted. Running/waiting/merged side tasks cannot be
+        discarded; stop them first.
+        """
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None:
+            return None
+        if side_task.status not in (
+            SideTaskStatus.STOPPED,
+            SideTaskStatus.FAILED,
+            SideTaskStatus.NEEDS_YOU,
+        ):
+            raise SideTaskStartError(
+                "Only a stopped, failed or needs-you side task can be discarded"
+            )
+
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+
+        # The user explicitly threw the work away; tolerate pieces that are
+        # already gone (cleaned up by hand) and keep going.
+        if side_task.worktree_path:
+            wt_path = Path(side_task.worktree_path)
+            if worktrees.worktree_exists(wt_path):
+                try:
+                    await asyncio.to_thread(
+                        worktrees.remove_worktree, workspace, wt_path, force=True
+                    )
+                except worktrees.WorktreeError:
+                    logger.warning(
+                        "Could not remove worktree %s while discarding",
+                        wt_path,
+                        exc_info=True,
+                    )
+        if side_task.branch:
+            try:
+                await asyncio.to_thread(
+                    worktrees.delete_branch, workspace, side_task.branch, force=True
+                )
+            except worktrees.WorktreeError:
+                logger.warning(
+                    "Could not delete branch %s while discarding",
+                    side_task.branch,
+                    exc_info=True,
+                )
+
+        side_task.needs_you_reason = None
+        await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
+        await self._sync_work_status(side_task)
+        return await self._repo.get(side_task_id)
+
     # ------------------------------------------------------------------
     # Restart resume
     # ------------------------------------------------------------------
@@ -318,7 +474,18 @@ class SideTaskService:
         if side_task is None:
             return
         try:
-            await self._execute_turn(side_task)
+            await self._prepare_worktree(side_task)
+            # Re-fetch: _prepare_worktree persisted worktree_path/branch/base_commit
+            latest = await self._repo.get(side_task_id)
+            if latest is None:
+                return
+            await self._execute_turn(latest)
+
+            # The turn finished successfully: commit and merge the work back
+            latest = await self._repo.get(side_task_id)
+            if latest is not None and latest.status == SideTaskStatus.RUNNING:
+                await self._finish_and_merge(latest)
+                await self._promote(latest.parent_chat_id)
         except asyncio.CancelledError:
             needs_you_reason = self._pending_needs_you.pop(side_task_id, None)
             latest = await self._repo.get(side_task_id)
@@ -332,7 +499,8 @@ class SideTaskService:
                 await self._promote(latest.parent_chat_id)
             # If the record is no longer RUNNING someone else settled it.
             # If cancellation came from server shutdown the record stays
-            # RUNNING so resume_on_startup picks it back up.
+            # RUNNING so resume_on_startup picks it back up. The worktree
+            # is left in place: a cancelled turn may have uncommitted work.
             raise
         except Exception as exc:
             logger.exception("Side task %s failed", side_task_id)
@@ -344,13 +512,140 @@ class SideTaskService:
                 await self._promote(latest.parent_chat_id)
             return
 
-        # E2 inserts the merge step here: done -> merged, or needs_you on
-        # merge conflict (recording merged_commit / merged_files).
-        latest = await self._repo.get(side_task_id)
-        if latest is not None and latest.status == SideTaskStatus.RUNNING:
-            await self._transition(latest, SideTaskStatus.DONE, finished=True)
-            await self._sync_work_status(latest)
-            await self._promote(latest.parent_chat_id)
+    async def _prepare_worktree(self, side_task: SideTask) -> None:
+        """Create the side task's worktree on first run, reuse it after.
+
+        Worktrees survive restarts: on resume the existing worktree is
+        reused; it is recreated from the recorded branch only when missing.
+        Raises SideTaskStartError when the workspace is no longer a git
+        repo or the recorded branch is gone.
+        """
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+
+        def _prepare() -> tuple[Path, str, str]:
+            return worktrees.create_worktree(workspace, side_task)
+
+        try:
+            path, branch, base_commit = await asyncio.to_thread(_prepare)
+        except worktrees.WorktreeError as exc:
+            raise SideTaskStartError(str(exc)) from exc
+
+        if (
+            side_task.worktree_path != str(path)
+            or side_task.branch != branch
+            or side_task.base_commit != base_commit
+        ):
+            side_task.worktree_path = str(path)
+            side_task.branch = branch
+            side_task.base_commit = base_commit
+            await self._repo.update(side_task)
+
+    async def _finish_and_merge(self, side_task: SideTask) -> None:
+        """Commit the side task's work and merge it back automatically.
+
+        No changes -> ``done`` (nothing to merge), worktree removed, branch
+        deleted. Clean merge -> ``merged`` with ``merged_commit`` /
+        ``merged_files`` recorded, worktree removed, branch deleted.
+        Conflict or refusal -> merge aborted (parent tree untouched),
+        ``needs_you`` with reason ``merge_conflict`` and ``conflict_files``
+        recorded; worktree and branch kept so no work is lost.
+        """
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+
+        if not side_task.worktree_path or not side_task.branch:
+            # A turn that never got a worktree (shouldn't happen) — done
+            await self._transition(side_task, SideTaskStatus.DONE, finished=True)
+            await self._sync_work_status(side_task)
+            return
+
+        commit = await asyncio.to_thread(
+            worktrees.commit_all_changes,
+            Path(side_task.worktree_path),
+            f"Side task: {side_task.title}",
+        )
+        if commit is None:
+            # Nothing new to commit. If a previous run already committed on
+            # the branch and merged it (e.g. cancelled mid-merge), record
+            # the merge instead of reporting "nothing happened". A fresh
+            # branch with no commits of its own is trivially an ancestor of
+            # HEAD and must not trigger this: that means "no changes".
+            tip = await asyncio.to_thread(worktrees.branch_sha, workspace, side_task.branch)
+            base_commit = side_task.base_commit
+            if (
+                tip is not None
+                and base_commit is not None
+                and tip != base_commit
+                and await asyncio.to_thread(worktrees.is_branch_merged, workspace, side_task.branch)
+            ):
+                side_task.merged_commit = await asyncio.to_thread(worktrees.head_sha, workspace)
+                side_task.merged_files = await asyncio.to_thread(
+                    worktrees.changed_files_vs_base,
+                    workspace,
+                    base_commit,
+                    side_task.branch,
+                )
+                side_task.conflict_files = []
+                await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+                await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
+            else:
+                await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+                side_task.merged_files = []
+                await self._transition(side_task, SideTaskStatus.DONE, finished=True)
+            await self._sync_work_status(side_task)
+            return
+
+        async with await _merge_lock_for(workspace):
+            outcome = await asyncio.to_thread(worktrees.merge_side_branch, workspace, side_task)
+
+        if outcome.merged:
+            side_task.merged_commit = outcome.merged_commit
+            side_task.merged_files = outcome.merged_files
+            side_task.conflict_files = []
+            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
+            await self._sync_work_status(side_task)
+            logger.info(
+                "Side task %s merged into %s as %s (%d files)",
+                side_task.id,
+                workspace,
+                outcome.merged_commit,
+                len(outcome.merged_files),
+            )
+            return
+
+        if outcome.conflict_files:
+            # Never lose work: keep branch + worktree, surface the conflict
+            side_task.needs_you_reason = NEEDS_YOU_MERGE_CONFLICT
+            side_task.conflict_files = outcome.conflict_files
+            await self._transition(side_task, SideTaskStatus.NEEDS_YOU)
+            await self._sync_work_status(side_task)
+            logger.info(
+                "Side task %s needs you: merge conflict in %s",
+                side_task.id,
+                ", ".join(outcome.conflict_files),
+            )
+            return
+
+        raise worktrees.WorktreeError(outcome.error or "git merge failed")
+
+    def _config_for(self, side_task: SideTask) -> Any:
+        """Global config with the workspace pointed at the side task's worktree.
+
+        Every tool the agent can call (file ops, python execution, coding
+        agents) resolves paths against ``config.workspace_path`` and the
+        sandbox allows reads/writes only inside it, so a config copy scoped
+        to the worktree keeps the side task fully isolated from the parent
+        workspace — nothing the side task does can write to the parent's
+        files. The global config object is never mutated.
+        """
+        config = Config.load()
+        if not side_task.worktree_path:
+            return config
+        scoped = copy.deepcopy(config)
+        scoped.workspace_path = Path(side_task.worktree_path)
+        return scoped
 
     async def _execute_turn(self, side_task: SideTask) -> None:
         """Run the side task's turn through the agent, persisting messages.
@@ -358,10 +653,9 @@ class SideTaskService:
         History already in the side task's chat is seeded into the agent's
         conversation so a resumed turn continues where it left off.
         """
-        from cachibot.config import Config
         from cachibot.services.agent_factory import build_bot_agent
 
-        config = Config.load()
+        config = self._config_for(side_task)
         agent = await build_bot_agent(
             config,
             bot_id=side_task.bot_id,
