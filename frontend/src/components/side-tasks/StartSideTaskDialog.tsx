@@ -18,10 +18,12 @@ interface StartSideTaskDialogProps {
   chatId: string
   /** Prefilled prompt (from the message or the composer). */
   initialPrompt?: string
+  /** The message this side task answers (its reply quotes it). */
+  sourceMessageId?: string | null
   onClose: () => void
 }
 
-export function StartSideTaskDialog({ botId, chatId, initialPrompt = '', onClose }: StartSideTaskDialogProps) {
+export function StartSideTaskDialog({ botId, chatId, initialPrompt = '', sourceMessageId = null, onClose }: StartSideTaskDialogProps) {
   const navigate = useNavigate()
   const start = useSideTasksStore((s) => s.start)
   const [prompt, setPrompt] = useState(initialPrompt)
@@ -48,7 +50,7 @@ export function StartSideTaskDialog({ botId, chatId, initialPrompt = '', onClose
     setBusy(true)
     setError(null)
     try {
-      const task = await start(botId, chatId, trimmed)
+      const task = await start(botId, chatId, trimmed, undefined, sourceMessageId)
       toast.success(`Side task "${task.title}" started`)
       onClose()
       // Open the side task's own chat so its progress is visible.

@@ -27,15 +27,18 @@ import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { useApprovalsStore } from '../../stores/approvals'
-import {
-  useSideTasksStore,
-  partitionSideTasks,
-} from '../../stores/side-tasks'
+import { useSideTasksStore } from '../../stores/side-tasks'
 import { BotAvatar } from '../common/Avatar'
 import { V2Menu, V2MenuItem } from '../common/V2Menu'
 import { ChatsSheet } from '../chat/ChatsSheet'
 import { FilesSheet } from '../chat/FilesSheet'
-import { SideTaskCard, SideTaskGroupCard } from '../side-tasks/SideTaskCard'
+import {
+  SideTaskGroupReplyView,
+  SideTaskIndicator,
+  SideTaskReplyView,
+  sideTaskGroupReplyMetadata,
+  sideTaskReplyMetadata,
+} from '../side-tasks/SideTaskReply'
 import { SideTaskChatView } from '../side-tasks/SideTaskChatView'
 import { StartSideTaskDialog } from '../side-tasks/StartSideTaskDialog'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
@@ -44,6 +47,7 @@ import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
 import { uploadChatAsset } from '../../api/assets'
+import { getChatMessages } from '../../api/side-tasks'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
 import { setPendingChatId, setPendingApproval, expectUserEcho } from '../../hooks/useWebSocket'
 import { wsClient } from '../../api/websocket'
@@ -59,7 +63,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useWorkspaceStore } from '../../stores/workspace'
 import { WorkspaceSelector } from '../chat/WorkspaceSelector'
 import { TaskProgress } from '../chat/TaskProgress'
-import type { ToolCall, BotIcon, BotModels, BotCapabilities, ToolConfigs, Chat, Bot, CodingAgentInfo } from '../../types'
+import type { ToolCall, BotIcon, BotModels, BotCapabilities, ToolConfigs, Chat, Bot, CodingAgentInfo, ChatMessage, SideTask } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -130,7 +134,7 @@ function clearFindMarks(root: HTMLElement) {
 export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: ChatViewProps) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { activeChatId, chats, messages: messagesByChat, thinking, toolCalls, isLoading, error: runError, addMessage, addChat, setActiveChat, updateMessage, replyToMessage, setReplyTo } = useChatStore()
+  const { activeChatId, chats, messages: messagesByChat, thinking, toolCalls, isLoading, error: runError, addMessage, addChat, setActiveChat, updateMessage, upsertMessage, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
@@ -173,14 +177,44 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const [findCount, setFindCount] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Side tasks (principle 9): the parent chat's cards and the side-task chat
-  // view both read from the store, fed by the list endpoint + side_task_update.
+  // Side tasks (principle 9): the parent chat's replies/indicators and the
+  // side-task chat view both read from the store, fed by the list endpoint +
+  // side_task_update.
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   const [sideTaskPrefill, setSideTaskPrefill] = useState<string | null>(null)
   const ensureSideTasks = useSideTasksStore((s) => s.ensureForBot)
   useEffect(() => {
     if (activeBotId) void ensureSideTasks(activeBotId)
   }, [activeBotId, ensureSideTasks])
+
+  // Side-task replies are persisted server-side. Merge any this browser
+  // missed (offline when it was written, or a fresh browser profile) into
+  // the local history; only reply-kind messages are merged, so locally
+  // echoed bubbles are never duplicated.
+  useEffect(() => {
+    if (!activeBotId || !activeChatId) return
+    let cancelled = false
+    getChatMessages(activeBotId, activeChatId, 200)
+      .then((rows) => {
+        if (cancelled) return
+        for (const row of rows) {
+          const kind = row.metadata?.kind
+          if (kind !== 'side_task_reply' && kind !== 'side_task_group_reply') continue
+          upsertMessage(activeChatId, {
+            id: row.id,
+            role: row.role as ChatMessage['role'],
+            content: row.content,
+            timestamp: row.timestamp,
+            metadata: row.metadata,
+            replyToId: row.replyToId ?? undefined,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [activeBotId, activeChatId, upsertMessage])
 
   // @mention coding agent autocomplete state
   const [showAgentMentions, setShowAgentMentions] = useState(false)
@@ -331,20 +365,22 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         : undefined,
     [sideTasksById, activeChatId]
   )
-  // Side-task cards for the parent chat, rendered after its message list
-  const parentSideTasks = useMemo(
-    () =>
-      activeChatId
-        ? Object.values(sideTasksById)
-            .filter((t) => t.parentChatId === activeChatId)
-            .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        : [],
-    [sideTasksById, activeChatId]
-  )
-  const { singles: sideSingles, groups: sideGroups } = useMemo(
-    () => partitionSideTasks(parentSideTasks),
-    [parentSideTasks]
-  )
+  // Quiet indicators: side tasks of THIS chat that only wait or run are
+  // shown as one small line under their source message (grouped helpers are
+  // covered by their persisted group reply instead). Keyed by source message.
+  const activeSinglesBySource = useMemo(() => {
+    const map: Record<string, SideTask[]> = {}
+    if (!activeChatId) return map
+    for (const task of Object.values(sideTasksById)) {
+      if (task.parentChatId !== activeChatId || task.groupId) continue
+      if (task.status !== 'running' && task.status !== 'waiting_for_slot') continue
+      if (!task.sourceMessageId) continue
+      const list = map[task.sourceMessageId] ?? []
+      list.push(task)
+      map[task.sourceMessageId] = list
+    }
+    return map
+  }, [sideTasksById, activeChatId])
 
   // Pending approvals for THIS chat — rendered inline (design 03 Approval card)
   const pendingApprovals = useApprovalsStore((s) => s.pending)
@@ -1146,9 +1182,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   }, [activeChatId, updateMessage, sendUserMessage])
 
   // More › "Do this on the side" (design 11c): prefill the start dialog
-  // with the message's text. Operator+ only (the start API requires it).
-  const handleDoOnSide = useCallback((content: string) => {
+  // with the message's text and remember the message (the reply quotes it).
+  // Operator+ only (the start API requires it).
+  const [sideTaskSource, setSideTaskSource] = useState<string | null>(null)
+  const handleDoOnSide = useCallback((content: string, messageId: string) => {
     setSideTaskPrefill(content)
+    setSideTaskSource(messageId)
   }, [])
 
   // Failed-turn card actions
@@ -1440,7 +1479,10 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
                   setPlusMenuOpen(false)
                   // Prefill from what was typed in the composer (if anything)
                   // and hand it to the side task instead of the main chat.
+                  // No source message: the backend quotes the latest user
+                  // message of the chat (documented fallback).
                   setSideTaskPrefill(input)
+                  setSideTaskSource(null)
                   setInput('')
                 }}
               >
@@ -1650,7 +1692,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         botId={activeBotId}
         chatId={activeChatId}
         initialPrompt={sideTaskPrefill}
-        onClose={() => setSideTaskPrefill(null)}
+        sourceMessageId={sideTaskSource}
+        onClose={() => {
+          setSideTaskPrefill(null)
+          setSideTaskSource(null)
+        }}
       />
     ) : null
 
@@ -1749,52 +1795,69 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
                     </p>
                   )
                 }
-                out.push(
-                  <MessageBubbleV2
-                    key={msg.id}
-                    message={{
-                      id: msg.id,
-                      content: msg.content,
-                      timestamp: msg.timestamp,
-                      isUser: msg.role === 'user',
-                      isSystem: msg.role === 'system',
-                      toolCalls: msg.toolCalls,
-                      metadata: msg.metadata,
-                      replyToId: msg.replyToId,
-                      thinking: msg.thinking,
-                    }}
-                    botName={activeBot?.name || 'CachiBot'}
-                    botColor={activeBot?.color}
-                    chatId={activeChatId || ''}
-                    isStreaming={isLoading && runVisibleHere && index === messages.length - 1 && msg.role === 'assistant'}
-                    onReply={() => setReplyTo(msg)}
-                    onRegenerate={msg.role === 'assistant' ? () => regenerateFrom(index) : undefined}
-                    onEditSend={(text) => handleEditSend(msg.id, text)}
-                    onDoOnSide={canOperate ? () => handleDoOnSide(msg.content) : undefined}
-                  />
-                )
+                const singleReply = sideTaskReplyMetadata(msg.metadata)
+                const groupReply = singleReply ? null : sideTaskGroupReplyMetadata(msg.metadata)
+                if (singleReply && activeBotId) {
+                  // A settled side task: the thread reply persisted by the
+                  // backend (quotes this message, opens the child chat).
+                  out.push(
+                    <SideTaskReplyView
+                      key={msg.id}
+                      metadata={singleReply}
+                      content={msg.content}
+                      chatId={activeChatId || ''}
+                      replyToId={msg.replyToId ?? null}
+                      botId={activeBotId}
+                      canOperate={canOperate}
+                    />
+                  )
+                } else if (groupReply && activeBotId) {
+                  out.push(
+                    <SideTaskGroupReplyView
+                      key={msg.id}
+                      metadata={groupReply}
+                      content={msg.content}
+                      chatId={activeChatId || ''}
+                      replyToId={msg.replyToId ?? null}
+                      botId={activeBotId}
+                    />
+                  )
+                } else {
+                  out.push(
+                    <MessageBubbleV2
+                      key={msg.id}
+                      message={{
+                        id: msg.id,
+                        content: msg.content,
+                        timestamp: msg.timestamp,
+                        isUser: msg.role === 'user',
+                        isSystem: msg.role === 'system',
+                        toolCalls: msg.toolCalls,
+                        metadata: msg.metadata,
+                        replyToId: msg.replyToId,
+                        thinking: msg.thinking,
+                      }}
+                      botName={activeBot?.name || 'CachiBot'}
+                      botColor={activeBot?.color}
+                      chatId={activeChatId || ''}
+                      isStreaming={isLoading && runVisibleHere && index === messages.length - 1 && msg.role === 'assistant'}
+                      onReply={() => setReplyTo(msg)}
+                      onRegenerate={msg.role === 'assistant' ? () => regenerateFrom(index) : undefined}
+                      onEditSend={(text) => handleEditSend(msg.id, text)}
+                      onDoOnSide={canOperate ? () => handleDoOnSide(msg.content, msg.id) : undefined}
+                    />
+                  )
+                }
+                // Quiet one-line indicator while side tasks from this message
+                // wait or run (design 11a "Side-task replies").
+                const activeHere = activeSinglesBySource[msg.id]
+                if (activeHere && activeHere.length > 0) {
+                  out.push(<SideTaskIndicator key={`st-${msg.id}`} tasks={activeHere} />)
+                }
               })
               return out
             })()}
           </div>
-
-          {/* Side-task cards (design 11a/11c) — one per side task, grouped
-              helpers as one card; every state comes from the real record. */}
-          {(sideSingles.length > 0 || sideGroups.length > 0) && (
-            <div className="side-task-cards">
-              {sideSingles.map((task) => (
-                <SideTaskCard key={task.id} task={task} canOperate={canOperate} />
-              ))}
-              {sideGroups.map((group) => (
-                <SideTaskGroupCard
-                  key={group.groupId}
-                  title={group.title}
-                  items={group.items}
-                  botName={activeBot?.name || 'Bot'}
-                />
-              ))}
-            </div>
-          )}
 
           {/* Inline approval cards for this chat (design 03 — never block) */}
           {chatApprovals.map((approval) => (

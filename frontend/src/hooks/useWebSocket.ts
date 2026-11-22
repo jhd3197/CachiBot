@@ -32,6 +32,7 @@ import type {
   ToolConfigs,
   BotCapabilities,
   BotModels,
+  ChatMessage,
 } from '../types'
 
 // Pending approval store (simple module-level state for now)
@@ -423,6 +424,26 @@ export function useWebSocket() {
           // read from the side-tasks store.
           const payload = msg.payload as SideTask
           useSideTasksStore.getState().upsert(payload)
+          break
+        }
+
+        case 'message_update': {
+          // A persisted chat message was created or updated in place
+          // (side-task replies). Upsert it into its chat, scoped delivery
+          // already happened server-side (bot access only).
+          const payload = msg.payload as { chatId?: string; message?: Record<string, unknown> }
+          const chatId = payload.chatId
+          const raw = payload.message
+          if (chatId && raw && typeof raw.id === 'string') {
+            useChatStore.getState().upsertMessage(chatId, {
+              id: raw.id,
+              role: (raw.role as ChatMessage['role']) || 'assistant',
+              content: typeof raw.content === 'string' ? raw.content : '',
+              timestamp: typeof raw.timestamp === 'string' ? raw.timestamp : new Date().toISOString(),
+              metadata: (raw.metadata as Record<string, unknown> | undefined) || {},
+              replyToId: (raw.replyToId as string | undefined) ?? undefined,
+            })
+          }
           break
         }
 

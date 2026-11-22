@@ -2,7 +2,7 @@
 
 Covers the side_task_start / start_helpers tools, helper groups (summary
 endpoint + counts), the one-level rule (tools hidden in side chats and
-rejected by the service) and the parent-chat note on finish.
+rejected by the service) and the parent-chat thread replies on finish.
 
 Runs entirely on SQLite in a tmp dir — no PostgreSQL needed. The agent run
 is mocked; the workspace is a real git repo in a tmp dir.
@@ -22,6 +22,7 @@ from tukuy import PythonSandbox
 
 import cachibot.storage.db as db_mod
 from cachibot.config import Config
+from cachibot.models.knowledge import BotMessage
 from cachibot.models.side_task import (
     SideTask,
     SideTaskKind,
@@ -92,12 +93,13 @@ async def sqlite_db(tmp_path):
 
 
 @pytest.fixture
-def service(sqlite_db, monkeypatch, tmp_path):
+async def service(sqlite_db, monkeypatch, tmp_path):
     """Fresh SideTaskService with a mocked agent turn and broadcast.
 
     The workspace is a real git repo in a tmp dir and worktrees live under
     tmp_path too, so E2's worktree creation and automatic merge back run
-    for real without touching the developer's repository.
+    for real without touching the developer's repository. Teardown cancels
+    and awaits in-flight turns (none may outlive the test's database/loop).
     """
     svc = SideTaskService()
     fake = FakeTurn()
@@ -130,7 +132,9 @@ def service(sqlite_db, monkeypatch, tmp_path):
         "cachibot.services.side_task_worktrees.worktrees_base_dir",
         lambda: tmp_path / "worktrees",
     )
-    return SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts, workspace=workspace)
+    yield SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts, workspace=workspace)
+
+    await svc.shutdown()
 
 
 @pytest.fixture
@@ -152,12 +156,6 @@ def make_plugin(bot_id: str, chat_id: str | None) -> SideTaskToolsPlugin:
     return SideTaskToolsPlugin(
         PluginContext(config=Config(), sandbox=PythonSandbox(), bot_id=bot_id, chat_id=chat_id)
     )
-
-
-async def parent_notes(bot_id: str, parent_chat_id: str) -> list[str]:
-    """System notes persisted in the parent chat (E3)."""
-    messages = await KnowledgeRepository().get_bot_messages(bot_id, parent_chat_id, limit=100)
-    return [m.content for m in messages if m.role == "system"]
 
 
 # ---------------------------------------------------------------------------
@@ -559,12 +557,29 @@ class TestGroupSummaryApi:
 
 
 # ---------------------------------------------------------------------------
-# Parent chat note when a bot-started side task settles
+# Parent chat thread replies when a bot-started helper settles
 # ---------------------------------------------------------------------------
 
 
+async def parent_replies(bot_id: str, parent_chat_id: str) -> list:
+    """Side-task reply messages persisted in the parent chat (E5)."""
+    messages = await KnowledgeRepository().get_bot_messages(bot_id, parent_chat_id, limit=100)
+    return [
+        m
+        for m in messages
+        if m.metadata.get("kind") in ("side_task_reply", "side_task_group_reply")
+    ]
+
+
+async def reply_has_status(bot_id: str, parent_chat_id: str, status: str) -> bool:
+    """The one reply exists and reflects `status` (it is synced right after
+    the record update in the same transition — poll the reply itself)."""
+    replies = await parent_replies(bot_id, parent_chat_id)
+    return len(replies) == 1 and replies[0].metadata.get("status") == status
+
+
 class TestParentChatNote:
-    async def test_merged_helper_writes_note_in_parent_chat(self, service):
+    async def test_merged_helper_writes_group_reply_in_parent_chat(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
 
@@ -578,19 +593,25 @@ class TestParentChatNote:
             items=[{"title": "Python 3.11", "prompt": "Test on 3.11"}],
             group_title="Test matrix",
         )
-        await wait_for(lambda: status_is(helpers[0].id, SideTaskStatus.MERGED))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "settled"))
 
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 1
-        assert 'Helper "Python 3.11"' in notes[0]
-        assert "merged back" in notes[0]
-        assert "result.txt" not in notes[0]  # one short line: counts, not file lists
-        # The merge details stay on the record for the card
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        reply = replies[0]
+        assert reply.role == "assistant"
+        assert reply.metadata["kind"] == "side_task_group_reply"
+        assert reply.metadata["groupId"] == group_id
+        assert reply.metadata["status"] == "settled"
+        assert reply.metadata["total"] == 1
+        assert reply.metadata["done"] == 1
+        assert "all 1 done" in reply.content
+        # The merge details stay on the record (the card/chat), not in the reply
         latest = await SideTaskRepository().get(helpers[0].id)
         assert {f["path"] for f in latest.merged_files} == {"result.txt"}
         assert group_id == latest.group_id
+        assert latest.reply_message_id == reply.id
 
-    async def test_done_helper_writes_note(self, service):
+    async def test_done_helper_updates_group_reply_in_place(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
 
@@ -599,14 +620,14 @@ class TestParentChatNote:
             bot_id=bot_id,
             items=[{"title": "No changes", "prompt": "Nothing to do"}],
         )
-        await wait_for(lambda: status_is(helpers[0].id, SideTaskStatus.DONE))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "settled"))
 
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 1
-        assert 'Helper "No changes"' in notes[0]
-        assert "no changes" in notes[0]
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1  # created at start, updated in place — never two
+        assert "No changes" in replies[0].content or "all 1 done" in replies[0].content
+        assert replies[0].metadata["status"] == "settled"
 
-    async def test_failed_helper_writes_note(self, service):
+    async def test_failed_helper_marks_group_reply(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
         service.fake.error = RuntimeError("boom")
@@ -616,13 +637,14 @@ class TestParentChatNote:
             bot_id=bot_id,
             items=[{"title": "Broken", "prompt": "Will fail"}],
         )
-        await wait_for(lambda: status_is(helpers[0].id, SideTaskStatus.FAILED))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "failed"))
 
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 1
-        assert 'Helper "Broken" failed: boom' in notes[0]
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        assert replies[0].metadata["status"] == "failed"
+        assert replies[0].metadata["failed"] == 1
 
-    async def test_needs_you_helper_writes_note(self, service):
+    async def test_needs_you_helper_marks_group_reply(self, service):
         """A bot-started helper that hits a merge conflict tells its parent."""
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
@@ -635,7 +657,7 @@ class TestParentChatNote:
             await gate.wait()
 
         service.svc._execute_turn = turn
-        _group_id, helpers = await service.svc.start_helpers(
+        group_id, helpers = await service.svc.start_helpers(
             parent_chat_id=parent.id,
             bot_id=bot_id,
             items=[{"title": "Docs update", "prompt": "Update the docs"}],
@@ -651,24 +673,42 @@ class TestParentChatNote:
         await wait_for(side_file_written)
         commit_file(service.workspace, "file.txt", "parent version\n", "parent change")
         gate.set()
-        await wait_for(lambda: status_is(st.id, SideTaskStatus.NEEDS_YOU))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "needs_you"))
 
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 1
-        assert 'Helper "Docs update" needs you: merge_conflict' in notes[0]
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        assert replies[0].metadata["status"] == "needs_you"
+        assert replies[0].metadata["needsYou"] == 1
 
-    async def test_user_started_side_task_writes_no_note(self, service):
+        # Resolve in the worktree and retry: same message updated, still one
+        latest = await SideTaskRepository().get(st.id)
+        Path(latest.worktree_path, "file.txt").write_text("parent version\n")
+        merged = await service.svc.retry_merge(st.id)
+        assert merged.status == SideTaskStatus.MERGED
+
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        assert replies[0].id == latest.reply_message_id
+        assert replies[0].metadata["status"] == "settled"
+        assert replies[0].metadata["done"] == 1
+
+    async def test_user_started_side_task_writes_single_reply(self, service):
+        """User-started side tasks reply too — parity with bot-started ones."""
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
 
         st = await service.svc.start(
             parent_chat_id=parent.id, bot_id=bot_id, prompt="User task", title="User task"
         )
-        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "done"))
 
-        assert await parent_notes(bot_id, parent.id) == []
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        assert replies[0].metadata["kind"] == "side_task_reply"
+        assert replies[0].metadata["sideTaskId"] == st.id
+        assert replies[0].metadata["status"] == "done"
 
-    async def test_note_goes_to_parent_not_side_chat(self, service):
+    async def test_reply_goes_to_parent_not_side_chat(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
 
@@ -677,55 +717,48 @@ class TestParentChatNote:
             bot_id=bot_id,
             items=[{"title": "Solo", "prompt": "Work"}],
         )
-        await wait_for(lambda: status_is(helpers[0].id, SideTaskStatus.DONE))
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "settled"))
 
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 1
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
         side_messages = await KnowledgeRepository().get_bot_messages(
             bot_id, helpers[0].chat_id, limit=100
         )
-        assert all(m.role != "system" for m in side_messages)
+        assert all(
+            m.metadata.get("kind") not in ("side_task_reply", "side_task_group_reply")
+            for m in side_messages
+        )
 
-    async def test_needs_you_from_tool_then_merge_notes_both_states(self, service):
-        """needs_you note now, merged note after the retry — both in the parent."""
+    async def test_helpers_group_shares_one_source_message(self, service):
+        """Every helper of a group answers the same parent-chat message."""
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
-        commit_file(service.workspace, "file.txt", "base\n", "add file")
+        repo = KnowledgeRepository()
+        await repo.save_bot_message(
+            BotMessage(
+                id=str(uuid.uuid4()),
+                bot_id=bot_id,
+                chat_id=parent.id,
+                role="user",
+                content="Check every Python version",
+                timestamp=datetime.now(timezone.utc),
+            )
+        )
 
-        gate = asyncio.Event()
-
-        async def turn(st: SideTask) -> None:
-            Path(st.worktree_path, "file.txt").write_text("side version\n")
-            await gate.wait()
-
-        service.svc._execute_turn = turn
         _group_id, helpers = await service.svc.start_helpers(
             parent_chat_id=parent.id,
             bot_id=bot_id,
-            items=[{"title": "Docs update", "prompt": "Update the docs"}],
+            items=[
+                {"title": "Py 3.11", "prompt": "Test 3.11"},
+                {"title": "Py 3.12", "prompt": "Test 3.12"},
+            ],
         )
-        st = helpers[0]
+        assert helpers[0].source_message_id is not None
+        assert all(h.source_message_id == helpers[0].source_message_id for h in helpers)
 
-        async def side_file_written() -> bool:
-            latest = await SideTaskRepository().get(st.id)
-            wt = Path(latest.worktree_path) if latest.worktree_path else None
-            return wt is not None and (wt / "file.txt").exists()
-
-        await wait_for(side_file_written)
-        commit_file(service.workspace, "file.txt", "parent version\n", "parent change")
-        gate.set()
-        await wait_for(lambda: status_is(st.id, SideTaskStatus.NEEDS_YOU))
-
-        # Resolve in the worktree and retry: merged, with a second note
-        latest = await SideTaskRepository().get(st.id)
-        Path(latest.worktree_path, "file.txt").write_text("parent version\n")
-        merged = await service.svc.retry_merge(st.id)
-        assert merged.status == SideTaskStatus.MERGED
-
-        notes = await parent_notes(bot_id, parent.id)
-        assert len(notes) == 2
-        assert "needs you: merge_conflict" in notes[0]
-        assert "merged back" in notes[1]
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        assert replies[0].reply_to_id == helpers[0].source_message_id
 
 
 # ---------------------------------------------------------------------------

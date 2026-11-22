@@ -226,6 +226,8 @@ interface ChatState {
   // Messages
   addMessage: (chatId: string, message: ChatMessage) => void
   updateMessage: (chatId: string, messageId: string, content: string) => void
+  /** Insert, or replace in place (side-task replies update as they settle). */
+  upsertMessage: (chatId: string, message: ChatMessage) => void
   updateLastAssistantMessage: (chatId: string, updates: Partial<ChatMessage>) => void
   updateLastAssistantMessageMetadata: (chatId: string, metadata: Record<string, unknown>) => void
   getMessages: (chatId: string) => ChatMessage[]
@@ -349,6 +351,23 @@ export const useChatStore = create<ChatState>()(
             ),
           },
         })),
+
+      upsertMessage: (chatId, message) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          const index = chatMessages.findIndex((m) => m.id === message.id)
+          if (index === -1) {
+            return {
+              messages: { ...state.messages, [chatId]: [...chatMessages, message] },
+            }
+          }
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) => (i === index ? { ...m, ...message } : m)),
+            },
+          }
+        }),
 
       updateLastAssistantMessage: (chatId, updates) =>
         set((state) => {

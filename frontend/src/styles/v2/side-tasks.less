@@ -262,6 +262,311 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Side-task thread reply (design 11a "Side-task replies"): a compact
+  // quoted-reply bubble — quoted source on top, summary, small outcome line,
+  // View thread. Amber accent while it needs you.
+  // ---------------------------------------------------------------------------
+
+  .side-reply {
+    align-self: flex-start;
+    width: min(560px, 100%);
+    box-sizing: border-box;
+    padding: 10px 14px 12px;
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+    border-left: 3px solid var(--v2-border);
+    border-radius: 4px 14px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    &--needs-you {
+      border-left-color: #fbbf24;
+    }
+
+    &__quote {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      border: 0;
+      border-left: 2px solid var(--v2-green);
+      border-radius: 6px;
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+      font: inherit;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--v2-text);
+      }
+    }
+
+    &__quote-icon {
+      width: 12px;
+      height: 12px;
+      flex: none;
+      align-self: center;
+      color: var(--v2-green);
+    }
+
+    &__quote-author {
+      flex: none;
+      font-weight: @font-semibold;
+      color: var(--v2-text);
+    }
+
+    &__quote-text {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--v2-text);
+    }
+
+    &__head-icon {
+      width: 13px;
+      height: 13px;
+      flex: none;
+      color: var(--v2-text-secondary);
+    }
+
+    &__eyebrow {
+      flex: none;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__title {
+      flex: 1;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: @font-semibold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__icon {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      color: var(--v2-text-tertiary);
+
+      &--amber {
+        color: #fbbf24;
+      }
+
+      &--red {
+        color: #f87171;
+      }
+    }
+
+    &__summary {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--v2-text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    &__meta {
+      margin: 0;
+      font-size: 12px;
+      font-family: @font-mono;
+      color: var(--v2-text-secondary);
+      word-break: break-word;
+
+      &--amber {
+        color: #fbbf24;
+      }
+
+      &--red {
+        color: #f87171;
+      }
+    }
+
+    &__actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    &__thread {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--v2-green);
+      font: inherit;
+      font-size: 13px;
+      font-weight: @font-medium;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+    }
+
+    &__expand {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--v2-text-secondary);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--v2-text);
+      }
+    }
+
+    &__expand-chevron {
+      width: 13px;
+      height: 13px;
+      transition: transform 0.15s ease;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+
+    &__items {
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid var(--v2-border);
+      padding-top: 4px;
+    }
+
+    &__item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 13px;
+      color: var(--v2-text);
+      text-align: left;
+      cursor: pointer;
+
+      &:hover .side-reply__item-name {
+        color: var(--v2-green);
+      }
+    }
+
+    &__item-name {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      .transition-colors();
+    }
+
+    &__item-status {
+      flex: none;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Quiet one-line indicator under the source message while side tasks wait
+  // or run. Collapses several tasks from one message into one line + popover.
+  // ---------------------------------------------------------------------------
+
+  .side-indicator {
+    align-self: flex-start;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin: -12px 0 0 12px;
+
+    &__row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 3px 8px;
+      border: 0;
+      background: transparent;
+      color: var(--v2-text-tertiary);
+      font: inherit;
+      font-size: 12.5px;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 8px;
+
+      &:hover {
+        background: var(--v2-bg-hover);
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    &__icon {
+      width: 12px;
+      height: 12px;
+      flex: none;
+    }
+
+    &__text {
+      display: flex;
+      gap: 6px;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    &__title {
+      color: var(--v2-text-secondary);
+    }
+
+    &__chevron {
+      width: 12px;
+      height: 12px;
+      flex: none;
+      transition: transform 0.15s ease;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+
+    &__popover {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      z-index: 30;
+      min-width: 240px;
+      box-sizing: border-box;
+      padding: 6px;
+      background: var(--v2-bg-panel);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Side-task chat (11b): header split (Bot / task), sub-line, state banner.
   // ---------------------------------------------------------------------------
 
@@ -475,10 +780,31 @@
         &--needs-you {
           color: #fbbf24;
         }
+      }
+    }
 
-        &--failed {
-          color: #f87171;
-        }
+    // Muted count of side tasks that already settled (merged/done/stopped
+    // and fully-settled helper groups) — not a link, just an archive line.
+    &__finished {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 28px;
+      padding: 0 10px 0 8px;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: -13px;
+        top: 0;
+        width: 10px;
+        height: 14px;
+        border-left: 1px solid #34353a;
+        border-bottom: 1px solid #34353a;
+        border-bottom-left-radius: 6px;
       }
     }
   }

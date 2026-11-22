@@ -69,7 +69,7 @@ What was built (E3):
 - **Bot tools** (`plugins/side_tasks.py`, `SideTaskToolsPlugin` under the `workManagement` capability next to the work-management tools): `side_task_start(title, prompt)` starts one side task (`started_by='bot'`, `kind='side'`) for the current chat and returns its id/title/status/chat id; `start_helpers(items, group_title)` starts one helper per item (`kind='helper'`, one new shared `group_id`, `started_by='bot'`) and returns the group id plus each helper's id/title/status. The tool descriptions tell the model when to use them (user says "do this on the side", work that can run in parallel, e.g. one helper per Python version) and that each runs in its own git worktree and merges back automatically. The model decides from the description — no phrasing detection. The per-parent limit of 4 still applies: extra helpers queue in `waiting_for_slot` and promote FIFO.
 - **One level only, enforced twice**: `build_bot_agent` excludes both tools from the agent's registry when the chat is itself a side task (`parent_chat_id` set), so the model never sees them inside a side task or helper; and the service still rejects `start`/`start_helpers` from a side chat with `SideTaskStartError` (HTTP 400 / tool error) as a second layer. A side task's own sub-steps stay in-process steps via the existing `plan_tasks`/`update_task` checklist (workspace_progress) — not more chats.
 - **Helper groups**: `group_title` is stored on the records (new `group_title` column, migration 014 — 012/013 were already published in dev builds so they are unchanged) and `SideTaskService.start_helpers` / `group_summary` create and aggregate groups from the real records. New endpoint `GET /api/bots/{bot_id}/side-task-groups/{group_id}` returns `{groupId, title, total, done, failed, running, waiting, needsYou, items}` — `done` counts `done` + `merged`, `waiting` is `waiting_for_slot`, `needsYou` is `needs_you`; a `stopped` helper stays visible through `items` only (its parent was stopped, so the group settles with the parent). The list/start endpoints carry `groupTitle` too.
-- **Parent chat learns about it**: `side_task_update` already broadcast every state change; now, when a **bot-started** side task or helper settles (`merged` / `done` / `failed` / `needs_you`), one short `system`-role note is persisted in the **parent** chat (e.g. `Helper "Python 3.11" merged back · 2 files changed (commit a1b2c3d)`). The message model supports non-user roles and the chat UI renders system messages inline, so nothing breaks; user-started side tasks write no note (the user started those themselves). The richer cards render from `side_task_update` / the list and group endpoints in E4.
+- **Parent chat learns about it**: `side_task_update` already broadcast every state change. ~~E3's short system note~~ → replaced in E5 by the persisted thread reply (see E5 below): one assistant reply per side task (and one per helper group), created when it settles and updated in place after — for user-started and bot-started side tasks alike, with no duplicate note.
 - **Tests** (`tests/test_side_tasks_e3.py`, real git in tmp dirs, SQLite, no PostgreSQL): tools registered only for main chats (registry, per-chat exclusion, end-to-end `build_bot_agent`), `side_task_start`/`start_helpers` create the right records, group summary counts across every bucket, one-level enforcement (hidden tools + service/tool rejection), the limit of 4 applying to helpers with FIFO promotion, and the parent-chat note for merged/done/failed/needs_you (bot-started only, parent only, note again after retry-merge).
 
 ### E4, UI (about 2–3 days)
@@ -77,6 +77,66 @@ What was built (E3):
 - Side-task chat view (11b): "Bot / Task name" header with Stop, the sub-line (child of …, its files `side/…`, reports back when done).
 - Sidebar tree under the bot (one level, status labels), Runs grouped under the parent, Workspace › Needs you items.
 - Start points: More › Do this on the side (message actions), + › Side task (composer), plus bot-started.
+
+### E5, side-task replies: thread-reply model (about 2 days) — BUILT
+Juan's reaction to the E4 card stack ("humans reply to threads"): the parent
+chat renders side tasks as thread replies, not cards.
+
+What was built (E5):
+- **Source message** (migration 015, `side_tasks.source_message_id`): "More ›
+  Do this on the side" passes it explicitly (`sourceMessageId` on the start
+  request; validated to belong to the parent chat, else 400). "+ › Side
+  task" and the bot tools have no message reference — the agent/tool context
+  carries no current-message id — so the backend uses the documented
+  fallback: the latest user message in the parent chat (the message the
+  current turn is answering). No user message at all → `null`, and the UI
+  renders the reply without a quoted snippet. `side_tasks.reply_message_id`
+  records the single parent-chat reply.
+- **One reply per side task, updated in place**: on the first qualifying
+  transition (`needs_you` / `done` / `merged` / `failed` / `stopped`) the
+  backend persists one assistant message in the parent chat — `reply_to_id`
+  = source, content = the side chat's last assistant message trimmed (or a
+  record-derived line), metadata `{kind: "side_task_reply", sideTaskId,
+  title, chatId, status, replyTo, mergedFiles?, mergedCommit?, error?,
+  needsYouReason?, conflictFiles?}`. Retry merge / discard / resume rewrite
+  that same message (same id) — a settled side task never leaves a stale
+  amber reply offering actions, and there is never a duplicate (the E3
+  system note was removed; user-started and bot-started behave the same).
+  A serialized reply lock keeps concurrent helper finishes from creating two
+  messages; `reply_message_id` is sticky in the repository so stale
+  in-memory records can't clobber the group stamp.
+- **Helper groups**: ONE `side_task_group_reply` message per group
+  (`{kind, groupId, title, status, total, done, failed, running, waiting,
+  needsYou, items[{id,title,status,chatId}], replyTo?}`), created at
+  `start_helpers` and updated in place on every helper transition.
+- **Live updates**: every create/update is pushed over a new scoped
+  `message_update` WS event (`{chatId, message}`), same bot-access scoping
+  as `side_task_update`. The frontend upserts it into the chat store; on
+  chat open it also merges any missed reply messages from the server, so
+  replies survive reloads.
+- **UI** (`SideTaskReply.tsx`, ChatView): quoted-reply bubble (snippet of
+  the source message scrolls to it; summary; files/commit or error/reason
+  in small text; "View thread" opens the child chat; needs-you gets the
+  amber accent + Retry merge / Discard for operator+). Helpers group reply
+  expands per-helper rows. While side tasks only wait or run, a quiet
+  one-line indicator sits under the source message (several collapse into
+  one line + popover). The big card stack is gone from the parent chat; the
+  sidebar tree shows only active + needs-you + failed rows plus a muted "N
+  finished" row, amber as the only accent. Start endpoints return the new
+  fields (`sourceMessageId`, `replyMessageId`).
+- **Test hermeticity fix**: side-task tests had leaked real worktrees and
+  `side/*` branches into the developer's own checkout when a background turn
+  outlived its test. `SideTaskService.shutdown()` now cancels and awaits
+  in-flight turns (used on app shutdown and in every side-task test
+  fixture's teardown, before monkeypatches unwind), and an autouse
+  `hermetic_side_task_git` conftest fixture roots worktrees in the system
+  temp dir and refuses any side-task git operation on a repo outside it.
+- **Tests** (`tests/test_side_task_replies.py`, SQLite + real git in tmp
+  dirs, mocked agent): source stored/validated/fallback, migration 015
+  up/down through real alembic on a stamped SQLite, exactly one reply per
+  terminal state with in-place updates (retry-merge, discard, resume), no
+  duplicate with the old note, group reply created once and updated across
+  concurrent settles, `message_update` scoped by bot access.
 
 ### Estimate
 **About 7–10 working days** (E1 2, E2 2–3, E3 1–1.5, E4 2–3), as 4–5 PRs into dev, each green on its own. E2 builds on the decisions above (worktrees only, automatic merge with conflict → needs_you). Computer-related parts of 11c (labeled windows, preview counts) stay out until the computer backend exists.

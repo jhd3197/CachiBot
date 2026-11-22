@@ -68,7 +68,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
 | 10 | Files sheet | `FilesSheet`, chat assets + artifacts stores | **Done (Phase D4)**. Modal sheet from a Files pill in the chat header (Files in the More menu on mobile); room header Files icon opens the same sheet in room mode. |
 | 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
-| 11a–c | Side tasks | `ChatView` + `SideTaskCard`/`SideTaskGroupCard` + `SideTaskChatView` + `stores/side-tasks` | **Done (Phase E4)**. Backend E1–E3 (`/side-tasks` REST, `side_task_update` WS, `chats.parent_chat_id`); see "Phase E4" below. |
+| 11a–c | Side tasks | `ChatView` + `SideTaskReply` + `SideTaskChatView` + `stores/side-tasks` | **Done (Phases E4 + E5 "Side-task replies")**. Backend E1–E5 (`/side-tasks` REST, `side_task_update` + `message_update` WS, `chats.parent_chat_id`, thread replies); see "Side-task replies" below. |
 | 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
 | 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Done (Phase C2)**. Rooms group in the sidebar; account menu at the bottom; room header/composer restyled. |
 | 14 | Chat More menu | chat header | **Done (Phase C2)**. Bot settings/Runs/Routines/Knowledge + plugin pages + Export/Clear; Files reserved for D4. |
@@ -900,8 +900,9 @@ New pieces:
 
 | Element | Source | Notes |
 |---|---|---|
-| Parent-chat cards | side-tasks store (list endpoint + `side_task_update`) | Rendered after the message list; the backend links cards to chats, not to messages, so they are not interleaved into history. |
-| Helpers group card | records sharing one `groupId` | Counts use the same buckets as the group endpoint (`done` = done + merged, `waiting` = waiting_for_slot). |
+| Parent-chat reply bubbles | persisted messages with `metadata.kind` `side_task_reply` / `side_task_group_reply` (+ `message_update` WS for live updates; merged from the server on chat open) | Quoted snippet from `replyToId` (hidden when the source isn't loaded). Amber accent + Retry merge / Discard on needs-you (operator+). |
+| Live indicator under a message | side-tasks store (list endpoint + `side_task_update`) | Ungrouped side tasks of that message still `waiting_for_slot` / `running`; several collapse into one line + popover. Grouped helpers use their persisted group reply instead. |
+| Helpers group reply | one persisted message per `groupId` | Counts + per-helper rows from the metadata; updates in place via `message_update`. |
 | Side-task chat history | `GET /api/bots/{id}/chats/{chatId}/messages` | Loaded on open, refreshed when the record's `updatedAt` changes and polled every 4s while running. |
 | Sub-line parent title | `GET /api/bots/{id}/chats/{parentChatId}` | Falls back to plain "the main chat" when the fetch fails. |
 | Stop / Retry merge / Discard | `POST .../side-tasks/{id}/stop|retry-merge|discard` | Hidden below operator (the APIs require operator+); errors toast. |
@@ -938,15 +939,92 @@ New pieces:
 - **Runs grouping under the parent** — RunsView lists execution logs, and side
   tasks never write execution-log rows (they run through `SideTaskService`, not
   the job runner), so there is nothing real to group.
-- **Interleaving cards into message history** — cards render after the message
-  list; the backend links a side task to its chat, not to the message that
-  started it.
-- **Parent-chat "brought in" one-liner** — E3 writes it only for bot-started
-  side tasks, into the backend chat history; the v2 chat renders the local
-  chat store, so it is visible for backend-synced chats only.
+- **Interleaving into message history** — done in E5: replies are persisted
+  messages (quoted, next to the source via `reply_to_id`); live waiting /
+  running states show as the small indicator under the source message.
+- **Side-task cards** — replaced by the thread-reply model in E5; the
+  state card remains only inside the side task's own chat (design 11b).
+- **Parent-chat "brought in" one-liner** — replaced by the E5 thread reply
+  (see "Side-task replies" below): one persisted reply per side task, for
+  user-started and bot-started alike.
 - **Starting from a purely local chat** — the start API requires the parent
   chat to exist on the server; a browser-local chat that never synced fails
   with the backend's clear "Chat … not found" error, shown as a toast.
+
+## Side-task replies (phase E5)
+
+Juan's call on the E4 card stack: "humans reply to threads" — the parent chat
+now renders side tasks the way WhatsApp/Slack/iMessage do, not as a stack of
+big cards.
+
+Backend (migration 015 + `SideTaskService`):
+
+- Every side task records `source_message_id` — the parent-chat message it
+  answers. "More › Do this on the side" passes the message id explicitly
+  (`sourceMessageId` on the start request, validated to belong to the parent
+  chat, 400 otherwise); "+ › Side task" and the bot tools have no message
+  reference, so the backend falls back to the latest user message in the
+  parent chat — the message the current turn is answering (documented
+  fallback; a parent chat with no user message gets `null` and the reply
+  renders without a quote).
+- While a side task waits or runs, nothing is persisted; the chat shows a
+  quiet one-line indicator derived from `side_task_update` (below).
+- When it settles (`merged` / `done` / `failed` / `stopped` / `needs_you`),
+  the backend persists ONE assistant reply message in the parent chat:
+  `reply_to_id` = source message, content = the side chat's last assistant
+  message trimmed (or a record-derived line), metadata
+  `{kind: "side_task_reply", sideTaskId, title, chatId, status, replyTo,
+  mergedFiles?, mergedCommit?, error?, needsYouReason?, conflictFiles?}`.
+  Every later state change (needs_you → merged after Retry merge, discard,
+  resume) updates that same message **in place** — never a second reply, and
+  a resolved side task leaves no stale amber actions behind.
+- Bot-started helpers share ONE `side_task_group_reply` message
+  (`{kind, groupId, title, status, total, done, failed, running, waiting,
+  needsYou, items[{id,title,status,chatId}], replyTo?}`), created when the
+  group starts and updated in place as helpers progress; per-helper detail
+  only appears on expand in the UI.
+- The old E3 system-note is gone — the reply replaces it for user-started
+  and bot-started side tasks alike (no duplicates).
+- Each create/update is pushed to clients over a new **`message_update` WS
+  event** (`{chatId, message}`), broadcast with the same bot-access scoping
+  as `side_task_update`. The record's `replyMessageId` makes the write
+  idempotent across restarts.
+
+Frontend (`frontend/src/components/side-tasks/SideTaskReply.tsx` +
+`ChatView` + `stores/bots` `upsertMessage`):
+
+- Messages whose metadata kind is a side-task reply render as a compact
+  quoted-reply bubble: quoted snippet of the source message on top (click
+  scrolls to the original; hidden when the source isn't loaded), the
+  summary, files/commit or error/reason in small text, and a **View thread**
+  link opening the child chat. Needs-you replies get the amber accent and
+  Retry merge / Discard inline (operator+ only, matching the API).
+- The helpers group reply updates in place off `message_update`; a chevron
+  expands the per-helper rows (each opens that helper's chat).
+- While side tasks only wait or run, a small indicator sits under the source
+  message ("Update the changelog · Working · 0:32"); several from the same
+  message collapse into one line ("3 side tasks · 2 working, 1 waiting")
+  that opens a tiny popover listing them. Grouped helpers are covered by
+  their persisted group reply instead.
+- The big card stack is removed from the parent chat. The sidebar tree goes
+  quiet: only active + needs-you + failed rows (amber is the only accent),
+  finished ones collapse into a muted "N finished" row. Workspace › Needs
+  you is unchanged.
+- Reload safety: on chat open the client merges any server-side reply
+  messages it missed (only `side_task_reply*` kinds, matched by id) into the
+  local history, so replies survive reloads even when the browser was
+  offline when they were written.
+
+Test hermeticity (this phase): side-task tests leaked real worktrees and
+`side/*` branches into `/home/box/work/CachiBot` and `~/.cachibot/worktrees`
+when a test ended while its background turn was still in flight. Fixes:
+`SideTaskService.shutdown()` cancels and awaits in-flight turns (used by the
+app on shutdown and by every side-task test fixture in teardown, before the
+monkeypatches are undone), and an autouse `hermetic_side_task_git` conftest
+fixture roots worktrees in the system temp dir and makes every side-task git
+helper refuse to run against a repository outside it. The migration test
+runs alembic against a tmp SQLite only (`CACHIBOT_DATABASE_URL` env; the
+alembic env prefers it over the developer's real config).
 
 ## Known limitations / decisions
 

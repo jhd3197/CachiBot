@@ -102,12 +102,14 @@ class FakeTurn:
 
 
 @pytest.fixture
-def service(sqlite_db, monkeypatch, tmp_path):
+async def service(sqlite_db, monkeypatch, tmp_path):
     """Fresh SideTaskService with a mocked agent turn and broadcast.
 
     The workspace is a real git repo in a tmp dir and worktrees live under
     tmp_path too, so E2's worktree creation, path isolation and automatic
     merge back run for real without touching the developer's repository.
+    Teardown cancels and awaits in-flight turns (none may outlive the test's
+    database/loop).
     """
     svc = SideTaskService()
     fake = FakeTurn()
@@ -140,7 +142,9 @@ def service(sqlite_db, monkeypatch, tmp_path):
         "cachibot.services.side_task_worktrees.worktrees_base_dir",
         lambda: tmp_path / "worktrees",
     )
-    return SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts, workspace=workspace)
+    yield SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts, workspace=workspace)
+
+    await svc.shutdown()
 
 
 async def wait_for(predicate, timeout: float = 5.0) -> None:

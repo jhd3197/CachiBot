@@ -218,6 +218,44 @@ class KnowledgeRepository(BaseRepository[BotMessageModel, BotMessage]):
             session.add(obj)
             await session.commit()
 
+    async def get_bot_message(self, message_id: str) -> BotMessage | None:
+        """Get one bot message by id (any chat)."""
+        async with self._session() as session:
+            result = await session.execute(
+                select(BotMessageModel).where(BotMessageModel.id == message_id)
+            )
+            row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return BotMessage(
+            id=row.id,
+            bot_id=row.bot_id,
+            chat_id=row.chat_id,
+            role=row.role,
+            content=row.content,
+            timestamp=row.timestamp,
+            metadata=row.meta,
+            reply_to_id=row.reply_to_id,
+        )
+
+    async def update_bot_message(self, message: BotMessage) -> None:
+        """Update content/metadata/reply link of an existing bot message.
+
+        Used for messages that are edited in place (side-task replies): the
+        id, chat, role and timestamp stay, the body changes.
+        """
+        async with self._session() as session:
+            await session.execute(
+                update(BotMessageModel)
+                .where(BotMessageModel.id == message.id)
+                .values(
+                    content=message.content,
+                    meta=message.metadata,
+                    reply_to_id=message.reply_to_id,
+                )
+            )
+            await session.commit()
+
     async def get_bot_messages(
         self,
         bot_id: str,

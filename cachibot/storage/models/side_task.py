@@ -67,6 +67,11 @@ class SideTask(Base):
     )
     conflict_files: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
+    # Thread reply (E5): the parent-chat message that started the side task,
+    # and the single parent-chat reply message (updated in place).
+    source_message_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    reply_message_id: Mapped[str | None] = mapped_column(String, nullable=True)
+
     # Results
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 

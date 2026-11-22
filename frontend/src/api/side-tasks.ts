@@ -80,11 +80,15 @@ export async function getSideTask(botId: string, sideTaskId: string): Promise<Si
 export async function startSideTask(
   botId: string,
   chatId: string,
-  body: { prompt: string; title?: string }
+  body: { prompt: string; title?: string; sourceMessageId?: string | null }
 ): Promise<SideTask> {
   return request<SideTask>(`/bots/${botId}/chats/${chatId}/side-tasks`, {
     method: 'POST',
-    body: JSON.stringify({ prompt: body.prompt, title: body.title || undefined }),
+    body: JSON.stringify({
+      prompt: body.prompt,
+      title: body.title || undefined,
+      sourceMessageId: body.sourceMessageId || undefined,
+    }),
   })
 }
 

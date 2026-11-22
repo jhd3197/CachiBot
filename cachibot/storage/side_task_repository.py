@@ -3,6 +3,7 @@ Repository for side tasks: child chats of a parent chat run in parallel.
 """
 
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select, update
 
@@ -38,6 +39,8 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
                 merged_commit=side_task.merged_commit,
                 merged_files=side_task.merged_files,
                 conflict_files=side_task.conflict_files,
+                source_message_id=side_task.source_message_id,
+                reply_message_id=side_task.reply_message_id,
                 error=side_task.error,
                 work_id=side_task.work_id,
                 created_at=side_task.created_at,
@@ -48,30 +51,38 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
         )
 
     async def update(self, side_task: SideTask) -> None:
-        """Update an existing side task."""
+        """Update an existing side task.
+
+        ``reply_message_id`` is sticky: a None in the caller's copy means
+        "this writer doesn't know it", never "clear it" — the group reply
+        stamp is written behind the back of in-memory copies, and a stale
+        transition must not clobber it.
+        """
+        values: dict[str, Any] = dict(
+            title=side_task.title,
+            prompt=side_task.prompt,
+            kind=side_task.kind.value,
+            group_id=side_task.group_id,
+            group_title=side_task.group_title,
+            status=side_task.status.value,
+            needs_you_reason=side_task.needs_you_reason,
+            worktree_path=side_task.worktree_path,
+            branch=side_task.branch,
+            base_commit=side_task.base_commit,
+            merged_commit=side_task.merged_commit,
+            merged_files=side_task.merged_files,
+            conflict_files=side_task.conflict_files,
+            source_message_id=side_task.source_message_id,
+            error=side_task.error,
+            work_id=side_task.work_id,
+            started_at=side_task.started_at,
+            finished_at=side_task.finished_at,
+            updated_at=datetime.now(timezone.utc),
+        )
+        if side_task.reply_message_id is not None:
+            values["reply_message_id"] = side_task.reply_message_id
         await self._update(
-            update(SideTaskModel)
-            .where(SideTaskModel.id == side_task.id)
-            .values(
-                title=side_task.title,
-                prompt=side_task.prompt,
-                kind=side_task.kind.value,
-                group_id=side_task.group_id,
-                group_title=side_task.group_title,
-                status=side_task.status.value,
-                needs_you_reason=side_task.needs_you_reason,
-                worktree_path=side_task.worktree_path,
-                branch=side_task.branch,
-                base_commit=side_task.base_commit,
-                merged_commit=side_task.merged_commit,
-                merged_files=side_task.merged_files,
-                conflict_files=side_task.conflict_files,
-                error=side_task.error,
-                work_id=side_task.work_id,
-                started_at=side_task.started_at,
-                finished_at=side_task.finished_at,
-                updated_at=datetime.now(timezone.utc),
-            )
+            update(SideTaskModel).where(SideTaskModel.id == side_task.id).values(**values)
         )
 
     async def get(self, side_task_id: str) -> SideTask | None:
@@ -151,6 +162,19 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
             .limit(1)
         )
 
+    async def set_reply_message_for_group(self, group_id: str, message_id: str) -> None:
+        """Stamp the shared parent-chat reply message on every helper of a group.
+
+        A helper group surfaces as ONE reply message in the parent chat; all
+        its records point at it so any helper transition can update it in
+        place.
+        """
+        await self._update(
+            update(SideTaskModel)
+            .where(SideTaskModel.group_id == group_id)
+            .values(reply_message_id=message_id)
+        )
+
     def _row_to_entity(self, row: SideTaskModel) -> SideTask:
         """Convert database row to SideTask."""
         return SideTask(
@@ -172,6 +196,8 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
             merged_commit=row.merged_commit,
             merged_files=row.merged_files if row.merged_files else [],
             conflict_files=row.conflict_files if row.conflict_files else [],
+            source_message_id=row.source_message_id,
+            reply_message_id=row.reply_message_id,
             error=row.error,
             work_id=row.work_id,
             created_at=row.created_at,

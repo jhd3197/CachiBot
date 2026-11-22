@@ -188,16 +188,33 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
             const chats = getChatsByBot(bot.id)
             const latest = chats[0]
             const active = !isWorkspaceActive && !urlRoomId && !!urlBotId && bot.id === urlBotId
-            // Side tasks of the bot's latest chat, grouped (helpers collapse
-            // into one row) — hidden entirely when there are none. Computed
-            // inline (no memo hook inside the map): the row re-renders with
-            // any sideTasksById change anyway, and the lists are small.
+            // Side tasks of the bot's latest chat (design 11a "Side-task
+            // replies"): the tree stays quiet — active + needs-you + failed
+            // rows only, one muted "N finished" row for the rest; the only
+            // accent color is the amber on needs-you. Computed inline (no
+            // memo hook inside the map): the row re-renders with any
+            // sideTasksById change anyway, and the lists are small.
             const { singles: sideSingles, groups: sideGroups } = latest
               ? partitionSideTasks(
                   Object.values(sideTasksById).filter((t) => t.parentChatId === latest.id)
                 )
               : { singles: [] as SideTask[], groups: [] as Array<{ groupId: string; title: string | null; items: SideTask[] }> }
-            const hasSideTree = sideSingles.length > 0 || sideGroups.length > 0
+            const treeVisible = (t: SideTask) =>
+              t.status === 'running' ||
+              t.status === 'waiting_for_slot' ||
+              t.status === 'needs_you' ||
+              t.status === 'failed'
+            const treeFinished = (t: SideTask) => !treeVisible(t)
+            const visibleSingles = sideSingles.filter(treeVisible)
+            const finishedSingles = sideSingles.filter(treeFinished)
+            const activeGroups = sideGroups.filter((g) => g.items.some(treeVisible))
+            const finishedCount =
+              finishedSingles.length +
+              sideGroups
+                .filter((g) => !activeGroups.includes(g))
+                .reduce((n, g) => n + g.items.length, 0)
+            const hasSideTree =
+              visibleSingles.length > 0 || activeGroups.length > 0 || finishedCount > 0
             return (
               <div key={bot.id}>
                 <button
@@ -222,12 +239,17 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
                 </button>
                 {hasSideTree && (
                   <div className="side-tree" role="group" aria-label={`Side tasks of ${bot.name}`}>
-                    {sideSingles.map((task) => (
+                    {visibleSingles.map((task) => (
                       <SideTreeRow key={task.id} task={task} activeChatId={activeChatId} />
                     ))}
-                    {sideGroups.map((group) => (
+                    {activeGroups.map((group) => (
                       <SideTreeGroupRow key={group.groupId} group={group} activeChatId={activeChatId} />
                     ))}
+                    {finishedCount > 0 && (
+                      <div className="side-tree__finished">
+                        {finishedCount} finished
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -360,7 +382,7 @@ function botColor(botId: string): string {
   return bot?.color || '#4ade80'
 }
 
-function sideTaskStatusLabel(task: SideTask): { text: string; tone?: 'needs-you' | 'failed' } {
+function sideTaskStatusLabel(task: SideTask): { text: string; tone?: 'needs-you' } {
   switch (task.status) {
     case 'waiting_for_slot':
       return { text: 'Waiting' }
@@ -371,7 +393,7 @@ function sideTaskStatusLabel(task: SideTask): { text: string; tone?: 'needs-you'
     case 'merged':
       return { text: 'Brought in' }
     case 'failed':
-      return { text: 'Failed', tone: 'failed' }
+      return { text: 'Failed' }
     case 'stopped':
       return { text: 'Stopped' }
     default:
@@ -383,11 +405,11 @@ function SideTreeStatusIcon({ status }: { status: SideTaskStatus }) {
   const cls = 'side-tree__row-icon'
   switch (status) {
     case 'running':
-      return <Loader2 className={cn(cls, 'side-tree__row-icon--running', 'animate-spin')} strokeWidth={1.8} />
+      return <Loader2 className={cn(cls, 'animate-spin')} strokeWidth={1.8} />
     case 'needs_you':
       return <Hand className={cn(cls, 'side-tree__row-icon--needs-you')} strokeWidth={1.8} />
     case 'failed':
-      return <XCircle className={cn(cls, 'side-tree__row-icon--failed')} strokeWidth={1.8} />
+      return <XCircle className={cls} strokeWidth={1.8} />
     case 'stopped':
       return <Square className={cls} strokeWidth={1.8} />
     case 'waiting_for_slot':
@@ -415,8 +437,7 @@ function SideTreeRow({ task, activeChatId }: { task: SideTask; activeChatId: str
       <span
         className={cn(
           'side-tree__row-status',
-          tone === 'needs-you' && 'side-tree__row-status--needs-you',
-          tone === 'failed' && 'side-tree__row-status--failed'
+          tone === 'needs-you' && 'side-tree__row-status--needs-you'
         )}
       >
         {text}
