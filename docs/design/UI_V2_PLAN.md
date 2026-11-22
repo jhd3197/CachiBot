@@ -3,9 +3,12 @@
 Status: **Phase B (Workspace "Your bots") implemented** on branch `feat/ui-v2-workspace`
 (Phase A app shell + Phase B; not committed).
 Authoritative design bundle: [`docs/design/cachibot-v2-final-views/`](./cachibot-v2-final-views/)
-(`index.html` gallery, `screens/` PNGs, `source/` HTML). The bundle is copied unmodified
-from Juan's final-views export — including provider/product names that appear in the
-reference artwork; those names are design references only, not commitments.
+(`index.html` gallery, `screens/` PNGs, `source/` HTML). **Updated v2b bundle**
+(20 views, Runs = view 16, destinations map = view 12) lives outside the repo
+at `/workspace/design-v2/v2b/cachibot-v2-final-views/` and is referenced but
+not copied. The in-repo bundle is copied unmodified from Juan's final-views
+export — including provider/product names that appear in the reference
+artwork; those names are design references only, not commitments.
 
 ## Design intent (from the bundle README)
 
@@ -63,7 +66,7 @@ white (`#ececec` bg, `#0b0c0e` text), 32–42px tall, 9–10px radius.
 | 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
 | 10 | Files sheet | `AssetsView`, `/api/assets`, artifact files | **Phase C**: open assets as a modal sheet from chat header (sheet styling lands with tokens in Phase A). |
 | 11 | Mini Vela spec (states) | — | Reference-only; states materialize with Phase D backend. |
-| 12 | Runs | `/:botId/work` (`WorkView` history) + automations run log (`automations` API) | **Phase B/C**: day-grouped run list can be composed from existing work job APIs (`/api/work`, jobs in `bots` store). |
+| 12→16 | Runs (v2b: view 16; Work/Automations-timeline/Exec-logs moved in per view 12) | `/runs` (`RunsView`) | **Done (Phase D1)**. Cross-bot, day-grouped run list composed from the per-bot executions APIs, plus quick-tasks checklist and Automations timeline; operator+; Activity log link for admins. |
 | 13 | Routine editor | `/:botId/automations` (`AutomationsView`, `ScriptEditorView`, schedules API) | **Phase C**: plain-words editor over existing `Schedule`/`BotFunction` APIs. |
 | 14 | Bot settings | `/:botId/settings` (`SettingsView`) | **Phase C**: narrow one-column layout (max 600px) reusing existing settings panels; Connections rows already exist in `BotConnectionsPanel`. |
 
@@ -124,6 +127,88 @@ at `/dashboard`, styled with phase A tokens/`BotAvatar`. Centered 760px column
 Per-bot API failures resolve to `null` per figure, so uncomputable values are
 hidden instead of displayed as zeros. No backend changes were needed in Phase B.
 
+## Phase D1 scope (Runs, views 16 + "where things moved" map 12)
+
+New `frontend/src/components/views/RunsView.tsx` (+ `styles/v2/runs.less`) at
+`/runs`, styled with the phase A tokens/`BotAvatar` and the exact values from
+`source/16-runs.html` (760px column, padding 32px 32px 64px, 26px H1, 32px
+chips with 16px radius, 32px row avatars, expanded card at margin-left 58px).
+There is no non-admin cross-bot executions endpoint, so the page fans out the
+existing per-bot APIs over the user's bots and merges/dedupes client-side.
+
+Per the v2b "where things moved" map: **Work merged into Runs** (its runs are
+the "work"-typed rows with real status; Needs you / Running / Failed
+filters), **quick tasks became a checklist in Runs** (real todos API), the
+**Automations timeline went into Runs**, and **Exec logs → Activity log**
+(linked from Runs, admins only). Runs is **operator+** — viewers get an
+explanation state instead of data, and Workspace entry points hide.
+
+### Data source per element (all real; nothing placeholder)
+
+| Element | Source | Notes |
+|---|---|---|
+| Runs list | `GET /api/bots/{id}/executions?from_date=<90d>&limit=200` + `/executions/running` per **operable** bot, merged by id | 90d window = widest retention tier; the server only returns what it kept. A bot whose calls fail is dropped; if every call fails the page shows an error state with retry. |
+| Quick tasks checklist | `GET /api/bots/{id}/todos/open` per operable bot | Checking a box calls `POST /todos/{id}/done`, ✕ calls `/dismiss`; the item leaves the list. Hidden when no open todos. Adding new todos is not offered here (a cross-bot page has no natural owner bot; todos are created via chat/API and managed in `/:botId/work` quick tasks). |
+| Timeline | `GET /api/bots/{id}/timeline` per operable bot | Events are written by job_runner and the scripts API. Day-grouped like runs, capped at 60, hidden when empty. |
+| Operator+ gate | per-bot `access_level` from the bots list (`botAccessRank` in `hooks/useBotAccess.ts`) | Runs only fetches bots the user can operate (rank ≥ 2; admins always). No operable bot → "Runs is available to operators and above." |
+| `?bot=<id>` | URL param | Preselects the bot filter (used by Workspace failed-runs items). Unknown ids are ignored. |
+| Stuck banner | running executions with `startedAt` older than 1h | Hidden when none. "Clear them" cancels each via `POST /api/bots/{id}/executions/{execId}/cancel`, then reloads. |
+| Filter chips | computed from the loaded runs | All / Failed / Running with real counts (` · N` when > 0); Running includes stuck runs. **Needs you is hidden entirely when its count is 0** (the source is real — live pending approvals / `credit_exhausted` — but an always-empty chip is useless). If it disappears while active, the filter falls back to All. |
+| Needs you | executions with `status: credit_exhausted`, or still `running` with a pending tool approval in their chat (`stores/approvals.ts`) | Approvals are live WS state per tab; the match is botId + chatId. |
+| "All bots" dropdown | bot store | Client-side botId filter. |
+| Day groups | `startedAt`/`createdAt` local day via `dayGroup()` | Today / Yesterday / "22 Feb"-style labels, newest first; one group per day for runs and timeline alike. |
+| Row meta | `<bot> · <trigger> · <time> · <duration>` | Trigger label from `sourceType` (schedule→"routine", work/job→"work", manual+chatId→"asked in chat"); duration as "4s" / "0:41" / "1:52". |
+| Status | `status` + stuck rule | Done / Running / Failed (error+timeout) / Stuck / Cancelled / Needs you, with the design's icon colors. |
+| Expanded lines | `GET /api/bots/{id}/executions/{execId}/lines`, falling back to the log's `error`/`output` | Per-line steps are **not backed yet**: nothing in the backend calls the log-line append API, so `/lines` returns empty and the card falls back to `error` (red ✗) / `output` (mono block), which `job_runner` does write. The lines call stays so per-step output appears once the backend writes it. |
+| Open in chat | only when `chatId` is set | Navigates to `/{botId}/chats/{chatId}`. |
+| Run again | only for script (`POST /scripts/{id}/run`), function (`POST /functions/{id}/run`) and schedule (its `functionId` with the schedule's stored params) sources | Hidden for work/manual/api/job executions — no real re-run endpoint exists for those. |
+| Footer retention | `GET /api/bots/{id}/executions/stats` → `retentionDays` | New backend key, same value the log retention service enforces (`get_tier_limits().log_retention_days`). Hidden when the API can't be reached. |
+| Export | client-side CSV of the rows currently loaded (respecting the active filters) | Downloads `cachibot-runs.csv`; hidden when there are no rows. |
+| Activity log | link to `/admin/logs` | Admins only (`user.role === 'admin'`), per the moved map. |
+
+### Backend change
+
+- `GET /api/bots/{id}/executions/stats` now returns `retentionDays`
+  (`cachibot/api/routes/executions.py`), mirroring
+  `cachibot/services/log_retention.py`. Covered by the new
+  `tests/test_executions_api.py` (stats shape, 422 on bad period, 401 without
+  token).
+
+### Behavior changes
+
+- Workspace quick link **Runs** and the Needs-you **failed runs** / **stuck
+  runs** items appear only for users who can operate at least one bot
+  (operator+), matching the moved map. Failed-runs items deep-link to
+  `/runs?bot=<id>`; the stuck item keeps "Clear them" and its text opens
+  `/runs`.
+- `/:botId/work` **stays reachable** (sidebar Work icon, untouched): Runs
+  covers work runs and quick tasks, but not work-item management (create,
+  complete/fail/cancel, per-work detail with goal/progress/result) — that
+  stays in WorkView until the design moves it.
+- `/runs` is linked from the mobile top bar as "Runs".
+- **Timestamps**: the backend serializes stored datetimes with a plain ISO
+  string (no offset) — the app-wide convention, and SQLite drops tz info on
+  write. `parseApiDate` (`frontend/src/lib/utils.ts`) is the single helper
+  that treats offset-less API strings as UTC (offset-bearing strings parse
+  as-is); RunsView and WorkspaceView (stuck runs, stuck-since date, next
+  routine time) use it instead of `new Date(apiString)`. RunsView day-group
+  keys and labels derive from the same local-date computation, so one group
+  per day.
+
+### Phase D1 - not backed yet
+
+- Stuck-banner explanation sentence from the design ("They lost their worker
+  when the server restarted.") — dropped; there is no real source for *why* a
+  run is stuck.
+- Expanded-card summary paragraph ("The run stopped at step 3 because…") —
+  dropped; that would be a generated explanation, not real data.
+- Per-line execution steps (see table above) — the backend never appends log
+  lines; the card falls back to the real `error`/`output` fields.
+- Adding quick tasks from Runs — no owner-bot choice on a cross-bot page;
+  creation stays in chat / `/:botId/work` quick tasks.
+- Cross-bot server-side aggregation/pagination — the page caps at 200 runs
+  per bot (API max) and doesn't page beyond it.
+
 ### Supporting changes
 
 - **App-level WebSocket** (`useWebSocket()` now mounted in `MainLayout`, passed
@@ -148,6 +233,7 @@ hidden instead of displayed as zeros. No backend changes were needed in Phase B.
 
 - **Phase C — Chat cards, files sheet, routine editor, bot settings layout**
   (views 03, 10, 13, 14) on existing APIs.
+- **Phase D1 — Runs page (view 12)** on existing executions APIs. (Done — see below.)
 - **Phase D — The bot's computer** (views 04–09, 11): requires a new backend
   (Mini Vela desktop streaming, take-over, power state). Not started; no
   pretend/disabled controls ship in the meantime.
