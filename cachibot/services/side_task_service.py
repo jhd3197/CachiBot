@@ -660,15 +660,13 @@ class SideTaskService:
             # branch with no commits of its own is trivially an ancestor of
             # HEAD and must not trigger this: that means "no changes".
             tip = await asyncio.to_thread(worktrees.branch_sha, workspace, side_task.branch)
-            already = (
+            base_commit = side_task.base_commit
+            if (
                 tip is not None
-                and side_task.base_commit is not None
-                and tip != side_task.base_commit
+                and base_commit is not None
+                and tip != base_commit
                 and await asyncio.to_thread(worktrees.is_branch_merged, workspace, side_task.branch)
-            )
-            if already:
-                base_commit = side_task.base_commit
-                assert base_commit is not None  # guaranteed by `already`
+            ):
                 side_task.merged_commit = await asyncio.to_thread(worktrees.head_sha, workspace)
                 side_task.merged_files = await asyncio.to_thread(
                     worktrees.changed_files_vs_base,
