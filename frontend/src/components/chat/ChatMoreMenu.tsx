@@ -38,7 +38,7 @@ interface ChatMoreMenuProps {
  * items the user can't use are hidden, never greyed (view 12).
  *
  * Later-phase homes (view 12) link to the existing pages for now:
- * Runs → /{bot}/work (D1), Routines → /{bot}/automations (D2),
+ * Runs → /runs?bot={bot} (D1), Routines → /{bot}/automations (D2),
  * Tools/Plugins/Developer → their existing pages until Bot settings D3.
  */
 export function ChatMoreMenu({ bot, chat, onClose }: ChatMoreMenuProps) {
@@ -137,7 +137,7 @@ export function ChatMoreMenu({ bot, chat, onClose }: ChatMoreMenuProps) {
         <V2MenuItem
           icon={<History size={16} strokeWidth={1.8} />}
           suffix={needsYou > 0 ? `${needsYou} needs you` : undefined}
-          onClick={() => go(`/${bot.id}/work`)}
+          onClick={() => go(`/runs?bot=${bot.id}`)}
         >
           Runs
         </V2MenuItem>

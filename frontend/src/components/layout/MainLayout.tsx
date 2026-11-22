@@ -10,6 +10,7 @@ import {
   SettingsView,
   DashboardView,
   WorkspaceView,
+  RunsView,
   AppSettingsView,
   WorkView,
   VoiceView,
@@ -45,6 +46,7 @@ import type { AppView, BotView } from '../../types'
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
   '/dashboard/usage': 'dashboard-usage',
+  '/runs': 'runs',
   '/settings': 'settings',
   '/admin/logs': 'admin-logs',
 }
@@ -275,6 +277,8 @@ export function MainLayout() {
           return <WorkspaceView activeRun={runContext} />
         case 'dashboard-usage':
           return <DashboardView />
+        case 'runs':
+          return <RunsView />
         case 'settings':
           return <AppSettingsView />
         case 'admin-logs':
@@ -335,7 +339,7 @@ export function MainLayout() {
     (urlBotId ? bots.find((b) => b.id === urlBotId) : undefined) ??
     (appView ? undefined : bots.find((b) => b.id === activeBotId))
   const mobileTitle =
-    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : 'Workspace'
+    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : appView === 'runs' ? 'Runs' : 'Workspace'
 
   // Chat routes mount the chat header inline; the mobile top bar folds the
   // bot title + "Earlier chats" into one row (design 02, <1024px).
