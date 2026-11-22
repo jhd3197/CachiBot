@@ -30,6 +30,17 @@ const LEVEL_RANK: Record<string, number> = {
   admin: 4,
 }
 
+/**
+ * Effective access rank for a bot (0 = no access). The bot list API includes
+ * per-bot `access_level`; admins rank at the top for every bot. Shared by
+ * views that gate features per access level (e.g. Runs is operator+).
+ */
+export function botAccessRank(bot: unknown, isAdmin: boolean): number {
+  if (isAdmin) return LEVEL_RANK.admin
+  const level = bot ? (bot as Record<string, unknown>).access_level : undefined
+  return LEVEL_RANK[typeof level === 'string' ? level : ''] ?? 0
+}
+
 export function useBotAccess(botId: string | null): BotAccess {
   const { user } = useAuthStore()
   const { bots } = useBotStore()
