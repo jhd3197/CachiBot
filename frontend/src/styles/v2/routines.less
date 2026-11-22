@@ -1,0 +1,381 @@
+// =============================================================================
+// Routines list — styles/v2/routines.less
+// "Routines" page (design view 12: Automations -> Routines; scripts and
+// functions live under Advanced). Narrow column in the v2 language, same
+// geometry family as the routine editor (view 17) and workspace (view 01).
+// =============================================================================
+
+.routines {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.routines__column {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 24px 16px 48px;
+  }
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+
+.routines__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.routines__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: @font-bold;
+  letter-spacing: -0.01em;
+}
+
+.routines__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.routines__new-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--v2-text);
+  color: var(--v2-bg-main);
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-semibold;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+// ── Tabs + See runs ──────────────────────────────────────────────────────────
+
+.routines__tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.routines__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--v2-bg-button);
+}
+
+.routines__tab {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  &--active {
+    background: var(--v2-text);
+    color: var(--v2-bg-main);
+
+    &:hover {
+      color: var(--v2-bg-main);
+      opacity: 0.9;
+    }
+  }
+}
+
+.routines__runs-link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-green);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--v2-green-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+.routines__search {
+  position: relative;
+
+  &-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--v2-text-tertiary);
+    pointer-events: none;
+  }
+
+  &-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px 0 36px;
+    border: 1px solid var(--v2-border);
+    border-radius: var(--v2-radius-search);
+    background: var(--v2-bg-inset);
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+
+    &::placeholder {
+      color: var(--v2-text-tertiary);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--v2-border-strong);
+    }
+  }
+}
+
+// ── Routine rows ─────────────────────────────────────────────────────────────
+
+.routines__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.routines__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--v2-border);
+
+  &:first-child {
+    padding-top: 4px;
+  }
+}
+
+.routines__row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .routines__row-name {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.routines__row-name {
+  font-size: 14px;
+  font-weight: @font-semibold;
+  .truncate();
+}
+
+.routines__row-summary {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  .truncate();
+}
+
+.routines__row-lastrun {
+  flex: none;
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+  white-space: nowrap;
+
+  @media (max-width: 560px) {
+    display: none;
+  }
+}
+
+.routines__switch {
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  border: 0;
+  padding: 3px;
+  cursor: pointer;
+  background: var(--v2-bg-button);
+  display: flex;
+  align-items: center;
+  flex: none;
+
+  &[aria-checked='true'] {
+    background: var(--v2-text);
+  }
+}
+
+.routines__switch-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--v2-text-tertiary);
+  display: block;
+
+  .routines__switch[aria-checked='true'] & {
+    background: var(--v2-bg-main);
+    margin-left: auto;
+  }
+}
+
+// ── Advanced (scripts + functions) ───────────────────────────────────────────
+
+.routines__advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.routines__advanced-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routines__advanced-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: @font-semibold;
+}
+
+.routines__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// ── States ───────────────────────────────────────────────────────────────────
+
+.routines__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 0;
+  color: var(--v2-text-secondary);
+}
+
+.routines__empty {
+  padding: 32px 4px;
+  text-align: left;
+}
+
+.routines__empty-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: @font-medium;
+  color: var(--v2-text);
+}
+
+.routines__empty-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+// ── Automation cards (Advanced tab) — v2 token pass over the legacy card ────
+
+.automation-card {
+  border-radius: var(--v2-radius-row);
+  border: 1px solid var(--v2-border);
+  background: var(--v2-bg-panel);
+  padding: 14px;
+
+  &:hover {
+    border-color: var(--v2-border-strong);
+    box-shadow: none;
+  }
+
+  &__icon {
+    border-radius: var(--v2-radius-row);
+    background: var(--v2-bg-hover);
+    color: var(--v2-text-secondary);
+  }
+
+  &__name {
+    color: var(--v2-text);
+  }
+
+  &__type {
+    color: var(--v2-text-tertiary);
+  }
+
+  &__footer {
+    color: var(--v2-text-tertiary);
+  }
+
+  &__toggle {
+    color: var(--v2-green);
+
+    .dark & {
+      filter: none;
+    }
+
+    &--off {
+      color: var(--v2-text-tertiary);
+    }
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &__action-btn {
+    color: var(--v2-text-tertiary);
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+  }
+}

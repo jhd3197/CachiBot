@@ -44,7 +44,7 @@ export const useAutomationsStore = create<AutomationsState>()((set) => ({
   executions: [],
   activeExecutionId: null,
 
-  section: 'all',
+  section: 'routines',
   loading: false,
   error: null,
 

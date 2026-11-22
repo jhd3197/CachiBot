@@ -120,21 +120,7 @@ class SchedulerService:
 
     async def _fire_schedule(self, schedule: Schedule) -> None:
         """Execute a single due schedule."""
-        params = schedule.function_params or {}
-        message = params.get("message") or schedule.description or schedule.name
-        chat_id = params.get("chat_id")
-
-        logger.info(
-            "Firing schedule %s (%s) for bot %s",
-            schedule.id,
-            schedule.name,
-            schedule.bot_id,
-        )
-
-        await self._deliver_message(schedule.bot_id, message, chat_id)
-
-        # Record the run
-        await self._schedule_repo.record_run(schedule.id)
+        await self._deliver_schedule(schedule)
 
         # Calculate and set next_run_at (or disable for one-time)
         if schedule.schedule_type == ScheduleType.ONCE:
@@ -163,6 +149,38 @@ class SchedulerService:
                         schedule.cron_expression,
                     )
                     await self._schedule_repo.toggle_enabled(schedule.id, False)
+
+    async def run_schedule_now(self, schedule: Schedule) -> None:
+        """Fire a schedule on demand (test run) without rescheduling it.
+
+        Delivers the message and records the run, but leaves ``next_run_at``
+        and ``enabled`` untouched so the regular cadence is not shifted.
+        """
+        logger.info(
+            "Manually firing schedule %s (%s) for bot %s",
+            schedule.id,
+            schedule.name,
+            schedule.bot_id,
+        )
+        await self._deliver_schedule(schedule)
+
+    async def _deliver_schedule(self, schedule: Schedule) -> None:
+        """Deliver a schedule's message and record the run."""
+        params = schedule.function_params or {}
+        message = params.get("message") or schedule.description or schedule.name
+        chat_id = params.get("chat_id")
+
+        logger.info(
+            "Firing schedule %s (%s) for bot %s",
+            schedule.id,
+            schedule.name,
+            schedule.bot_id,
+        )
+
+        await self._deliver_message(schedule.bot_id, message, chat_id)
+
+        # Record the run
+        await self._schedule_repo.record_run(schedule.id)
 
     # ------------------------------------------------------------------
     # Todo Reminders

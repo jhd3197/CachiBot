@@ -9,7 +9,7 @@ import pytest
 
 from cachibot.models.websocket import WSMessage, WSMessageType
 from cachibot.models.work import Schedule, ScheduleType, Todo, TodoStatus
-from cachibot.services.scheduler_service import SchedulerService
+from cachibot.services.scheduler_service import SchedulerService, compute_next_run
 from cachibot.storage.work_repository import ScheduleRepository, TodoRepository
 
 # ---------------------------------------------------------------------------
@@ -263,6 +263,82 @@ class TestSchedulerService:
         assert updated.next_run_at is not None
         # Next run should be in the future
         assert updated.next_run_at > datetime.now(timezone.utc)
+
+
+# ===========================================================================
+# Run-now (test run) and next-run computation tests
+# ===========================================================================
+
+
+class TestRunScheduleNow:
+    """Tests for SchedulerService.run_schedule_now (manual/test run)."""
+
+    async def test_run_schedule_now_records_run_without_rescheduling(self):
+        repo = ScheduleRepository()
+        next_run = datetime.now(timezone.utc) + timedelta(days=1)
+        sched = _make_schedule(
+            schedule_type=ScheduleType.CRON,
+            cron_expression="0 9 * * *",
+            next_run_at=next_run,
+        )
+        await repo.save(sched)
+
+        svc = SchedulerService()
+        with patch.object(svc, "_deliver_message", new_callable=AsyncMock) as deliver:
+            await svc.run_schedule_now(sched)
+
+        deliver.assert_awaited_once_with("bot-1", "hello", "chat-1")
+        updated = await repo.get(sched.id)
+        assert updated.run_count == 1
+        assert updated.last_run_at is not None
+        # Cadence untouched
+        assert updated.enabled is True
+        assert abs((updated.next_run_at - next_run).total_seconds()) < 1
+
+    async def test_run_schedule_now_falls_back_to_description(self):
+        repo = ScheduleRepository()
+        next_run = datetime.now(timezone.utc) + timedelta(days=1)
+        sched = _make_schedule(schedule_type=ScheduleType.ONCE, next_run_at=next_run)
+        sched.function_params = {}
+        await repo.save(sched)
+
+        svc = SchedulerService()
+        with patch.object(svc, "_deliver_message", new_callable=AsyncMock) as deliver:
+            await svc.run_schedule_now(sched)
+
+        deliver.assert_awaited_once_with("bot-1", "A test schedule", None)
+
+
+class TestComputeNextRun:
+    """Tests for the compute_next_run helper used by the schedules API."""
+
+    def test_once_returns_run_at(self):
+        run_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        assert compute_next_run(ScheduleType.ONCE, run_at=run_at) == run_at
+
+    def test_event_returns_none(self):
+        assert compute_next_run(ScheduleType.EVENT, event_trigger="tick") is None
+
+    def test_interval_without_seconds_returns_none(self):
+        assert compute_next_run(ScheduleType.INTERVAL) is None
+
+    def test_interval_adds_seconds(self):
+        before = datetime.now(timezone.utc)
+        result = compute_next_run(ScheduleType.INTERVAL, interval_seconds=3600)
+        assert result is not None
+        assert 3500 < (result - before).total_seconds() < 3700
+
+    def test_cron_returns_future_occurrence(self):
+        result = compute_next_run(ScheduleType.CRON, cron_expression="0 9 * * *")
+        assert result is not None
+        assert result > datetime.now(result.tzinfo)
+
+    def test_cron_without_expression_returns_none(self):
+        assert compute_next_run(ScheduleType.CRON) is None
+
+    def test_cron_invalid_expression_raises(self):
+        with pytest.raises(Exception):
+            compute_next_run(ScheduleType.CRON, cron_expression="not a cron")
 
 
 # ===========================================================================
