@@ -18,6 +18,8 @@ import {
   Check,
   Clock,
   Pencil,
+  MoreHorizontal,
+  GitBranch,
 } from 'lucide-react'
 import { ReactionBar as ReactionBarLazy } from '../rooms/ReactionBar'
 import { useChatStore, useBotStore } from '../../stores/bots'
@@ -25,6 +27,7 @@ import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { BotAvatar } from '../common/Avatar'
+import { V2Menu, V2MenuItem } from '../common/V2Menu'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ArtifactCard } from '../artifacts/ArtifactCard'
 import { cn, copyToClipboard, darkenColor } from '../../lib/utils'
@@ -725,6 +728,47 @@ export function buildToolSummary(toolCalls: ToolCall[]): string {
   return summary.charAt(0).toUpperCase() + summary.slice(1)
 }
 
+/**
+ * Hover "More" menu (design 11c): on any message, "Do this on the side"
+ * starts a side task prefilled from that message's text. Anchored to the
+ * side the turn sits on so it never clips off-screen (user turns are
+ * right-aligned, bot turns left-aligned).
+ */
+function DoOnSideMenu({ onDoOnSide, align }: { onDoOnSide: () => void; align: 'left' | 'right' }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="v2-icon-action"
+        title="More"
+        aria-label="More"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <V2Menu
+          className={cn('v2-msg-more-menu', align === 'left' ? 'v2-msg-more-menu--left' : 'v2-msg-more-menu--right')}
+          onClose={() => setOpen(false)}
+        >
+          <V2MenuItem
+            icon={<GitBranch size={16} strokeWidth={1.8} />}
+            onClick={() => {
+              setOpen(false)
+              onDoOnSide()
+            }}
+          >
+            Do this on the side
+          </V2MenuItem>
+        </V2Menu>
+      )}
+    </span>
+  )
+}
+
 export interface MessageBubbleV2Props {
   message: {
     id: string
@@ -745,6 +789,8 @@ export interface MessageBubbleV2Props {
   onRegenerate?: () => void
   /** Edit-and-resend: called with the edited text for user messages */
   onEditSend?: (newContent: string) => void
+  /** More › "Do this on the side": starts a side task prefilled from this message */
+  onDoOnSide?: () => void
 }
 
 /**
@@ -761,6 +807,7 @@ export function MessageBubbleV2({
   onReply,
   onRegenerate,
   onEditSend,
+  onDoOnSide,
 }: MessageBubbleV2Props) {
   const { isUser, isSystem } = message
   const [copied, setCopied] = useState(false)
@@ -888,6 +935,7 @@ export function MessageBubbleV2({
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
+              {onDoOnSide && <DoOnSideMenu onDoOnSide={onDoOnSide} align="right" />}
             </div>
           </>
         )}
@@ -1110,6 +1158,7 @@ export function MessageBubbleV2({
             <Info className="h-3.5 w-3.5" />
           </button>
         )}
+        {onDoOnSide && <DoOnSideMenu onDoOnSide={onDoOnSide} align="left" />}
       </div>
     </div>
   )

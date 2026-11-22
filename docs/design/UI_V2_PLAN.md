@@ -68,7 +68,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
 | 10 | Files sheet | `FilesSheet`, chat assets + artifacts stores | **Done (Phase D4)**. Modal sheet from a Files pill in the chat header (Files in the More menu on mobile); room header Files icon opens the same sheet in room mode. |
 | 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
-| 11a–c | Side tasks | — | **New feature (principle 9)**, not UI-only. Proposed as phase E after D. |
+| 11a–c | Side tasks | `ChatView` + `SideTaskCard`/`SideTaskGroupCard` + `SideTaskChatView` + `stores/side-tasks` | **Done (Phase E4)**. Backend E1–E3 (`/side-tasks` REST, `side_task_update` WS, `chats.parent_chat_id`); see "Phase E4" below. |
 | 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
 | 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Done (Phase C2)**. Rooms group in the sidebar; account menu at the bottom; room header/composer restyled. |
 | 14 | Chat More menu | chat header | **Done (Phase C2)**. Bot settings/Runs/Routines/Knowledge + plugin pages + Export/Clear; Files reserved for D4. |
@@ -743,7 +743,8 @@ top of the chat **More menu** (`ChatMoreMenu` gained an optional
 
 - **Phase D** — D2 Routine editor (17), D3 Bot settings (18),
   D5 App settings + Activity log (19, 20).
-- **Phase E (proposal)** — side tasks (11a–c); needs backend support.
+- **Phase E** — side tasks (11a–c): backend E1–E3 and UI E4 are in this branch
+  (see "Phase E4" above).
 - **The bot's computer** (views 04–09, 11): requires a new backend. Not
   started; the Computer button and preview pane stay hidden.
 
@@ -856,6 +857,96 @@ Advanced tab, as documented above.
 - Schedule delivery goes through the scheduler's existing message path
   (`functionParams.message` → platform chat / WS broadcast); it is not an
   agent turn with tool access.
+
+## Phase E4 scope (side tasks UI, views 11a–c)
+
+Backend E1–E3 is in this branch: `GET/POST /api/bots/{id}/side-tasks` (list/get,
+start on `.../chats/{chatId}/side-tasks`, stop, retry-merge, discard),
+`GET /api/bots/{id}/side-task-groups/{groupId}`, `side_task_update` WS events
+carrying the full record, and `chats.parent_chat_id` on chat responses.
+The UI is built on those contracts only — no fake states anywhere.
+
+New pieces:
+
+- **`frontend/src/stores/side-tasks.ts`** — zustand store (not persisted; the
+  server is the source of truth and survives restarts). `ensureForBot` feeds it
+  from the list endpoint; every `side_task_update` WS event upserts the full
+  record; on WebSocket reconnect, bots whose list was already loaded are
+  re-fetched so changes broadcast while offline are picked up. Helpers for
+  per-parent selection and for collapsing helpers into groups live here too.
+- **`frontend/src/components/side-tasks/SideTaskCard.tsx`** — the parent-chat
+  card for every real state (`waiting_for_slot` → "Waiting for a slot",
+  `running` → "Working · 0:32" from the real `startedAt`, `needs_you` → amber
+  border + the recorded reason, `merge_conflict` lists the real
+  `conflictFiles` with Retry merge / Discard, `merged` → files changed + short
+  merge commit, `done` → "no changes", `failed` → the recorded error, `stopped`)
+  plus the helpers group card ("N helpers · started by \<Bot\> · X of N done",
+  one status row per helper). Cards open the side task's chat.
+- **`frontend/src/components/side-tasks/SideTaskChatView.tsx`** — design 11b:
+  "Bot / Task title" header with Stop (operator+, only while running/waiting),
+  the sub-line ("Side task of \<parent title\> · its files on branch
+  `side/…` · reports back when done", all from the record), the backend chat
+  history rendered with the normal `MessageBubbleV2`, and the state card with
+  its actions. While the side task runs, the history polls every 4s so its
+  chat streams in.
+- **`frontend/src/components/side-tasks/StartSideTaskDialog.tsx`** — the start
+  dialog; posts to the real endpoint and surfaces the backend's clear error
+  (e.g. the workspace is not a git repo) as an inline message + toast.
+- **`styles/v2/side-tasks.less`** — card/group/tree/dialog styling, exact
+  values from the 11a–c sources (amber `#fbbf24` needs-you border, `#131417`
+  cards, 34px sidebar tree rows with the elbow connector).
+
+### Data source per element (all real; nothing placeholder)
+
+| Element | Source | Notes |
+|---|---|---|
+| Parent-chat cards | side-tasks store (list endpoint + `side_task_update`) | Rendered after the message list; the backend links cards to chats, not to messages, so they are not interleaved into history. |
+| Helpers group card | records sharing one `groupId` | Counts use the same buckets as the group endpoint (`done` = done + merged, `waiting` = waiting_for_slot). |
+| Side-task chat history | `GET /api/bots/{id}/chats/{chatId}/messages` | Loaded on open, refreshed when the record's `updatedAt` changes and polled every 4s while running. |
+| Sub-line parent title | `GET /api/bots/{id}/chats/{parentChatId}` | Falls back to plain "the main chat" when the fetch fails. |
+| Stop / Retry merge / Discard | `POST .../side-tasks/{id}/stop|retry-merge|discard` | Hidden below operator (the APIs require operator+); errors toast. |
+| Sidebar tree | side-tasks store via `chats` (bot row = latest chat) | One nested level under the bot's latest-chat row; helpers collapse to one "X of N" row. Clicking opens the side task's chat. |
+| Workspace › Needs you | side-tasks store | One item per `needs_you` record ("Side task \"…\" needs you — merge conflict"), opening the side task's chat. |
+| Start points | `POST .../chats/{chatId}/side-tasks` | Message hover **More › Do this on the side** prefills the dialog from that message; composer **+ › Side task** prefills from the composer text. Both operator+ only. |
+
+### Behavior changes
+
+- The composer "+" is now a menu: **Attach file** (the old direct behavior) and
+  **Side task** (operator+). Bot-started helpers need no UI entry point — the
+  bot starts them with its tools.
+- Message hover rows gained a **More** menu carrying "Do this on the side".
+- The sidebar and Workspace each fetch the side-task list per bot once
+  (deduped), then live off `side_task_update`.
+- Leaving a chat no longer cancels anything new: side tasks run on the server
+  and appear in the parent chat via cards regardless of which view is open.
+
+### Phase E4 - not backed yet (hidden from the design, no fake data)
+
+- **Replies in a side-task chat** (design 11b's composer) — hidden on purpose:
+  the backend has no path to resume a `needs_you` side task from a user reply
+  (`SideTaskService.resume` exists but is exposed on no API/WS route, and a
+  normal WS message would run in the shared workspace, not the side task's
+  worktree). When a resume endpoint exists, the composer can be enabled.
+- **Question card with option buttons** (design 11b) — no `ask_user` WS payload
+  or structured question/options exists; `needs_you` carries only a free-text
+  reason, which the card shows instead.
+- **"Bring into main task" / "View changes" buttons** (design 11c) — the merge
+  is automatic in this build (Juan's decision #2), so `merged` shows what came
+  back (files + commit). No diff endpoint exists for "View changes".
+- **Computer column on side tasks** (11a right pane: labeled windows, "N things
+  running", preview counts) — no computer backend; the pane is not rendered.
+- **Runs grouping under the parent** — RunsView lists execution logs, and side
+  tasks never write execution-log rows (they run through `SideTaskService`, not
+  the job runner), so there is nothing real to group.
+- **Interleaving cards into message history** — cards render after the message
+  list; the backend links a side task to its chat, not to the message that
+  started it.
+- **Parent-chat "brought in" one-liner** — E3 writes it only for bot-started
+  side tasks, into the backend chat history; the v2 chat renders the local
+  chat store, so it is visible for backend-synced chats only.
+- **Starting from a purely local chat** — the start API requires the parent
+  chat to exist on the server; a browser-local chat that never synced fails
+  with the backend's clear "Chat … not found" error, shown as a toast.
 
 ## Known limitations / decisions
 

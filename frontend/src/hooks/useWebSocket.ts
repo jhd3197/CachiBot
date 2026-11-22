@@ -10,6 +10,7 @@ import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
 import { useArtifactsStore } from '../stores/artifacts'
 import { useWorkspaceStore } from '../stores/workspace'
+import { useSideTasksStore } from '../stores/side-tasks'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -26,6 +27,7 @@ import type {
   JobUpdatePayload,
   Artifact,
   ArtifactUpdatePayload,
+  SideTask,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -415,6 +417,15 @@ export function useWebSocket() {
           break
         }
 
+        case 'side_task_update': {
+          // Full side-task record on every state change (principle 9): the
+          // parent-chat cards, sidebar tree and Workspace "Needs you" all
+          // read from the side-tasks store.
+          const payload = msg.payload as SideTask
+          useSideTasksStore.getState().upsert(payload)
+          break
+        }
+
         case 'error': {
           const payload = msg.payload as ErrorPayload
           setLoading(false)
@@ -484,7 +495,14 @@ export function useWebSocket() {
   // Connect on mount - only runs once since handleMessage is now stable
   useEffect(() => {
     const unsubMessage = wsClient.onMessage(handleMessage)
-    const unsubConnect = wsClient.onConnect(() => setIsConnected(true))
+    const unsubConnect = wsClient.onConnect(() => {
+      setIsConnected(true)
+      // The connection may drop without the view unmounting; re-sync side
+      // tasks whose list was already loaded so state changes broadcast
+      // while offline are picked up (the server resumes them on restart).
+      const { loadedFor, refreshForBot } = useSideTasksStore.getState()
+      for (const botId of Object.keys(loadedFor)) void refreshForBot(botId)
+    })
     const unsubDisconnect = wsClient.onDisconnect(() => {
       setIsConnected(false)
       // The server cancels the in-flight run when the socket drops; any

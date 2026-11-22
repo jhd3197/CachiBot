@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore, useChatStore } from '../../stores/bots'
+import { useSideTasksStore } from '../../stores/side-tasks'
 import { useRailStore } from '../../stores/rail'
 import { useUsageStore } from '../../stores/connections'
 import { useApprovalsStore } from '../../stores/approvals'
@@ -141,6 +142,14 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
       cancelled = true
     }
   }, [bots])
+
+  // Side tasks (principle 9) — "Needs you" lists the real needs_you records
+  // from the side-tasks store (list endpoint + side_task_update events).
+  const sideTasksById = useSideTasksStore((s) => s.byId)
+  const ensureSideTasks = useSideTasksStore((s) => s.ensureForBot)
+  useEffect(() => {
+    for (const bot of bots) void ensureSideTasks(bot.id)
+  }, [bots, ensureSideTasks])
 
   // Weekly message counts per bot from the chat store (the UI's real history)
   const weeklyMessages = useMemo(() => {
@@ -302,6 +311,24 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
           (conn.error ? `: ${truncate(conn.error, 60)}` : ''),
         actionLabel: 'Open connections',
         onAction: () => openConnections(bot.id),
+      })
+    }
+  }
+
+  // Side tasks waiting on the user (e.g. merge conflict) — one item each,
+  // opening the side task's own chat (design 11c "Where it shows").
+  for (const bot of orderedBots) {
+    const needingYou = Object.values(sideTasksById).filter(
+      (t) => t.botId === bot.id && t.status === 'needs_you'
+    )
+    for (const task of needingYou) {
+      const reason = task.needsYouReason === 'merge_conflict' ? ' — merge conflict' : ''
+      needsYou.push({
+        key: `side-${task.id}`,
+        bot,
+        text: `Side task "${task.title}" needs you${reason}`,
+        actionLabel: 'Open chat',
+        onAction: () => navigate(`/${task.botId}/chats/${task.chatId}`),
       })
     }
   }

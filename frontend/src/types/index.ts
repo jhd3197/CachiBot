@@ -294,6 +294,94 @@ export interface Chat {
 }
 
 // =============================================================================
+// SIDE TASK TYPES (principle 9 — child chats that work in parallel)
+// =============================================================================
+
+export type SideTaskStatus =
+  | 'waiting_for_slot'
+  | 'running'
+  | 'needs_you'
+  | 'done'
+  | 'merged'
+  | 'failed'
+  | 'stopped'
+
+export type SideTaskKind = 'side' | 'helper'
+export type SideTaskStartedBy = 'user' | 'bot'
+
+/** One path changed on the side branch relative to base, as recorded on merge. */
+export interface SideTaskMergedFile {
+  path: string
+  status: string
+}
+
+/** Full side-task record as returned by the REST API and `side_task_update`. */
+export interface SideTask {
+  id: string
+  botId: string
+  parentChatId: string
+  chatId: string
+  title: string
+  prompt: string
+  kind: SideTaskKind
+  groupId: string | null
+  groupTitle: string | null
+  status: SideTaskStatus
+  needsYouReason: string | null
+  startedBy: SideTaskStartedBy
+  worktreePath: string | null
+  branch: string | null
+  baseCommit: string | null
+  mergedCommit: string | null
+  mergedFiles: SideTaskMergedFile[]
+  conflictFiles: string[]
+  error: string | null
+  workId: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  updatedAt: string
+}
+
+/** Aggregate view of one helper group (GET /side-task-groups/{groupId}). */
+export interface SideTaskGroupSummary {
+  groupId: string
+  title: string | null
+  total: number
+  done: number
+  failed: number
+  running: number
+  waiting: number
+  needsYou: number
+  items: SideTask[]
+}
+
+/** Chat row as returned by GET /api/bots/{id}/chats (includes side-task chats). */
+export interface BackendChat {
+  id: string
+  botId: string
+  title: string
+  platform: string | null
+  platformChatId: string | null
+  pinned: boolean
+  archived: boolean
+  parentChatId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Message row as returned by GET /api/bots/{id}/chats/{chatId}/messages. */
+export interface BackendMessage {
+  id: string
+  chatId: string
+  role: string
+  content: string
+  timestamp: string
+  metadata: Record<string, unknown>
+  replyToId: string | null
+}
+
+// =============================================================================
 // JOB TYPES
 // =============================================================================
 
@@ -502,6 +590,7 @@ export type WSMessageType =
   | 'done'
   | 'job_update'
   | 'task_update'
+  | 'side_task_update'
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType

@@ -19,15 +19,25 @@ import {
   Mic,
   MoreHorizontal,
   FolderOpen,
+  GitBranch,
+  Paperclip,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { useApprovalsStore } from '../../stores/approvals'
+import {
+  useSideTasksStore,
+  partitionSideTasks,
+} from '../../stores/side-tasks'
 import { BotAvatar } from '../common/Avatar'
+import { V2Menu, V2MenuItem } from '../common/V2Menu'
 import { ChatsSheet } from '../chat/ChatsSheet'
 import { FilesSheet } from '../chat/FilesSheet'
+import { SideTaskCard, SideTaskGroupCard } from '../side-tasks/SideTaskCard'
+import { SideTaskChatView } from '../side-tasks/SideTaskChatView'
+import { StartSideTaskDialog } from '../side-tasks/StartSideTaskDialog'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
@@ -162,6 +172,15 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const [findCursor, setFindCursor] = useState(0)
   const [findCount, setFindCount] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
+
+  // Side tasks (principle 9): the parent chat's cards and the side-task chat
+  // view both read from the store, fed by the list endpoint + side_task_update.
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  const [sideTaskPrefill, setSideTaskPrefill] = useState<string | null>(null)
+  const ensureSideTasks = useSideTasksStore((s) => s.ensureForBot)
+  useEffect(() => {
+    if (activeBotId) void ensureSideTasks(activeBotId)
+  }, [activeBotId, ensureSideTasks])
 
   // @mention coding agent autocomplete state
   const [showAgentMentions, setShowAgentMentions] = useState(false)
@@ -300,6 +319,32 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     [messagesByChat, activeChatId]
   )
   const isInCreationFlow = creationFlow.step !== 'idle'
+
+  // The open chat may itself BE a side task's chat (design 11b). Derived
+  // from the stable byId map (a selecting selector that builds a new array
+  // every call trips getSnapshot caching in zustand v5).
+  const sideTasksById = useSideTasksStore((s) => s.byId)
+  const sideTaskForChat = useMemo(
+    () =>
+      activeChatId
+        ? Object.values(sideTasksById).find((t) => t.chatId === activeChatId)
+        : undefined,
+    [sideTasksById, activeChatId]
+  )
+  // Side-task cards for the parent chat, rendered after its message list
+  const parentSideTasks = useMemo(
+    () =>
+      activeChatId
+        ? Object.values(sideTasksById)
+            .filter((t) => t.parentChatId === activeChatId)
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        : [],
+    [sideTasksById, activeChatId]
+  )
+  const { singles: sideSingles, groups: sideGroups } = useMemo(
+    () => partitionSideTasks(parentSideTasks),
+    [parentSideTasks]
+  )
 
   // Pending approvals for THIS chat — rendered inline (design 03 Approval card)
   const pendingApprovals = useApprovalsStore((s) => s.pending)
@@ -1100,6 +1145,12 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     sendUserMessage(newContent, { skipLocalUserMessage: true })
   }, [activeChatId, updateMessage, sendUserMessage])
 
+  // More › "Do this on the side" (design 11c): prefill the start dialog
+  // with the message's text. Operator+ only (the start API requires it).
+  const handleDoOnSide = useCallback((content: string) => {
+    setSideTaskPrefill(content)
+  }, [])
+
   // Failed-turn card actions
   const handleTryAgain = useCallback(() => {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')
@@ -1361,14 +1412,43 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         {renderAgentMentionPopup()}
         <button
           type="button"
-          className="v2-composer__plus"
-          title="Attach file"
-          aria-label="Attach file"
+          className={cn('v2-composer__plus', plusMenuOpen && 'v2-composer__plus--menu-open')}
+          title="Attach or add"
+          aria-label="Attach or add"
+          aria-haspopup="menu"
+          aria-expanded={plusMenuOpen}
           disabled={!canOperate}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setPlusMenuOpen((o) => !o)}
         >
           <Plus size={17} strokeWidth={1.8} />
         </button>
+        {plusMenuOpen && (
+          <V2Menu className="v2-composer-menu" onClose={() => setPlusMenuOpen(false)}>
+            <V2MenuItem
+              icon={<Paperclip size={16} strokeWidth={1.8} />}
+              onClick={() => {
+                setPlusMenuOpen(false)
+                fileInputRef.current?.click()
+              }}
+            >
+              Attach file
+            </V2MenuItem>
+            {canOperate && (
+              <V2MenuItem
+                icon={<GitBranch size={16} strokeWidth={1.8} />}
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  // Prefill from what was typed in the composer (if anything)
+                  // and hand it to the side task instead of the main chat.
+                  setSideTaskPrefill(input)
+                  setInput('')
+                }}
+              >
+                Side task
+              </V2MenuItem>
+            )}
+          </V2Menu>
+        )}
         <textarea
           ref={textareaRef}
           value={input}
@@ -1562,6 +1642,30 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
       ? 'Type a number (1-4), your own name, or "more"...'
       : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
 
+  // Start-a-side-task dialog (message More / composer +), rendered over both
+  // the hero and the docked chat so the flow works from either composer.
+  const sideTaskDialog =
+    sideTaskPrefill !== null && activeBotId && activeChatId ? (
+      <StartSideTaskDialog
+        botId={activeBotId}
+        chatId={activeChatId}
+        initialPrompt={sideTaskPrefill}
+        onClose={() => setSideTaskPrefill(null)}
+      />
+    ) : null
+
+  // The open chat is a side task's own chat (design 11b): child header,
+  // backend history, state card. No composer — there is no backend path to
+  // resume a needs-you side task from a reply (documented in UI_V2_PLAN).
+  if (sideTaskForChat && activeBot) {
+    return (
+      <div className="chat-view">
+        {sideTaskDialog}
+        <SideTaskChatView task={sideTaskForChat} bot={activeBot} canOperate={canOperate} />
+      </div>
+    )
+  }
+
   // Voice mode (design 15): the same chat switches to voice — big avatar,
   // live transcript lines, bottom bar with mic/waveform/Interrupt/Back.
   // Transcripts are saved into this chat by the voice pipeline.
@@ -1579,6 +1683,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     return (
       <div className="chat-view chat-view--hero">
         {chatHeader}
+        {sideTaskDialog}
         <div className="chat-view--hero__body">
         {/* Hero title */}
         <div className="chat-hero">
@@ -1613,6 +1718,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     <div ref={wrapperRef} className={cn('chat-view-wrapper', showPanel && 'chat-view-wrapper--split')}>
     <div className={cn('chat-view', showPanel && 'chat-view--with-panel')} style={showPanel ? { flex: `0 0 ${(1 - panelWidthRatio) * 100}%` } : undefined}>
       {chatHeader}
+      {sideTaskDialog}
 
       {/* Messages area */}
       <div className="chat-messages" ref={scrollContainerRef} onScroll={handleScroll}>
@@ -1664,12 +1770,31 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
                     onReply={() => setReplyTo(msg)}
                     onRegenerate={msg.role === 'assistant' ? () => regenerateFrom(index) : undefined}
                     onEditSend={(text) => handleEditSend(msg.id, text)}
+                    onDoOnSide={canOperate ? () => handleDoOnSide(msg.content) : undefined}
                   />
                 )
               })
               return out
             })()}
           </div>
+
+          {/* Side-task cards (design 11a/11c) — one per side task, grouped
+              helpers as one card; every state comes from the real record. */}
+          {(sideSingles.length > 0 || sideGroups.length > 0) && (
+            <div className="side-task-cards">
+              {sideSingles.map((task) => (
+                <SideTaskCard key={task.id} task={task} canOperate={canOperate} />
+              ))}
+              {sideGroups.map((group) => (
+                <SideTaskGroupCard
+                  key={group.groupId}
+                  title={group.title}
+                  items={group.items}
+                  botName={activeBot?.name || 'Bot'}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Inline approval cards for this chat (design 03 — never block) */}
           {chatApprovals.map((approval) => (
