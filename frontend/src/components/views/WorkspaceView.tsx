@@ -62,7 +62,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
   const { chats, messages, getChatsByBot } = useChatStore()
   const { stats } = useUsageStore()
   const { pending: pendingApprovals } = useApprovalsStore()
-  const { setCreateBotOpen, setSettingsSection } = useUIStore()
+  const { setCreateBotOpen } = useUIStore()
   const [botData, setBotData] = useState<Record<string, BotWorkspaceData | undefined>>({})
   const [dataLoaded, setDataLoaded] = useState(false)
   const [clearingRuns, setClearingRuns] = useState(false)
@@ -185,8 +185,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
   const openBotRuns = (botId: string) => navigate(`/runs?bot=${botId}`)
 
   const openConnections = (botId: string) => {
-    setSettingsSection('connections')
-    navigate(`/${botId}/settings`)
+    navigate(`/${botId}/settings#connections`)
   }
 
   // Cancel every stuck run via the existing per-execution cancel endpoint
@@ -489,8 +488,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
                 type="button"
                 className="v2-btn v2-btn--secondary"
                 onClick={() => {
-                  setSettingsSection('connections')
-                  navigate(`/${targetBotId}/settings`)
+                  navigate(`/${targetBotId}/settings#connections`)
                 }}
               >
                 Connections
@@ -499,8 +497,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
                 type="button"
                 className="v2-btn v2-btn--secondary"
                 onClick={() => {
-                  setSettingsSection('knowledge')
-                  navigate(`/${targetBotId}/settings`)
+                  navigate(`/${targetBotId}/settings#knowledge`)
                 }}
               >
                 Knowledge

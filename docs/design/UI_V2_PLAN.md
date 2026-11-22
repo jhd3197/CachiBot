@@ -1,7 +1,6 @@
 # CachiBot UI v2 — Implementation Plan
 
-Status: **Phase C2 (views 12–15: where everything lives) implemented** on top of
-Phase A shell + Phase B Workspace + Phase C chat (not committed).
+Status: phases A, B, C, C2 and D1 merged into dev; D3 (bot settings) in this branch.
 Authoritative design bundle: [`docs/design/cachibot-v2-final-views/`](./cachibot-v2-final-views/)
 (`index.html` gallery, `screens/` PNGs, `source/` HTML). **Updated v2b bundle**
 (20 views, Runs = view 16, destinations map = view 12) lives outside the repo
@@ -76,7 +75,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
 | 17 | Routine editor | `/:botId/automations` | **Done (Phase D2)**. Routines list (plain-words rows) + `RoutineEditorView` over the Schedule API; scripts/functions under Advanced; `/automations` redirects. |
-| 18 | Bot settings | `/:botId/settings` | **Phase D3**: General, Knowledge, Skills, What it can use, Connections, Computer (hidden until backend), Advanced. |
+| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Advanced, all from real APIs; Computer section hidden (no backend). |
 | 19 | App settings | `/settings` | **Phase D5**: General, Appearance, Models, Data, People, Advanced, About. |
 | 20 | Activity log | `/admin/logs` | **Phase D5**: admins only, linked from Runs. |
 
@@ -238,6 +237,89 @@ explanation state instead of data, and Workspace entry points hide.
   routes; the letter-avatar block is gone. `chat-header__bot-info` is hidden
   below 1024px so the chat no longer duplicates the bot title (the header row
   stays for the "Earlier chats" button).
+
+## Phase D3 scope (Bot settings, view 18)
+
+New `frontend/src/components/views/BotSettingsView.tsx` (+ `styles/v2/bot-settings.less`)
+at `/:botId/settings`, styled with phase A tokens/`BotAvatar`. Centered 640px column
+(exact values from the v2b bundle `source/18-bot-settings.html`: column `max-width: 640px`,
+page padding `32px 24px 64px`, column gap 24px), a 30px pill nav, then anchored
+sections (`#general` `#knowledge` `#skills` `#what-it-can-use` `#connections`
+`#advanced`) so other pages can deep-link (`/:botId/settings#knowledge`), then:
+
+### Built
+
+- **Header**: back button → the bot's chat (`/{botId}/chats`), centered 16px/600
+  "Name settings" title, close button → back in history when there is any, else the
+  bot's chat. **Role gating (design view 12)**: settings is Editor+ — `useBotAccess`
+  users without `canEdit` are redirected to the bot's chat; nothing is greyed out.
+- **General**: 72px `BotAvatar` + 28px pencil → popover with the existing icon/color
+  picker (`AppearanceSection`); Name / Title / Instructions fields and a Model picker
+  (`ModelSelect`, "Use the default from Settings") on one form; Save at the bottom
+  keeps the legacy behavior — `updateBot` (bot store → `PUT /api/bots/{id}`),
+  capabilities excluded (they toggle live), 2s "Saved!".
+- **Knowledge**: one row per document (real filename, size/chunks/"added" date,
+  processing/failed status, Remove with confirm → knowledge API), a Notes row
+  (real count from `listNotes`) opening a sheet with the existing Notes manager
+  (+ stats, search tester, custom instructions editor), and "Add documents" opening
+  a sheet with the existing uploader + full document list (chunks dialog included).
+- **Skills**: one switch row per skill (real `skillsApi` activate/deactivate,
+  active-first sort), Delete for local/installed skills, "New skill" (existing
+  install dialog) and Refresh.
+- **What it can use**: per-bot capability switches (Files/Code/Git/Web/Data/This
+  PC/Work/Contacts) via live `updateBot({capabilities})`, hidden when the platform
+  globally disables the capability (old rule); a "Manage individual tools" link
+  keeps the old per-tool manager reachable at `/:botId/tools`; then Plugins: one
+  row per external plugin (real version/type/loaded state) with Configure opening
+  the extracted `PluginDetailPanel` in a sheet (config params, enable/disable,
+  uninstall), plus "Add plugin" (archive install) and Reload.
+- **Connections**: platform connections with live status (same
+  `connection-status-change` WS event as the management panel), unconnected
+  platform adapters ("Not connected" → Connect, from the real platform registry),
+  coding agents when the capability is on (Installed/Not installed → scroll to
+  Advanced), configured provider keys (app-wide; "Key added" → `/settings/keys`),
+  and "Add connection". Manage/Connect open the existing `BotConnectionsPanel` in a
+  sheet. Section hidden when every source is empty/unreachable.
+- **Advanced**: grouped by 13px/600 subheads — **Model** (utility/image/audio
+  models, generation toggles, voice settings, coding agents panel via
+  `ModelsCapabilitiesSection`, `showDefault={false}` since General owns the default
+  model), **Environment** (`BotEnvironmentPanel`), **API & webhooks**
+  (`DeveloperPanel`), **Danger zone** (export → `exportBot` download, clear all
+  chats → real `POST /api/bots/{id}/chats/_clear` with confirm, delete → confirm
+  modal → `deleteBot`, hidden for the default bot), plus "Reset to default
+  settings". Embedded legacy panels are re-scoped to v2 in
+  `styles/v2/bot-settings.less` (sections become simple groups with 13px/600
+  headings; bordered cards keep 16px padding; form fields and the model-picker
+  trigger match the main column; delete/reset modals get the legacy modal styles
+  re-scoped under `.bot-settings`).
+- **Deep links**: sections have stable ids; `/:botId/settings#<section>` scrolls to
+  the section (Workspace "Connections"/"Knowledge" quick links use this; the old
+  `settingsSection` store mechanism is no longer used by this view).
+
+### Behavior changes
+
+- `/:botId/settings` renders the new anchored one-column view instead of the old
+  section-per-page `SettingsView` (which still serves the legacy `developer` view).
+- `/:botId/plugins` redirects to `/:botId/settings#what-it-can-use` (plugins are
+  managed there); `/:botId/plugins/:pluginName` (plugin pages) and `/:botId/tools`
+  (per-tool manager) keep working.
+- Capability switches and skill/plugin toggles apply immediately (live `updateBot` /
+  API calls); only General fields wait for Save.
+
+### Phase D3 - not backed yet (hidden from the design)
+
+- **Computer section** — the computer backend (Mini Vela) does not exist; the
+  section and its nav chip are omitted entirely, and the "Computer" capability
+  switch is not listed under What it can use.
+- **Notifications toggle** — no per-bot notification setting exists anywhere in the
+  backend or stores; the row is omitted (same decision as the Phase A sidebar
+  notifications icon).
+- **Avatar image upload** — the `Bot` model has `icon` + `color` only (no avatar
+  image field); the pencil opens the existing icon/color picker. `BotAvatar`'s `src`
+  prop stays unused for bots.
+- **Coding agent "sign in"** — agents have no sign-in state; rows show real
+  installed/not-installed availability from `getCodingAgents()` and Manage scrolls
+  to the coding agents panel in Advanced.
 
 ## Phase C scope (bot-first Chat + chat cards, views 02/03)
 
