@@ -1,56 +1,77 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Plus,
   Search,
   LayoutGrid,
-  DoorOpen,
-  Mic,
-  FolderKanban,
-  Blocks,
-  Wrench,
-  Puzzle,
-  Code2,
+  CircleUser,
   Settings,
-  SlidersHorizontal,
-  Activity,
-  Github,
-  Search as SearchIcon,
+  Clock,
+  ListOrdered,
+  Users,
+  BookOpen,
+  LogOut,
 } from 'lucide-react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
 import { useRailStore } from '../../stores/rail'
 import { useUIStore } from '../../stores/ui'
-import { usePluginsStore } from '../../stores/plugins'
-import { useBotAccess } from '../../hooks/useBotAccess'
-import { resolveIconName } from '../common/ToolIconRenderer'
+import { useRoomStore } from '../../stores/rooms'
+import { useAuthStore } from '../../stores/auth'
+import { getRooms } from '../../api/rooms'
+import { listUsers } from '../../api/auth'
 import { BotAvatar } from '../common/Avatar'
-import { GlobalSearchDialog } from '../common/GlobalSearchDialog'
+import { V2Menu, V2MenuItem, V2MenuLabel, V2MenuDivider } from '../common/V2Menu'
+import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
 import { cn } from '../../lib/utils'
-import type { Bot } from '../../types'
-
-const LEVEL_RANK: Record<string, number> = { viewer: 1, operator: 2, editor: 3, owner: 4, admin: 4 }
+import type { Bot, Room } from '../../types'
 
 interface BotListSidebarProps {
   onNavigate?: () => void
+  /** Opens the global search dialog (search icon + Ctrl/Cmd K) */
+  onOpenSearch: () => void
 }
 
 /**
- * UI v2 bot-first sidebar (design views 01/02): one row per bot,
- * search, new-bot, compact workspace links and the Workspace button.
+ * UI v2 bot-first sidebar (design views 13/02): "Bots" heading row with
+ * search + new bot, one row per bot, a Rooms group under the bots, and
+ * Workspace + Account at the bottom. The old bottom icon row is gone —
+ * every destination moved per view 12 (search → here/Ctrl K, settings →
+ * the account menu, work/automations/tools/plugins/developer → the chat
+ * header More menu, exec logs/GitHub → account menu / settings).
  */
-export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
+export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { botId: urlBotId } = useParams<{ botId?: string }>()
-  const { bots, activeBotId, setActiveBot, setActiveView, getActiveBot } = useBotStore()
+  const { botId: urlBotId, roomId: urlRoomId } = useParams<{ botId?: string; roomId?: string }>()
+  const { bots, activeBotId, setActiveBot, setActiveView } = useBotStore()
   const { getChatsByBot, setActiveChat } = useChatStore()
   const { setCreateBotOpen } = useUIStore()
   const { railOrder } = useRailStore()
-  const [query, setQuery] = useState('')
-  const [showGlobalSearch, setShowGlobalSearch] = useState(false)
-  const activeBot = getActiveBot()
-  const { accessLevel } = useBotAccess(activeBotId)
-  const userRank = LEVEL_RANK[accessLevel ?? 'owner'] ?? 4
+  const { rooms, setRooms } = useRoomStore()
+  const { user, logout } = useAuthStore()
+  const [showCreateRoom, setShowCreateRoom] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [peopleCount, setPeopleCount] = useState<number | null>(null)
+  const isAdmin = user?.role === 'admin'
+
+  // Rooms for the sidebar group ( RoomsView also refreshes this store )
+  useEffect(() => {
+    let cancelled = false
+    getRooms()
+      .then((data) => { if (!cancelled) setRooms(data) })
+      .catch(() => { /* rooms unavailable — group stays empty */ })
+    return () => { cancelled = true }
+  }, [setRooms])
+
+  // Real user count for the admin "People" entry (admins only)
+  useEffect(() => {
+    if (!isAdmin || !accountOpen) return
+    let cancelled = false
+    listUsers(1, 0)
+      .then((res) => { if (!cancelled) setPeopleCount(res.total) })
+      .catch(() => { if (!cancelled) setPeopleCount(null) })
+    return () => { cancelled = true }
+  }, [isAdmin, accountOpen])
 
   // Order bots by the v1 rail order (groups flattened), unknown bots last
   const orderedBots = useMemo(() => {
@@ -69,14 +90,6 @@ export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
     ]
   }, [railOrder, bots])
 
-  const filteredBots = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return orderedBots
-    return orderedBots.filter(
-      (b) => b.name.toLowerCase().includes(q) || b.description?.toLowerCase().includes(q)
-    )
-  }, [orderedBots, query])
-
   const handleBotClick = (bot: Bot) => {
     setActiveBot(bot.id)
     setActiveView('chats')
@@ -92,91 +105,73 @@ export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
     onNavigate?.()
   }
 
+  const handleRoomClick = (room: Room) => {
+    const botId = room.bots[0]?.botId ?? activeBotId ?? bots[0]?.id
+    if (!botId) return
+    setActiveBot(botId)
+    setActiveView('rooms')
+    useRoomStore.getState().setActiveRoom(room.id)
+    navigate(`/${botId}/rooms/${room.id}`)
+    onNavigate?.()
+  }
+
   const handleWorkspaceClick = () => {
     navigate('/dashboard')
     onNavigate?.()
   }
 
-  // ── Compact workspace menu (access-filtered legacy destinations) ──
-  const botLinks = [
-    { id: 'rooms', label: 'Rooms', icon: DoorOpen, minLevel: 'viewer', path: `/${activeBotId}/rooms`, view: 'rooms' as const },
-    { id: 'voice', label: 'Voice', icon: Mic, minLevel: 'operator', path: `/${activeBotId}/voice`, view: 'voice' as const },
-    { id: 'work', label: 'Work', icon: FolderKanban, minLevel: 'operator', path: `/${activeBotId}/work`, view: 'work' as const },
-    { id: 'automations', label: 'Automations', icon: Blocks, minLevel: 'operator', path: `/${activeBotId}/automations`, view: 'automations' as const },
-    { id: 'tools', label: 'Tools', icon: Wrench, minLevel: 'editor', path: `/${activeBotId}/tools`, view: 'tools' as const },
-    { id: 'plugins', label: 'Plugins', icon: Puzzle, minLevel: 'editor', path: `/${activeBotId}/plugins`, view: 'plugins' as const },
-    { id: 'developer', label: 'Developer', icon: Code2, minLevel: 'editor', path: `/${activeBotId}/developer`, view: 'developer' as const },
-    { id: 'settings', label: 'Bot settings', icon: SlidersHorizontal, minLevel: 'editor', path: `/${activeBotId}/settings`, view: 'settings' as const },
-  ].filter((item) => activeBot && userRank >= LEVEL_RANK[item.minLevel])
-
-  // Dynamic view-type external plugins (same behavior as the v1 gear menu)
-  const { plugins: externalPlugins } = usePluginsStore()
-  const capabilities = (activeBot?.capabilities ?? {}) as Record<string, boolean>
-  const pluginLinks = externalPlugins
-    .filter((p) => p.type === 'view' && p.view && p.loaded && capabilities[p.capabilityKey] === true)
-    .map((p) => ({
-      name: p.name,
-      label: p.view!.navLabel,
-      icon: resolveIconName(p.view!.navIcon),
-      route: p.view!.route,
-    }))
-
-  const appLinks = [
-    { id: 'search', label: 'Search', icon: SearchIcon, path: null as string | null },
-    { id: 'logs', label: 'Exec logs', icon: Activity, path: '/admin/logs' },
-    { id: 'app-settings', label: 'Settings', icon: Settings, path: '/settings' },
-    { id: 'github', label: 'GitHub', icon: Github, path: 'https://github.com/jhd3197/CachiBot' },
-  ]
-
-  const isBotRoute = (path: string) => location.pathname.startsWith(path)
-
-  const handleMenuNav = (path: string, view?: string) => {
-    if (view) setActiveView(view as Parameters<typeof setActiveView>[0])
+  const handleNav = (path: string) => {
+    setAccountOpen(false)
     navigate(path)
     onNavigate?.()
   }
 
+  const handleSignOut = () => {
+    setAccountOpen(false)
+    logout()
+    navigate('/login')
+    onNavigate?.()
+  }
+
   const isWorkspaceActive = location.pathname === '/dashboard' || location.pathname === '/dashboard/usage'
+  const initial = (user?.username || user?.email || '?').trim().charAt(0).toUpperCase()
 
   return (
     <aside className="v2-nav" aria-label="Bots">
-      {/* Top actions: new bot (notifications omitted — no notifications backend yet) */}
-      <div className="v2-nav__top">
-        <button
-          type="button"
-          className="v2-icon-btn"
-          aria-label="New bot"
-          title="New bot"
-          onClick={() => setCreateBotOpen(true)}
-        >
-          <Plus size={18} strokeWidth={1.8} />
-        </button>
+      {/* Heading row: title + search + new bot (notifications omitted — no source) */}
+      <div className="v2-nav__heading">
+        <span className="v2-nav__heading-title">Bots</span>
+        <span className="v2-nav__heading-actions">
+          <button
+            type="button"
+            className="v2-icon-btn"
+            aria-label="Search (Ctrl K)"
+            title="Search (Ctrl K)"
+            onClick={onOpenSearch}
+          >
+            <Search size={17} strokeWidth={1.8} />
+          </button>
+          <button
+            type="button"
+            className="v2-icon-btn"
+            aria-label="New bot"
+            title="New bot"
+            onClick={() => setCreateBotOpen(true)}
+          >
+            <Plus size={18} strokeWidth={1.8} />
+          </button>
+        </span>
       </div>
 
-      {/* Search filters real bots */}
-      <label className="v2-search">
-        <Search size={16} strokeWidth={1.8} aria-hidden="true" />
-        <span className="sr-only">Search</span>
-        <input
-          type="search"
-          className="v2-search__input"
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </label>
-
-      {/* Bot rows */}
+      {/* Bot rows + Rooms group */}
       <div className="v2-nav__list" role="list">
-        {filteredBots.length === 0 ? (
-          <div className="v2-nav__empty">
-            {bots.length === 0 ? 'No bots yet' : 'No bots match your search'}
-          </div>
+        {orderedBots.length === 0 ? (
+          <div className="v2-nav__empty">No bots yet</div>
         ) : (
-          filteredBots.map((bot) => {
+          orderedBots.map((bot) => {
             const chats = getChatsByBot(bot.id)
             const latest = chats[0]
-            const active = !isWorkspaceActive && !!urlBotId && bot.id === urlBotId
+            const active = !isWorkspaceActive && !urlRoomId && !!urlBotId && bot.id === urlBotId
             return (
               <button
                 key={bot.id}
@@ -202,74 +197,52 @@ export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
             )
           })
         )}
-      </div>
 
-      {/* Bottom: compact workspace links + Workspace */}
-      <div className="v2-nav__bottom">
-        <div className="v2-nav__menu" aria-label="Workspace links">
-          {botLinks.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={cn('v2-icon-btn', isBotRoute(item.path) && 'v2-icon-btn--active')}
-              title={item.label}
-              aria-label={item.label}
-              onClick={() => handleMenuNav(item.path, item.view)}
-            >
-              <item.icon size={17} strokeWidth={1.8} />
-            </button>
-          ))}
-          {pluginLinks.map((p) => (
-            <button
-              key={`ext-${p.name}`}
-              type="button"
-              className={cn('v2-icon-btn', location.pathname === `/${activeBotId}/plugins/${p.name}` && 'v2-icon-btn--active')}
-              title={p.label}
-              aria-label={p.label}
-              onClick={() => handleMenuNav(`/${activeBotId}/plugins/${p.name}`, 'plugins')}
-            >
-              <p.icon size={17} strokeWidth={1.8} />
-            </button>
-          ))}
-          {appLinks.map((item) =>
-            item.id === 'search' ? (
+        {/* Rooms group (design 13) — always visible so "+" stays reachable */}
+        <div className="v2-rooms">
+          <div className="v2-rooms__heading">
+            <span className="v2-rooms__heading-label">Rooms</span>
+            <span className="v2-rooms__heading-actions">
               <button
-                key={item.id}
                 type="button"
                 className="v2-icon-btn"
-                title={item.label}
-                aria-label={item.label}
-                onClick={() => setShowGlobalSearch(true)}
+                aria-label="New room"
+                title="New room"
+                onClick={() => setShowCreateRoom(true)}
               >
-                <item.icon size={17} strokeWidth={1.8} />
+                <Plus size={15} strokeWidth={1.8} />
               </button>
-            ) : item.path!.startsWith('http') ? (
-              <a
-                key={item.id}
-                href={item.path!}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="v2-icon-btn"
-                title={item.label}
-                aria-label={item.label}
-              >
-                <item.icon size={17} strokeWidth={1.8} />
-              </a>
-            ) : (
+            </span>
+          </div>
+          {rooms.map((room) => {
+            const active = !!urlRoomId && room.id === urlRoomId
+            const last = room.lastMessage
+            return (
               <button
-                key={item.id}
+                key={room.id}
                 type="button"
-                className={cn('v2-icon-btn', location.pathname.startsWith(item.path!) && 'v2-icon-btn--active')}
-                title={item.label}
-                aria-label={item.label}
-                onClick={() => handleMenuNav(item.path!)}
+                className={cn('v2-room-row', active && 'v2-room-row--active')}
+                onClick={() => handleRoomClick(room)}
               >
-                <item.icon size={17} strokeWidth={1.8} />
+                <span className="v2-room-row__avatars">
+                  {room.bots.slice(0, 4).map((b) => (
+                    <BotAvatar key={b.botId} color={botColor(b.botId)} name={b.botName || 'Bot'} size={22} />
+                  ))}
+                </span>
+                <span className="v2-room-row__main">
+                  <span className="v2-room-row__name">{room.title}</span>
+                  <span className="v2-room-row__subtitle">
+                    {last ? `${last.senderName}: ${last.content}` : `${room.bots.length} bots`}
+                  </span>
+                </span>
               </button>
             )
-          )}
+          })}
         </div>
+      </div>
 
+      {/* Bottom: Workspace + Account (design 13) */}
+      <div className="v2-nav__bottom">
         <button
           type="button"
           className={cn('v2-workspace-btn', isWorkspaceActive && 'v2-workspace-btn--active')}
@@ -280,17 +253,74 @@ export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
           </span>
           Workspace
         </button>
+
+        <div className="v2-account-wrap">
+          <button
+            type="button"
+            className="v2-account"
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            onClick={(e) => { e.stopPropagation(); setAccountOpen((o) => !o) }}
+          >
+            <span className="v2-account__avatar">{initial}</span>
+            <span className="v2-account__name">{user?.username || user?.email || 'Account'}</span>
+            <Settings size={16} strokeWidth={1.8} className="v2-account__gear" />
+          </button>
+          {accountOpen && (
+            <V2Menu className="v2-account__menu" onClose={() => setAccountOpen(false)}>
+              <V2MenuItem icon={<CircleUser size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+                Your account
+              </V2MenuItem>
+              <V2MenuItem icon={<Settings size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+                Settings
+              </V2MenuItem>
+              <V2MenuItem
+                icon={<Clock size={16} strokeWidth={1.8} />}
+                suffix="this month"
+                onClick={() => handleNav('/dashboard/usage')}
+              >
+                Usage
+              </V2MenuItem>
+              {isAdmin && (
+                <>
+                  <V2MenuDivider />
+                  <V2MenuLabel>Admin</V2MenuLabel>
+                  <V2MenuItem
+                    icon={<ListOrdered size={16} strokeWidth={1.8} />}
+                    onClick={() => handleNav('/admin/logs')}
+                  >
+                    Activity log
+                  </V2MenuItem>
+                  <V2MenuItem
+                    icon={<Users size={16} strokeWidth={1.8} />}
+                    suffix={peopleCount ?? undefined}
+                    onClick={() => handleNav('/users')}
+                  >
+                    People
+                  </V2MenuItem>
+                </>
+              )}
+              <V2MenuDivider />
+              <V2MenuItem icon={<BookOpen size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+                About and help
+              </V2MenuItem>
+              <V2MenuItem icon={<LogOut size={16} strokeWidth={1.8} />} onClick={handleSignOut}>
+                Sign out
+              </V2MenuItem>
+            </V2Menu>
+          )}
+        </div>
       </div>
 
-      {showGlobalSearch && activeBot && (
-        <GlobalSearchDialog
-          botId={activeBot.id}
-          onNavigate={(path) => { setShowGlobalSearch(false); navigate(path); onNavigate?.() }}
-          onClose={() => setShowGlobalSearch(false)}
-        />
-      )}
+      {showCreateRoom && <CreateRoomDialog onClose={() => setShowCreateRoom(false)} />}
     </aside>
   )
+}
+
+// Bot colors for the stacked room avatars (deterministic per bot)
+function botColor(botId: string): string {
+  const bot = useBotStore.getState().bots.find((b) => b.id === botId)
+  return bot?.color || '#4ade80'
 }
 
 /**

@@ -16,7 +16,9 @@ import {
 } from '../../api/execution-log'
 import { getConnections, type Connection } from '../../api/connections'
 import { BotAvatar } from '../common/Avatar'
-import { cn } from '../../lib/utils'
+import { cn, parseApiDate } from '../../lib/utils'
+import { botAccessRank } from '../../hooks/useBotAccess'
+import { useAuthStore } from '../../stores/auth'
 import type { Bot, Schedule } from '../../types'
 
 /**
@@ -109,7 +111,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
         const now = Date.now()
         const upcoming = (schedules ?? [])
           .filter((s) => s.enabled && s.nextRunAt)
-          .map((s) => ({ name: s.name, at: new Date(s.nextRunAt as string) }))
+          .map((s) => ({ name: s.name, at: parseApiDate(s.nextRunAt as string) }))
           .filter((r) => r.at.getTime() > now)
           .sort((a, b) => a.at.getTime() - b.at.getTime())
         return [
@@ -117,7 +119,9 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
           {
             failedRuns: failed ? failed.length : null,
             running,
-            stuck: (running ?? []).filter((r) => now - new Date(r.startedAt).getTime() > STUCK_MS),
+            stuck: (running ?? []).filter(
+              (r) => now - parseApiDate(r.startedAt).getTime() > STUCK_MS
+            ),
             errorConnections: connections ? connections.filter((c) => c.status === 'error') : null,
             routines: schedules ? schedules.filter((s) => s.enabled).length : null,
             nextRoutine: upcoming[0] ?? null,
@@ -171,7 +175,14 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
     navigate(latest ? `/${bot.id}/chats/${latest.platform ?? latest.id}` : `/${bot.id}/chats`)
   }
 
-  const openRuns = (botId: string) => navigate(`/${botId}/automations`)
+  // Runs is operator+ (per the "where things moved" map): entry points and
+  // run-related Needs-you items only appear when the user can operate at
+  // least one bot (admins always can).
+  const { user } = useAuthStore()
+  const hasOperableBot = bots.some((b) => botAccessRank(b, user?.role === 'admin') >= 2)
+
+  const openRuns = () => navigate('/runs')
+  const openBotRuns = (botId: string) => navigate(`/runs?bot=${botId}`)
 
   const openConnections = (botId: string) => {
     navigate(`/${botId}/settings#connections`)
@@ -220,7 +231,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
     .flatMap((b) => botData[b.id]?.stuck ?? [])
     .reduce<ExecutionLog | null>(
       (earliest, r) =>
-        !earliest || new Date(r.startedAt) < new Date(earliest.startedAt) ? r : earliest,
+        !earliest || parseApiDate(r.startedAt) < parseApiDate(earliest.startedAt) ? r : earliest,
       null
     )
 
@@ -230,6 +241,8 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
     text: string
     actionLabel: string
     onAction: () => void | Promise<void>
+    /** Optional: clicking the description text opens this destination (e.g. /runs) */
+    onOpen?: () => void
     busy?: boolean
   }
 
@@ -249,7 +262,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
     })
   }
 
-  if (stuckTotal > 0) {
+  if (stuckTotal > 0 && hasOperableBot) {
     needsYou.push({
       key: 'stuck-runs',
       bot: null,
@@ -258,19 +271,21 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
         formatStuckSince(earliestStuck?.startedAt),
       actionLabel: 'Clear them',
       onAction: clearStuckRuns,
+      onOpen: openRuns,
       busy: clearingRuns,
     })
   }
 
   for (const bot of orderedBots) {
     const failed = botData[bot.id]?.failedRuns
-    if (failed) {
+    if (failed && hasOperableBot) {
       needsYou.push({
         key: `failed-${bot.id}`,
         bot,
         text: `${failed} ${failed === 1 ? 'run failed' : 'runs failed'} this week`,
         actionLabel: 'Open runs',
-        onAction: () => openRuns(bot.id),
+        onAction: () => openBotRuns(bot.id),
+        onOpen: () => openBotRuns(bot.id),
       })
     }
   }
@@ -332,7 +347,18 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
                     <span className="workspace__need-label">
                       {item.bot ? item.bot.name : 'Runs'}
                     </span>
-                    <span className="workspace__need-text">{item.text}</span>
+                    {item.onOpen ? (
+                      <button
+                        type="button"
+                        className="workspace__need-text workspace__need-text--link"
+                        title="View runs"
+                        onClick={() => item.onOpen?.()}
+                      >
+                        {item.text}
+                      </button>
+                    ) : (
+                      <span className="workspace__need-text">{item.text}</span>
+                    )}
                   </span>
                   <button
                     type="button"
@@ -449,13 +475,15 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
               >
                 Routines
               </button>
-              <button
-                type="button"
-                className="v2-btn v2-btn--secondary"
-                onClick={() => navigate(`/${targetBotId}/work`)}
-              >
-                Runs
-              </button>
+              {hasOperableBot && (
+                <button
+                  type="button"
+                  className="v2-btn v2-btn--secondary"
+                  onClick={() => navigate('/runs')}
+                >
+                  Runs
+                </button>
+              )}
               <button
                 type="button"
                 className="v2-btn v2-btn--secondary"
@@ -491,7 +519,7 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
 
 function formatStuckSince(iso: string | undefined): string {
   if (!iso) return 'earlier'
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return parseApiDate(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 function formatRoutineTime(d: Date): string {

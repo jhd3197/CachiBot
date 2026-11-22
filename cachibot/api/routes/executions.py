@@ -15,6 +15,7 @@ from cachibot.api.helpers import require_bot_ownership, require_found
 from cachibot.models.auth import User
 from cachibot.models.automations import ExecutionLog, ExecutionLogLine
 from cachibot.models.group import BotAccessLevel
+from cachibot.services.tier_limits import get_tier_limits
 from cachibot.storage.automations_repository import (
     ExecutionLogLineRepository,
     ExecutionLogRepository,
@@ -165,6 +166,8 @@ async def get_execution_stats(
     if period not in ("24h", "7d", "30d"):
         raise HTTPException(status_code=422, detail="period must be 24h, 7d, or 30d")
     raw = await exec_log_repo.get_stats(bot_id=bot_id, period=period)
+    # Same source the log retention service uses (cachibot/services/log_retention.py)
+    retention_days = get_tier_limits().log_retention_days
     return {
         "totalRuns": raw.get("total", 0),
         "successCount": raw.get("success", 0),
@@ -172,6 +175,7 @@ async def get_execution_stats(
         "avgDurationMs": raw.get("avg_duration_ms", 0),
         "totalCredits": raw.get("total_credits", 0),
         "totalTokens": raw.get("total_tokens", 0),
+        "retentionDays": retention_days,
     }
 
 

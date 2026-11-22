@@ -1,0 +1,502 @@
+// =============================================================================
+// Runs — styles/v2/runs.less
+// Cross-bot run list (design view 12): day groups, filter chips, stuck banner.
+// Values from docs/design/cachibot-v2-final-views/source/12-runs.html
+// =============================================================================
+
+.runs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.runs__column {
+  width: 100%;
+  // Design source (12-runs.html): main padding 32px 32px 64px, column max-width 760px
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 32px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 20px 16px 48px;
+  }
+}
+
+.runs__back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-start;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+}
+
+.runs__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.runs__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: @font-bold;
+  letter-spacing: -0.02em;
+}
+
+.runs__subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: var(--v2-text-secondary);
+}
+
+// ── Stuck banner ─────────────────────────────────────────────────────────────
+
+.runs__banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+}
+
+.runs__banner-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+// ── Filter chips + bot dropdown ──────────────────────────────────────────────
+
+.runs__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+// Chip — 32px tall, 16px radius; active is the design's white pill
+.runs__chip {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-text);
+    border-color: var(--v2-text);
+    color: var(--v2-bg-main);
+  }
+}
+
+.runs__bot-filter {
+  margin-left: auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  select {
+    // Keep the native chevron hidden; our own glyph sits beside it
+    appearance: none;
+    -webkit-appearance: none;
+  }
+}
+
+.runs__bot-filter-select {
+  height: 32px;
+  padding: 0 26px 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  option {
+    background: var(--v2-bg-panel);
+    color: var(--v2-text);
+  }
+}
+
+.runs__bot-filter svg {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: var(--v2-text-tertiary);
+}
+
+// ── Day groups + rows ────────────────────────────────────────────────────────
+
+.runs__day {
+  margin: 18px 12px 4px;
+  font-size: 13px;
+  font-weight: @font-semibold;
+  color: var(--v2-text-tertiary);
+}
+
+.runs__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--open,
+  &--open:hover {
+    background: var(--v2-bg-selected);
+  }
+}
+
+.runs__row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.runs__row-name {
+  font-size: 14px;
+  font-weight: @font-semibold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runs__row-meta {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Status at the right edge — icon colors from the design source
+.runs__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+
+  &--running svg {
+    color: #60a5fa;
+  }
+
+  &--failed {
+    color: var(--v2-text);
+
+    svg {
+      color: #f87171;
+    }
+  }
+
+  &--needs-you {
+    color: var(--v2-text);
+
+    svg {
+      color: #fbbf24;
+    }
+  }
+}
+
+.runs__spin {
+  animation: runs-spin 1s linear infinite;
+}
+
+@keyframes runs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── Expanded detail card ─────────────────────────────────────────────────────
+
+.runs__detail {
+  margin: 2px 12px 10px 58px;
+  padding: 16px 18px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+  background: var(--v2-bg-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    margin-left: 12px;
+  }
+}
+
+.runs__line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  overflow-wrap: anywhere;
+
+  svg {
+    flex: none;
+  }
+
+  &--error {
+    color: var(--v2-text-secondary);
+
+    svg {
+      color: #f87171;
+    }
+  }
+}
+
+.runs__output {
+  margin: 0;
+  font-family: @font-mono;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--v2-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.runs__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+// ── Footer / empty / loading ─────────────────────────────────────────────────
+
+.runs__footer {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.runs__footer-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-green);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--v2-green-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.runs__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 4px;
+  font-size: 14px;
+  color: var(--v2-text-tertiary);
+
+  p {
+    margin: 0;
+  }
+}
+
+// ── Quick tasks checklist ────────────────────────────────────────────────────
+
+.runs__task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--v2-radius-row);
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+}
+
+.runs__task-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--v2-border-strong);
+  border-radius: 5px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  flex: none;
+  .transition-colors();
+
+  &:hover {
+    border-color: var(--v2-text-tertiary);
+    color: var(--v2-text-tertiary);
+  }
+}
+
+.runs__task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.runs__task-title {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runs__task-meta {
+  flex: none;
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+}
+
+.runs__task-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--v2-text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  flex: none;
+  .transition-colors();
+
+  .runs__task:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+}
+
+// ── Timeline ─────────────────────────────────────────────────────────────────
+
+.runs__section-label {
+  margin: 18px 12px 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--v2-border);
+  font-size: 15px;
+  font-weight: @font-semibold;
+  color: var(--v2-text);
+}
+
+.runs__event {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--v2-radius-row);
+  color: var(--v2-text-tertiary);
+
+  svg {
+    flex: none;
+    margin-top: 3px;
+  }
+}
+
+.runs__event-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runs__event-title {
+  font-size: 14px;
+  color: var(--v2-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runs__event-meta {
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+}
+
+.runs__event-desc {
+  flex: none;
+  max-width: 40%;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: (@screen-md - 1px)) {
+    display: none;
+  }
+}
+
+.runs__day-count {
+  margin-left: 8px;
+  font-weight: @font-normal;
+  color: var(--v2-text-tertiary);
+}

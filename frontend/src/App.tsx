@@ -61,6 +61,14 @@ function App() {
         }
       />
       <Route
+        path="/runs"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>

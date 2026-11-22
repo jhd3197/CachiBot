@@ -1,11 +1,13 @@
 # CachiBot UI v2 — Implementation Plan
 
-Status: **Phase D3 (Bot settings, design view 18) implemented** — Phases A/B merged;
-Phase D3 changes are uncommitted (user commits).
+Status: phases A, B, C, C2 and D1 merged into dev; D3 (bot settings) in this branch.
 Authoritative design bundle: [`docs/design/cachibot-v2-final-views/`](./cachibot-v2-final-views/)
-(`index.html` gallery, `screens/` PNGs, `source/` HTML). The bundle is copied unmodified
-from Juan's final-views export — including provider/product names that appear in the
-reference artwork; those names are design references only, not commitments.
+(`index.html` gallery, `screens/` PNGs, `source/` HTML). **Updated v2b bundle**
+(20 views, Runs = view 16, destinations map = view 12) lives outside the repo
+at `/workspace/design-v2/v2b/cachibot-v2-final-views/` and is referenced but
+not copied. The in-repo bundle is copied unmodified from Juan's final-views
+export — including provider/product names that appear in the reference
+artwork; those names are design references only, not commitments.
 
 ## Design intent (from the bundle README)
 
@@ -48,24 +50,34 @@ settings); **search 40px** tall, 12px radius; icon buttons 32px, 8px radius;
 composer pill 26px radius with 36px circular attach/send; primary button is
 white (`#ececec` bg, `#0b0c0e` text), 32–42px tall, 9–10px radius.
 
-## View → code mapping (all 14 views)
+## View → code mapping (25 views, design bundle v2b)
 
-| # | View | Maps to today | Notes |
-|---|---|---|---|
+The design bundle was updated (v2b): views were renumbered (Runs 12→16,
+Routine editor 13→17, Bot settings 14→18) and new views were added: side
+tasks (11a–11c), where-things-moved (12), rooms + account menu (13), chat More
+menu (14), voice mode (15), app settings (19), activity log (20).
+
 | 01 | Workspace: your bots | `/dashboard` (`WorkspaceView`) | **Done (Phase B)**. "Needs you / Bots / This week" + quick links, all from real data — source table below. Old dashboard kept at `/dashboard/usage`. |
-| 02 | Chat, bot-first | `/:botId/chats/:chatId` (`ChatView`) | **Phase A**: new bot-first sidebar; chat header = bot + "Earlier chats". Design's question card ("Claude Code needs you to sign in") is Phase C (`approval_needed` WS payload exists; `ApprovalDialog` is the current modal). |
-| 03 | Chat cards (turn endings, ask/secret/approval cards, message actions, queued messages, run summaries, artifacts) | `ChatView` + `MessageBubble` + `ApprovalDialog` | **Phase C**: card renderer driven by existing WS payloads (`approval_needed`, `scheduled_notification`, `job_update`, `artifact`). Hover actions (copy/regenerate/fork/pin) extend `MessageBubble`. |
+| 02 | Chat, bot-first | `/:botId/chats/:chatId` (`ChatView`) | **Done (Phase C)**. Centered 820px column, day separators from real timestamps, #1a1b1e bubbles, bot turns with 22px BotAvatar + name label, collapsed tool-activity line, v2 composer (26px pill, 36px round +/send, model pill in footer). |
+| 03 | Chat cards (turn endings, ask/secret/approval cards, message actions, queued messages, run summaries, artifacts) | `ChatView` + `MessageBubbleV2` + `ChatCards.tsx` | **Done (Phase C, backed subset)** — see "Phase C" below for exactly which cards shipped and which have no real source yet. |
 | 04 | Chat + computer preview | `/:botId/chats/:chatId` | **Backend not built** (no Mini Vela/computer API). Phase D; defer. |
 | 05 | Computer full window | — | **Backend not built.** Phase D. |
 | 06 | Bot-built web page on its computer | Artifacts (`ArtifactsView`/`ArtifactPanel`, `/api/assets`) | Partial analog today: artifacts render in a side panel. Full "runs on its computer" needs the computer backend. Phase D. |
 | 07 | Computer terminal / coding agent diff | coding agent tools (`coding_agent` capability, `getCodingAgents`) | CLI runs exist; streamed terminal/diff view on a computer needs backend. Phase D. |
 | 08 | Take-over (yellow ring) | — | Needs computer backend. Phase D. |
 | 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
-| 10 | Files sheet | `AssetsView`, `/api/assets`, artifact files | **Phase C**: open assets as a modal sheet from chat header (sheet styling lands with tokens in Phase A). |
-| 11 | Mini Vela spec (states) | — | Reference-only; states materialize with Phase D backend. |
-| 12 | Runs | `/:botId/work` (`WorkView` history) + automations run log (`automations` API) | **Phase B/C**: day-grouped run list can be composed from existing work job APIs (`/api/work`, jobs in `bots` store). |
-| 13 | Routine editor | `/:botId/automations` (`AutomationsView`, `ScriptEditorView`, schedules API) | **Phase C**: plain-words editor over existing `Schedule`/`BotFunction` APIs. |
-| 18 | Bot settings | `/:botId/settings` (`BotSettingsView`) | **Done (Phase D3)**. Anchored one-column layout (max 640px) per v2b `source/18-bot-settings.html`; sections General/Knowledge/Skills/What it can use/Connections/Advanced, all from real APIs; Computer section omitted (no backend). |
+| 10 | Files sheet | `AssetsView`, `/api/assets`, artifact files | **Phase D4**: modal sheet from a Files button in the chat header. |
+| 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
+| 11a–c | Side tasks | — | **New feature (principle 9)**, not UI-only. Proposed as phase E after D. |
+| 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
+| 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Done (Phase C2)**. Rooms group in the sidebar; account menu at the bottom; room header/composer restyled. |
+| 14 | Chat More menu | chat header | **Done (Phase C2)**. Bot settings/Runs/Routines/Knowledge + plugin pages + Export/Clear; Files reserved for D4. |
+| 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
+| 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
+| 17 | Routine editor | `/:botId/automations` | **Phase D2**. Automations become Routines. |
+| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Advanced, all from real APIs; Computer section hidden (no backend). |
+| 19 | App settings | `/settings` | **Phase D5**: General, Appearance, Models, Data, People, Advanced, About. |
+| 20 | Activity log | `/admin/logs` | **Phase D5**: admins only, linked from Runs. |
 
 ## Phase A scope (this branch)
 
@@ -123,6 +135,88 @@ at `/dashboard`, styled with phase A tokens/`BotAvatar`. Centered 760px column
 
 Per-bot API failures resolve to `null` per figure, so uncomputable values are
 hidden instead of displayed as zeros. No backend changes were needed in Phase B.
+
+## Phase D1 scope (Runs, views 16 + "where things moved" map 12)
+
+New `frontend/src/components/views/RunsView.tsx` (+ `styles/v2/runs.less`) at
+`/runs`, styled with the phase A tokens/`BotAvatar` and the exact values from
+`source/16-runs.html` (760px column, padding 32px 32px 64px, 26px H1, 32px
+chips with 16px radius, 32px row avatars, expanded card at margin-left 58px).
+There is no non-admin cross-bot executions endpoint, so the page fans out the
+existing per-bot APIs over the user's bots and merges/dedupes client-side.
+
+Per the v2b "where things moved" map: **Work merged into Runs** (its runs are
+the "work"-typed rows with real status; Needs you / Running / Failed
+filters), **quick tasks became a checklist in Runs** (real todos API), the
+**Automations timeline went into Runs**, and **Exec logs → Activity log**
+(linked from Runs, admins only). Runs is **operator+** — viewers get an
+explanation state instead of data, and Workspace entry points hide.
+
+### Data source per element (all real; nothing placeholder)
+
+| Element | Source | Notes |
+|---|---|---|
+| Runs list | `GET /api/bots/{id}/executions?from_date=<90d>&limit=200` + `/executions/running` per **operable** bot, merged by id | 90d window = widest retention tier; the server only returns what it kept. A bot whose calls fail is dropped; if every call fails the page shows an error state with retry. |
+| Quick tasks checklist | `GET /api/bots/{id}/todos/open` per operable bot | Checking a box calls `POST /todos/{id}/done`, ✕ calls `/dismiss`; the item leaves the list. Hidden when no open todos. Adding new todos is not offered here (a cross-bot page has no natural owner bot; todos are created via chat/API and managed in `/:botId/work` quick tasks). |
+| Timeline | `GET /api/bots/{id}/timeline` per operable bot | Events are written by job_runner and the scripts API. Day-grouped like runs, capped at 60, hidden when empty. |
+| Operator+ gate | per-bot `access_level` from the bots list (`botAccessRank` in `hooks/useBotAccess.ts`) | Runs only fetches bots the user can operate (rank ≥ 2; admins always). No operable bot → "Runs is available to operators and above." |
+| `?bot=<id>` | URL param | Preselects the bot filter (used by Workspace failed-runs items). Unknown ids are ignored. |
+| Stuck banner | running executions with `startedAt` older than 1h | Hidden when none. "Clear them" cancels each via `POST /api/bots/{id}/executions/{execId}/cancel`, then reloads. |
+| Filter chips | computed from the loaded runs | All / Failed / Running with real counts (` · N` when > 0); Running includes stuck runs. **Needs you is hidden entirely when its count is 0** (the source is real — live pending approvals / `credit_exhausted` — but an always-empty chip is useless). If it disappears while active, the filter falls back to All. |
+| Needs you | executions with `status: credit_exhausted`, or still `running` with a pending tool approval in their chat (`stores/approvals.ts`) | Approvals are live WS state per tab; the match is botId + chatId. |
+| "All bots" dropdown | bot store | Client-side botId filter. |
+| Day groups | `startedAt`/`createdAt` local day via `dayGroup()` | Today / Yesterday / "22 Feb"-style labels, newest first; one group per day for runs and timeline alike. |
+| Row meta | `<bot> · <trigger> · <time> · <duration>` | Trigger label from `sourceType` (schedule→"routine", work/job→"work", manual+chatId→"asked in chat"); duration as "4s" / "0:41" / "1:52". |
+| Status | `status` + stuck rule | Done / Running / Failed (error+timeout) / Stuck / Cancelled / Needs you, with the design's icon colors. |
+| Expanded lines | `GET /api/bots/{id}/executions/{execId}/lines`, falling back to the log's `error`/`output` | Per-line steps are **not backed yet**: nothing in the backend calls the log-line append API, so `/lines` returns empty and the card falls back to `error` (red ✗) / `output` (mono block), which `job_runner` does write. The lines call stays so per-step output appears once the backend writes it. |
+| Open in chat | only when `chatId` is set | Navigates to `/{botId}/chats/{chatId}`. |
+| Run again | only for script (`POST /scripts/{id}/run`), function (`POST /functions/{id}/run`) and schedule (its `functionId` with the schedule's stored params) sources | Hidden for work/manual/api/job executions — no real re-run endpoint exists for those. |
+| Footer retention | `GET /api/bots/{id}/executions/stats` → `retentionDays` | New backend key, same value the log retention service enforces (`get_tier_limits().log_retention_days`). Hidden when the API can't be reached. |
+| Export | client-side CSV of the rows currently loaded (respecting the active filters) | Downloads `cachibot-runs.csv`; hidden when there are no rows. |
+| Activity log | link to `/admin/logs` | Admins only (`user.role === 'admin'`), per the moved map. |
+
+### Backend change
+
+- `GET /api/bots/{id}/executions/stats` now returns `retentionDays`
+  (`cachibot/api/routes/executions.py`), mirroring
+  `cachibot/services/log_retention.py`. Covered by the new
+  `tests/test_executions_api.py` (stats shape, 422 on bad period, 401 without
+  token).
+
+### Behavior changes
+
+- Workspace quick link **Runs** and the Needs-you **failed runs** / **stuck
+  runs** items appear only for users who can operate at least one bot
+  (operator+), matching the moved map. Failed-runs items deep-link to
+  `/runs?bot=<id>`; the stuck item keeps "Clear them" and its text opens
+  `/runs`.
+- `/:botId/work` **stays reachable** (sidebar Work icon, untouched): Runs
+  covers work runs and quick tasks, but not work-item management (create,
+  complete/fail/cancel, per-work detail with goal/progress/result) — that
+  stays in WorkView until the design moves it.
+- `/runs` is linked from the mobile top bar as "Runs".
+- **Timestamps**: the backend serializes stored datetimes with a plain ISO
+  string (no offset) — the app-wide convention, and SQLite drops tz info on
+  write. `parseApiDate` (`frontend/src/lib/utils.ts`) is the single helper
+  that treats offset-less API strings as UTC (offset-bearing strings parse
+  as-is); RunsView and WorkspaceView (stuck runs, stuck-since date, next
+  routine time) use it instead of `new Date(apiString)`. RunsView day-group
+  keys and labels derive from the same local-date computation, so one group
+  per day.
+
+### Phase D1 - not backed yet
+
+- Stuck-banner explanation sentence from the design ("They lost their worker
+  when the server restarted.") — dropped; there is no real source for *why* a
+  run is stuck.
+- Expanded-card summary paragraph ("The run stopped at step 3 because…") —
+  dropped; that would be a generated explanation, not real data.
+- Per-line execution steps (see table above) — the backend never appends log
+  lines; the card falls back to the real `error`/`output` fields.
+- Adding quick tasks from Runs — no owner-bot choice on a cross-bot page;
+  creation stays in chat / `/:botId/work` quick tasks.
+- Cross-bot server-side aggregation/pagination — the page caps at 200 runs
+  per bot (API max) and doesn't page beyond it.
 
 ### Supporting changes
 
@@ -227,13 +321,245 @@ sections (`#general` `#knowledge` `#skills` `#what-it-can-use` `#connections`
   installed/not-installed availability from `getCodingAgents()` and Manage scrolls
   to the coding agents panel in Advanced.
 
+## Phase C scope (bot-first Chat + chat cards, views 02/03)
+
+`ChatView` restyled to the design with a new `MessageBubbleV2`, `ChatCards`,
+`FindInChatBar` (all under `frontend/src/components/chat/`) and
+`styles/v2/chat.less` (scoped to `.ui-v2`, dark values from
+`source/02-chat.html` / `03-chat-cards.html`, light via the existing v2
+token equivalents). Rooms and other legacy panels still use the original
+`MessageBubble` and keep their look.
+
+### Chat per design 02
+
+- Centered 820px column (messages + composer); bubbles measure ~70% ≈ 584px.
+- Day/time separators from real message timestamps: "Today 9:14 AM",
+  "Yesterday", "Mon, Nov 17".
+- User bubbles right-aligned `#1a1b1e` pill (10px 16px, 18px radius, 15px/1.55);
+  bot turns: 22px `BotAvatar` + 13px/600 name label, then the bubble (15px/1.6).
+- Tool activity collapsed into one muted line under the bot name
+  ("✓ Read 3 files · ran code 2 times"), built from the turn's real
+  `toolCalls` (verb map over the actual backend tool names); expands to the
+  existing per-call details (`MessageToolCallItem`). Streaming tool calls are
+  restyled to the same quiet line style.
+- Composer: 26px-radius pill (`#0e0f11`, border `#232428`, padding 7px) with a
+  36px round "+" that attaches a file through the real chat-assets API
+  (`POST /api/bots/{id}/chats/{chatId}/assets`, upload status shown under the
+  composer), "Message <BotName>" placeholder, and a 36px round send button
+  (white `#ececec`; stop square while a run is active). Model pill, slash
+  commands, @agent mentions, workspace selector and reply bar all stay —
+  the model pill sits in the footer row under the composer.
+- Chat header: `BotAvatar` + name + "Earlier chats" (unchanged). Mobile
+  (<1024px): the chat header row is hidden entirely and the app top bar shows
+  hamburger + `BotAvatar` + name + history button (opens the same
+  `ChatsSheet`) — one bar, no duplicate header.
+
+### Cards per design 03 (backed subset only)
+
+| Card | Real source | Actions |
+|---|---|---|
+| Approval | `approval_needed` WS payload, answered inline in the chat (never blocks; typing continues) | "Allow once" / "Deny" via `wsClient.sendApproval`; clears the module pending state and the Workspace "Needs you" entry (`stores/approvals.ts`). `ApprovalDialog` stays mounted as the fallback for approvals belonging to other/background chats (it suppresses itself for the visible chat). |
+| Failed / error | real WS `error` event — `chatStore.error` is now `{message, code, chatId}` attributed to the run's chat (previously set but never rendered) | "Try again" resends the last user message; "Change the model" opens the model pill selector. |
+| Stopped | user pressed stop in this chat | Muted "You stopped this." line + "Continue" that resends the interrupted message. |
+| Routine result | `scheduled_notification` payload (flagged on the message as `metadata.scheduled`) | Clock-icon muted line + the bubble. |
+| Message actions | hover icons per design | Bot: Copy / Regenerate (resends the preceding user message) / Tools / Thinking / Info. User: Edit (inline edit-and-resend with Cancel/Send per design, Escape cancels) / Copy. Actions float over the turn boundary (zero layout space when hidden), reveal on hover/focus and stay inline-visible on touch devices. |
+| Code block | markdown rendering | Header per design: language + Copy button. |
+| Find in chat | purely client-side over the loaded messages | Ctrl/Cmd+F bar with "2 of 5" count and up/down (Enter / Shift+Enter), Escape closes; matches the actual rendered text with mark highlights (current match stronger and scrolled into view). |
+| Jump to latest | client-side scroll state | Pill appears when scrolled up with new messages ("3 new messages") or while the bot works; auto-scroll now only follows the stream when pinned to the bottom. |
+| File | artifacts already produced by runs | Existing `ArtifactCard`s restyled to the v2 file-card look inside the chat. |
+
+### Behavior changes
+
+- User bubbles are added locally on send (and the matching server echo is
+  swallowed), so a send always shows exactly one user message — even when the
+  run errors out before the server's own echo (previously the bubble silently
+  depended on that echo).
+- The chat no longer force-scrolls on every token: it follows only while the
+  viewport is near the bottom; scrolling up shows the "Jump to latest" pill.
+- Typing is allowed while a run is active (send stays a stop button until the
+  run ends) — previously the textarea was disabled during runs.
+- WS `error` payloads are now shown in the chat that owned the failed run
+  (they were stored but never rendered).
+- Answering an approval inline clears it from the Workspace "Needs you" list,
+  same as the dialog.
+- `scheduled_notification` messages no longer carry the `[Scheduled]` text
+  prefix (it became the clock-icon line).
+
+### Phase C — not backed yet (design 03 cards NOT built, no real source)
+
+- **Question card** (ask_user with options/free text) — no `ask_user` WS event
+  or payload exists.
+- **Secret card** (secret_request) — no such payload; secrets are configured
+  in bot settings, not requested mid-run.
+- **CLI sign-in / install cards** (setup_required, cli_login/cli_missing) —
+  no setup-required payload from the backend.
+- **Connection card** — `connection_status` events exist but carry no
+  reconnect action/skip flow.
+- **Hand-off card / take-over** — needs the computer backend (Phase D).
+- **Voice note card** — voice messages are not part of the chat message model.
+- **Check back later** line — no follow-up/deferred-run payload.
+- **Run summary card** — `job_update` exists but carries no per-step tool
+  summary to render (job detail lives in WorkView).
+- **Budget failure card** — the `error` code is not specialized
+  (`budget_exceeded` not emitted).
+- **Approval "Always allow for this bot"** — the WS `approval` message only
+  supports `{id, approved}`; no always-allow backend.
+- **Message actions: Read aloud / Fork / Pin / More** — no TTS, fork, or
+  per-chat pin backend (room pin is rooms-only).
+- **Queued "Send now" row** — the WS protocol has one run per connection; no
+  queue/steering.
+- **Unread divider / pinned header icon** — no read-cursor or chat-pin store.
+
+Views 10 (Files sheet) and 13→18/19 (routine editor, bot settings layout,
+app settings) remain open for Phase D.
+
+## Phase C2 scope (views 12–15: where everything lives)
+
+Sidebar (`BotListSidebar` + `styles/v2/shell.less`), chat header
+(`ChatMoreMenu`), voice (`VoiceMode`), room header/composer (`RoomPanel`,
+`InputArea`), one small backend addition. Exact values from
+`source/12-where-things-moved.html`, `13-rooms-and-account.html`,
+`14-more-menu.html`, `15-voice-mode.html`.
+
+### Sidebar (view 13)
+
+- "Bots" heading row (15px/600) with a search icon and a + new-bot icon
+  (existing create wizard). The Phase A inline search field was replaced by
+  the search icon → `GlobalSearchDialog` (which now also searches bots by
+  name/description, preserving that filter capability) and **Ctrl/Cmd+K
+  anywhere** (mounted in `MainLayout`). Notifications bell stays **omitted**
+  — no notifications source exists.
+- Bot rows unchanged.
+- **Rooms group** under the bots: 28px heading row (12px/600, tertiary) + "+"
+  (existing `CreateRoomDialog`, kept reachable even with zero rooms). Rows:
+  stacked 22px `BotAvatar`s (-10px overlap, sidebar-colored ring), room name,
+  and a real subtitle — `lastMessage` (`"<sender>: <content>"`) from the new
+  `GET /api/rooms` field, else `"N bots"`. Clicking opens the existing room
+  view (`/{botId}/rooms/{roomId}`).
+- Bottom icon row **removed**. Bottom = **Workspace** button, then the
+  **Account** row (user initial in a 32px `#2a2b2f` circle + name + gear)
+  opening the account menu (`V2Menu`): Your account → `/settings`, Settings →
+  `/settings`, Usage ("this month") → `/dashboard/usage`, an **Admin** section
+  (Activity log → `/admin/logs`, People → `/users` with the real count from
+  `GET /api/auth/users`) shown only to `role === 'admin'`, About and help →
+  `/settings` (About section lives in General; GitHub link is there), Sign out
+  (existing store logout → `/login`). Everything is hidden by role, never
+  greyed.
+
+### Where the old icons went (view 12)
+
+| Old icon | New home in C2 |
+|---|---|
+| Chats | The bot's sidebar row; earlier chats behind the history icon (unchanged) |
+| Rooms | Sidebar Rooms group |
+| Voice | Mic button in the composer (Operator+) → voice mode in the same chat |
+| Work | Chat More menu › Runs → `/{bot}/work` (real Runs page is D1) |
+| Automations | Chat More menu › Routines → `/{bot}/automations` (D2) |
+| Tools / Plugins / Developer | Chat More menu (editor+) → existing pages until Bot settings D3 |
+| Bot settings | Bot name in the chat header (editor+) or More › Bot settings |
+| Search | Sidebar search icon + Ctrl/Cmd K → `GlobalSearchDialog` |
+| Exec logs | Account menu › Activity log (admins) → `/admin/logs` |
+| Settings | Account menu → `/settings` |
+| GitHub | Settings › About › Documentation link → repo |
+
+Plugin-provided view pages (enabled view plugins) moved from sidebar icons
+into the chat More menu under "From plugins" (hidden when none).
+
+### Chat header + More menu (views 02/14)
+
+- The bot name is now a button → Bot settings (`/{botId}/settings`), editor+.
+- "..." opens `ChatMoreMenu`: section titled with the bot name; **Bot
+  settings** (editor+), **Runs** (operator+; suffix "N needs you" only from
+  the real live approvals store count for this bot), **Routines** (operator+;
+  suffix = real enabled count from `GET /api/bots/{id}/schedules`, hidden on
+  failure), **Knowledge** (editor+ → settings knowledge section); **From
+  plugins** section (hidden when no enabled view plugins); then **Export
+  chat** (client-side markdown download of the loaded messages — real data,
+  no endpoint needed) and **Clear chat** (existing behavior: platform chats
+  call the clear API, local chats clear the store; two-step confirm).
+- A Files button is reserved in the actions cluster for phase D4 — not built.
+  No Computer button/preview (blocked, as before).
+
+### Voice mode (view 15)
+
+- Mic button in the composer (Operator+ only, hidden for viewers) switches
+  the **same chat** into voice mode (`VoiceMode` in `components/chat/`).
+- Reuses the existing pipeline (`useVoice` → `VoiceClient` WS, VAD, STT →
+  agent → TTS) — nothing new server-side. The existing voice backend already
+  persists both sides of each turn into the chat when a chat id is sent
+  (`save_transcripts`, on by default), so `VoiceMode` creates the chat first
+  when none exists and the design's "Everything said is saved here as text"
+  is literally true; the saved messages appear in the chat after leaving
+  voice mode.
+- Per design: 112px `BotAvatar` with two soft rings in the bot color while
+  listening/speaking, status line ("<Bot> is talking · tap Interrupt or just
+  start speaking" / "Listening · just start speaking" / transcribing /
+  thinking), live transcript lines (You 15px muted, <Bot> 18px), bottom pill
+  with mute toggle (40px), a waveform driven by the real audio level, the
+  saved-as-text note, **Interrupt** (only while the bot is speaking — the
+  pipeline supports interruption only then) and **Back to typing**.
+- `/:botId/voice` stays reachable: `VoiceView` redirects to the bot's chat
+  with `?voice=1`, which `ChatView` picks up to enter voice mode.
+
+### Room view (view 13)
+
+- Room header restyled: stacked 22px bot avatars, room name (16px/600), a
+  real members line ("Writer, Researcher and you" — bot names + other member
+  usernames + "you"), presence counters (real online/total), **Files** (→ the
+  existing room assets view) and **⋯ More** (existing view modes Chat/Cards/
+  Timeline/Tasks with active check, Export JSON, Room settings for the
+  creator). Nothing was deleted — the old toggle/export/settings all live in
+  the More menu.
+- Room composer restyled to the v2 pill ("Message the room · type @ to pick
+  a bot"); @-mentions and typing indicators unchanged.
+
+### Backend (small, test-covered)
+
+- `GET /api/rooms` and `GET /api/rooms/{room_id}` now include
+  `lastMessage` (most recent room message, null when empty) — feeds the
+  sidebar Rooms subtitle. Implemented in `RoomResponse.from_room` +
+  `routes/rooms.py` via the existing `get_messages(limit=1)`.
+- Tests: `tests/test_rooms_api.py` (auth required, lastMessage populated/
+  empty, non-member 404). `ruff check`, `ruff format --check`, `mypy
+  cachibot` and `pytest -q` all pass; the rooms tests skip in environments
+  without PostgreSQL (conftest's designed skip path) and run where the test
+  DB exists.
+
+### Behavior changes
+
+- The sidebar no longer has the inline bot-name filter or the bottom icon
+  row; bot search lives in Ctrl/Cmd K (now also matching bots).
+- Leaving voice mode disconnects the voice channel; transcripts already
+  saved to the chat remain as normal messages.
+- The chat header name navigates for editors+ instead of being inert.
+- Old `VoiceView` UI (connect/PTT/controls page) is replaced by the chat
+  voice mode; its route redirects.
+
+### Phase C2 — not backed yet (hidden, no fake data)
+
+- **Notifications bell** (views 13/14) — no notifications backend exists.
+- **Files button** in the chat header (view 14) — phase D4; space reserved.
+- **Computer button / preview pane** (view 14) — needs the computer backend
+  (phase D); deliberately not built.
+- **"Needs you" on Runs beyond live approvals** — stuck/failed runs
+  aggregation is a D1 Runs-page concern; the menu suffix uses only the live
+  per-tab approvals count.
+- **Room voice mic** (view 13's room composer shows a mic) — the voice
+  pipeline is per bot chat; no room voice exists, so the room composer omits
+  the mic.
+- **Dedicated "Your account" page** — links to `/settings` until app
+  settings D5 gives it a real home.
+- **Voice PTT mode / voice settings** — the old VoiceView page carried a
+  PTT/VAD toggle; the v2 voice mode uses the saved preference and exposes no
+  settings UI (D-phase concern).
+
 ## Later phases
 
-- **Phase C — Chat cards, files sheet, routine editor, bot settings layout**
-  (views 03, 10, 13, 14) on existing APIs.
-- **Phase D — The bot's computer** (views 04–09, 11): requires a new backend
-  (Mini Vela desktop streaming, take-over, power state). Not started; no
-  pretend/disabled controls ship in the meantime.
+- **Phase D** — D1 Runs (16), D2 Routine editor (17), D3 Bot settings (18),
+  D4 Files sheet (10), D5 App settings + Activity log (19, 20).
+- **Phase E (proposal)** — side tasks (11a–c); needs backend support.
+- **The bot's computer** (views 04–09, 11): requires a new backend. Not
+  started; the Computer button and preview pane stay hidden.
 
 ## Known limitations / decisions
 

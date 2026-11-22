@@ -113,6 +113,8 @@ export interface ExecutionStats {
   avgDurationMs: number
   totalCredits: number
   totalTokens: number
+  /** Days execution logs are retained (from the server's retention setting) */
+  retentionDays?: number
 }
 
 export interface ErrorSpotlight {
