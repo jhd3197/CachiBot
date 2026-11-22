@@ -21,32 +21,25 @@
 
 .chat-header {
   .flex-between();
+  flex: none;
+  height: 64px;
+  padding: 0 @sp-6;
   border-bottom: 1px solid var(--color-border-primary);
-  background: var(--color-bg-secondary);
-  padding: @sp-3 @sp-4;
 
   &__bot-info {
     display: flex;
     align-items: center;
-    gap: @sp-3;
-  }
-
-  &__avatar {
-    .flex-center();
-    height: 2rem;
-    width: 2rem;
-    border-radius: @radius-full;
+    gap: 12px;
+    min-width: 0;
   }
 
   &__name {
-    font-size: @text-sm;
-    font-weight: @font-medium;
+    font-size: 16px;
+    font-weight: @font-semibold;
     color: var(--color-text-primary);
-  }
-
-  &__model {
-    .tag-neon(var(--accent-500));
-    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -1770,13 +1763,22 @@
 
 .chat-view--hero {
   .flex-col();
-  align-items: center;
-  justify-content: center;
   flex: 1;
   min-width: 0;
   height: 100%;
   background: var(--color-bg-app);
-  padding: @sp-6;
+  padding: 0;
+
+  &__body {
+    .flex-col();
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    padding: @sp-6;
+    box-sizing: border-box;
+  }
 }
 
 // -----------------------------------------------------------------------------

@@ -36,35 +36,21 @@
   });
 }
 
-// Rail/Sidebar container — mobile slide-in
-.app-shell__rail {
+// Nav container — UI v2 single bot-first sidebar (300px at 1440 width).
+// Mobile: fixed slide-in drawer; desktop: static column.
+.app-shell__nav {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: @z-modal;
+  width: min(300px, calc(100vw - 3rem));
   transform: translateX(-100%);
   transition: transform @transition-slow;
+  outline: none;
 
   .screen-lg({
     position: static;
-    transform: none;
-  });
-
-  &--open {
-    transform: translateX(0);
-  }
-}
-
-.app-shell__sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 72px;
-  z-index: @z-modal;
-  transform: translateX(calc(-100% - 72px));
-  transition: transform @transition-slow;
-
-  .screen-lg({
-    position: static;
+    width: var(--v2-sidebar-width);
+    flex: none;
     transform: none;
   });
 

@@ -179,6 +179,14 @@ function App() {
         }
       />
       <Route
+        path="/:botId/voice"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/:botId/tools"
         element={
           <ProtectedRoute>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Routine editor, calm</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0b0c0e}
+a{color:#4ade80}a:hover{color:#86efac}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; background: #0b0c0e; font-family: Inter, system-ui, sans-serif; color: #ececec; display: flex; justify-content: center; padding: 32px 24px 64px; box-sizing: border-box">
+<div style="width: 100%; max-width: 680px; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; align-items: center"><button type="button" aria-label="Back" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: #a3a3a3; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M15 6l-6 6 6 6"></path></svg></button><h1 style="margin: 0 auto; font-size: 16px; font-weight: 600">Routine</h1><button type="button" aria-label="Close" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: #a3a3a3; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<div style="display: flex; align-items: center; gap: 12px">
+<button type="button" role="switch" aria-checked="true" aria-label="Active" style="width: 40px; height: 24px; border-radius: 12px; border: 0; padding: 3px; cursor: pointer; background: #ececec; display: flex; justify-content: flex-end"><span style="width: 18px; height: 18px; border-radius: 50%; background: #0b0c0e; display: block"></span></button>
+<span style="font-size: 14px">Active</span>
+<span style="margin-left: auto; display: flex; gap: 8px"><button type="button" style="height: 32px; padding: 0 12px; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; background: #1a1b1e; color: #ececec; border: 0">Delete</button><button type="button" style="height: 32px; padding: 0 12px; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; background: #1a1b1e; color: #ececec; border: 0">Test run</button></span>
+</div>
+<label style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 14px; color: #a3a3a3">Name</span><input type="text" value="Daily Telegram Greeting" style="box-sizing: border-box; width: 100%; height: 40px; background: #0b0c0e; border: 1px solid #232428; border-radius: 12px; padding: 0 12px; color: #ececec; font: inherit; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 14px; color: #a3a3a3">What should CachiBot do?</span><textarea rows="3" style="box-sizing: border-box; width: 100%; resize: vertical; background: #0b0c0e; border: 1px solid #232428; border-radius: 12px; padding: 10px 12px; color: #ececec; font: inherit; font-size: 14px; line-height: 1.55">Send a short good-morning message on Telegram. Mention anything that changed overnight; if nothing did, keep it to one line.</textarea></label>
+<section style="display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 14px; color: #a3a3a3">When to run <span style="color: #8b8b8b">· your time zone</span></span>
+<div style="border: 1px solid #232428; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><strong style="font-weight: 600">Every day</strong><span style="color: #a3a3a3">at 8:00 AM</span><span style="margin-left: auto"><button type="button" aria-label="Remove trigger" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: #a3a3a3; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></span></div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #a3a3a3"><span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid #232428; border-radius: 9px; color: #ececec">Every day<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8b8b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></span>at<span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid #232428; border-radius: 9px; color: #ececec">8:00 AM<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8b8b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+</div>
+<button type="button" style="height: 44px; border: 1px solid #232428; border-radius: 14px; background: transparent; color: #a3a3a3; font: inherit; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M12 5v14M5 12h14"></path></svg>Add trigger</button>
+<p style="margin: 0; font-size: 13px; color: #8b8b8b">Triggers: a schedule, a keyword, a webhook, a new chat, or when another task finishes.</p>
+</section>
+<button type="button" style="align-self: flex-start; display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: #a3a3a3; font: inherit; font-size: 14px; cursor: pointer">Advanced: conditions, fixed steps, retries <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8b8b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></button>
+<div><button type="button" style="height: 32px; padding: 0 12px; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; background: #ececec; color: #0b0c0e; border: 0">Save</button></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+// =============================================================================
+// UI v2 tokens — styles/v2/tokens.less
+// Design tokens from docs/design/cachibot-v2-final-views (source/*.html).
+// Scoped to .ui-v2 so legacy panels keep their own theme variables.
+// Dark values are the design's exact values; light values are close
+// equivalents so the existing theme preference keeps working.
+// =============================================================================
+
+.ui-v2 {
+  // Surfaces
+  --v2-bg-main: #f4f4f5;
+  --v2-bg-sidebar: #ffffff;
+  --v2-bg-panel: #ffffff;
+  --v2-bg-button: rgba(0, 0, 0, 0.06);
+  --v2-bg-hover: rgba(0, 0, 0, 0.05);
+  --v2-bg-selected: rgba(0, 0, 0, 0.06);
+  --v2-bg-inset: #ececee;
+
+  // Borders
+  --v2-border: rgba(0, 0, 0, 0.12);
+  --v2-border-strong: rgba(0, 0, 0, 0.2);
+
+  // Text
+  --v2-text: #1a1a1a;
+  --v2-text-secondary: #5a5a66;
+  --v2-text-tertiary: #8b8b93;
+
+  // Accent
+  --v2-green: #16a34a;
+  --v2-green-hover: #15803d;
+
+  // Avatar eyes (dark dots on the colored circle)
+  --v2-eye: #ffffff;
+
+  // Geometry
+  --v2-sidebar-width: 300px;
+  --v2-radius-row: 12px;
+  --v2-radius-chip: 6px;
+  --v2-radius-icon-btn: 8px;
+  --v2-radius-search: 12px;
+  --v2-radius-workspace: 10px;
+  --v2-radius-card: 14px;
+  --v2-radius-sheet: 16px;
+
+  // Shadows (sheets/menus float over the shell)
+  --v2-shadow-sheet: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+.dark .ui-v2 {
+  // Surfaces (design uses #121315 for panels and #131417 for cards/sheets;
+  // the shell differentiates via --v2-bg-panel vs --v2-bg-inset usages)
+  --v2-bg-main: #0b0c0e;
+  --v2-bg-sidebar: #0e0f11;
+  --v2-bg-panel: #131417;
+  --v2-bg-button: #1a1b1e;
+  --v2-bg-hover: #1d1e21;
+  --v2-bg-selected: #17181b;
+  --v2-bg-inset: #0b0c0e;
+
+  // Borders
+  --v2-border: #232428;
+  --v2-border-strong: #3a3b40;
+
+  // Text
+  --v2-text: #ececec;
+  --v2-text-secondary: #a3a3a3;
+  --v2-text-tertiary: #8b8b8b;
+
+  // Accent
+  --v2-green: #4ade80;
+  --v2-green-hover: #86efac;
+
+  // Avatar eyes
+  --v2-eye: #0b0c0e;
+
+  --v2-shadow-sheet: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
