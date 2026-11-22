@@ -42,6 +42,7 @@ import { useOnboardingStore } from '../../stores/onboarding'
 import { useApprovalsStore } from '../../stores/approvals'
 import { useWebSocket, setPendingApproval } from '../../hooks/useWebSocket'
 import { wsClient } from '../../api/websocket'
+import { getChat } from '../../api/side-tasks'
 import { cn } from '../../lib/utils'
 import type { AppView, BotView } from '../../types'
 
@@ -90,6 +91,8 @@ export function MainLayout() {
   // App-level agent connection: one WebSocket for the whole shell, so agent
   // runs (and their approvals) stay alive while navigating to Workspace etc.
   const { sendMessage, cancel, isConnected, runContext } = useWebSocket()
+  // Guards the async side-task-chat URL check below (see the sync effect).
+  const sideChatCheckRef = useRef(0)
 
   // Answer approval requests from the global dialog (any view)
   const handleApprove = (id: string, approved: boolean) => {
@@ -168,6 +171,19 @@ export function MainLayout() {
 
       if (chat && chat.botId === urlBotId) {
         setActiveChat(chat.id)
+      } else if (!chat && urlBotId) {
+        // Not a local chat: a side task's chat exists only on the server
+        // (chats.parent_chat_id set). Open it so the chat view renders the
+        // side-task branch; unknown ids are ignored. The generation guard
+        // discards stale answers when the URL changes before the fetch ends.
+        const check = ++sideChatCheckRef.current
+        void getChat(urlBotId, urlChatId)
+          .then((backendChat) => {
+            if (check === sideChatCheckRef.current && backendChat.parentChatId) {
+              setActiveChat(backendChat.id)
+            }
+          })
+          .catch(() => { /* not a backend chat — leave the active chat as-is */ })
       }
     }
 

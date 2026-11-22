@@ -10,9 +10,16 @@ import {
   Users,
   BookOpen,
   LogOut,
+  GitBranch,
+  Check,
+  Loader2,
+  Square,
+  XCircle,
+  Hand,
 } from 'lucide-react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { useBotStore, useChatStore } from '../../stores/bots'
+import { useSideTasksStore, partitionSideTasks } from '../../stores/side-tasks'
 import { useRailStore } from '../../stores/rail'
 import { useUIStore } from '../../stores/ui'
 import { useRoomStore } from '../../stores/rooms'
@@ -22,8 +29,8 @@ import { listUsers } from '../../api/auth'
 import { BotAvatar } from '../common/Avatar'
 import { V2Menu, V2MenuItem, V2MenuLabel, V2MenuDivider } from '../common/V2Menu'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
-import { cn } from '../../lib/utils'
-import type { Bot, Room } from '../../types'
+import { cn, parseApiDate } from '../../lib/utils'
+import type { Bot, Room, SideTask, SideTaskStatus } from '../../types'
 
 interface BotListSidebarProps {
   onNavigate?: () => void
@@ -44,7 +51,7 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
   const location = useLocation()
   const { botId: urlBotId, roomId: urlRoomId } = useParams<{ botId?: string; roomId?: string }>()
   const { bots, activeBotId, setActiveBot, setActiveView } = useBotStore()
-  const { getChatsByBot, setActiveChat } = useChatStore()
+  const { getChatsByBot, setActiveChat, activeChatId } = useChatStore()
   const { setCreateBotOpen } = useUIStore()
   const { railOrder } = useRailStore()
   const { rooms, setRooms } = useRoomStore()
@@ -72,6 +79,15 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
       .catch(() => { if (!cancelled) setPeopleCount(null) })
     return () => { cancelled = true }
   }, [isAdmin, accountOpen])
+
+  // Side tasks (principle 9) for the sidebar tree — one level under the bot's
+  // latest chat row. The list endpoint feeds the store; live state changes
+  // arrive as side_task_update events.
+  const sideTasksById = useSideTasksStore((s) => s.byId)
+  const ensureSideTasks = useSideTasksStore((s) => s.ensureForBot)
+  useEffect(() => {
+    for (const bot of bots) void ensureSideTasks(bot.id)
+  }, [bots, ensureSideTasks])
 
   // Order bots by the v1 rail order (groups flattened), unknown bots last
   const orderedBots = useMemo(() => {
@@ -172,28 +188,49 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
             const chats = getChatsByBot(bot.id)
             const latest = chats[0]
             const active = !isWorkspaceActive && !urlRoomId && !!urlBotId && bot.id === urlBotId
+            // Side tasks of the bot's latest chat, grouped (helpers collapse
+            // into one row) — hidden entirely when there are none. Computed
+            // inline (no memo hook inside the map): the row re-renders with
+            // any sideTasksById change anyway, and the lists are small.
+            const { singles: sideSingles, groups: sideGroups } = latest
+              ? partitionSideTasks(
+                  Object.values(sideTasksById).filter((t) => t.parentChatId === latest.id)
+                )
+              : { singles: [] as SideTask[], groups: [] as Array<{ groupId: string; title: string | null; items: SideTask[] }> }
+            const hasSideTree = sideSingles.length > 0 || sideGroups.length > 0
             return (
-              <button
-                key={bot.id}
-                type="button"
-                role="listitem"
-                className={cn('v2-bot-row', active && 'v2-bot-row--active')}
-                onClick={() => handleBotClick(bot)}
-              >
-                <BotAvatar color={bot.color} name={bot.name} size={40} />
-                <span className="v2-bot-row__main">
-                  <span className="v2-bot-row__name-row">
-                    <span className="v2-bot-row__name">{bot.name}</span>
-                    {latest && <span className="v2-bot-row__time">{formatListTime(latest.updatedAt)}</span>}
-                  </span>
-                  {bot.description && <span className="v2-bot-row__chip">{bot.description}</span>}
-                  {latest && (
-                    <span className="v2-bot-row__preview">
-                      {latest.lastMessage || latest.title}
+              <div key={bot.id}>
+                <button
+                  type="button"
+                  role="listitem"
+                  className={cn('v2-bot-row', active && 'v2-bot-row--active')}
+                  onClick={() => handleBotClick(bot)}
+                >
+                  <BotAvatar color={bot.color} name={bot.name} size={40} />
+                  <span className="v2-bot-row__main">
+                    <span className="v2-bot-row__name-row">
+                      <span className="v2-bot-row__name">{bot.name}</span>
+                      {latest && <span className="v2-bot-row__time">{formatListTime(latest.updatedAt)}</span>}
                     </span>
-                  )}
-                </span>
-              </button>
+                    {bot.description && <span className="v2-bot-row__chip">{bot.description}</span>}
+                    {latest && (
+                      <span className="v2-bot-row__preview">
+                        {latest.lastMessage || latest.title}
+                      </span>
+                    )}
+                  </span>
+                </button>
+                {hasSideTree && (
+                  <div className="side-tree" role="group" aria-label={`Side tasks of ${bot.name}`}>
+                    {sideSingles.map((task) => (
+                      <SideTreeRow key={task.id} task={task} activeChatId={activeChatId} />
+                    ))}
+                    {sideGroups.map((group) => (
+                      <SideTreeGroupRow key={group.groupId} group={group} activeChatId={activeChatId} />
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           })
         )}
@@ -323,12 +360,125 @@ function botColor(botId: string): string {
   return bot?.color || '#4ade80'
 }
 
+function sideTaskStatusLabel(task: SideTask): { text: string; tone?: 'needs-you' | 'failed' } {
+  switch (task.status) {
+    case 'waiting_for_slot':
+      return { text: 'Waiting' }
+    case 'running':
+      return { text: 'Running' }
+    case 'needs_you':
+      return { text: 'Needs you', tone: 'needs-you' }
+    case 'merged':
+      return { text: 'Brought in' }
+    case 'failed':
+      return { text: 'Failed', tone: 'failed' }
+    case 'stopped':
+      return { text: 'Stopped' }
+    default:
+      return { text: 'Done' }
+  }
+}
+
+function SideTreeStatusIcon({ status }: { status: SideTaskStatus }) {
+  const cls = 'side-tree__row-icon'
+  switch (status) {
+    case 'running':
+      return <Loader2 className={cn(cls, 'side-tree__row-icon--running', 'animate-spin')} strokeWidth={1.8} />
+    case 'needs_you':
+      return <Hand className={cn(cls, 'side-tree__row-icon--needs-you')} strokeWidth={1.8} />
+    case 'failed':
+      return <XCircle className={cn(cls, 'side-tree__row-icon--failed')} strokeWidth={1.8} />
+    case 'stopped':
+      return <Square className={cls} strokeWidth={1.8} />
+    case 'waiting_for_slot':
+      return <Clock className={cls} strokeWidth={1.8} />
+    default:
+      return <Check className={cls} strokeWidth={1.8} />
+  }
+}
+
+/**
+ * One side-task row in the sidebar tree (design 11a/11c): icon by status,
+ * title, right-hand status label. Opens the side task's own chat.
+ */
+function SideTreeRow({ task, activeChatId }: { task: SideTask; activeChatId: string | null }) {
+  const navigate = useNavigate()
+  const { text, tone } = sideTaskStatusLabel(task)
+  return (
+    <button
+      type="button"
+      className={cn('side-tree__row', activeChatId === task.chatId && 'side-tree__row--active')}
+      onClick={() => navigate(`/${task.botId}/chats/${task.chatId}`)}
+    >
+      <SideTreeStatusIcon status={task.status} />
+      <span className="side-tree__row-title">{task.title}</span>
+      <span
+        className={cn(
+          'side-tree__row-status',
+          tone === 'needs-you' && 'side-tree__row-status--needs-you',
+          tone === 'failed' && 'side-tree__row-status--failed'
+        )}
+      >
+        {text}
+      </span>
+    </button>
+  )
+}
+
+/**
+ * One helper-group row in the sidebar tree: "Test on Python 3.11–3.13 · 1 of 3".
+ * Opens the most attention-worthy helper's chat.
+ */
+function SideTreeGroupRow({
+  group,
+  activeChatId,
+}: {
+  group: { groupId: string; title: string | null; items: SideTask[] }
+  activeChatId: string | null
+}) {
+  const navigate = useNavigate()
+  const { items } = group
+  const done = items.filter((t) => t.status === 'done' || t.status === 'merged').length
+  const headline = (['needs_you', 'failed', 'running', 'waiting_for_slot'] as SideTaskStatus[])
+    .map((s) => items.find((t) => t.status === s))
+    .find(Boolean)
+  const active = items.some((t) => t.chatId === activeChatId)
+  const anyNeedsYou = items.some((t) => t.status === 'needs_you')
+
+  const open = () => {
+    const target = headline ?? items[0]
+    if (target) navigate(`/${target.botId}/chats/${target.chatId}`)
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn('side-tree__row', active && 'side-tree__row--active')}
+      onClick={open}
+    >
+      <GitBranch className="side-tree__row-icon" strokeWidth={1.8} />
+      <span className="side-tree__row-title">{group.title ?? `${items.length} helpers`}</span>
+      <span
+        className={cn(
+          'side-tree__row-status',
+          anyNeedsYou && 'side-tree__row-status--needs-you'
+        )}
+      >
+        {done} of {items.length}
+      </span>
+    </button>
+  )
+}
+
 /**
  * Sidebar list timestamp per design: "9:14 AM", "Yesterday", "Mon".
  * Only shown when backed by a real chat's updatedAt.
  */
 function formatListTime(iso: string): string {
-  const d = new Date(iso)
+  // Chat rows come from the local chat store (offset-bearing ISO strings),
+  // so this is unchanged in practice; parseApiDate keeps it correct if a
+  // naive-UTC API timestamp ever reaches it.
+  const d = parseApiDate(iso)
   const now = new Date()
   const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
   const diffDays = Math.round((dayStart(now) - dayStart(d)) / 86400000)
