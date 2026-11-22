@@ -465,7 +465,6 @@
     opacity: 0;
     .transition-colors();
 
-    .v2-chat-item:hover &,
     &--open {
       opacity: 1;
     }
@@ -475,6 +474,12 @@
       color: var(--v2-text);
     }
   }
+}
+
+// Row hover reveals the menu button (a `.v2-chat-item:hover &` here would
+// compile with the .ui-v2 parent prefix and never match)
+.v2-chat-item:hover .v2-chat-item__menu-btn {
+  opacity: 1;
 }
 
 // Global search results (common/GlobalSearchDialog.tsx)

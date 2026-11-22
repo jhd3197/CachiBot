@@ -1,0 +1,1096 @@
+// =============================================================================
+// UI v2 chat — styles/v2/chat.less
+// Bot-first chat (design 02) and chat cards (design 03), scoped to .ui-v2.
+// Exact values from docs/design/cachibot-v2-final-views/source/02-chat.html
+// and 03-chat-cards.html. Light/dark via the --v2-* tokens.
+// =============================================================================
+
+.ui-v2 {
+  // ---------------------------------------------------------------------------
+  // Chat surfaces
+  // ---------------------------------------------------------------------------
+
+  .chat-view {
+    background: var(--v2-bg-main);
+    color: var(--v2-text);
+  }
+
+  // Chat header — bot + Earlier chats (design 02: 64px row, hairline border).
+  // Below 1024px the mobile top bar carries avatar/name/history instead —
+  // no second header row.
+  .chat-header {
+    height: 64px;
+    padding: 0 24px;
+    background: var(--v2-bg-main);
+    border-bottom: 1px solid var(--v2-border);
+
+    @media (max-width: (@screen-lg - 1px)) {
+      display: none;
+    }
+
+    &__name {
+      color: var(--v2-text);
+      font-size: 16px;
+      font-weight: @font-semibold;
+    }
+  }
+
+  // Centered column: 820px max per source/02 (bubbles measure ~70% ≈ 584px)
+  .chat-messages {
+    position: relative;
+    background: var(--v2-bg-main);
+
+    &__inner {
+      max-width: 820px;
+      padding: 28px 32px 0;
+      box-sizing: border-box;
+
+      @media (max-width: (@screen-lg - 1px)) {
+        padding: 20px 16px 0;
+      }
+    }
+
+    &__list {
+      gap: 22px;
+    }
+  }
+
+  // Day/time separators from real timestamps (design 02 "Today 9:14 AM")
+  .v2-day-sep {
+    margin: 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  .chat-message--system {
+    color: var(--v2-text-tertiary);
+    font-size: 12px;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Message turns (v2)
+  // ---------------------------------------------------------------------------
+
+  .v2-msg {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 78%;
+
+    @media (max-width: (@screen-sm - 1px)) {
+      max-width: 100%;
+    }
+
+    &--user {
+      align-self: flex-end;
+      align-items: flex-end;
+      max-width: 70%;
+
+      // Mobile keeps the source cap (~80%) instead of spanning the column
+      @media (max-width: (@screen-sm - 1px)) {
+        max-width: 80%;
+      }
+    }
+
+    &--bot {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    &__who {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    &__name {
+      font-size: 13px;
+      font-weight: @font-semibold;
+      color: var(--v2-text);
+    }
+
+    &__bubble {
+      padding: 10px 16px;
+      border-radius: 18px;
+      background: var(--v2-bg-button);
+      color: var(--v2-text);
+      font-size: 15px;
+      line-height: 1.6;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: break-word;
+
+      &--user {
+        line-height: 1.55;
+      }
+
+      .markdown {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--v2-text);
+      }
+    }
+
+    // Quiet hover bridge: extends the hover zone just past the turn's
+    // bottom edge so the pointer can travel onto the floating actions.
+    &::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      height: 14px;
+    }
+
+    // Hover actions (design 03 — quiet 28px icons). They float over the
+    // boundary between turns and reserve no layout space when hidden.
+    &__actions {
+      position: absolute;
+      bottom: -14px;
+      left: 0;
+      z-index: 2;
+      display: flex;
+      gap: 2px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease;
+
+      .v2-msg--user & {
+        left: auto;
+        right: 0;
+      }
+    }
+
+    // Keyboard focus keeps actions reachable
+    &__actions:focus-within {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    // Hovering anywhere on the turn reveals the actions
+    &:hover .v2-msg__actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    // Touch devices: no hover — keep actions visible in the flow
+    @media (hover: none) {
+      &__actions {
+        position: static;
+        opacity: 1;
+        pointer-events: auto;
+        margin-top: 4px;
+      }
+
+      &::after {
+        display: none;
+      }
+    }
+
+    // Edit-and-resend (design 03 "Edit and resend")
+    &__edit {
+      align-self: flex-end;
+      width: min(80%, 560px);
+      box-sizing: border-box;
+      background: var(--v2-bg-button);
+      border: 1px solid var(--v2-border-strong);
+      border-radius: 18px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      @media (max-width: (@screen-sm - 1px)) {
+        width: 100%;
+      }
+    }
+
+    &__edit-input {
+      width: 100%;
+      box-sizing: border-box;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--v2-text);
+      font: inherit;
+      font-size: 15px;
+      line-height: 1.55;
+
+      &::placeholder {
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &__edit-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+  }
+
+  // Muted work/status line (design 02/03: one grey line, not a card)
+  .v2-work-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+
+    &--button {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      color: var(--v2-text-tertiary);
+      cursor: pointer;
+      text-align: left;
+
+      &:hover span {
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    &__icon {
+      width: 14px;
+      height: 14px;
+      flex: none;
+
+      &--error {
+        color: @red-400;
+      }
+    }
+
+    &__chevron {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      transition: transform @transition-fast;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  // Quiet icon action (28px, design 03 message actions)
+  .v2-icon-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--v2-text-tertiary);
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+
+    &--active {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+  }
+
+  // Small text button (edit Cancel/Send, status-line actions)
+  .v2-mini-btn {
+    height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: @font-semibold;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+
+    &--primary {
+      background: var(--v2-text);
+      color: var(--v2-bg-main);
+
+      &:hover {
+        opacity: 0.88;
+        background: var(--v2-text);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  .v2-text-btn {
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: @font-medium;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cards (design 03) — panel #131417, 16px radius, full-width 42px buttons
+  // ---------------------------------------------------------------------------
+
+  .v2-card {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(560px, 100%);
+    box-sizing: border-box;
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+    border-radius: 16px;
+    padding: 18px;
+
+    &__text {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--v2-text);
+    }
+
+    &__meta {
+      margin: 0;
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__code {
+      margin: 0;
+      padding: 0 2px;
+      font-family: @font-mono;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--v2-text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    &__actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    &__btn {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px;
+      text-align: left;
+      border-radius: 10px;
+      border: 1px solid var(--v2-border);
+      background: var(--v2-bg-main);
+      color: var(--v2-text);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-hover);
+      }
+
+      &--primary {
+        background: var(--v2-text);
+        border-color: var(--v2-text);
+        color: var(--v2-bg-main);
+
+        &:hover {
+          opacity: 0.88;
+          background: var(--v2-text);
+        }
+      }
+    }
+  }
+
+  // Stopped / status line (design 03 "Stopped")
+  .v2-status-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+
+    &__icon {
+      width: 14px;
+      height: 14px;
+      flex: none;
+    }
+
+    &__actions {
+      margin-left: auto;
+      display: flex;
+      gap: 2px;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Composer (design 02): 26px pill, 36px round + and send, footer with model
+  // ---------------------------------------------------------------------------
+
+  .chat-island {
+    max-width: 820px;
+    box-sizing: border-box;
+
+    &--docked {
+      flex: none;
+      width: 100%;
+      max-width: none;
+      border-top: 0;
+      background: transparent;
+      padding: 16px 32px 24px;
+
+      .chat-island__form {
+        max-width: 820px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      @media (max-width: (@screen-lg - 1px)) {
+        padding: 12px 16px 16px;
+      }
+    }
+
+    &__footer {
+      margin-top: 8px;
+      color: var(--v2-text-tertiary);
+
+      .chat-status-bar__dot--connected {
+        background: var(--v2-green);
+      }
+    }
+
+    &__status {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__hint {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // The composer pill: kill the island glassmorphism, use design 02 values
+  .chat-input-container--island.v2-composer,
+  .v2-composer {
+    border: 1px solid var(--v2-border);
+    background: var(--v2-bg-sidebar);
+    border-radius: 26px;
+    padding: 7px;
+    gap: 8px;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    min-height: 0;
+
+    .dark & {
+      background: var(--v2-bg-sidebar);
+      border-color: var(--v2-border);
+    }
+
+    &:focus-within {
+      border-color: var(--v2-border-strong);
+      box-shadow: none;
+    }
+  }
+
+  .v2-composer {
+    &__file {
+      display: none;
+    }
+
+    &__plus {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: @radius-full;
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+      cursor: pointer;
+      flex: none;
+      .transition-colors();
+
+      &:hover {
+        color: var(--v2-text);
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+      }
+    }
+
+    &__input {
+      flex: 1;
+      min-width: 0;
+      resize: none;
+      border: 0;
+      outline: none;
+      background: transparent;
+      padding: 8px 4px;
+      color: var(--v2-text);
+      font-family: @font-sans;
+      font-size: 15px;
+      line-height: 1.4;
+      max-height: 200px;
+
+      &::placeholder {
+        color: var(--v2-text-tertiary);
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+    }
+
+    &__send {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: @radius-full;
+      background: var(--v2-text);
+      color: var(--v2-bg-main);
+      cursor: pointer;
+      flex: none;
+      .transition-colors();
+
+      &:hover {
+        opacity: 0.88;
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
+      &--stop {
+        background: var(--v2-bg-button);
+        color: var(--v2-text);
+
+        &:hover {
+          background: var(--v2-bg-hover);
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  .v2-attach-status {
+    padding: 4px 12px 0;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  // Model pill — quiet v2 chip (kept in the composer footer)
+  .model-pill {
+    background: var(--v2-bg-button);
+    border: 1px solid var(--v2-border);
+    color: var(--v2-text-secondary);
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+
+    &__name {
+      color: inherit;
+    }
+
+    &__cpu,
+    &__chevron {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Find in chat (design 03)
+  // ---------------------------------------------------------------------------
+
+  .v2-findbar {
+    position: sticky;
+    top: 0;
+    z-index: @z-sticky;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 6px 0 12px;
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+    background: var(--v2-bg-sidebar);
+    margin-bottom: 16px;
+
+    &__icon {
+      width: 15px;
+      height: 15px;
+      color: var(--v2-text-tertiary);
+      flex: none;
+    }
+
+    &__input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--v2-text);
+      font: inherit;
+      font-size: 14px;
+
+      &::placeholder {
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &__count {
+      flex: none;
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__btns {
+      display: flex;
+      gap: 2px;
+    }
+  }
+
+  // Find-in-chat highlights — actual matched text, current match stronger
+  .v2-find-mark {
+    background: color-mix(in srgb, var(--v2-green) 25%, transparent);
+    border-radius: 3px;
+
+    &--current {
+      background: color-mix(in srgb, var(--v2-green) 55%, transparent);
+      outline: 1px solid var(--v2-green);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Jump to latest pill (design 03)
+  // ---------------------------------------------------------------------------
+
+  .v2-jump-pill {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 17px;
+    border: 1px solid var(--v2-border);
+    background: var(--v2-bg-panel);
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: var(--v2-shadow-sheet);
+    z-index: @z-sticky;
+    .transition-colors();
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Streaming activity — one grey line, not a card (design 03 "Work line")
+  // ---------------------------------------------------------------------------
+
+  .chat-tool-call {
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+
+    &__header {
+      padding: 0;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__name {
+      flex: none;
+      font-family: @font-sans;
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__model {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+    }
+
+    &__body {
+      border-top: 0;
+      background: var(--v2-bg-panel);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 6px;
+    }
+
+    &__code {
+      background: var(--v2-bg-main);
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  .chat-msg-tool-call {
+    border: 1px solid var(--v2-border);
+    background: var(--v2-bg-panel);
+    border-radius: 12px;
+
+    &__header {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__name {
+      color: var(--v2-text-secondary);
+    }
+
+    &__model {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+    }
+
+    &__body {
+      border-top-color: var(--v2-border);
+    }
+
+    &__code {
+      background: var(--v2-bg-main);
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  // Typing / thinking — quiet muted lines
+  .chat-typing,
+  .chat-thinking {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--v2-text-tertiary);
+
+    &__text,
+    &__label {
+      color: var(--v2-text-tertiary);
+      font-size: 13px;
+    }
+
+    &__content {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  .chat-msg-thinking {
+    border: 1px solid var(--v2-border);
+    background: var(--v2-bg-panel);
+    border-radius: 12px;
+
+    &__header {
+      color: var(--v2-text-secondary);
+    }
+
+    &__content {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Markdown — code block header (design 03) and v2 prose colors
+  // ---------------------------------------------------------------------------
+
+  .markdown {
+    p,
+    li,
+    ul,
+    ol {
+      color: var(--v2-text);
+    }
+
+    h1,
+    h2,
+    h3,
+    strong {
+      color: var(--v2-text);
+    }
+
+    a {
+      color: var(--v2-green);
+
+      &:hover {
+        color: var(--v2-green-hover);
+      }
+    }
+
+    blockquote {
+      border-left-color: color-mix(in srgb, var(--v2-green) 50%, transparent);
+      color: var(--v2-text-secondary);
+    }
+
+    hr {
+      border-top-color: var(--v2-border);
+    }
+
+    :not(pre) > code {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+
+    // Code block: bordered wrapper, 34px header (language + Copy), inset body
+    &__code-block {
+      position: static;
+      margin: 12px 0;
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    &__code-header {
+      display: flex;
+      align-items: center;
+      height: 34px;
+      padding: 0 6px 0 14px;
+      background: var(--v2-bg-panel);
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__code-lang {
+      position: static;
+      background: transparent;
+      padding: 0;
+    }
+
+    &__code-copy {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--v2-text-tertiary);
+      cursor: pointer;
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-hover);
+        color: var(--v2-text);
+      }
+    }
+
+    pre {
+      background: var(--v2-bg-inset);
+      border-radius: 0;
+      padding: 12px 14px;
+
+      code {
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    thead {
+      background: var(--v2-bg-hover);
+      border-bottom-color: var(--v2-border);
+    }
+
+    tbody tr {
+      border-bottom-color: var(--v2-border);
+    }
+
+    th {
+      color: var(--v2-text-secondary);
+    }
+
+    td {
+      color: var(--v2-text);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inline cards inside the flow: artifacts (File card), reply preview,
+  // command menu — v2 surfaces
+  // ---------------------------------------------------------------------------
+
+  .chat-messages {
+    .artifact-card {
+      background: var(--v2-bg-panel);
+      border: 1px solid var(--v2-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+
+      &:hover {
+        background: var(--v2-bg-hover);
+      }
+
+      &__icon {
+        width: 36px;
+        height: 44px;
+        border-radius: 6px;
+        background: var(--v2-bg-hover);
+        color: var(--v2-text-secondary);
+      }
+
+      &__title {
+        color: var(--v2-text);
+        font-size: 14px;
+        font-weight: @font-semibold;
+      }
+
+      &__meta {
+        color: var(--v2-text-tertiary);
+        font-size: 13px;
+      }
+
+      &__open {
+        color: var(--v2-text-tertiary);
+      }
+    }
+  }
+
+  .chat-reply-preview {
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+
+    &__author {
+      color: var(--v2-text-secondary);
+    }
+
+    &__text {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__icon {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  .chat-reply-bar {
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+
+    &__label {
+      color: var(--v2-text-secondary);
+    }
+
+    &__text {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__icon {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__close {
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  .chat-command-menu,
+  .chat-input-mention-popup {
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+    box-shadow: var(--v2-shadow-sheet);
+    overflow: hidden;
+  }
+
+  .chat-command-menu {
+    &__header {
+      color: var(--v2-text-tertiary);
+      border-bottom-color: var(--v2-border);
+    }
+
+    &__item {
+      color: var(--v2-text);
+
+      &:hover,
+      &--selected {
+        background: var(--v2-bg-hover);
+      }
+    }
+  }
+
+  .chat-input-mention-item {
+    color: var(--v2-text);
+
+    &:hover,
+    &--selected {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  .workspace-badge {
+    background: var(--v2-bg-panel);
+    border-color: var(--v2-border);
+    color: var(--v2-text-secondary);
+  }
+
+  .chat-creation-flow {
+    color: var(--v2-text-tertiary);
+  }
+
+  // Hero start state — same column as the chat
+  .chat-view--hero {
+    background: var(--v2-bg-main);
+
+    .chat-hero {
+      &__title {
+        color: var(--v2-text);
+      }
+
+      &__subtitle {
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    .chat-island {
+      padding: 0 32px;
+      box-sizing: border-box;
+
+      @media (max-width: (@screen-lg - 1px)) {
+        padding: 0 16px;
+      }
+    }
+  }
+}
