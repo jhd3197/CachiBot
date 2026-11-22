@@ -25,62 +25,15 @@ import type { ExternalPluginInfo, ToolConfigs } from '../../types'
 
 export function PluginsView() {
   const { getActiveBot, updateBot } = useBotStore()
-  const { plugins, loading, error, fetchPlugins, togglePlugin, reloadPlugins, installPlugin, uninstallPlugin } = usePluginsStore()
+  const { plugins, loading, error, fetchPlugins, togglePlugin, reloadPlugins, installPlugin } = usePluginsStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const [selectedPlugin, setSelectedPlugin] = useState<ExternalPluginInfo | null>(null)
-  const [configValues, setConfigValues] = useState<Record<string, unknown>>({})
-  const [configDirty, setConfigDirty] = useState(false)
   const activeBot = getActiveBot()
 
   useEffect(() => {
     fetchPlugins()
   }, [fetchPlugins])
-
-  // Initialize config values when a plugin is selected
-  const initConfigValues = useCallback((plugin: ExternalPluginInfo | null) => {
-    if (!plugin || !activeBot) {
-      setConfigValues({})
-      setConfigDirty(false)
-      return
-    }
-    const toolConfig = activeBot.toolConfigs?.[`ext_${plugin.name}`] ?? {}
-    const initial: Record<string, unknown> = {}
-    for (const param of plugin.config) {
-      const saved = toolConfig[param.name]
-      initial[param.name] = saved !== undefined ? saved : param.default
-    }
-    setConfigValues(initial)
-    setConfigDirty(false)
-  }, [activeBot])
-
-  useEffect(() => {
-    initConfigValues(selectedPlugin)
-  }, [selectedPlugin, initConfigValues])
-
-  const handleConfigChange = (paramName: string, value: unknown) => {
-    setConfigValues((prev) => ({ ...prev, [paramName]: value }))
-    setConfigDirty(true)
-  }
-
-  const handleConfigSave = () => {
-    if (!activeBot || !selectedPlugin) return
-    const newConfigs: ToolConfigs = { ...activeBot.toolConfigs }
-    newConfigs[`ext_${selectedPlugin.name}`] = { ...configValues }
-    updateBot(activeBot.id, { toolConfigs: newConfigs })
-    setConfigDirty(false)
-    toast.success('Plugin configuration saved')
-  }
-
-  const handleConfigReset = () => {
-    if (!selectedPlugin) return
-    const defaults: Record<string, unknown> = {}
-    for (const param of selectedPlugin.config) {
-      defaults[param.name] = param.default
-    }
-    setConfigValues(defaults)
-    setConfigDirty(true)
-  }
 
   if (!activeBot) return null
 
@@ -143,22 +96,6 @@ export function PluginsView() {
     }
     // Reset input so the same file can be re-selected
     e.target.value = ''
-  }
-
-  const handleUninstall = async (plugin: ExternalPluginInfo) => {
-    const ok = await uninstallPlugin(plugin.name)
-    if (ok) {
-      // Remove capability from bot if it was enabled
-      if (isEnabled(plugin)) {
-        const newCaps = { ...capabilities }
-        delete newCaps[plugin.capabilityKey]
-        updateBot(activeBot.id, { capabilities: newCaps as typeof activeBot.capabilities })
-      }
-      toast.success(`${plugin.displayName} uninstalled`)
-      setSelectedPlugin(null)
-    } else {
-      toast.error(`Failed to uninstall ${plugin.displayName}`)
-    }
   }
 
   if (loading) {
@@ -344,203 +281,295 @@ export function PluginsView() {
       {/* Detail panel */}
       {selectedPlugin && (
         <div className="w-80 flex-shrink-0 overflow-y-auto border-l border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700/50 dark:bg-zinc-900/50">
-          <div className="mb-4 flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl"
-              style={{ backgroundColor: selectedPlugin.color + '20' }}
-            >
-              <ToolIconRenderer
-                name={selectedPlugin.icon}
-                className="h-5 w-5"
-                style={{ color: selectedPlugin.color }}
-              />
-            </div>
-            <div>
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                {selectedPlugin.displayName}
-              </h3>
-              <span className="text-xs text-zinc-500">v{selectedPlugin.version}</span>
-            </div>
-          </div>
+          <PluginDetailPanel plugin={selectedPlugin} />
+        </div>
+      )}
+    </div>
+  )
+}
 
-          <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
-            {selectedPlugin.description}
-          </p>
+/**
+ * Plugin detail/config panel — the side panel of the old Plugins page,
+ * exported so BotSettingsView can open it in a sheet (design view 18
+ * "Plugins" rows with Configure buttons).
+ */
+export function PluginDetailPanel({ plugin }: { plugin: ExternalPluginInfo }) {
+  const { getActiveBot, updateBot } = useBotStore()
+  const { togglePlugin, uninstallPlugin } = usePluginsStore()
+  const activeBot = getActiveBot()
+  const [configValues, setConfigValues] = useState<Record<string, unknown>>({})
+  const [configDirty, setConfigDirty] = useState(false)
 
-          {/* Status */}
-          <div className="mb-4 space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</h4>
-            <div className="flex items-center gap-2 text-sm">
-              <div className={cn(
-                'h-2 w-2 rounded-full',
-                selectedPlugin.loaded ? 'bg-green-500' : 'bg-amber-500'
-              )} />
-              <span className="text-zinc-700 dark:text-zinc-300">
-                {selectedPlugin.loaded ? 'Loaded' : 'Not loaded'}
-              </span>
-            </div>
-            {selectedPlugin.error && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">{selectedPlugin.error}</p>
-            )}
-          </div>
+  const initConfigValues = useCallback((p: ExternalPluginInfo | null) => {
+    if (!p || !activeBot) {
+      setConfigValues({})
+      setConfigDirty(false)
+      return
+    }
+    const toolConfig = activeBot.toolConfigs?.[`ext_${p.name}`] ?? {}
+    const initial: Record<string, unknown> = {}
+    for (const param of p.config) {
+      const saved = toolConfig[param.name]
+      initial[param.name] = saved !== undefined ? saved : param.default
+    }
+    setConfigValues(initial)
+    setConfigDirty(false)
+  }, [activeBot])
 
-          {/* Requirements */}
-          <div className="mb-4 space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Requirements</h4>
-            <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-              {selectedPlugin.requires.filesystem && (
-                <div className="flex items-center gap-1.5">
-                  <Shield className="h-3.5 w-3.5 text-zinc-400" /> Filesystem access
-                </div>
-              )}
-              {selectedPlugin.requires.network && (
-                <div className="flex items-center gap-1.5">
-                  <ExternalLink className="h-3.5 w-3.5 text-zinc-400" /> Network access
-                </div>
-              )}
-              {selectedPlugin.requires.imports.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5 text-zinc-400" />
-                  {selectedPlugin.requires.imports.join(', ')}
-                </div>
-              )}
-            </div>
-          </div>
+  useEffect(() => {
+    initConfigValues(plugin)
+  }, [plugin, initConfigValues])
 
-          {/* Permissions */}
-          {(selectedPlugin.permissions.allowEnvVars.length > 0 ||
-            selectedPlugin.permissions.allowPaths.length > 0) && (
-            <div className="mb-4 space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Permissions
-              </h4>
-              <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-                {selectedPlugin.permissions.allowEnvVars.map((v) => (
-                  <div key={v} className="flex items-center gap-1.5">
-                    <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">{v}</code>
-                  </div>
-                ))}
-                {selectedPlugin.permissions.allowPaths.map((p) => (
-                  <div key={p} className="flex items-center gap-1.5">
-                    <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">{p}</code>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+  const handleConfigChange = (paramName: string, value: unknown) => {
+    setConfigValues((prev) => ({ ...prev, [paramName]: value }))
+    setConfigDirty(true)
+  }
 
-          {/* Config params */}
-          {selectedPlugin.config.length > 0 && (
-            <div className="mb-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  Configuration
-                </h4>
-                {configDirty && (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={handleConfigReset}
-                      className="btn btn--ghost btn--xs"
-                      title="Reset to defaults"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={handleConfigSave}
-                      className="btn btn--primary btn--xs"
-                      title="Save"
-                    >
-                      <Save className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-3">
-                {selectedPlugin.config.map((param) => {
-                  const value = configValues[param.name]
-                  return (
-                    <div key={param.name}>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        {param.displayName || param.name}
-                      </label>
-                      {param.description && (
-                        <div className="mb-1 text-xs text-zinc-500">{param.description}</div>
-                      )}
-                      {param.type === 'number' ? (
-                        <input
-                          type="number"
-                          value={typeof value === 'number' ? value : (Number(value) || 0)}
-                          onChange={(e) => handleConfigChange(param.name, Number(e.target.value))}
-                          className="input input--sm w-full"
-                        />
-                      ) : param.type === 'boolean' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleConfigChange(param.name, !value)}
-                          className="flex items-center gap-2"
-                        >
-                          {value ? (
-                            <ToggleRight className="h-5 w-5 text-accent-500" />
-                          ) : (
-                            <ToggleLeft className="h-5 w-5 text-zinc-400" />
-                          )}
-                          <span className="text-sm text-zinc-600 dark:text-zinc-300">
-                            {value ? 'Enabled' : 'Disabled'}
-                          </span>
-                        </button>
-                      ) : (
-                        <input
-                          type="text"
-                          value={typeof value === 'string' ? value : String(value ?? '')}
-                          onChange={(e) => handleConfigChange(param.name, e.target.value)}
-                          placeholder={String(param.default ?? '')}
-                          className="input input--sm w-full"
-                        />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+  const handleConfigSave = () => {
+    if (!activeBot) return
+    const newConfigs: ToolConfigs = { ...activeBot.toolConfigs }
+    newConfigs[`ext_${plugin.name}`] = { ...configValues }
+    updateBot(activeBot.id, { toolConfigs: newConfigs })
+    setConfigDirty(false)
+    toast.success('Plugin configuration saved')
+  }
+
+  const handleConfigReset = () => {
+    const defaults: Record<string, unknown> = {}
+    for (const param of plugin.config) {
+      defaults[param.name] = param.default
+    }
+    setConfigValues(defaults)
+    setConfigDirty(true)
+  }
+
+  const capabilities: Record<string, boolean> = (activeBot?.capabilities ?? {}) as Record<string, boolean>
+  const isEnabled = capabilities[plugin.capabilityKey] === true
+
+  const handleToggle = async () => {
+    if (!activeBot) return
+    const enabling = !isEnabled
+    const result = await togglePlugin(plugin.name, enabling)
+    if (result) {
+      const newCaps = { ...capabilities, [result.capabilityKey]: result.enabled }
+      updateBot(activeBot.id, { capabilities: newCaps as typeof activeBot.capabilities })
+      toast.success(`${plugin.displayName} ${enabling ? 'enabled' : 'disabled'}`)
+    }
+  }
+
+  const handleUninstall = async () => {
+    const ok = await uninstallPlugin(plugin.name)
+    if (ok) {
+      if (activeBot && isEnabled) {
+        const newCaps = { ...capabilities }
+        delete newCaps[plugin.capabilityKey]
+        updateBot(activeBot.id, { capabilities: newCaps as typeof activeBot.capabilities })
+      }
+      toast.success(`${plugin.displayName} uninstalled`)
+    } else {
+      toast.error(`Failed to uninstall ${plugin.displayName}`)
+    }
+  }
+
+  if (!activeBot) return null
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-xl"
+          style={{ backgroundColor: plugin.color + '20' }}
+        >
+          <ToolIconRenderer
+            name={plugin.icon}
+            className="h-5 w-5"
+            style={{ color: plugin.color }}
+          />
+        </div>
+        <div>
+          <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {plugin.displayName}
+          </h3>
+          <span className="text-xs text-zinc-500">v{plugin.version}</span>
+        </div>
+      </div>
+
+      <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">
+        {plugin.description}
+      </p>
+
+      {/* Status */}
+      <div className="mb-4 space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</h4>
+        <div className="flex items-center gap-2 text-sm">
+          <div className={cn(
+            'h-2 w-2 rounded-full',
+            plugin.loaded ? 'bg-green-500' : 'bg-amber-500'
+          )} />
+          <span className="text-zinc-700 dark:text-zinc-300">
+            {plugin.loaded ? 'Loaded' : 'Not loaded'}
+          </span>
+        </div>
+        {plugin.error && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">{plugin.error}</p>
+        )}
+      </div>
+
+      {/* Requirements */}
+      <div className="mb-4 space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Requirements</h4>
+        <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+          {plugin.requires.filesystem && (
+            <div className="flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-zinc-400" /> Filesystem access
             </div>
           )}
-
-          {/* Contexts */}
-          <div className="mb-4 space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Contexts</h4>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedPlugin.contexts.map((ctx) => (
-                <span
-                  key={ctx}
-                  className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                >
-                  {ctx}
-                </span>
-              ))}
+          {plugin.requires.network && (
+            <div className="flex items-center gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5 text-zinc-400" /> Network access
             </div>
-          </div>
+          )}
+          {plugin.requires.imports.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Package className="h-3.5 w-3.5 text-zinc-400" />
+              {plugin.requires.imports.join(', ')}
+            </div>
+          )}
+        </div>
+      </div>
 
-          {/* Actions */}
-          <div className="space-y-2">
-            <button
-              onClick={() => handleToggle(selectedPlugin)}
-              disabled={!selectedPlugin.loaded}
-              className={cn(
-                'btn w-full',
-                isEnabled(selectedPlugin) ? 'btn--outline' : 'btn--primary'
-              )}
-            >
-              {isEnabled(selectedPlugin) ? 'Disable Plugin' : 'Enable Plugin'}
-            </button>
-            <button
-              onClick={() => handleUninstall(selectedPlugin)}
-              className="btn btn--ghost w-full text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Uninstall
-            </button>
+      {/* Permissions */}
+      {(plugin.permissions.allowEnvVars.length > 0 ||
+        plugin.permissions.allowPaths.length > 0) && (
+        <div className="mb-4 space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Permissions
+          </h4>
+          <div className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+            {plugin.permissions.allowEnvVars.map((v) => (
+              <div key={v} className="flex items-center gap-1.5">
+                <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">{v}</code>
+              </div>
+            ))}
+            {plugin.permissions.allowPaths.map((p) => (
+              <div key={p} className="flex items-center gap-1.5">
+                <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">{p}</code>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* Config params */}
+      {plugin.config.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Configuration
+            </h4>
+            {configDirty && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleConfigReset}
+                  className="btn btn--ghost btn--xs"
+                  title="Reset to defaults"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={handleConfigSave}
+                  className="btn btn--primary btn--xs"
+                  title="Save"
+                >
+                  <Save className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="space-y-3">
+            {plugin.config.map((param) => {
+              const value = configValues[param.name]
+              return (
+                <div key={param.name}>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {param.displayName || param.name}
+                  </label>
+                  {param.description && (
+                    <div className="mb-1 text-xs text-zinc-500">{param.description}</div>
+                  )}
+                  {param.type === 'number' ? (
+                    <input
+                      type="number"
+                      value={typeof value === 'number' ? value : (Number(value) || 0)}
+                      onChange={(e) => handleConfigChange(param.name, Number(e.target.value))}
+                      className="input input--sm w-full"
+                    />
+                  ) : param.type === 'boolean' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleConfigChange(param.name, !value)}
+                      className="flex items-center gap-2"
+                    >
+                      {value ? (
+                        <ToggleRight className="h-5 w-5 text-accent-500" />
+                      ) : (
+                        <ToggleLeft className="h-5 w-5 text-zinc-400" />
+                      )}
+                      <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                        {value ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </button>
+                  ) : (
+                    <input
+                      type="text"
+                      value={typeof value === 'string' ? value : String(value ?? '')}
+                      onChange={(e) => handleConfigChange(param.name, e.target.value)}
+                      placeholder={String(param.default ?? '')}
+                      className="input input--sm w-full"
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Contexts */}
+      <div className="mb-4 space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Contexts</h4>
+        <div className="flex flex-wrap gap-1.5">
+          {plugin.contexts.map((ctx) => (
+            <span
+              key={ctx}
+              className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+            >
+              {ctx}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="space-y-2">
+        <button
+          onClick={() => handleToggle()}
+          disabled={!plugin.loaded}
+          className={cn(
+            'btn w-full',
+            isEnabled ? 'btn--outline' : 'btn--primary'
+          )}
+        >
+          {isEnabled ? 'Disable Plugin' : 'Enable Plugin'}
+        </button>
+        <button
+          onClick={() => handleUninstall()}
+          className="btn btn--ghost w-full text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+        >
+          <Trash2 className="mr-1.5 h-4 w-4" />
+          Uninstall
+        </button>
+      </div>
     </div>
   )
 }

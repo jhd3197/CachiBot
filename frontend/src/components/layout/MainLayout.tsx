@@ -7,6 +7,7 @@ import {
   RoomsView,
   ToolsView,
   SettingsView,
+  BotSettingsView,
   DashboardView,
   WorkspaceView,
   AppSettingsView,
@@ -306,7 +307,7 @@ export function MainLayout() {
       case 'developer':
         return <SettingsView />
       case 'settings':
-        return <SettingsView />
+        return <BotSettingsView />
       default:
         return renderChatView()
     }

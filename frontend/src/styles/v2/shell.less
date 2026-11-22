@@ -308,10 +308,42 @@
   }
 }
 
+// Toggle switch — 40x24 track, 18px knob (design views 13/18)
+.v2-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border: 0;
+  border-radius: 12px;
+  padding: 3px;
+  cursor: pointer;
+  background: var(--v2-border-strong);
+  display: flex;
+  flex: none;
+  .transition-colors();
+
+  &__knob {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--v2-text-tertiary);
+    display: block;
+    .transition-colors();
+  }
+
+  &[aria-checked='true'] {
+    background: var(--v2-text);
+    justify-content: flex-end;
+
+    .v2-switch__knob {
+      background: var(--v2-bg-main);
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Sheet (Earlier chats, Files in later phases) — panel over a backdrop
 // -----------------------------------------------------------------------------
-
 .v2-sheet-backdrop {
   position: fixed;
   inset: 0;

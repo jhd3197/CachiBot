@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { MainLayout } from './components/layout/MainLayout'
 import { TitleBar } from './components/layout/TitleBar'
 import { AuthCallback } from './components/auth/AuthCallback'
@@ -11,6 +11,12 @@ import { UpgradePage } from './components/auth/UpgradePage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { UsersView } from './components/views/UsersView'
 import { useUIStore } from './stores/ui'
+
+/** Plugins moved into bot settings ("What it can use") in UI v2 (design view 12). */
+function BotPluginsRedirect() {
+  const { botId } = useParams()
+  return <Navigate to={`/${botId}/settings#what-it-can-use`} replace />
+}
 
 function App() {
   const { theme } = useUIStore()
@@ -206,7 +212,7 @@ function App() {
         path="/:botId/plugins"
         element={
           <ProtectedRoute>
-            <MainLayout />
+            <BotPluginsRedirect />
           </ProtectedRoute>
         }
       />
