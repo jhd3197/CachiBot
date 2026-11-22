@@ -72,6 +72,17 @@
   });
 }
 
+// Trailing actions on the mobile top bar (Earlier chats + More on chat
+// routes). Relative so the chat More menu anchors to this cluster — the
+// 260px menu stays inside a 375px viewport.
+.app-shell__mobile-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
 // Mobile top-bar context: BotAvatar + bot name on bot routes, view name otherwise.
 // The chat's own header hides its bot block below @screen-lg, so the title
 // isn't duplicated (chat keeps only the "Earlier chats" button there).

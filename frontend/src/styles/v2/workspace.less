@@ -125,6 +125,22 @@
   overflow-wrap: anywhere;
 }
 
+// Clickable description (e.g. stuck runs → /runs): same look, hover reveals
+.workspace__need-text--link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
 // ── Bots ─────────────────────────────────────────────────────────────────────
 
 .workspace__bots {

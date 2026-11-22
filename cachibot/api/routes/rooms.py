@@ -127,7 +127,9 @@ async def list_rooms(
         members = await member_repo.get_members(room.id)
         bots = await bot_repo.get_bots(room.id)
         count = await message_repo.get_message_count(room.id)
-        result.append(RoomResponse.from_room(room, members, bots, count))
+        recent = await message_repo.get_messages(room.id, limit=1)
+        last = recent[-1] if recent else None
+        result.append(RoomResponse.from_room(room, members, bots, count, last_message=last))
     return result
 
 
@@ -144,7 +146,9 @@ async def get_room(
     members = await member_repo.get_members(room_id)
     bots = await bot_repo.get_bots(room_id)
     count = await message_repo.get_message_count(room_id)
-    return RoomResponse.from_room(room, members, bots, count)
+    recent = await message_repo.get_messages(room_id, limit=1)
+    last = recent[-1] if recent else None
+    return RoomResponse.from_room(room, members, bots, count, last_message=last)
 
 
 @router.patch("/{room_id}")

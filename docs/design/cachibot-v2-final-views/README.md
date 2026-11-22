@@ -22,9 +22,24 @@ Open `index.html` for the gallery. `screens/` has a PNG per view, `source/` the 
 - `10-files`: **Files**. Files is its own sheet, separate from the computer.
 - `11-mini-vela-spec`: **Mini Vela: what it is**. States of the preview: working, needs you, asleep.
 
+## Side tasks
+
+- `11a-side-tasks`: **Side tasks in the chat**. Children of the main task: a card in the chat, nested under the bot in the sidebar.
+- `11b-side-task-open`: **A side task opened**. Its own chat and its own copy of the files; reports back to the parent.
+- `11c-side-tasks-spec`: **Side tasks: how they work**. Who starts them, files, computer, states and limits.
+
+## Where everything lives
+
+- `12-where-things-moved`: **Where the old icons went**. Each old sidebar icon, its new home and who sees it.
+- `13-rooms-and-account`: **Rooms + account menu**. Rooms sit under the bots; settings and admin tools in the account menu.
+- `14-more-menu`: **Chat More menu**. Bot settings, Runs, Routines, Knowledge and plugin pages.
+- `15-voice-mode`: **Voice mode**. The mic in the composer turns the same chat into voice.
+
 ## Runs and setup
 
-- `12-runs`: **Runs**. What your bots ran on their own, by day.
-- `13-routine-editor`: **Routine editor**. Routines in plain words.
-- `14-bot-settings`: **Bot settings**. One narrow column; rare options under Advanced.
+- `16-runs`: **Runs**. What your bots ran on their own, by day.
+- `17-routine-editor`: **Routine editor**. Routines in plain words.
+- `18-bot-settings`: **Bot settings**. One column: General, Knowledge, Skills, What it can use, Connections, Computer, Advanced.
+- `19-app-settings`: **App settings**. General, Appearance, Models, Data, People, Advanced, About.
+- `20-activity-log`: **Activity log**. Admins: every tool and code run, with blocked runs explained.
 

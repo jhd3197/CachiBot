@@ -7,12 +7,45 @@
 import Markdown, { defaultUrlTransform } from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
+import { useState } from 'react'
+import { Check, Copy } from 'lucide-react'
 import type { Components } from 'react-markdown'
-import { cn } from '../../lib/utils'
+import { cn, copyToClipboard } from '../../lib/utils'
 
 interface MarkdownRendererProps {
   content: string
   className?: string
+}
+
+// Code block with header (language + Copy) per design 03 "Code block".
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    copyToClipboard(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="markdown__code-block">
+      <div className="markdown__code-header">
+        {language && <span className="markdown__code-lang">{language}</span>}
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="markdown__code-copy"
+          aria-label={copied ? 'Copied' : 'Copy code'}
+          title={copied ? 'Copied' : 'Copy code'}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+      <pre>
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
 }
 
 const components: Components = {
@@ -36,8 +69,8 @@ const components: Components = {
   ol: ({ children }) => <ol>{children}</ol>,
   li: ({ children }) => <li>{children}</li>,
 
-  // Code — inline vs block detection + language label
-  code: ({ className, children, ...props }) => {
+  // Code — inline vs block detection + language label + copy
+  code: ({ className, children }) => {
     const isInline = !className
     if (isInline) {
       return <code>{children}</code>
@@ -46,14 +79,7 @@ const components: Components = {
     const match = /language-(\w+)/.exec(className || '')
     const language = match ? match[1] : ''
     return (
-      <div className="markdown__code-block">
-        {language && (
-          <div className="markdown__code-lang">{language}</div>
-        )}
-        <pre>
-          <code {...props}>{children}</code>
-        </pre>
-      </div>
+      <CodeBlock language={language} code={String(children)} />
     )
   },
   pre: ({ children }) => <>{children}</>,

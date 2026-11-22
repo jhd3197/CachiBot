@@ -1,31 +1,36 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { MessageSquare, DoorOpen, CheckSquare, Search } from 'lucide-react'
+import { MessageSquare, DoorOpen, CheckSquare, Search, Bot } from 'lucide-react'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { useUIStore } from '../../stores/ui'
 
 type SearchResult =
+  | { type: 'bot'; id: string; title: string; meta: string }
   | { type: 'chat'; id: string; title: string; meta: string }
   | { type: 'room'; id: string; title: string; meta: string }
   | { type: 'task'; id: string; title: string; meta: string }
 
 interface GlobalSearchDialogProps {
-  botId: string
+  /** Bot whose chats/tasks are searched; falls back to the active/first bot */
+  botId?: string | null
   onNavigate: (path: string) => void
   onClose: () => void
 }
 
 /**
- * Search across the active bot's chats, all rooms, and the bot's tasks.
- * Preserved from the v1 sidebar gear menu.
+ * Search over bots, the bot's chats and tasks, and all rooms.
+ * Opens from the sidebar search icon or Ctrl/Cmd+K anywhere (design 12/13).
  */
 export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchDialogProps) {
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
-  const { activeBotId } = useBotStore()
+  const { activeBotId, bots } = useBotStore()
   const { getChatsByBot } = useChatStore()
   const { rooms } = useRoomStore()
   const { getTasksByBot } = useTaskStore()
+
+  // Effective bot: explicit prop, else active, else first (bots group + chats)
+  const effectiveBotId = botId ?? activeBotId ?? bots[0]?.id ?? null
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -46,14 +51,34 @@ export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchD
     if (!q) return []
     const out: SearchResult[] = []
 
-    for (const chat of getChatsByBot(botId)) {
-      if (chat.title.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)) {
+    for (const bot of bots) {
+      if (bot.name.toLowerCase().includes(q) || bot.description?.toLowerCase().includes(q)) {
+        const chats = getChatsByBot(bot.id)
         out.push({
-          type: 'chat',
-          id: chat.id,
-          title: chat.title,
-          meta: chat.platform ? `${chat.platform} chat` : formatRelativeTime(chat.updatedAt),
+          type: 'bot',
+          id: bot.id,
+          title: bot.name,
+          meta: bot.description || `${chats.length} chats`,
         })
+      }
+    }
+
+    if (effectiveBotId) {
+      for (const chat of getChatsByBot(effectiveBotId)) {
+        if (chat.title.toLowerCase().includes(q) || chat.lastMessage?.toLowerCase().includes(q)) {
+          out.push({
+            type: 'chat',
+            id: chat.id,
+            title: chat.title,
+            meta: chat.platform ? `${chat.platform} chat` : formatRelativeTime(chat.updatedAt),
+          })
+        }
+      }
+
+      for (const task of getTasksByBot(effectiveBotId)) {
+        if (task.title.toLowerCase().includes(q)) {
+          out.push({ type: 'task', id: task.id, title: task.title, meta: task.status })
+        }
       }
     }
 
@@ -68,32 +93,43 @@ export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchD
       }
     }
 
-    for (const task of getTasksByBot(botId)) {
-      if (task.title.toLowerCase().includes(q)) {
-        out.push({ type: 'task', id: task.id, title: task.title, meta: task.status })
-      }
-    }
-
     return out
-  }, [q, botId, getChatsByBot, rooms, getTasksByBot])
+  }, [q, bots, effectiveBotId, getChatsByBot, rooms, getTasksByBot])
 
   const handleSelect = (result: SearchResult) => {
     switch (result.type) {
+      case 'bot': {
+        // Same rule as the sidebar row: open the bot's latest chat
+        const bot = bots.find((b) => b.id === result.id)
+        if (!bot) return
+        const chats = getChatsByBot(bot.id)
+        const latest = chats[0]
+        useChatStore.getState().setActiveChat(latest?.id ?? null)
+        onNavigate(latest ? `/${bot.id}/chats/${latest.platform ?? latest.id}` : `/${bot.id}/chats`)
+        break
+      }
       case 'chat':
-        onNavigate(`/${activeBotId}/chats/${result.id}`)
+        useChatStore.getState().setActiveChat(result.id)
+        onNavigate(`/${effectiveBotId}/chats/${result.id}`)
         break
-      case 'room':
-        onNavigate(`/${activeBotId}/rooms/${result.id}`)
+      case 'room': {
+        const room = rooms.find((r) => r.id === result.id)
+        const botIdForRoom = room?.bots[0]?.botId ?? effectiveBotId
+        if (!botIdForRoom) return
+        useRoomStore.getState().setActiveRoom(result.id)
+        onNavigate(`/${botIdForRoom}/rooms/${result.id}`)
         break
+      }
       case 'task':
         useUIStore.getState().setWorkSection('quick-tasks')
-        onNavigate(`/${activeBotId}/work`)
+        onNavigate(`/${effectiveBotId}/work`)
         break
     }
   }
 
   const iconFor = (type: SearchResult['type']) => {
     switch (type) {
+      case 'bot': return <Bot className="h-4 w-4" />
       case 'chat': return <MessageSquare className="h-4 w-4" />
       case 'room': return <DoorOpen className="h-4 w-4" />
       case 'task': return <CheckSquare className="h-4 w-4" />
@@ -108,7 +144,7 @@ export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchD
     return groups
   }, [results])
 
-  const groupLabel: Record<string, string> = { chat: 'Chats', room: 'Rooms', task: 'Tasks' }
+  const groupLabel: Record<string, string> = { bot: 'Bots', chat: 'Chats', room: 'Rooms', task: 'Tasks' }
 
   return (
     <div className="v2-sheet-backdrop" onClick={onClose}>
@@ -125,7 +161,7 @@ export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchD
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search chats, rooms, tasks..."
+            placeholder="Search bots, chats, rooms, tasks..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="v2-search__input"
@@ -135,7 +171,7 @@ export function GlobalSearchDialog({ botId, onNavigate, onClose }: GlobalSearchD
         <div className="v2-sheet__body">
           {!q && (
             <div className="v2-sheet__empty">
-              Type to search across all your conversations, rooms, and tasks.
+              Type to search across your bots, conversations, rooms, and tasks.
             </div>
           )}
           {q && results.length === 0 && (
