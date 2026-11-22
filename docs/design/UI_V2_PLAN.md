@@ -1,7 +1,7 @@
 # CachiBot UI v2 — Implementation Plan
 
-Status: **Phase C (bot-first Chat, views 02/03) implemented** on branch
-`feat/ui-v2-chat` (Phase A shell + Phase B Workspace from `dev`; not committed).
+Status: **Phase C2 (views 12–15: where everything lives) implemented** on top of
+Phase A shell + Phase B Workspace + Phase C chat (not committed).
 Authoritative design bundle: [`docs/design/cachibot-v2-final-views/`](./cachibot-v2-final-views/)
 (`index.html` gallery, `screens/` PNGs, `source/` HTML). **Updated v2b bundle**
 (20 views, Runs = view 16, destinations map = view 12) lives outside the repo
@@ -70,10 +70,10 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 10 | Files sheet | `AssetsView`, `/api/assets`, artifact files | **Phase D4**: modal sheet from a Files button in the chat header. |
 | 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
 | 11a–c | Side tasks | — | **New feature (principle 9)**, not UI-only. Proposed as phase E after D. |
-| 12 | Where the old icons went | sidebar icon row → homes | **Phase C2**: remove the icon row; each entry moves per view 12; role-gated items are hidden, not greyed. |
-| 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Phase C2**: Rooms group under the bots; account menu at the bottom of the sidebar. |
-| 14 | Chat More menu | chat header | **Phase C2**: Bot settings, Runs, Routines, Knowledge, plugin pages, Export/Clear chat. |
-| 15 | Voice mode | `VoiceView` | **Phase C2**: mic in the composer switches the same chat to voice. |
+| 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
+| 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Done (Phase C2)**. Rooms group in the sidebar; account menu at the bottom; room header/composer restyled. |
+| 14 | Chat More menu | chat header | **Done (Phase C2)**. Bot settings/Runs/Routines/Knowledge + plugin pages + Export/Clear; Files reserved for D4. |
+| 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
 | 17 | Routine editor | `/:botId/automations` | **Phase D2**. Automations become Routines. |
 | 18 | Bot settings | `/:botId/settings` | **Phase D3**: General, Knowledge, Skills, What it can use, Connections, Computer (hidden until backend), Advanced. |
@@ -328,13 +328,151 @@ token equivalents). Rooms and other legacy panels still use the original
   queue/steering.
 - **Unread divider / pinned header icon** — no read-cursor or chat-pin store.
 
-Views 10 (Files sheet), 13 (routine editor) and 14 (bot settings layout)
-remain open for a later Phase C slice on existing APIs.
+Views 10 (Files sheet) and 13→18/19 (routine editor, bot settings layout,
+app settings) remain open for Phase D.
+
+## Phase C2 scope (views 12–15: where everything lives)
+
+Sidebar (`BotListSidebar` + `styles/v2/shell.less`), chat header
+(`ChatMoreMenu`), voice (`VoiceMode`), room header/composer (`RoomPanel`,
+`InputArea`), one small backend addition. Exact values from
+`source/12-where-things-moved.html`, `13-rooms-and-account.html`,
+`14-more-menu.html`, `15-voice-mode.html`.
+
+### Sidebar (view 13)
+
+- "Bots" heading row (15px/600) with a search icon and a + new-bot icon
+  (existing create wizard). The Phase A inline search field was replaced by
+  the search icon → `GlobalSearchDialog` (which now also searches bots by
+  name/description, preserving that filter capability) and **Ctrl/Cmd+K
+  anywhere** (mounted in `MainLayout`). Notifications bell stays **omitted**
+  — no notifications source exists.
+- Bot rows unchanged.
+- **Rooms group** under the bots: 28px heading row (12px/600, tertiary) + "+"
+  (existing `CreateRoomDialog`, kept reachable even with zero rooms). Rows:
+  stacked 22px `BotAvatar`s (-10px overlap, sidebar-colored ring), room name,
+  and a real subtitle — `lastMessage` (`"<sender>: <content>"`) from the new
+  `GET /api/rooms` field, else `"N bots"`. Clicking opens the existing room
+  view (`/{botId}/rooms/{roomId}`).
+- Bottom icon row **removed**. Bottom = **Workspace** button, then the
+  **Account** row (user initial in a 32px `#2a2b2f` circle + name + gear)
+  opening the account menu (`V2Menu`): Your account → `/settings`, Settings →
+  `/settings`, Usage ("this month") → `/dashboard/usage`, an **Admin** section
+  (Activity log → `/admin/logs`, People → `/users` with the real count from
+  `GET /api/auth/users`) shown only to `role === 'admin'`, About and help →
+  `/settings` (About section lives in General; GitHub link is there), Sign out
+  (existing store logout → `/login`). Everything is hidden by role, never
+  greyed.
+
+### Where the old icons went (view 12)
+
+| Old icon | New home in C2 |
+|---|---|
+| Chats | The bot's sidebar row; earlier chats behind the history icon (unchanged) |
+| Rooms | Sidebar Rooms group |
+| Voice | Mic button in the composer (Operator+) → voice mode in the same chat |
+| Work | Chat More menu › Runs → `/{bot}/work` (real Runs page is D1) |
+| Automations | Chat More menu › Routines → `/{bot}/automations` (D2) |
+| Tools / Plugins / Developer | Chat More menu (editor+) → existing pages until Bot settings D3 |
+| Bot settings | Bot name in the chat header (editor+) or More › Bot settings |
+| Search | Sidebar search icon + Ctrl/Cmd K → `GlobalSearchDialog` |
+| Exec logs | Account menu › Activity log (admins) → `/admin/logs` |
+| Settings | Account menu → `/settings` |
+| GitHub | Settings › About › Documentation link → repo |
+
+Plugin-provided view pages (enabled view plugins) moved from sidebar icons
+into the chat More menu under "From plugins" (hidden when none).
+
+### Chat header + More menu (views 02/14)
+
+- The bot name is now a button → Bot settings (`/{botId}/settings`), editor+.
+- "..." opens `ChatMoreMenu`: section titled with the bot name; **Bot
+  settings** (editor+), **Runs** (operator+; suffix "N needs you" only from
+  the real live approvals store count for this bot), **Routines** (operator+;
+  suffix = real enabled count from `GET /api/bots/{id}/schedules`, hidden on
+  failure), **Knowledge** (editor+ → settings knowledge section); **From
+  plugins** section (hidden when no enabled view plugins); then **Export
+  chat** (client-side markdown download of the loaded messages — real data,
+  no endpoint needed) and **Clear chat** (existing behavior: platform chats
+  call the clear API, local chats clear the store; two-step confirm).
+- A Files button is reserved in the actions cluster for phase D4 — not built.
+  No Computer button/preview (blocked, as before).
+
+### Voice mode (view 15)
+
+- Mic button in the composer (Operator+ only, hidden for viewers) switches
+  the **same chat** into voice mode (`VoiceMode` in `components/chat/`).
+- Reuses the existing pipeline (`useVoice` → `VoiceClient` WS, VAD, STT →
+  agent → TTS) — nothing new server-side. The existing voice backend already
+  persists both sides of each turn into the chat when a chat id is sent
+  (`save_transcripts`, on by default), so `VoiceMode` creates the chat first
+  when none exists and the design's "Everything said is saved here as text"
+  is literally true; the saved messages appear in the chat after leaving
+  voice mode.
+- Per design: 112px `BotAvatar` with two soft rings in the bot color while
+  listening/speaking, status line ("<Bot> is talking · tap Interrupt or just
+  start speaking" / "Listening · just start speaking" / transcribing /
+  thinking), live transcript lines (You 15px muted, <Bot> 18px), bottom pill
+  with mute toggle (40px), a waveform driven by the real audio level, the
+  saved-as-text note, **Interrupt** (only while the bot is speaking — the
+  pipeline supports interruption only then) and **Back to typing**.
+- `/:botId/voice` stays reachable: `VoiceView` redirects to the bot's chat
+  with `?voice=1`, which `ChatView` picks up to enter voice mode.
+
+### Room view (view 13)
+
+- Room header restyled: stacked 22px bot avatars, room name (16px/600), a
+  real members line ("Writer, Researcher and you" — bot names + other member
+  usernames + "you"), presence counters (real online/total), **Files** (→ the
+  existing room assets view) and **⋯ More** (existing view modes Chat/Cards/
+  Timeline/Tasks with active check, Export JSON, Room settings for the
+  creator). Nothing was deleted — the old toggle/export/settings all live in
+  the More menu.
+- Room composer restyled to the v2 pill ("Message the room · type @ to pick
+  a bot"); @-mentions and typing indicators unchanged.
+
+### Backend (small, test-covered)
+
+- `GET /api/rooms` and `GET /api/rooms/{room_id}` now include
+  `lastMessage` (most recent room message, null when empty) — feeds the
+  sidebar Rooms subtitle. Implemented in `RoomResponse.from_room` +
+  `routes/rooms.py` via the existing `get_messages(limit=1)`.
+- Tests: `tests/test_rooms_api.py` (auth required, lastMessage populated/
+  empty, non-member 404). `ruff check`, `ruff format --check`, `mypy
+  cachibot` and `pytest -q` all pass; the rooms tests skip in environments
+  without PostgreSQL (conftest's designed skip path) and run where the test
+  DB exists.
+
+### Behavior changes
+
+- The sidebar no longer has the inline bot-name filter or the bottom icon
+  row; bot search lives in Ctrl/Cmd K (now also matching bots).
+- Leaving voice mode disconnects the voice channel; transcripts already
+  saved to the chat remain as normal messages.
+- The chat header name navigates for editors+ instead of being inert.
+- Old `VoiceView` UI (connect/PTT/controls page) is replaced by the chat
+  voice mode; its route redirects.
+
+### Phase C2 — not backed yet (hidden, no fake data)
+
+- **Notifications bell** (views 13/14) — no notifications backend exists.
+- **Files button** in the chat header (view 14) — phase D4; space reserved.
+- **Computer button / preview pane** (view 14) — needs the computer backend
+  (phase D); deliberately not built.
+- **"Needs you" on Runs beyond live approvals** — stuck/failed runs
+  aggregation is a D1 Runs-page concern; the menu suffix uses only the live
+  per-tab approvals count.
+- **Room voice mic** (view 13's room composer shows a mic) — the voice
+  pipeline is per bot chat; no room voice exists, so the room composer omits
+  the mic.
+- **Dedicated "Your account" page** — links to `/settings` until app
+  settings D5 gives it a real home.
+- **Voice PTT mode / voice settings** — the old VoiceView page carried a
+  PTT/VAD toggle; the v2 voice mode uses the saved preference and exposes no
+  settings UI (D-phase concern).
 
 ## Later phases
 
-- **Phase C2** — views 12–15: sidebar icon row removed, Rooms group, account
-  menu, chat header More menu, voice mode in the composer.
 - **Phase D** — D1 Runs (16), D2 Routine editor (17), D3 Bot settings (18),
   D4 Files sheet (10), D5 App settings + Activity log (19, 20).
 - **Phase E (proposal)** — side tasks (11a–c); needs backend support.

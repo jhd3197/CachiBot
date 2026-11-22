@@ -33,6 +33,37 @@
       font-size: 16px;
       font-weight: @font-semibold;
     }
+
+    // Bot name as the Bot settings entry point (design 12/14)
+    &__name--link {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 16px;
+      font-weight: @font-semibold;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    // Right-side actions (Earlier chats, More; Files joins here in phase D4)
+    &__actions {
+      position: relative;
+      margin-left: auto;
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    &__menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: @z-modal;
+    }
   }
 
   // Centered column: 820px max per source/02 (bubbles measure ~70% ≈ 584px)
@@ -570,6 +601,26 @@
       }
     }
 
+    &__talk {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: @radius-full;
+      background: transparent;
+      color: var(--v2-text-secondary);
+      cursor: pointer;
+      flex: none;
+      .transition-colors();
+
+      &:hover {
+        color: var(--v2-text);
+        background: var(--v2-bg-hover);
+      }
+    }
+
     &__send {
       display: flex;
       align-items: center;
@@ -1090,6 +1141,295 @@
 
       @media (max-width: (@screen-lg - 1px)) {
         padding: 0 16px;
+      }
+    }
+  }
+}
+
+.ui-v2 {
+  // ---------------------------------------------------------------------------
+  // Voice mode in the chat (design 15): big avatar with rings, status line,
+  // live transcript, bottom bar with mic + waveform + Interrupt/Back.
+  // ---------------------------------------------------------------------------
+
+  .v2-voice {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+
+    &__stage {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      padding: 0 40px;
+      .scrollbar-thin();
+
+      @media (max-width: (@screen-sm - 1px)) {
+        padding: 0 16px;
+      }
+    }
+
+    // 112px avatar; two soft rings in the bot color while listening/speaking
+    &__avatar {
+      padding: 18px;
+      border-radius: @radius-full;
+
+      &--active {
+        box-shadow:
+          0 0 0 10px color-mix(in srgb, var(--v2-voice-ring, var(--v2-green)) 8%, transparent),
+          0 0 0 22px color-mix(in srgb, var(--v2-voice-ring, var(--v2-green)) 4%, transparent);
+      }
+    }
+
+    &__status {
+      font-size: 14px;
+      color: var(--v2-text-secondary);
+
+      &--error {
+        color: var(--v2-red);
+      }
+    }
+
+    &__transcript {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    &__line {
+      margin: 0;
+
+      b {
+        font-weight: @font-semibold;
+        font-size: 15px;
+        color: var(--v2-text-secondary);
+      }
+
+      &--you {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--v2-text-tertiary);
+      }
+
+      &--bot {
+        font-size: 18px;
+        line-height: 1.6;
+        color: var(--v2-text);
+      }
+    }
+
+    // Bottom bar — 30px-radius pill (design 15)
+    &__bar-wrap {
+      padding: 16px 20px 20px;
+    }
+
+    &__bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--v2-border);
+      background: var(--v2-bg-sidebar);
+      border-radius: 30px;
+      padding: 8px 8px 8px 10px;
+    }
+
+    &__mic {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: @radius-full;
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+      cursor: pointer;
+      flex: none;
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-button);
+      }
+
+      &--muted {
+        color: var(--v2-red);
+      }
+    }
+
+    &__wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex: none;
+
+      span {
+        width: 3px;
+        border-radius: 2px;
+        background: var(--v2-text-secondary);
+        transition: height 120ms ease-out;
+      }
+    }
+
+    &__note {
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      @media (max-width: (@screen-sm - 1px)) {
+        display: none;
+      }
+    }
+
+    &__actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      flex: none;
+    }
+
+    &__interrupt {
+      height: 32px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 9px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: @font-semibold;
+      cursor: pointer;
+      background: var(--v2-bg-button);
+      color: var(--v2-text);
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-hover);
+      }
+    }
+
+    &__back {
+      height: 32px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 9px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: @font-semibold;
+      cursor: pointer;
+      background: var(--v2-text);
+      color: var(--v2-bg-main);
+
+      &:hover {
+        opacity: 0.88;
+      }
+    }
+  }
+}
+
+.ui-v2 {
+  // ---------------------------------------------------------------------------
+  // Room header + composer (design 13): stacked avatars, name + members line,
+  // Files / More on the right; the composer is the v2 pill.
+  // ---------------------------------------------------------------------------
+
+  .v2-room-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--v2-border);
+    background: var(--v2-bg-main);
+    color: var(--v2-text);
+    font-family: @font-sans;
+    flex: none;
+
+    &__id {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    &__avatars {
+      display: flex;
+      flex: none;
+
+      & > *:not(:first-child) {
+        margin-left: -10px;
+      }
+
+      & > * {
+        border: 2px solid var(--v2-bg-main);
+        border-radius: @radius-full;
+        display: flex;
+      }
+    }
+
+    &__names {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+
+    &__title {
+      font-size: 16px;
+      font-weight: @font-semibold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__members {
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex: none;
+    }
+
+    &__more {
+      position: relative;
+    }
+
+    &__menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: @z-modal;
+    }
+  }
+
+  // Room composer wrapper (design 13 padding)
+  .v2-room-composer {
+    padding: 16px 20px 20px;
+
+    .chat-status-bar {
+      color: var(--v2-text-tertiary);
+
+      &__label,
+      &__hint,
+      &__model {
+        color: var(--v2-text-tertiary);
       }
     }
   }

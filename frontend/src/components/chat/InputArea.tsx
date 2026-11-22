@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react'
-import { Send, Square, Paperclip } from 'lucide-react'
+import { Send, Square } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { RoomBot } from '../../types'
 
@@ -132,9 +132,9 @@ export function InputArea({
     : 'Type a message...'
 
   return (
-    <div className="chat-panel__input-area">
+    <div className="chat-panel__input-area v2-room-composer">
       <div className="chat-panel__input-inner">
-        <div className="chat-input-container">
+        <div className="chat-input-container v2-composer">
           {/* @mention popup */}
           {hasMentionPopup && (
             <div className="chat-input-mention-popup">
@@ -170,41 +170,32 @@ export function InputArea({
             placeholder={!isConnected ? 'Reconnecting...' : placeholder || defaultPlaceholder}
             disabled={!isConnected || isLoading || disabled}
             rows={1}
-            className="chat-textarea"
+            className="v2-composer__input"
           />
 
-          {/* Buttons */}
-          <div className="chat-input-btns">
+          {/* Send (36px round, white per design 13) */}
+          {isLoading && onCancel ? (
             <button
               type="button"
-              className="chat-input-btn chat-input-btn--attach"
-              title="Attach file"
-              disabled={!isConnected || disabled}
+              onClick={onCancel}
+              className="v2-composer__send v2-composer__send--stop"
+              title="Stop"
+              aria-label="Stop"
             >
-              <Paperclip className="h-4 w-4" />
+              <Square size={15} strokeWidth={1.8} />
             </button>
-
-            {isLoading && onCancel ? (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="chat-input-btn chat-input-btn--stop"
-                title="Stop"
-              >
-                <Square className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={!input.trim() || !isConnected || disabled}
-                className="chat-input-btn chat-input-btn--send"
-                title="Send message"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || !isConnected || disabled}
+              className="v2-composer__send"
+              title="Send message"
+              aria-label="Send message"
+            >
+              <Send size={17} strokeWidth={1.8} />
+            </button>
+          )}
         </div>
 
         {/* Status bar */}

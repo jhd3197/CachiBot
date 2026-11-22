@@ -200,50 +200,6 @@ class RoomBotResponse(BaseModel):
         )
 
 
-class RoomResponse(BaseModel):
-    """Response model for a room."""
-
-    id: str
-    title: str
-    description: str | None
-    creatorId: str
-    maxBots: int
-    settings: dict[str, Any]
-    members: list[RoomMemberResponse]
-    bots: list[RoomBotResponse]
-    messageCount: int
-    staleBotIds: list[str] = Field(default_factory=list)
-    createdAt: str
-    updatedAt: str
-
-    @classmethod
-    def from_room(
-        cls,
-        room: Room,
-        members: list[RoomMember],
-        bots: list[RoomBot],
-        message_count: int = 0,
-    ) -> "RoomResponse":
-        # Detect stale bots: room_bot entries whose bot_name resolved to empty
-        # (the LEFT JOIN in RoomBotRepository.get_bots didn't find a matching bot)
-        stale = [b.bot_id for b in bots if not b.bot_name]
-
-        return cls(
-            id=room.id,
-            title=room.title,
-            description=room.description,
-            creatorId=room.creator_id,
-            maxBots=room.max_bots,
-            settings=room.settings.model_dump(),
-            members=[RoomMemberResponse.from_member(m) for m in members],
-            bots=[RoomBotResponse.from_room_bot(b) for b in bots],
-            messageCount=message_count,
-            staleBotIds=stale,
-            createdAt=room.created_at.isoformat(),
-            updatedAt=room.updated_at.isoformat(),
-        )
-
-
 class RoomMessageResponse(BaseModel):
     """Response model for a room message."""
 
@@ -276,6 +232,53 @@ class RoomMessageResponse(BaseModel):
             toolCalls=tool_calls,
             reactions=reactions or [],
             timestamp=msg.timestamp.isoformat(),
+        )
+
+
+class RoomResponse(BaseModel):
+    """Response model for a room."""
+
+    id: str
+    title: str
+    description: str | None
+    creatorId: str
+    maxBots: int
+    settings: dict[str, Any]
+    members: list[RoomMemberResponse]
+    bots: list[RoomBotResponse]
+    messageCount: int
+    lastMessage: RoomMessageResponse | None = None
+    staleBotIds: list[str] = Field(default_factory=list)
+    createdAt: str
+    updatedAt: str
+
+    @classmethod
+    def from_room(
+        cls,
+        room: Room,
+        members: list[RoomMember],
+        bots: list[RoomBot],
+        message_count: int = 0,
+        last_message: RoomMessage | None = None,
+    ) -> "RoomResponse":
+        # Detect stale bots: room_bot entries whose bot_name resolved to empty
+        # (the LEFT JOIN in RoomBotRepository.get_bots didn't find a matching bot)
+        stale = [b.bot_id for b in bots if not b.bot_name]
+
+        return cls(
+            id=room.id,
+            title=room.title,
+            description=room.description,
+            creatorId=room.creator_id,
+            maxBots=room.max_bots,
+            settings=room.settings.model_dump(),
+            members=[RoomMemberResponse.from_member(m) for m in members],
+            bots=[RoomBotResponse.from_room_bot(b) for b in bots],
+            messageCount=message_count,
+            lastMessage=RoomMessageResponse.from_message(last_message) if last_message else None,
+            staleBotIds=stale,
+            createdAt=room.created_at.isoformat(),
+            updatedAt=room.updated_at.isoformat(),
         )
 
 
