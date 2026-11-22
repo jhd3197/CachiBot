@@ -40,6 +40,7 @@ class SideTaskResponse(BaseModel):
     prompt: str
     kind: str
     groupId: str | None
+    groupTitle: str | None
     status: str
     needsYouReason: str | None
     startedBy: str
@@ -71,6 +72,7 @@ class StartSideTaskRequest(BaseModel):
     kind: SideTaskKind = Field(default=SideTaskKind.SIDE)
     startedBy: SideTaskStartedBy = Field(default=SideTaskStartedBy.USER)
     groupId: str | None = Field(default=None, description="Helper group id (E3)")
+    groupTitle: str | None = Field(default=None, description="Helper group title (E3)")
 
 
 @router.get("/side-tasks")
@@ -97,6 +99,48 @@ async def get_side_task(
     return SideTaskResponse.from_side_task(side_task)
 
 
+class SideTaskGroupSummaryResponse(BaseModel):
+    """Aggregate view of one helper group (bot-started helpers)."""
+
+    groupId: str
+    title: str | None
+    total: int
+    done: int
+    failed: int
+    running: int
+    waiting: int
+    needsYou: int
+    items: list[SideTaskResponse]
+
+
+@router.get("/side-task-groups/{group_id}")
+async def get_side_task_group(
+    bot_id: str,
+    group_id: str,
+    user: User = Depends(require_bot_access),
+) -> SideTaskGroupSummaryResponse:
+    """Get one helper group with per-status counts and its helpers.
+
+    Counts are computed from the real records: ``done`` covers done and
+    merged helpers, ``waiting`` is waiting_for_slot and ``needsYou`` is
+    needs_you. Stopped helpers are only listed in ``items``.
+    """
+    summary = await get_side_task_service().group_summary(group_id)
+    if summary is None or summary.items[0].bot_id != bot_id:
+        raise HTTPException(status_code=404, detail="Side task group not found")
+    return SideTaskGroupSummaryResponse(
+        groupId=summary.group_id,
+        title=summary.title,
+        total=summary.total,
+        done=summary.done,
+        failed=summary.failed,
+        running=summary.running,
+        waiting=summary.waiting,
+        needsYou=summary.needs_you,
+        items=[SideTaskResponse.from_side_task(st) for st in summary.items],
+    )
+
+
 @router.post("/chats/{chat_id}/side-tasks", status_code=201)
 async def start_side_task(
     bot_id: str,
@@ -115,6 +159,7 @@ async def start_side_task(
             started_by=request.startedBy,
             kind=request.kind,
             group_id=request.groupId,
+            group_title=request.groupTitle,
         )
     except SideTaskStartError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

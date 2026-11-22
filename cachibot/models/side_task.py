@@ -79,6 +79,9 @@ class SideTask(BaseModel):
     group_id: str | None = Field(
         default=None, description="Helper group id (bot-started helpers, E3)"
     )
+    group_title: str | None = Field(
+        default=None, description="Helper group title (bot-started helpers, E3)"
+    )
 
     # Status
     status: SideTaskStatus = Field(default=SideTaskStatus.WAITING_FOR_SLOT)
@@ -113,3 +116,26 @@ class SideTaskList(BaseModel):
 
     items: list[SideTask] = Field(default_factory=list)
     total: int = Field(default=0)
+
+
+class SideTaskGroupSummary(BaseModel):
+    """Aggregate view of one helper group (bot-started helpers).
+
+    Counts are computed from the real records: ``done`` covers ``done`` and
+    ``merged`` (both mean the helper finished and, when there was work, it
+    came back), ``waiting`` is ``waiting_for_slot``, and ``needs_you`` is
+    ``needs_you``. A ``stopped`` helper is only visible through ``items``
+    (its parent was stopped, so the group settles with the parent).
+    """
+
+    model_config = ConfigDict(alias_generator=_to_camel, populate_by_name=True)
+
+    group_id: str = Field(description="Helper group id")
+    title: str | None = Field(default=None, description="Group title (from the records)")
+    total: int = Field(description="Total helpers in the group")
+    done: int = Field(default=0, description="Finished successfully (done or merged)")
+    failed: int = Field(default=0)
+    running: int = Field(default=0)
+    waiting: int = Field(default=0, description="Waiting for a free slot")
+    needs_you: int = Field(default=0)
+    items: list[SideTask] = Field(default_factory=list)

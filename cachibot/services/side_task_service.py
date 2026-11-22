@@ -42,6 +42,7 @@ from cachibot.models.chat_model import Chat
 from cachibot.models.knowledge import BotMessage
 from cachibot.models.side_task import (
     SideTask,
+    SideTaskGroupSummary,
     SideTaskKind,
     SideTaskStartedBy,
     SideTaskStatus,
@@ -117,6 +118,7 @@ class SideTaskService:
         started_by: SideTaskStartedBy = SideTaskStartedBy.USER,
         kind: SideTaskKind = SideTaskKind.SIDE,
         group_id: str | None = None,
+        group_title: str | None = None,
     ) -> SideTask:
         """Create a side task for a parent chat and queue or run it.
 
@@ -143,6 +145,7 @@ class SideTaskService:
             prompt=prompt,
             kind=kind,
             group_id=group_id,
+            group_title=group_title,
             started_by=started_by,
         )
 
@@ -214,6 +217,91 @@ class SideTaskService:
                 "Side tasks need the workspace to be a git repository "
                 f"({workspace} is not inside a git work tree)"
             )
+
+    async def start_helpers(
+        self,
+        *,
+        parent_chat_id: str,
+        bot_id: str,
+        items: list[dict[str, Any]],
+        group_title: str | None = None,
+    ) -> tuple[str, list[SideTask]]:
+        """Start one helper per item, all in one new group (bot-started).
+
+        Each item is ``{"title": ..., "prompt": ...}`` (title optional; it
+        is derived from the prompt when missing). Helpers share the new
+        ``group_id`` and the per-parent limit still applies: extras queue
+        in ``waiting_for_slot`` and are promoted FIFO as slots free.
+
+        Raises:
+            SideTaskStartError: If the items are invalid or the parent chat
+                cannot have side tasks.
+        """
+        if not items:
+            raise SideTaskStartError("At least one helper item is required")
+        normalized: list[dict[str, str | None]] = []
+        for item in items:
+            if not isinstance(item, dict):
+                raise SideTaskStartError("Each helper item must be an object with a prompt")
+            prompt = str(item.get("prompt") or "").strip()
+            if not prompt:
+                raise SideTaskStartError("Each helper item needs a prompt")
+            raw_title = item.get("title")
+            title = str(raw_title).strip() if raw_title else None
+            normalized.append({"title": title or None, "prompt": prompt})
+
+        # Validating up front (before any helper exists) keeps a bad group
+        # from leaving partially started helpers behind.
+        parent = await self._chat_repo.get_chat(parent_chat_id)
+        if parent is None or parent.bot_id != bot_id:
+            raise SideTaskStartError(f"Chat {parent_chat_id} not found for bot {bot_id}")
+        if parent.parent_chat_id is not None:
+            raise SideTaskStartError(
+                "Side tasks are one level deep: a side task cannot have its own side task"
+            )
+
+        group_id = str(uuid.uuid4())
+        started: list[SideTask] = []
+        for item in normalized:
+            started.append(
+                await self.start(
+                    parent_chat_id=parent_chat_id,
+                    bot_id=bot_id,
+                    prompt=item["prompt"] or "",
+                    title=item["title"],
+                    started_by=SideTaskStartedBy.BOT,
+                    kind=SideTaskKind.HELPER,
+                    group_id=group_id,
+                    group_title=group_title,
+                )
+            )
+        return group_id, started
+
+    async def group_summary(self, group_id: str) -> SideTaskGroupSummary | None:
+        """Aggregate one helper group from its real records.
+
+        Returns None when no side task belongs to the group.
+        """
+        tasks = await self._repo.get_by_group(group_id)
+        if not tasks:
+            return None
+        summary = SideTaskGroupSummary(group_id=group_id, total=len(tasks), items=tasks)
+        for task in tasks:
+            if summary.title is None and task.group_title:
+                summary.title = task.group_title
+            if task.status == SideTaskStatus.WAITING_FOR_SLOT:
+                summary.waiting += 1
+            elif task.status == SideTaskStatus.RUNNING:
+                summary.running += 1
+            elif task.status == SideTaskStatus.NEEDS_YOU:
+                summary.needs_you += 1
+            elif task.status in (SideTaskStatus.DONE, SideTaskStatus.MERGED):
+                summary.done += 1
+            elif task.status == SideTaskStatus.FAILED:
+                summary.failed += 1
+            # STOPPED helpers stay visible through items only: their parent
+            # was stopped, so the group settles together with the parent.
+        return summary
 
     # ------------------------------------------------------------------
     # Stopping
@@ -801,6 +889,45 @@ class SideTaskService:
         side_task.updated_at = datetime.now(timezone.utc)
         await self._repo.update(side_task)
         await self._broadcast(side_task)
+        await self._note_parent_chat(side_task)
+
+    async def _note_parent_chat(self, side_task: SideTask) -> None:
+        """Persist one short system note in the parent chat when a bot-started
+        side task or helper settles (merged / done / failed / needs_you).
+
+        The note is what the parent chat history knows about its side tasks
+        (E4 renders the richer cards from ``side_task_update``). It is
+        skipped for user-started side tasks: the user started those
+        themselves. The message model carries free-form roles and the chat
+        UI renders ``system`` messages inline, so this is safe.
+        """
+        if side_task.started_by != SideTaskStartedBy.BOT:
+            return
+        if side_task.status not in (
+            SideTaskStatus.MERGED,
+            SideTaskStatus.DONE,
+            SideTaskStatus.FAILED,
+            SideTaskStatus.NEEDS_YOU,
+        ):
+            return
+        content = _parent_chat_note(side_task)
+        if not content:
+            return
+        try:
+            await self._knowledge_repo.save_bot_message(
+                BotMessage(
+                    id=str(uuid.uuid4()),
+                    bot_id=side_task.bot_id,
+                    chat_id=side_task.parent_chat_id,
+                    role="system",
+                    content=content,
+                    timestamp=datetime.now(timezone.utc),
+                )
+            )
+        except Exception:
+            logger.debug(
+                "Could not write parent-chat note for side task %s", side_task.id, exc_info=True
+            )
 
     async def _sync_work_status(self, side_task: SideTask) -> None:
         """Mirror the side task status onto its Work row (for Runs)."""
@@ -852,6 +979,29 @@ def _derive_title(prompt: str) -> str:
     if len(first_line) > 60:
         return first_line[:59].rstrip() + "…"
     return first_line or "Side task"
+
+
+def _one_line(text: str, limit: int = 200) -> str:
+    """Collapse whitespace and cap length for a single chat line."""
+    return " ".join(text.split())[:limit]
+
+
+def _parent_chat_note(side_task: SideTask) -> str:
+    """One short line for the parent chat about a settled bot-started side task."""
+    label = "Helper" if side_task.kind == SideTaskKind.HELPER else "Side task"
+    title = side_task.title
+    if side_task.status == SideTaskStatus.MERGED:
+        count = len(side_task.merged_files)
+        files = "1 file" if count == 1 else f"{count} files"
+        commit = (side_task.merged_commit or "")[:7]
+        suffix = f" (commit {commit})" if commit else ""
+        return f'{label} "{title}" merged back · {files} changed{suffix}'
+    if side_task.status == SideTaskStatus.DONE:
+        return f'{label} "{title}" finished with no changes to bring back'
+    if side_task.status == SideTaskStatus.FAILED:
+        return f'{label} "{title}" failed: {_one_line(side_task.error or "unknown error")}'
+    reason = side_task.needs_you_reason or "see the side task"
+    return f'{label} "{title}" needs you: {_one_line(reason)}'
 
 
 # Singleton
