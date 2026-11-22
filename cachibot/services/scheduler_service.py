@@ -19,6 +19,47 @@ logger = logging.getLogger(__name__)
 _POLL_INTERVAL = 30
 
 
+def compute_next_run(
+    schedule_type: ScheduleType,
+    *,
+    cron_expression: str | None = None,
+    interval_seconds: int | None = None,
+    run_at: datetime | None = None,
+    timezone: str = "UTC",
+) -> datetime | None:
+    """Compute the next run time for a schedule spec.
+
+    Returns ``None`` for event triggers (they fire via publish, not polling)
+    and when the spec is missing the field its type needs.
+    """
+    if schedule_type == ScheduleType.ONCE:
+        return run_at
+
+    if schedule_type == ScheduleType.EVENT:
+        return None
+
+    try:
+        tz = ZoneInfo(timezone)
+    except Exception:
+        tz = ZoneInfo("UTC")
+    now = datetime.now(tz)
+
+    if schedule_type == ScheduleType.INTERVAL:
+        if not interval_seconds:
+            return None
+        return now + timedelta(seconds=interval_seconds)
+
+    if schedule_type == ScheduleType.CRON:
+        if not cron_expression:
+            return None
+        from croniter import croniter
+
+        next_run: datetime = croniter(cron_expression, now).get_next(datetime)
+        return next_run
+
+    return None
+
+
 class SchedulerService:
     """Background service that fires due schedules and reminders."""
 
