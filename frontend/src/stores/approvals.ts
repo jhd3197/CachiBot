@@ -20,6 +20,8 @@ export interface PendingApproval {
   tool: string
   /** Human-readable action description from the agent */
   action: string
+  /** Command/code preview from the approval payload (details.code) */
+  code?: string
   receivedAt: number
 }
 

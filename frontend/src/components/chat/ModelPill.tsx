@@ -36,9 +36,11 @@ interface ModelPillProps {
   value: string
   onChange: (modelId: string) => void
   placeholder?: string
+  /** When provided, `ref.current()` opens the picker (e.g. from an error card) */
+  openRef?: { current: (() => void) | null }
 }
 
-export function ModelPill({ value, onChange, placeholder = 'System Default' }: ModelPillProps) {
+export function ModelPill({ value, onChange, placeholder = 'System Default', openRef }: ModelPillProps) {
   const store = useModelsStore()
   const { refresh, loading } = store
   const groups = store.groups
@@ -68,6 +70,13 @@ export function ModelPill({ value, onChange, placeholder = 'System Default' }: M
       })
     }
   }, [])
+
+  useEffect(() => {
+    if (openRef) {
+      openRef.current = () => setOpen(true)
+      return () => { openRef.current = null }
+    }
+  }, [openRef])
 
   // Close on outside click
   useEffect(() => {

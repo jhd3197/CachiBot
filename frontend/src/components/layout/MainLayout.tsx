@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
-import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity } from 'lucide-react'
+import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity, History } from 'lucide-react'
 import { BotListSidebar } from './BotListSidebar'
 import {
   ChatView,
@@ -25,6 +25,7 @@ import { ApprovalDialog } from '../dialogs/ApprovalDialog'
 import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
 import { BotAvatar } from '../common/Avatar'
+import { ChatsSheet } from '../chat/ChatsSheet'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
@@ -324,6 +325,11 @@ export function MainLayout() {
   const mobileTitle =
     appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : appView === 'runs' ? 'Runs' : 'Workspace'
 
+  // Chat routes mount the chat header inline; the mobile top bar folds the
+  // bot title + "Earlier chats" into one row (design 02, <1024px).
+  const chatRouteActive = !appView && (!botView || botView === 'chats')
+  const [showMobileChats, setShowMobileChats] = useState(false)
+
   return (
     <div className="app-shell ui-v2">
       <div className="app-shell__body">
@@ -380,6 +386,17 @@ export function MainLayout() {
               <span className="app-shell__mobile-title-text">{mobileTitle}</span>
             </div>
           )}
+          {chatRouteActive && headerBot && (
+            <button
+              type="button"
+              className="v2-icon-btn"
+              aria-label="Earlier chats"
+              title="Earlier chats"
+              onClick={() => setShowMobileChats(true)}
+            >
+              <History size={18} strokeWidth={1.8} />
+            </button>
+          )}
         </div>
         <UpdateBanner />
         {renderActiveView()}
@@ -390,8 +407,18 @@ export function MainLayout() {
       {/* Dialogs */}
       <CreateBotDialog />
       <SettingsDialog />
-      <ApprovalDialog onApprove={handleApprove} />
+      <ApprovalDialog
+        onApprove={handleApprove}
+        // The inline chat ApprovalCard answers approvals for the visible
+        // chat; the dialog remains the fallback for other/background chats.
+        suppressChatId={chatRouteActive ? activeChatId : null}
+      />
       <UpdateDialog />
+
+      {/* "Earlier chats" from the mobile top bar (chat header is folded away) */}
+      {showMobileChats && headerBot && (
+        <ChatsSheet bot={headerBot} onClose={() => setShowMobileChats(false)} />
+      )}
     </div>
   )
 }
