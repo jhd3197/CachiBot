@@ -649,9 +649,9 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
-export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
+export type AutomationSection = 'routines' | 'advanced'
 export type AppView = 'dashboard' | 'dashboard-usage' | 'admin-logs' | 'settings'
 
 // =============================================================================

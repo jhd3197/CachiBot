@@ -795,6 +795,7 @@ export interface UpdateScheduleRequest {
   description?: string
   functionId?: string
   functionParams?: Record<string, unknown>
+  scheduleType?: ScheduleType
   cronExpression?: string
   intervalSeconds?: number
   runAt?: string
@@ -964,6 +965,10 @@ export async function updateSchedule(
 
 export async function toggleSchedule(botId: string, scheduleId: string): Promise<Schedule> {
   return request(`/bots/${botId}/schedules/${scheduleId}/toggle`, { method: 'POST' })
+}
+
+export async function runSchedule(botId: string, scheduleId: string): Promise<Schedule> {
+  return request(`/bots/${botId}/schedules/${scheduleId}/run`, { method: 'POST' })
 }
 
 export async function deleteSchedule(botId: string, scheduleId: string): Promise<void> {
