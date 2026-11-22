@@ -31,6 +31,13 @@
     align-items: center;
     gap: 12px;
     min-width: 0;
+
+    // Below @screen-lg the app-level mobile top bar already shows the
+    // BotAvatar + bot name; hiding this block avoids the duplicate title.
+    // The header row itself stays (it carries the "Earlier chats" button).
+    @media (max-width: (@screen-lg - 1px)) {
+      display: none;
+    }
   }
 
   &__name {

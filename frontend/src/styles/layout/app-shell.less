@@ -71,3 +71,29 @@
     display: none;
   });
 }
+
+// Mobile top-bar context: BotAvatar + bot name on bot routes, view name otherwise.
+// The chat's own header hides its bot block below @screen-lg, so the title
+// isn't duplicated (chat keeps only the "Earlier chats" button there).
+.app-shell__mobile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: @font-semibold;
+
+  // Icon variant (app views)
+  svg {
+    color: var(--v2-text-secondary, var(--color-text-secondary));
+    flex: none;
+  }
+}
+
+.app-shell__mobile-title-text {
+  .truncate();
+}

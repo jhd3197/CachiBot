@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { wsClient } from '../api/websocket'
 import { useChatStore, useBotStore, useJobStore, getBotDefaultModel } from '../stores/bots'
+import { useApprovalsStore } from '../stores/approvals'
 import { useUsageStore } from '../stores/connections'
 import { useKnowledgeStore } from '../stores/knowledge'
 import { useArtifactsStore } from '../stores/artifacts'
@@ -61,6 +62,12 @@ export function setPendingChatId(chatId: string | null) {
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
+  // The bot/chat of the in-flight agent run. Server payloads (message, usage,
+  // approval_needed, ...) don't always carry chatId, so run-scoped events are
+  // attributed to the run that produced them — even if the user navigated to
+  // another chat or to the Workspace while the run continues in background.
+  const [runContext, setRunContext] = useState<{ botId: string | null; chatId: string | null } | null>(null)
+  const runContextRef = useRef<{ botId: string | null; chatId: string | null } | null>(null)
   const { addMessage, updateMessage, setThinking, appendThinking, addToolCall, updateToolCall, appendInstructionDelta, clearToolCalls, attachToolCallsToLastMessage, attachThinkingToLastMessage, setLoading, setError, updateLastAssistantMessageMetadata, updateLastAssistantMessage } = useChatStore()
 
   // Use a ref to always have access to the current activeChatId without re-creating the handler
@@ -91,7 +98,7 @@ export function useWebSocket() {
           const payload = msg.payload as ToolStartPayload
           // Persist accumulated thinking to the last assistant message before clearing
           const tsThinking = useChatStore.getState().thinking
-          const tsChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const tsChatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (tsThinking && tsChatId) {
             attachThinkingToLastMessage(tsChatId, tsThinking)
           }
@@ -119,8 +126,8 @@ export function useWebSocket() {
 
         case 'message': {
           const payload = msg.payload as MessagePayload
-          // Use ref for current chat, or fall back to pending chat ID
-          const chatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          // Attribute to the running chat (fallback: current/pending chat)
+          const chatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (chatId) {
             const messageId = payload.messageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
             // Accumulate assistant messages by messageId (streaming)
@@ -154,6 +161,16 @@ export function useWebSocket() {
         case 'approval_needed': {
           const payload = msg.payload as ApprovalPayload
           setPendingApproval(payload)
+          // Track for the Workspace "Needs you" list (live, per-tab state).
+          // Bot/chat come from the run context so the item opens the right chat.
+          useApprovalsStore.getState().addApproval({
+            id: payload.id,
+            botId: runContextRef.current?.botId ?? useBotStore.getState().activeBotId,
+            chatId: runContextRef.current?.chatId ?? activeChatIdRef.current ?? useChatStore.getState().pendingChatId,
+            tool: payload.tool,
+            action: payload.action,
+            receivedAt: Date.now(),
+          })
           break
         }
 
@@ -267,16 +284,16 @@ export function useWebSocket() {
           const payload = msg.payload as UsagePayload
           const currentBotId = useBotStore.getState().activeBotId
           const currentBot = useBotStore.getState().getActiveBot()
-          const chatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const chatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
 
           // Determine model from perModel breakdown (authoritative source from Prompture)
           // Falls back to bot store model only when perModel is empty
           const perModelKeys = Object.keys(payload.perModel || {})
           const model = perModelKeys.length > 0 ? perModelKeys[0] : (currentBot ? getBotDefaultModel(currentBot) : 'unknown')
 
-          // Record to dashboard usage stats
+          // Record to dashboard usage stats, attributed to the running bot
           useUsageStore.getState().recordUsage({
-            botId: currentBotId || 'unknown',
+            botId: runContextRef.current?.botId || currentBotId || 'unknown',
             model,
             tokens: payload.totalTokens,
             cost: payload.totalCost,
@@ -380,20 +397,23 @@ export function useWebSocket() {
 
           // Persist accumulated thinking before clearing
           const errThinking = useChatStore.getState().thinking
-          const errThinkingChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const errThinkingChatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (errThinking && errThinkingChatId) {
             attachThinkingToLastMessage(errThinkingChatId, errThinking)
           }
           setThinking(null)
 
           // Attach any in-progress tool calls to the last message (same as done)
-          const errChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const errChatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           const errToolCalls = useChatStore.getState().toolCalls
           if (errChatId && errToolCalls.length > 0) {
             attachToolCallsToLastMessage(errChatId, errToolCalls)
           }
           clearToolCalls()
           useChatStore.getState().setPendingChatId(null)
+          useApprovalsStore.getState().clearForChat(errChatId || '')
+          runContextRef.current = null
+          setRunContext(null)
           break
         }
 
@@ -402,14 +422,14 @@ export function useWebSocket() {
 
           // Persist accumulated thinking before clearing
           const doneThinking = useChatStore.getState().thinking
-          const doneThinkingChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const doneThinkingChatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           if (doneThinking && doneThinkingChatId) {
             attachThinkingToLastMessage(doneThinkingChatId, doneThinking)
           }
           setThinking(null)
 
           // Attach tool calls to last assistant message before clearing
-          const doneChatId = activeChatIdRef.current || useChatStore.getState().pendingChatId
+          const doneChatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
           const currentToolCalls = useChatStore.getState().toolCalls
           if (doneChatId && currentToolCalls.length > 0) {
             attachToolCallsToLastMessage(doneChatId, currentToolCalls)
@@ -424,6 +444,9 @@ export function useWebSocket() {
 
           // Clear pending chat ID when done
           useChatStore.getState().setPendingChatId(null)
+          useApprovalsStore.getState().clearForChat(doneChatId || '')
+          runContextRef.current = null
+          setRunContext(null)
           break
         }
       }
@@ -435,7 +458,16 @@ export function useWebSocket() {
   useEffect(() => {
     const unsubMessage = wsClient.onMessage(handleMessage)
     const unsubConnect = wsClient.onConnect(() => setIsConnected(true))
-    const unsubDisconnect = wsClient.onDisconnect(() => setIsConnected(false))
+    const unsubDisconnect = wsClient.onDisconnect(() => {
+      setIsConnected(false)
+      // The server cancels the in-flight run when the socket drops; any
+      // approvals it was waiting on are dead from this client's perspective.
+      runContextRef.current = null
+      setRunContext(null)
+      useApprovalsStore.getState().clearAll()
+      useChatStore.getState().setLoading(false)
+      useChatStore.getState().setThinking(null)
+    })
     const unsubError = wsClient.onError(() => {
       setError('WebSocket connection error')
     })
@@ -475,6 +507,14 @@ export function useWebSocket() {
       setLoading(true)
       setError(null)
       clearToolCalls()
+      // Remember which bot/chat owns this run so background events attribute
+      // correctly while the user navigates elsewhere (see runContextRef).
+      const ctx = {
+        botId: options?.botId ?? useBotStore.getState().activeBotId,
+        chatId: options?.chatId ?? activeChatIdRef.current ?? useChatStore.getState().pendingChatId,
+      }
+      runContextRef.current = ctx
+      setRunContext(ctx)
       wsClient.sendChat(message, options)
     },
     []
@@ -485,6 +525,8 @@ export function useWebSocket() {
     wsClient.sendCancel()
     setLoading(false)
     setThinking(null)
+    runContextRef.current = null
+    setRunContext(null)
   }, [setLoading, setThinking])
 
   // Handle approval
@@ -492,6 +534,7 @@ export function useWebSocket() {
     (id: string, approved: boolean) => {
       wsClient.sendApproval(id, approved)
       setPendingApproval(null)
+      useApprovalsStore.getState().resolveApproval(id)
     },
     []
   )
@@ -501,5 +544,6 @@ export function useWebSocket() {
     sendMessage,
     cancel,
     approve,
+    runContext,
   }
 }

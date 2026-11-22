@@ -28,7 +28,7 @@ import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
-import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
+import { setPendingChatId } from '../../hooks/useWebSocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
@@ -37,7 +37,7 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useWorkspaceStore } from '../../stores/workspace'
 import { WorkspaceSelector } from '../chat/WorkspaceSelector'
 import { TaskProgress } from '../chat/TaskProgress'
-import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
+import type { ToolCall, BotIcon, BotModels, BotCapabilities, ToolConfigs, Chat, Bot, CodingAgentInfo } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -54,26 +54,40 @@ function pickRandomColor(): string {
   return BOT_COLORS[Math.floor(Math.random() * BOT_COLORS.length)]
 }
 
-interface ChatViewProps {
-  onSendMessage?: (message: string) => void
-  onCancel?: () => void
-  isConnected?: boolean
+interface ChatViewSendOptions {
+  systemPrompt?: string
+  botId?: string
+  chatId?: string
+  model?: string
+  models?: BotModels
+  capabilities?: BotCapabilities
+  toolConfigs?: ToolConfigs
+  replyToId?: string
+  workspace?: string | null
 }
 
-export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp }: ChatViewProps) {
+interface ChatViewProps {
+  onSendMessage: (message: string, options?: ChatViewSendOptions) => void
+  onCancel: () => void
+  isConnected: boolean
+  /** Chat that owns the in-flight run (null when idle); gates run-scoped UI */
+  runChatId?: string | null
+}
+
+export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: ChatViewProps) {
   const navigate = useNavigate()
   const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
-  const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate } = useBotAccess(activeBotId)
   const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
 
-  // Use prop values if provided, otherwise fall back to WebSocket hook values
-  const isConnected = isConnectedProp ?? wsIsConnected
-  const handleCancel = onCancel ?? wsCancel
+  // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
+  // owns the in-flight run — the connection lives at the app level now.
+  const runVisibleHere = !runChatId || runChatId === activeChatId
+  const handleCancel = onCancel
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState(() => {
     const bot = useBotStore.getState().getActiveBot()
@@ -761,10 +775,9 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       }
     }
 
-    // Normal message handling - use WebSocket with bot's systemPrompt
-    if (onSendMessage) {
-      onSendMessage(trimmedInput)
-    } else {
+    // Normal message handling - send through the app-level WebSocket with
+    // the bot's systemPrompt and per-message context
+    {
       // Auto-create a chat if none is active
       let chatIdToUse = activeChatId
       if (!chatIdToUse && activeBotId) {
@@ -806,7 +819,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         ...(activeBot?.models || {}),
         default: selectedModel || getBotDefaultModel(activeBot!) || '',
       }
-      wsSendMessage(trimmedInput, {
+      onSendMessage(trimmedInput, {
         systemPrompt: activeBot?.systemPrompt,
         botId: activeBot?.id,
         chatId: chatIdToUse ?? undefined,
@@ -1222,7 +1235,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           )}
 
           {/* Tool calls in progress */}
-          {toolCalls.length > 0 && (
+          {toolCalls.length > 0 && runVisibleHere && (
             <div className="mt-6 space-y-2">
               {toolCalls.map((call) => (
                 <ToolCallDisplay key={call.id} call={call} />
@@ -1231,14 +1244,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           )}
 
           {/* Typing indicator (when loading but no thinking content) */}
-          {isLoading && !thinking && toolCalls.length === 0 && (
+          {isLoading && !thinking && toolCalls.length === 0 && runVisibleHere && (
             <div className="mt-6">
               <TypingIndicator botColor={activeBot?.color} />
             </div>
           )}
 
           {/* Thinking indicator */}
-          {thinking && showThinking && (
+          {thinking && showThinking && runVisibleHere && (
             <div className="mt-6">
               <ThinkingIndicator content={thinking} />
             </div>
