@@ -357,7 +357,7 @@ export function MainLayout() {
     (urlBotId ? bots.find((b) => b.id === urlBotId) : undefined) ??
     (appView ? undefined : bots.find((b) => b.id === activeBotId))
   const mobileTitle =
-    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : appView === 'runs' ? 'Runs' : 'Workspace'
+    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Activity log' : appView === 'runs' ? 'Runs' : 'Workspace'
 
   // Chat routes mount the chat header inline; the mobile top bar folds the
   // bot title + "Earlier chats" into one row (design 02, <1024px).

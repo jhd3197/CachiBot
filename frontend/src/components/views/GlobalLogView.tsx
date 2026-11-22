@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  Activity,
-  AlertCircle,
-  Download,
+  Ban,
+  ChevronDown,
+  ChevronLeft,
+  Copy,
   Loader2,
-  Search,
-  XCircle,
-  StopCircle,
-  CheckCircle2,
-  Clock,
+  MessageSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   adminGetExecutions,
-  adminGetStats,
   adminGetErrorSpotlight,
   adminGetCostAnalysis,
   adminGetRunning,
@@ -21,77 +18,173 @@ import {
   adminCancelAll,
   adminExportCsv,
   type ExecutionLog,
-  type ExecutionStats,
   type ErrorSpotlight,
   type CostEntry,
 } from '../../api/execution-log'
-import { cn } from '../../lib/utils'
+import { useBotStore } from '../../stores/bots'
+import { BotAvatar } from '../common/Avatar'
+import { cn, parseApiDate } from '../../lib/utils'
 
-type AdminTab = 'logs' | 'errors' | 'costs'
+/**
+ * Activity log (design view 20, admins only): every tool and code run across
+ * all bots from the real admin executions API. The design's "Blocked" state
+ * has no source — the API has no blocked status/policy-reason fields — so the
+ * Blocked chip and blocked card are hidden (see UI_V2_PLAN.md). Failed runs
+ * expand into the design's explanation card, backed by the log's real
+ * error/output, with Open the chat (when the run links a chat) and
+ * Cancel (for running executions). Error spotlight and per-bot cost analysis
+ * from the same API stay reachable below the table.
+ */
 
-const statusColors: Record<string, string> = {
-  running: 'text-blue-500',
-  success: 'text-green-500',
-  error: 'text-red-500',
-  timeout: 'text-yellow-500',
-  cancelled: 'text-[var(--color-text-secondary)]',
+type LogFilter = 'all' | 'failed' | 'running'
+type Period = 'today' | '7d' | '30d'
+
+const PERIOD_MS: Record<Exclude<Period, 'today'>, number> = {
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
 }
 
-const statusIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  running: Loader2,
-  success: CheckCircle2,
-  error: XCircle,
-  timeout: Clock,
-  cancelled: StopCircle,
+const LOAD_LIMIT = 200
+
+const FILTERS: { id: LogFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'failed', label: 'Failed' },
+  { id: 'running', label: 'Running' },
+]
+
+function periodFromDate(period: Period): string | undefined {
+  if (period === 'today') {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  return new Date(Date.now() - PERIOD_MS[period]).toISOString()
+}
+
+type RowStatus = 'done' | 'failed' | 'running' | 'cancelled' | 'needs-you'
+
+function rowStatus(log: ExecutionLog): RowStatus {
+  switch (log.status) {
+    case 'error':
+    case 'timeout':
+      return 'failed'
+    case 'cancelled':
+      return 'cancelled'
+    case 'credit_exhausted':
+      return 'needs-you'
+    case 'running':
+      return 'running'
+    default:
+      return 'done'
+  }
+}
+
+const STATUS_META: Record<RowStatus, { label: string; className: string }> = {
+  done: { label: 'Done', className: '' },
+  failed: { label: 'Failed', className: 'v2-log__cell--result--failed' },
+  running: { label: 'Running', className: 'v2-log__cell--result--running' },
+  cancelled: { label: 'Cancelled', className: '' },
+  'needs-you': { label: 'Needs you', className: 'v2-log__cell--result--blocked' },
+}
+
+/** Design duration format: "0.4s" under 10s, "0:41" under an hour, "1:52" beyond. */
+function formatDuration(ms: number | null): string {
+  if (ms == null) return '—'
+  const s = ms / 1000
+  if (s < 10) return `${s.toFixed(1)}s`
+  const whole = Math.round(s)
+  const m = Math.floor(whole / 60)
+  if (m < 60) return `${m}:${String(whole % 60).padStart(2, '0')}`
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+}
+
+function formatTime(d: Date, period: Period): string {
+  const time = d.toLocaleTimeString(undefined, { hour12: false })
+  if (period !== 'today') {
+    return `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`
+  }
+  return time
 }
 
 export function GlobalLogView() {
-  const [tab, setTab] = useState<AdminTab>('logs')
+  const navigate = useNavigate()
+  const { bots } = useBotStore()
   const [logs, setLogs] = useState<ExecutionLog[]>([])
-  const [stats, setStats] = useState<ExecutionStats | null>(null)
+  const [running, setRunning] = useState<ExecutionLog[]>([])
   const [errors, setErrors] = useState<ErrorSpotlight[]>([])
   const [costs, setCosts] = useState<CostEntry[]>([])
-  const [running, setRunning] = useState<ExecutionLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [period, setPeriod] = useState('24h')
-  const [search, setSearch] = useState('')
+  const [loadError, setLoadError] = useState(false)
+  const [filter, setFilter] = useState<LogFilter>('all')
+  const [period, setPeriod] = useState<Period>('today')
+  const [botFilter, setBotFilter] = useState('all')
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  const botById = useMemo(() => new Map(bots.map((b) => [b.id, b])), [bots])
+
+  const load = async () => {
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const fromDate = periodFromDate(period)
+      const [execLogs, runningExecs] = await Promise.all([
+        adminGetExecutions({ fromDate, limit: LOAD_LIMIT }),
+        adminGetRunning(),
+      ])
+      setLogs(execLogs)
+      setRunning(runningExecs)
+    } catch {
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-
-    Promise.all([
-      adminGetExecutions({ limit: 100 }),
-      adminGetStats(period),
-      adminGetRunning(),
-    ]).then(([execLogs, execStats, runningExecs]) => {
-      if (cancelled) return
-      setLogs(execLogs)
-      setStats(execStats)
-      setRunning(runningExecs)
-      setLoading(false)
-    }).catch((err) => {
-      if (!cancelled) {
-        setLoading(false)
-        toast.error(err?.message || 'Failed to load execution logs')
-      }
-    })
-
-    return () => { cancelled = true }
+    void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period])
 
+  // Analytics from the same admin API (kept from the old dashboard)
   useEffect(() => {
-    if (tab === 'errors') {
-      adminGetErrorSpotlight(7).then(setErrors).catch(() => {})
-    } else if (tab === 'costs') {
-      adminGetCostAnalysis(30, 20).then(setCosts).catch(() => {})
-    }
-  }, [tab])
+    adminGetErrorSpotlight(7).then(setErrors).catch(() => {})
+    adminGetCostAnalysis(30, 20).then(setCosts).catch(() => {})
+  }, [])
 
-  const handleCancel = async (execId: string) => {
+  const counts = useMemo(() => {
+    let failed = 0
+    let runningCount = 0
+    for (const log of logs) {
+      const status = rowStatus(log)
+      if (status === 'failed') failed++
+      if (status === 'running') runningCount++
+    }
+    return { failed, running: runningCount }
+  }, [logs])
+
+  // If the last running/failed row disappears while its chip is active, back to All
+  useEffect(() => {
+    if (filter === 'failed' && counts.failed === 0) setFilter('all')
+    if (filter === 'running' && counts.running === 0) setFilter('all')
+  }, [filter, counts.failed, counts.running])
+
+  const filtered = useMemo(() => {
+    return logs
+      .filter((log) => botFilter === 'all' || log.botId === botFilter)
+      .filter((log) => {
+        if (filter === 'all') return true
+        const status = rowStatus(log)
+        if (filter === 'failed') return status === 'failed'
+        return status === 'running'
+      })
+      .sort((a, b) => parseApiDate(b.startedAt).getTime() - parseApiDate(a.startedAt).getTime())
+  }, [logs, filter, botFilter])
+
+  const handleCancel = async (exec: ExecutionLog) => {
     try {
-      await adminCancelExecution(execId)
-      setRunning((prev) => prev.filter((r) => r.id !== execId))
+      await adminCancelExecution(exec.id)
+      setRunning((prev) => prev.filter((r) => r.id !== exec.id))
+      setLogs((prev) => prev.map((l) => (l.id === exec.id ? { ...l, status: 'cancelled' } : l)))
       toast.success('Execution cancelled')
     } catch {
       toast.error('Failed to cancel execution')
@@ -102,6 +195,7 @@ export function GlobalLogView() {
     try {
       const { cancelledCount } = await adminCancelAll()
       setRunning([])
+      setLogs((prev) => prev.map((l) => (l.status === 'running' ? { ...l, status: 'cancelled' } : l)))
       toast.success(`Cancelled ${cancelledCount} executions`)
     } catch {
       toast.error('Failed to cancel all')
@@ -110,7 +204,10 @@ export function GlobalLogView() {
 
   const handleExport = async () => {
     try {
-      const csv = await adminExportCsv()
+      const csv = await adminExportCsv(
+        botFilter !== 'all' ? botFilter : undefined,
+        periodFromDate(period)
+      )
       const blob = new Blob([csv], { type: 'text/csv' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -123,250 +220,273 @@ export function GlobalLogView() {
     }
   }
 
-  const filteredLogs = search
-    ? logs.filter(
-        (l) =>
-          l.sourceName.toLowerCase().includes(search.toLowerCase()) ||
-          l.executionType.toLowerCase().includes(search.toLowerCase()) ||
-          l.status.toLowerCase().includes(search.toLowerCase())
-      )
-    : logs
+  const copyDetails = (log: ExecutionLog) => {
+    const text = JSON.stringify(
+      {
+        id: log.id,
+        botId: log.botId,
+        sourceName: log.sourceName,
+        executionType: log.executionType,
+        sourceType: log.sourceType,
+        status: log.status,
+        trigger: log.trigger,
+        startedAt: log.startedAt,
+        durationMs: log.durationMs,
+        error: log.error,
+        output: log.output,
+        exitCode: log.exitCode,
+        tokensUsed: log.tokensUsed,
+        creditsConsumed: log.creditsConsumed,
+      },
+      null,
+      2
+    )
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast.success('Details copied'))
+      .catch(() => toast.error('Copy failed'))
+  }
 
   return (
-    <div className="global-log">
-      {/* Header */}
-      <div className="global-log-header">
-        <div>
-          <h1 className="global-log-header__title">
-            Execution Dashboard
-          </h1>
-          <p className="global-log-header__subtitle">Global execution logs and analytics</p>
-        </div>
-        <div className="global-log-header__actions">
+    <div className="v2-log">
+      <div className="v2-log__column">
+        <button type="button" className="v2-log__back" onClick={() => navigate('/settings/advanced')}>
+          <ChevronLeft size={14} strokeWidth={1.8} aria-hidden="true" />
+          Settings
+        </button>
+
+        <header className="v2-log__header">
+          <h1 className="v2-log__title">Activity log</h1>
+          <p className="v2-log__subtitle">Every tool and code run, across all bots. Only admins see this.</p>
+        </header>
+
+        {/* Filter chips + dropdowns + export */}
+        <div className="v2-log__toolbar">
+          {FILTERS.map((f) => {
+            const count = f.id === 'failed' ? counts.failed : f.id === 'running' ? counts.running : null
+            // Hidden when nothing matches — the count is real and currently 0
+            if (f.id !== 'all' && count === 0) return null
+            return (
+              <button
+                key={f.id}
+                type="button"
+                className={cn('v2-log__chip', filter === f.id && 'v2-log__chip--active')}
+                onClick={() => setFilter(f.id)}
+              >
+                {f.label}
+                {count != null && ` · ${count}`}
+              </button>
+            )
+          })}
           {running.length > 0 && (
-            <button
-              onClick={handleCancelAll}
-              className="global-log-btn global-log-btn--danger"
-            >
-              <StopCircle className="h-3.5 w-3.5" />
-              Cancel All ({running.length})
+            <button type="button" className="v2-log__chip" onClick={() => void handleCancelAll()}>
+              Cancel all
             </button>
           )}
-          <button
-            onClick={handleExport}
-            className="global-log-btn global-log-btn--secondary"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Stats bar */}
-      {stats && (
-        <div className="global-log-stats">
-          <LogStatCard label="Total Runs" value={stats.totalRuns.toString()} icon={Activity} />
-          <LogStatCard
-            label="Success Rate"
-            value={stats.totalRuns > 0 ? `${Math.round((stats.successCount / stats.totalRuns) * 100)}%` : '0%'}
-            icon={CheckCircle2}
-            color="text-green-500"
-          />
-          <LogStatCard
-            label="Errors"
-            value={stats.errorCount.toString()}
-            icon={AlertCircle}
-            color="text-red-500"
-          />
-          <LogStatCard
-            label="Avg Duration"
-            value={`${Math.round(stats.avgDurationMs)}ms`}
-            icon={Clock}
-          />
-        </div>
-      )}
-
-      {/* Tabs + period selector */}
-      <div className="global-log-tabs">
-        <div className="global-log-tabs__list">
-          {(['logs', 'errors', 'costs'] as AdminTab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                'global-log-tabs__tab',
-                tab === t && 'global-log-tabs__tab--active'
-              )}
-            >
-              {t}
+          <span className="v2-log__toolbar-right">
+            <span className="v2-log__select-wrap">
+              <select
+                className="v2-log__select"
+                value={botFilter}
+                aria-label="Filter by bot"
+                onChange={(e) => setBotFilter(e.target.value)}
+              >
+                <option value="all">All bots</option>
+                {bots.map((bot) => (
+                  <option key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={12} strokeWidth={1.8} aria-hidden="true" />
+            </span>
+            <span className="v2-log__select-wrap">
+              <select
+                className="v2-log__select"
+                value={period}
+                aria-label="Period"
+                onChange={(e) => setPeriod(e.target.value as Period)}
+              >
+                <option value="today">Today</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+              </select>
+              <ChevronDown size={12} strokeWidth={1.8} aria-hidden="true" />
+            </span>
+            <button type="button" className="v2-log__chip" onClick={() => void handleExport()}>
+              Export
             </button>
-          ))}
+          </span>
         </div>
-        <div className="global-log-tabs__controls">
-          {tab === 'logs' && (
-            <div className="global-log-search">
-              <Search className="h-3.5 w-3.5 global-log-search__icon" />
-              <input
-                type="text"
-                placeholder="Search logs..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="global-log-search__input"
-              />
-            </div>
-          )}
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="global-log-select"
-          >
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-          </select>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="global-log-content">
-        {loading ? (
-          <div className="global-log-loading">
-            <Loader2 className="h-5 w-5 animate-spin" />
+        {/* Table */}
+        <section className="v2-log__grid" aria-label="Execution log">
+          <div className="v2-log__head" aria-hidden="true">
+            <span>Time</span>
+            <span>Bot</span>
+            <span>Tool</span>
+            <span>What</span>
+            <span>Result</span>
+            <span className="v2-log__head-took">Took</span>
           </div>
-        ) : (
-          <>
-            {tab === 'logs' && (
-              <div className="global-log-list">
-                {filteredLogs.map((log) => {
-                  const StatusIcon = statusIcons[log.status] || Clock
-                  return (
-                    <div
-                      key={log.id}
-                      className="log-entry"
-                    >
-                      <StatusIcon
-                        className={cn(
-                          'h-4 w-4 log-entry__status-icon',
-                          statusColors[log.status] || 'text-[var(--color-text-secondary)]',
-                          log.status === 'running' && 'animate-spin'
-                        )}
+
+          {loading ? (
+            <div className="v2-log__loading">
+              <Loader2 size={18} strokeWidth={1.8} className="runs__spin" aria-hidden="true" />
+            </div>
+          ) : loadError ? (
+            <div className="v2-log__empty">
+              <p>Couldn't load the activity log.</p>
+              <button type="button" className="v2-btn v2-btn--secondary" onClick={() => void load()}>
+                Try again
+              </button>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="v2-log__empty">
+              {filter !== 'all' || botFilter !== 'all'
+                ? 'No runs match this filter.'
+                : 'No runs in this period.'}
+            </div>
+          ) : (
+            filtered.map((log) => {
+              const bot = botById.get(log.botId)
+              const status = rowStatus(log)
+              const isOpen = openId === log.id
+              return (
+                <div key={log.id}>
+                  <button
+                    type="button"
+                    className={cn('v2-log__row', isOpen && 'v2-log__row--open')}
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenId(isOpen ? null : log.id)}
+                  >
+                    <span className="v2-log__cell--time">
+                      {formatTime(parseApiDate(log.startedAt), period)}
+                    </span>
+                    <span className="v2-log__cell--bot">
+                      <BotAvatar
+                        color={bot?.color}
+                        name={bot?.name ?? 'Unknown bot'}
+                        size={20}
                       />
-                      <div className="log-entry__body">
-                        <div className="flex items-center gap-2">
-                          <span className="log-entry__name">
-                            {log.sourceName}
-                          </span>
-                          <span className="log-entry__type-badge">
-                            {log.executionType}
-                          </span>
-                        </div>
-                        <p className="log-entry__meta">
-                          {log.trigger} - {new Date(log.startedAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="log-entry__metrics">
-                        {log.durationMs != null && <span>{log.durationMs}ms</span>}
-                        {log.tokensUsed > 0 && <span>{log.tokensUsed} tok</span>}
-                        {log.creditsConsumed > 0 && <span>${log.creditsConsumed.toFixed(4)}</span>}
-                      </div>
-                      {log.status === 'running' && (
-                        <button
-                          onClick={() => handleCancel(log.id)}
-                          className="log-entry__cancel"
-                        >
-                          Cancel
-                        </button>
+                      {bot?.name ?? log.botId.slice(0, 8)}
+                    </span>
+                    <span className="v2-log__cell--tool" title={log.executionType}>
+                      {log.executionType}
+                    </span>
+                    <span className="v2-log__cell--what" title={log.sourceName}>
+                      {log.sourceName}
+                    </span>
+                    <span className={cn('v2-log__cell--result', STATUS_META[status].className)}>
+                      {status === 'running' && (
+                        <Loader2 size={12} strokeWidth={1.8} className="runs__spin" aria-hidden="true" />
                       )}
-                    </div>
-                  )
-                })}
-                {filteredLogs.length === 0 && (
-                  <div className="global-log-empty">No execution logs found</div>
-                )}
-              </div>
-            )}
+                      {STATUS_META[status].label}
+                    </span>
+                    <span className="v2-log__cell--took">{formatDuration(log.durationMs)}</span>
+                  </button>
 
-            {tab === 'errors' && (
-              <div className="global-log-errors">
-                {errors.length === 0 ? (
-                  <div className="global-log-empty">No errors in the last 7 days</div>
-                ) : (
-                  errors.map((err, i) => (
-                    <div
-                      key={i}
-                      className="error-entry"
-                    >
-                      <div className="error-entry__header">
-                        <span className="error-entry__type">{err.errorType}</span>
-                        <span className="error-entry__count">
-                          {err.count}x
-                        </span>
+                  {isOpen && (
+                    <div className="v2-log__detail">
+                      {/* The design's explanation card, backed by the real
+                          error/output the API returns */}
+                      {log.error ? (
+                        <pre className="v2-log__detail-pre">{log.error}</pre>
+                      ) : log.output ? (
+                        <pre className="v2-log__detail-pre">{log.output}</pre>
+                      ) : (
+                        <p className="v2-log__detail-text">
+                          {status === 'running'
+                            ? 'This run is still in progress.'
+                            : status === 'cancelled'
+                              ? 'This run was cancelled.'
+                              : 'This run finished without output.'}
+                        </p>
+                      )}
+                      <div className="v2-log__detail-actions">
+                        {log.chatId && (
+                          <button
+                            type="button"
+                            className="v2-btn v2-btn--primary"
+                            onClick={() => navigate(`/${log.botId}/chats/${log.chatId}`)}
+                          >
+                            <MessageSquare size={14} strokeWidth={1.8} aria-hidden="true" />
+                            Open the chat
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="v2-btn v2-btn--secondary"
+                          onClick={() => copyDetails(log)}
+                        >
+                          <Copy size={14} strokeWidth={1.8} aria-hidden="true" />
+                          Copy details
+                        </button>
+                        {status === 'running' && (
+                          <button
+                            type="button"
+                            className="v2-btn v2-btn--secondary"
+                            onClick={() => void handleCancel(log)}
+                          >
+                            <Ban size={14} strokeWidth={1.8} aria-hidden="true" />
+                            Cancel
+                          </button>
+                        )}
                       </div>
-                      <p className="error-entry__meta">
-                        Last seen: {new Date(err.lastSeen).toLocaleString()}
-                      </p>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )
+            })
+          )}
+        </section>
 
-            {tab === 'costs' && (
-              <div className="global-log-costs">
-                {costs.length === 0 ? (
-                  <div className="global-log-empty">No cost data available</div>
-                ) : (
-                  <table className="cost-table">
-                    <thead>
-                      <tr className="cost-table__head-row">
-                        <th className="cost-table__th">Bot</th>
-                        <th className="cost-table__th cost-table__th--right">Executions</th>
-                        <th className="cost-table__th cost-table__th--right">Tokens</th>
-                        <th className="cost-table__th cost-table__th--right">Credits</th>
-                      </tr>
-                    </thead>
-                    <tbody className="cost-table__body">
-                      {costs.map((c, i) => (
-                        <tr key={i}>
-                          <td className="cost-table__td cost-table__td--name">
-                            {c.botName || c.botId}
-                          </td>
-                          <td className="cost-table__td cost-table__td--right">{c.executionCount}</td>
-                          <td className="cost-table__td cost-table__td--right">{c.totalTokens.toLocaleString()}</td>
-                          <td className="cost-table__td cost-table__td--right">${c.totalCredits.toFixed(4)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
+        {/* Error spotlight (real, last 7 days) */}
+        {errors.length > 0 && (
+          <>
+            <h2 className="v2-log__section-title">Errors · last 7 days</h2>
+            <div className="v2-log__errors">
+              {errors.map((err, i) => (
+                <div key={i} className="v2-log__error">
+                  <span className="v2-log__error-type" title={err.errorType}>
+                    {err.errorType}
+                  </span>
+                  <span className="v2-log__error-count">{err.count}&times;</span>
+                  <span className="v2-log__error-seen">
+                    last seen {parseApiDate(err.lastSeen).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
           </>
         )}
-      </div>
-    </div>
-  )
-}
 
-function LogStatCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string
-  value: string
-  icon: React.ComponentType<{ className?: string }>
-  color?: string
-}) {
-  return (
-    <div className="global-log-stat">
-      <div className="global-log-stat__icon-wrap">
-        <Icon className={cn('h-4 w-4', color || 'text-[var(--color-text-secondary)]')} />
-      </div>
-      <div>
-        <p className="global-log-stat__label">{label}</p>
-        <p className="global-log-stat__value">{value}</p>
+        {/* Cost analysis (real, last 30 days) */}
+        {costs.length > 0 && (
+          <>
+            <h2 className="v2-log__section-title">Costs per bot · last 30 days</h2>
+            <table className="v2-log__cost-table">
+              <thead>
+                <tr>
+                  <th>Bot</th>
+                  <th>Executions</th>
+                  <th>Tokens</th>
+                  <th>Credits</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costs.map((c, i) => (
+                  <tr key={`${c.botId}-${i}`}>
+                    <td>{c.botName || c.botId}</td>
+                    <td>{c.executionCount}</td>
+                    <td>{c.totalTokens.toLocaleString()}</td>
+                    <td>${c.totalCredits.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </div>
     </div>
   )

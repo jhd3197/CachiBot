@@ -1,0 +1,409 @@
+// =============================================================================
+// Activity log — styles/v2/activity-log.less
+// Admin execution log (design view 20): filter chips, bot/period dropdowns,
+// grid table with an expandable explanation card for failed runs.
+// Values from docs/design/cachibot-v2-final-views/source/20-activity-log.html
+// =============================================================================
+
+.v2-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.v2-log__column {
+  width: 100%;
+  // Design source (20-activity-log.html): max-width 980px, padding 32px 24px 64px
+  max-width: 980px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 20px 16px 48px;
+  }
+}
+
+.v2-log__back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-start;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+}
+
+.v2-log__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v2-log__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: @font-bold;
+  letter-spacing: -0.02em;
+}
+
+.v2-log__subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: var(--v2-text-secondary);
+}
+
+// ── Toolbar: chips left, dropdowns + export right ────────────────────────────
+
+.v2-log__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+// Chip — 32px tall, 16px radius; active is the design's white pill
+.v2-log__chip {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-text);
+    border-color: var(--v2-text);
+    color: var(--v2-bg-main);
+  }
+}
+
+.v2-log__toolbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+// Native-select chip with our own chevron (same pattern as Runs)
+.v2-log__select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  svg {
+    position: absolute;
+    right: 10px;
+    pointer-events: none;
+    color: var(--v2-text-tertiary);
+  }
+}
+
+.v2-log__select {
+  height: 32px;
+  padding: 0 26px 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  option {
+    background: var(--v2-bg-panel);
+    color: var(--v2-text);
+  }
+}
+
+// ── Table ────────────────────────────────────────────────────────────────────
+
+// Design grid: Time 84 · Bot 150 · Tool 170 · What 1fr · Result 76 · Took 56
+@v2-log-cols: 84px 150px 170px 1fr 76px 56px;
+
+.v2-log__grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2-log__head {
+  display: grid;
+  grid-template-columns: @v2-log-cols;
+  gap: 12px;
+  padding: 0 12px 6px;
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+
+  @media (max-width: (@screen-md - 1px)) {
+    display: none;
+  }
+}
+
+.v2-log__head-took {
+  text-align: right;
+}
+
+.v2-log__row {
+  display: grid;
+  grid-template-columns: @v2-log-cols;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--open,
+  &--open:hover {
+    background: var(--v2-bg-selected);
+  }
+
+  @media (max-width: (@screen-md - 1px)) {
+    grid-template-columns: 64px 110px 1fr 56px;
+    row-gap: 4px;
+
+    .v2-log__cell--tool,
+    .v2-log__cell--took {
+      display: none;
+    }
+  }
+}
+
+.v2-log__cell--time {
+  color: var(--v2-text-tertiary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.v2-log__cell--bot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v2-log__cell--tool {
+  font-family: @font-mono;
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v2-log__cell--what {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v2-log__cell--result {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+
+  &--failed {
+    color: var(--v2-red);
+  }
+
+  &--blocked {
+    color: #fbbf24;
+  }
+
+  &--running {
+    color: #60a5fa;
+  }
+}
+
+.v2-log__cell--took {
+  color: var(--v2-text-tertiary);
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Expanded row: the design's explanation card (real error/output only) ─────
+
+.v2-log__detail {
+  margin: 0 12px 8px 108px;
+  padding: 14px 16px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+  background: var(--v2-bg-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    margin-left: 12px;
+  }
+}
+
+.v2-log__detail-pre {
+  margin: 0;
+  font-family: @font-mono;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--v2-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.v2-log__detail-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.v2-log__detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+// ── Analytics sections below the table (errors spotlight, costs) ─────────────
+
+.v2-log__section-title {
+  margin: 12px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--v2-border);
+  font-size: 15px;
+  font-weight: @font-semibold;
+}
+
+.v2-log__errors {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2-log__error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--v2-radius-row);
+  font-size: 13px;
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+}
+
+.v2-log__error-type {
+  flex: 1;
+  min-width: 0;
+  color: var(--v2-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v2-log__error-count {
+  flex: none;
+  color: var(--v2-red);
+  font-weight: @font-medium;
+}
+
+.v2-log__error-seen {
+  flex: none;
+  color: var(--v2-text-tertiary);
+}
+
+.v2-log__cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--v2-border);
+    text-align: right;
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left;
+  }
+
+  thead th {
+    color: var(--v2-text-tertiary);
+    font-weight: @font-medium;
+    font-size: 12px;
+  }
+
+  tbody td {
+    color: var(--v2-text-secondary);
+  }
+
+  tbody td:first-child {
+    color: var(--v2-text);
+  }
+}
+
+// ── Empty / loading ──────────────────────────────────────────────────────────
+
+.v2-log__empty {
+  padding: 32px 12px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--v2-text-tertiary);
+}
+
+.v2-log__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 12px;
+  color: var(--v2-text-tertiary);
+}
