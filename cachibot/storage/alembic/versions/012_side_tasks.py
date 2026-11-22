@@ -50,6 +50,7 @@ def upgrade() -> None:
         sa.Column("base_commit", sa.String(), nullable=True),
         sa.Column("merged_commit", sa.String(), nullable=True),
         sa.Column("merged_files", sa.JSON(), nullable=False, server_default="[]"),
+        sa.Column("conflict_files", sa.JSON(), nullable=False, server_default="[]"),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column(
             "work_id",

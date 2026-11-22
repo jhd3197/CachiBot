@@ -5,6 +5,7 @@ is mocked; git tests use a real git repo in a tmp dir.
 """
 
 import asyncio
+import shutil
 import subprocess
 import time
 import uuid
@@ -15,13 +16,18 @@ from types import SimpleNamespace
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from tukuy import PythonSandbox
 
 import cachibot.storage.db as db_mod
+from cachibot.config import Config
 from cachibot.models.auth import BotOwnership, UserRole
 from cachibot.models.bot import Bot
 from cachibot.models.chat_model import Chat
 from cachibot.models.group import BotAccessLevel
 from cachibot.models.side_task import SideTask, SideTaskStatus
+from cachibot.plugins.base import PluginContext
+from cachibot.plugins.file_ops import FileOpsPlugin
+from cachibot.services import side_task_worktrees as worktrees
 from cachibot.services.side_task_service import (
     MAX_RUNNING_PER_PARENT,
     SideTaskService,
@@ -40,8 +46,24 @@ from cachibot.storage.user_repository import OwnershipRepository
 
 @pytest.fixture
 async def sqlite_db(tmp_path):
-    """SQLite database in a tmp dir, patched into the shared session maker."""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/test.db", echo=False)
+    """SQLite database in a tmp dir, patched into the shared session maker.
+
+    WAL plus a busy timeout keep concurrent side-task transitions (several
+    can finish at once in E2) from failing with "database is locked".
+    """
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path}/test.db",
+        connect_args={"timeout": 30},
+        echo=False,
+    )
+
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_wal(dbapi_conn, _record) -> None:  # pragma: no cover - plumbing
+        dbapi_conn.execute("PRAGMA journal_mode=WAL")
+        dbapi_conn.execute("PRAGMA synchronous=NORMAL")
+
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     import cachibot.storage.models  # noqa: F401
@@ -80,8 +102,13 @@ class FakeTurn:
 
 
 @pytest.fixture
-def service(sqlite_db, monkeypatch):
-    """Fresh SideTaskService with a mocked agent turn and broadcast."""
+def service(sqlite_db, monkeypatch, tmp_path):
+    """Fresh SideTaskService with a mocked agent turn and broadcast.
+
+    The workspace is a real git repo in a tmp dir and worktrees live under
+    tmp_path too, so E2's worktree creation, path isolation and automatic
+    merge back run for real without touching the developer's repository.
+    """
     svc = SideTaskService()
     fake = FakeTurn()
     broadcasts: list[dict] = []
@@ -97,7 +124,23 @@ def service(sqlite_db, monkeypatch):
 
     monkeypatch.setattr(svc, "_ensure_git_workspace", fake_git_check)
     monkeypatch.setattr("cachibot.services.side_task_service._side_task_service", svc)
-    return SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts)
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    git_init(workspace)
+    git(workspace, "commit", "--allow-empty", "-m", "init")
+
+    def fake_config_load(*args, **kwargs) -> Config:
+        config = Config()
+        config.workspace_path = workspace
+        return config
+
+    monkeypatch.setattr("cachibot.config.Config.load", fake_config_load)
+    monkeypatch.setattr(
+        "cachibot.services.side_task_worktrees.worktrees_base_dir",
+        lambda: tmp_path / "worktrees",
+    )
+    return SimpleNamespace(svc=svc, fake=fake, broadcasts=broadcasts, workspace=workspace)
 
 
 async def wait_for(predicate, timeout: float = 5.0) -> None:
@@ -169,6 +212,33 @@ def git_init(path: Path) -> None:
     subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
 
 
+def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    """Run git in a tmp repo with a test identity."""
+    return subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Tester",
+            "-c",
+            "user.email=tester@localhost",
+            "-C",
+            str(repo),
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        check=check,
+    )
+
+
+def commit_file(repo: Path, name: str, content: str, message: str | None = None) -> str:
+    """Write and commit a file in a tmp repo. Returns the new commit sha."""
+    (repo / name).write_text(content)
+    git(repo, "add", name)
+    git(repo, "commit", "-m", message or f"change {name}")
+    return git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
 # ---------------------------------------------------------------------------
 # Service tests: start, queue limit, FIFO promotion
 # ---------------------------------------------------------------------------
@@ -208,6 +278,7 @@ class TestStartAndQueue:
 
         first_line = long_prompt.strip().splitlines()[0]
         assert st.title == first_line[:59].rstrip() + "…"
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
 
     async def test_start_missing_parent_fails(self, service):
         bot_id = await make_bot()
@@ -269,6 +340,18 @@ class TestStartAndQueue:
 
         assert st_b.status == SideTaskStatus.RUNNING
 
+        # Let everything settle so nothing is left running past this test
+        service.fake.gate.set()
+
+        async def all_settled() -> bool:
+            a_running = await service.svc._repo.get_running_for_parent(parent_a.id)
+            b_running = await service.svc._repo.get_running_for_parent(parent_b.id)
+            a_waiting = await service.svc._repo.get_oldest_waiting_for_parent(parent_a.id)
+            b_waiting = await service.svc._repo.get_oldest_waiting_for_parent(parent_b.id)
+            return not (a_running or b_running or a_waiting or b_waiting)
+
+        await wait_for(all_settled)
+
 
 # ---------------------------------------------------------------------------
 # Service tests: stop, cascade, failure, needs_you / resume
@@ -313,6 +396,10 @@ class TestStopAndNeedsYou:
         latest = await SideTaskRepository().get(waiting.id)
         assert latest.status == SideTaskStatus.STOPPED
 
+        # Let the running ones settle, so nothing is left in flight
+        for st in tasks[:MAX_RUNNING_PER_PARENT]:
+            await wait_for(lambda sid=st.id: status_is(sid, SideTaskStatus.DONE))
+
     async def test_stop_all_for_parent_cascades(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
@@ -334,6 +421,10 @@ class TestStopAndNeedsYou:
             await wait_for(lambda sid=st.id: status_is(sid, SideTaskStatus.STOPPED))
         # The other parent's side task keeps running
         assert not await status_is(theirs.id, SideTaskStatus.STOPPED)
+
+        # Let it settle too, so nothing is left in flight for the next test
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(theirs.id, SideTaskStatus.DONE))
 
     async def test_failure_marks_failed_and_records_error(self, service):
         bot_id = await make_bot()
@@ -470,6 +561,8 @@ class TestRestartResume:
 
         await wait_for(lambda: len(service.fake.calls) == 2)
         assert set(service.fake.calls) == {a1.id, b1.id}
+        await wait_for(lambda: status_is(a1.id, SideTaskStatus.DONE))
+        await wait_for(lambda: status_is(b1.id, SideTaskStatus.DONE))
 
 
 # ---------------------------------------------------------------------------
@@ -506,6 +599,9 @@ class TestGitRequired:
 
         st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Task")
         assert st.status == SideTaskStatus.RUNNING
+        # The tmp repo has no commits, so the worktree step fails and the
+        # side task lands on failed — wait for it so nothing outlives the test
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.FAILED))
 
 
 # ---------------------------------------------------------------------------
@@ -619,6 +715,10 @@ class TestSideTaskApi:
         assert resp.status_code == 200
         assert resp.json()["status"] == "done"
 
+        # The other parent's side task settles too
+        others = await SideTaskRepository().get_by_bot(bot_id, parent_chat_id=other_parent.id)
+        await wait_for(lambda: status_is(others[0].id, SideTaskStatus.DONE))
+
     async def test_stop_running_via_api(self, st_client, auth_service, service):
         from tests.conftest import create_test_user
 
@@ -676,6 +776,9 @@ class TestSideTaskApi:
             headers=headers,
         )
         assert resp.status_code == 400
+
+        # The started side task settles on its own
+        await wait_for(lambda: status_is(side.id, SideTaskStatus.DONE))
 
     async def test_start_requires_git_workspace(
         self, st_client, auth_service, service, tmp_path, monkeypatch
@@ -963,3 +1066,557 @@ class TestResumePromptPersistence:
         # The answer is seeded and the run continues the conversation
         assert ("user", "Use version 2.0") in fake_agent_factory.conversation.seeded
         assert fake_agent_factory.run_messages[0].startswith("Continue this side task")
+
+
+# ---------------------------------------------------------------------------
+# E2: git worktrees, path isolation, automatic merge back
+# ---------------------------------------------------------------------------
+
+
+async def _start_gated(service, bot_id: str, parent: Chat, title: str = "Task") -> SideTask:
+    """Start a side task whose (mocked) turn blocks until the gate is set."""
+    service.fake.gate = asyncio.Event()
+    st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt=title, title=title)
+    await wait_for(lambda: len(service.fake.calls) == 1)
+    return st
+
+
+async def _worktree_of(side_task_id: str) -> Path | None:
+    latest = await SideTaskRepository().get(side_task_id)
+    return Path(latest.worktree_path) if latest and latest.worktree_path else None
+
+
+async def _conflicted_side_task(
+    service, bot_id: str, parent: Chat, title: str
+) -> tuple[SideTask, str]:
+    """Run a side task into needs_you (merge_conflict) against the parent.
+
+    file.txt must already exist in the workspace. The side task rewrites it
+    in its worktree; the parent commits a conflicting rewrite; the automatic
+    merge back then conflicts. Returns (side task, parent HEAD sha before
+    the merge attempt).
+    """
+    gate = asyncio.Event()
+
+    async def turn(st: SideTask) -> None:
+        Path(st.worktree_path, "file.txt").write_text(f"{title} side\n")
+        await gate.wait()
+
+    service.svc._execute_turn = turn
+    st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt=title, title=title)
+
+    async def side_file_written() -> bool:
+        wt = await _worktree_of(st.id)
+        return wt is not None and (wt / "file.txt").exists()
+
+    await wait_for(side_file_written)
+    commit_file(service.workspace, "file.txt", f"{title} parent\n", f"{title} parent change")
+    parent_head = git(service.workspace, "rev-parse", "HEAD").stdout.strip()
+    gate.set()
+    await wait_for(lambda: status_is(st.id, SideTaskStatus.NEEDS_YOU))
+    return st, parent_head
+
+
+class TestWorktrees:
+    async def test_worktree_created_on_start_outside_repo(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = await _start_gated(service, bot_id, parent, "Update the changelog")
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.worktree_path and latest.branch and latest.base_commit
+        wt = Path(latest.worktree_path)
+
+        # Under the CachiBot worktrees dir, never inside the user's repo
+        assert wt.parent == service.workspace.parent / "worktrees"
+        assert service.workspace not in wt.parents
+        assert wt.is_dir()
+
+        # On its own side/<slug>-<short id> branch from the workspace HEAD
+        assert latest.branch.startswith("side/update-the-changelog-")
+        assert len(latest.branch.rsplit("-", 1)[-1]) == 8
+        assert git(wt, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == latest.branch
+        parent_head = git(service.workspace, "rev-parse", "HEAD").stdout.strip()
+        assert latest.base_commit == parent_head
+        assert git(wt, "rev-parse", "HEAD").stdout.strip() == parent_head
+
+        # An independent checkout: its toplevel is the worktree, and the
+        # parent repo stays clean (no worktree files leak in as untracked)
+        assert Path(git(wt, "rev-parse", "--show-toplevel").stdout.strip()) == wt
+        assert git(service.workspace, "status", "--porcelain").stdout == ""
+
+        # After a no-change turn: done, worktree and branch cleaned up
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.merged_files == []
+        assert not wt.exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+
+    async def test_resume_reuses_existing_worktree(self, service):
+        """needs_you -> resume keeps the same worktree, uncommitted work intact."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = await _start_gated(service, bot_id, parent, "Keep working")
+        wt = await _worktree_of(st.id)
+        sentinel = wt / "draft.txt"
+        sentinel.write_text("uncommitted work\n")
+
+        await service.svc.mark_needs_you(st.id, "Which version?")
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.NEEDS_YOU))
+
+        resumed = await service.svc.resume(st.id)
+        assert resumed is not None and resumed.status == SideTaskStatus.RUNNING
+        await wait_for(lambda: len(service.fake.calls) == 2)
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.worktree_path == str(wt)
+        assert sentinel.exists()  # same worktree, work not reset
+        entries = git(service.workspace, "worktree", "list", "--porcelain").stdout
+        assert entries.count(f"worktree {wt}\n") == 1
+
+        # Finishing the resumed turn brings the uncommitted draft back too
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.MERGED))
+        latest = await SideTaskRepository().get(st.id)
+        assert {f["path"] for f in latest.merged_files} == {"draft.txt"}
+        assert (service.workspace / "draft.txt").read_text() == "uncommitted work\n"
+
+    async def test_restart_resume_reuses_existing_worktree(self, service):
+        """A running side task survives a server restart: same worktree."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n")
+
+        # The record as it looks after a crash: running, worktree already
+        # created (with uncommitted work inside)
+        st = SideTask(
+            id=str(uuid.uuid4()),
+            bot_id=bot_id,
+            parent_chat_id=parent.id,
+            chat_id=str(uuid.uuid4()),
+            title="Survivor",
+            prompt="Survive the restart",
+            status=SideTaskStatus.RUNNING,
+            started_at=datetime.now(timezone.utc),
+        )
+        await make_chat(bot_id, parent_chat_id=parent.id, title=st.title)
+        path, branch, base = worktrees.create_worktree(service.workspace, st)
+        st.worktree_path, st.branch, st.base_commit = str(path), branch, base
+        await SideTaskRepository().save(st)
+        (path / "draft.txt").write_text("work in progress\n")
+
+        service.fake.gate = asyncio.Event()
+        await service.svc.resume_on_startup()
+        await wait_for(lambda: len(service.fake.calls) == 1)
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.worktree_path == str(path)  # reused, not recreated
+        assert (path / "draft.txt").exists()
+        entries = git(service.workspace, "worktree", "list", "--porcelain").stdout
+        assert entries.count(f"worktree {path}\n") == 1
+
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.MERGED))
+        assert (service.workspace / "draft.txt").read_text() == "work in progress\n"
+
+    async def test_restart_recreates_missing_worktree(self, service):
+        """Worktree dir gone while the branch lives: recreated on resume."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = SideTask(
+            id=str(uuid.uuid4()),
+            bot_id=bot_id,
+            parent_chat_id=parent.id,
+            chat_id=str(uuid.uuid4()),
+            title="Rebuild",
+            prompt="Rebuild the worktree",
+            status=SideTaskStatus.RUNNING,
+            started_at=datetime.now(timezone.utc),
+        )
+        await make_chat(bot_id, parent_chat_id=parent.id, title=st.title)
+        path, branch, base = worktrees.create_worktree(service.workspace, st)
+        tip = git(path, "rev-parse", "HEAD").stdout.strip()
+        shutil.rmtree(path)
+        st.worktree_path, st.branch, st.base_commit = str(path), branch, base
+        await SideTaskRepository().save(st)
+
+        service.fake.gate = asyncio.Event()
+        await service.svc.resume_on_startup()
+        await wait_for(lambda: len(service.fake.calls) == 1)
+
+        assert path.is_dir()
+        assert git(path, "rev-parse", "HEAD").stdout.strip() == tip
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+
+class TestPathIsolation:
+    async def test_agent_config_scoped_to_worktree(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = await _start_gated(service, bot_id, parent, "Scoped work")
+        latest = await SideTaskRepository().get(st.id)
+        wt = Path(latest.worktree_path)
+
+        config = service.svc._config_for(latest)
+        assert config.workspace_path == wt
+        assert config.workspace_path != service.workspace
+        # The global config object is never mutated
+        assert Config.load().workspace_path == service.workspace
+
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+    async def test_file_tool_writes_into_worktree_not_parent(self, service):
+        """A file written through the side task's file tool lands in the
+        worktree, never in the parent workspace."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = await _start_gated(service, bot_id, parent, "Write notes")
+        latest = await SideTaskRepository().get(st.id)
+        config = service.svc._config_for(latest)
+        wt = Path(latest.worktree_path)
+
+        sandbox = PythonSandbox(allowed_read_paths=[str(wt)], allowed_write_paths=[str(wt)])
+        plugin = FileOpsPlugin(PluginContext(config=config, sandbox=sandbox))
+        write = plugin._skills_map["file_write"].fn
+
+        result = write("notes.txt", "side notes\n")
+        assert result == "Successfully wrote to notes.txt"
+        assert (wt / "notes.txt").read_text() == "side notes\n"
+        assert not (service.workspace / "notes.txt").exists()
+
+        # The parent workspace is outside the side task's workspace: refused
+        denied = write(str(service.workspace / "evil.txt"), "nope")
+        assert "outside the workspace" in denied
+        assert not (service.workspace / "evil.txt").exists()
+
+        # The file written through the tool is brought back by the merge
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.MERGED))
+        latest = await SideTaskRepository().get(st.id)
+        assert {f["path"] for f in latest.merged_files} == {"notes.txt"}
+        assert (service.workspace / "notes.txt").read_text() == "side notes\n"
+
+
+class TestMergeBack:
+    async def test_clean_merge_records_commit_and_files_and_cleans_up(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        async def turn(st: SideTask) -> None:
+            Path(st.worktree_path, "new.txt").write_text("hello\n")
+            Path(st.worktree_path, "file.txt").write_text("changed\n")
+
+        service.svc._execute_turn = turn
+        st = await service.svc.start(
+            parent_chat_id=parent.id, bot_id=bot_id, prompt="Add things", title="Add things"
+        )
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.MERGED))
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.status == SideTaskStatus.MERGED
+        assert latest.merged_commit == git(service.workspace, "rev-parse", "HEAD").stdout.strip()
+        # The merge commit really is a merge (commit + two parents)
+        parents = git(service.workspace, "rev-list", "--parents", "-n", "1", "HEAD").stdout.split()
+        assert len(parents) == 3
+        assert {f["path"]: f["status"] for f in latest.merged_files} == {
+            "new.txt": "added",
+            "file.txt": "modified",
+        }
+        assert latest.conflict_files == []
+
+        assert (service.workspace / "new.txt").read_text() == "hello\n"
+        assert (service.workspace / "file.txt").read_text() == "changed\n"
+
+        # Worktree removed, branch deleted, parent repo clean
+        assert not Path(latest.worktree_path).exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+        assert git(service.workspace, "status", "--porcelain").stdout == ""
+
+    async def test_no_changes_marks_done_and_cleans_up(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+
+        st = await service.svc.start(
+            parent_chat_id=parent.id, bot_id=bot_id, prompt="Nothing to do", title="No changes"
+        )
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.merged_commit is None
+        assert latest.merged_files == []
+        assert not Path(latest.worktree_path).exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+
+    async def test_conflict_leaves_parent_untouched_and_needs_you(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, parent_head = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.status == SideTaskStatus.NEEDS_YOU
+        assert latest.needs_you_reason == "merge_conflict"
+        assert latest.conflict_files == ["file.txt"]
+        assert latest.merged_commit is None
+        assert latest.merged_files == []
+        assert latest.finished_at is None  # still resolvable, not terminal
+
+        # The parent tree ended exactly as before the merge attempt
+        assert (service.workspace / "file.txt").read_text() == "Docs update parent\n"
+        assert git(service.workspace, "rev-parse", "HEAD").stdout.strip() == parent_head
+        assert git(service.workspace, "status", "--porcelain").stdout == ""
+
+        # No work lost: branch and worktree kept, side change still in place
+        assert latest.branch in git(service.workspace, "branch", "--list", "side/*").stdout
+        wt = Path(latest.worktree_path)
+        assert wt.is_dir()
+        assert (wt / "file.txt").read_text() == "Docs update side\n"
+
+    async def test_conflict_from_dirty_parent_refuses_cleanly(self, service):
+        """git refusing (uncommitted parent changes in the same file) is
+        surfaced the same way as a content conflict."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        gate = asyncio.Event()
+
+        async def turn(st: SideTask) -> None:
+            Path(st.worktree_path, "file.txt").write_text("side version\n")
+            await gate.wait()
+
+        service.svc._execute_turn = turn
+        st = await service.svc.start(
+            parent_chat_id=parent.id, bot_id=bot_id, prompt="Touch file", title="Touch file"
+        )
+
+        async def side_file_written() -> bool:
+            wt = await _worktree_of(st.id)
+            return wt is not None and (wt / "file.txt").read_text() == "side version\n"
+
+        await wait_for(side_file_written)
+        # Parent modifies the same file without committing
+        (service.workspace / "file.txt").write_text("dirty parent\n")
+        gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.NEEDS_YOU))
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.needs_you_reason == "merge_conflict"
+        assert latest.conflict_files == ["file.txt"]
+        # Parent working tree untouched, still dirty with the local content
+        assert (service.workspace / "file.txt").read_text() == "dirty parent\n"
+        # (leading space = modified but NOT staged; strip() would hide that)
+        assert git(service.workspace, "status", "--porcelain").stdout == " M file.txt\n"
+
+    async def test_retry_merge_after_resolving(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, _ = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+
+        # The user resolves in the side worktree: converge to the parent's
+        # content (left uncommitted on purpose — retry-merge commits it)
+        wt = await _worktree_of(st.id)
+        (wt / "file.txt").write_text("Docs update parent\n")
+
+        merged = await service.svc.retry_merge(st.id)
+        assert merged is not None
+        assert merged.status == SideTaskStatus.MERGED
+        assert merged.merged_commit == git(service.workspace, "rev-parse", "HEAD").stdout.strip()
+        assert {f["path"]: f["status"] for f in merged.merged_files} == {"file.txt": "modified"}
+        assert merged.conflict_files == []
+        assert (service.workspace / "file.txt").read_text() == "Docs update parent\n"
+
+        # Cleaned up after the successful retry
+        assert not wt.exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+
+    async def test_retry_merge_conflict_again_stays_needs_you(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, parent_head = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+
+        still = await service.svc.retry_merge(st.id)
+        assert still is not None
+        assert still.status == SideTaskStatus.NEEDS_YOU
+        assert still.conflict_files == ["file.txt"]
+        # Parent unchanged, work preserved
+        assert git(service.workspace, "rev-parse", "HEAD").stdout.strip() == parent_head
+        assert (await _worktree_of(st.id)).is_dir()
+
+    async def test_discard_needs_you_removes_worktree_and_branch(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, _ = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+        wt = await _worktree_of(st.id)
+
+        discarded = await service.svc.discard(st.id)
+        assert discarded is not None
+        assert discarded.status == SideTaskStatus.STOPPED
+        assert discarded.finished_at is not None
+        assert not wt.exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+        # Discarding never touches the parent's files
+        assert (service.workspace / "file.txt").read_text() == "Docs update parent\n"
+
+    async def test_discard_rejected_for_running(self, service):
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        st = await _start_gated(service, bot_id, parent, "Running task")
+
+        with pytest.raises(SideTaskStartError, match="discarded"):
+            await service.svc.discard(st.id)
+
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+
+class TestMergeBackApi:
+    async def _auth_client(self, st_client, auth_service):
+        from tests.conftest import create_test_user
+
+        user, _ = await create_test_user(auth_service, email="op@test.com", username="op")
+        token = auth_service.create_access_token(user.id, UserRole.USER.value)
+        bot_id = await make_bot(user.id)
+        parent = await make_chat(bot_id)
+        headers = {"Authorization": f"Bearer {token}"}
+        return headers, bot_id, parent
+
+    async def test_get_returns_worktree_and_merge_fields(self, st_client, auth_service, service):
+        headers, bot_id, parent = await self._auth_client(st_client, auth_service)
+
+        async def turn(st: SideTask) -> None:
+            Path(st.worktree_path, "brought.txt").write_text("back\n")
+
+        service.svc._execute_turn = turn
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/chats/{parent.id}/side-tasks",
+            json={"prompt": "Bring a file back", "title": "Bring a file back"},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        side_task_id = resp.json()["id"]
+        await wait_for(lambda: status_is(side_task_id, SideTaskStatus.MERGED))
+
+        resp = await st_client.get(f"/api/bots/{bot_id}/side-tasks/{side_task_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["branch"].startswith("side/bring-a-file-back-")
+        assert data["baseCommit"] == git(service.workspace, "rev-parse", "HEAD~1").stdout.strip()
+        assert data["mergedCommit"] == git(service.workspace, "rev-parse", "HEAD").stdout.strip()
+        assert data["mergedFiles"] == [{"path": "brought.txt", "status": "added"}]
+        assert data["conflictFiles"] == []
+
+    async def test_retry_merge_endpoint_conflict_then_resolved(
+        self, st_client, auth_service, service
+    ):
+        headers, bot_id, parent = await self._auth_client(st_client, auth_service)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, _ = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+
+        # Retrying without resolving: still needs you, conflicts reported
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{st.id}/retry-merge", headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "needs_you"
+        assert resp.json()["conflictFiles"] == ["file.txt"]
+
+        # Resolve in the worktree and retry: merged
+        wt = await _worktree_of(st.id)
+        (wt / "file.txt").write_text("Docs update parent\n")
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{st.id}/retry-merge", headers=headers
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "merged"
+        assert data["mergedCommit"]
+        assert data["mergedFiles"] == [{"path": "file.txt", "status": "modified"}]
+
+    async def test_discard_endpoint(self, st_client, auth_service, service):
+        headers, bot_id, parent = await self._auth_client(st_client, auth_service)
+        commit_file(service.workspace, "file.txt", "base\n", "add file")
+
+        st, _ = await _conflicted_side_task(service, bot_id, parent, "Docs update")
+        wt = await _worktree_of(st.id)
+
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{st.id}/discard", headers=headers
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "stopped"
+        assert not wt.exists()
+        assert git(service.workspace, "branch", "--list", "side/*").stdout == ""
+
+    async def test_retry_merge_and_discard_require_operator(self, st_client, auth_service, service):
+        from tests.conftest import create_test_user
+
+        owner, _ = await create_test_user(auth_service, email="own@test.com", username="own")
+        viewer, _ = await create_test_user(auth_service, email="view@test.com", username="view")
+        viewer_token = auth_service.create_access_token(viewer.id, viewer.role.value)
+        bot_id = await make_bot(owner.id)
+        group = await GroupRepository().create_group("Viewers", created_by=owner.id)
+        await GroupRepository().add_member(group.id, viewer.id)
+        await BotAccessRepository().share_bot(
+            bot_id, group.id, BotAccessLevel.VIEWER, granted_by=owner.id
+        )
+        headers = {"Authorization": f"Bearer {viewer_token}"}
+
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{uuid.uuid4()}/retry-merge", headers=headers
+        )
+        assert resp.status_code == 403
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{uuid.uuid4()}/discard", headers=headers
+        )
+        assert resp.status_code == 403
+
+    async def test_retry_merge_rejected_when_not_conflicted(self, st_client, auth_service, service):
+        headers, bot_id, parent = await self._auth_client(st_client, auth_service)
+
+        st = await service.svc.start(
+            parent_chat_id=parent.id, bot_id=bot_id, prompt="Fine", title="Fine"
+        )
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{st.id}/retry-merge", headers=headers
+        )
+        assert resp.status_code == 400
+
+    async def test_discard_rejected_for_running(self, st_client, auth_service, service):
+        headers, bot_id, parent = await self._auth_client(st_client, auth_service)
+        await _start_gated(service, bot_id, parent, "Running task")
+        st = await SideTaskRepository().get_by_bot(bot_id)
+        side_task_id = st[0].id
+
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{side_task_id}/discard", headers=headers
+        )
+        assert resp.status_code == 400
+
+        service.fake.gate.set()
+        await wait_for(lambda: status_is(side_task_id, SideTaskStatus.DONE))
+
+    async def test_unknown_id_returns_404(self, st_client, auth_service, service):
+        headers, bot_id, _parent = await self._auth_client(st_client, auth_service)
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{uuid.uuid4()}/retry-merge", headers=headers
+        )
+        assert resp.status_code == 404
+        resp = await st_client.post(
+            f"/api/bots/{bot_id}/side-tasks/{uuid.uuid4()}/discard", headers=headers
+        )
+        assert resp.status_code == 404

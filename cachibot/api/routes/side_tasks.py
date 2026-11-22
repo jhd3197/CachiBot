@@ -48,6 +48,7 @@ class SideTaskResponse(BaseModel):
     baseCommit: str | None
     mergedCommit: str | None
     mergedFiles: list[dict[str, object]]
+    conflictFiles: list[str]
     error: str | None
     workId: str | None
     createdAt: str
@@ -143,3 +144,54 @@ async def stop_side_task(
     if stopped is None:
         raise HTTPException(status_code=404, detail="Side task not found")
     return StopSideTaskResponse(id=stopped.id, status=stopped.status.value)
+
+
+@router.post("/side-tasks/{side_task_id}/retry-merge", status_code=200)
+async def retry_merge_side_task(
+    bot_id: str,
+    side_task_id: str,
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
+) -> SideTaskResponse:
+    """Retry merging back a side task that waits on a merge conflict.
+
+    For after the user fixed things in either tree: pending changes in the
+    worktree are committed and the merge is attempted again. Stays
+    ``needs_you`` (with the updated conflict paths) when it conflicts again.
+    """
+    existing = await side_task_repo.get(side_task_id)
+    if existing is None or existing.bot_id != bot_id:
+        raise HTTPException(status_code=404, detail="Side task not found")
+
+    service = get_side_task_service()
+    try:
+        side_task = await service.retry_merge(side_task_id)
+    except SideTaskStartError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if side_task is None:
+        raise HTTPException(status_code=404, detail="Side task not found")
+    return SideTaskResponse.from_side_task(side_task)
+
+
+@router.post("/side-tasks/{side_task_id}/discard", status_code=200)
+async def discard_side_task(
+    bot_id: str,
+    side_task_id: str,
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
+) -> SideTaskResponse:
+    """Discard a stopped, failed or needs_you side task for good.
+
+    Removes its worktree and force-deletes its branch (the only place a
+    side branch is force-deleted) and marks it stopped.
+    """
+    existing = await side_task_repo.get(side_task_id)
+    if existing is None or existing.bot_id != bot_id:
+        raise HTTPException(status_code=404, detail="Side task not found")
+
+    service = get_side_task_service()
+    try:
+        side_task = await service.discard(side_task_id)
+    except SideTaskStartError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if side_task is None:
+        raise HTTPException(status_code=404, detail="Side task not found")
+    return SideTaskResponse.from_side_task(side_task)

@@ -64,6 +64,7 @@ class SideTask(Base):
     merged_files: Mapped[list[dict[str, Any]]] = mapped_column(
         sa.JSON, nullable=False, server_default="[]"
     )
+    conflict_files: Mapped[list[str]] = mapped_column(sa.JSON, nullable=False, server_default="[]")
 
     # Results
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
