@@ -2,21 +2,32 @@ import { useState, useEffect } from 'react'
 import { ShieldAlert, AlertTriangle, Code } from 'lucide-react'
 import { Button } from '../common/Button'
 import { getPendingApproval, onPendingApprovalChange } from '../../hooks/useWebSocket'
+import { useApprovalsStore } from '../../stores/approvals'
 import { cn } from '../../lib/utils'
 import type { ApprovalPayload } from '../../types'
 
 interface ApprovalDialogProps {
   onApprove: (id: string, approved: boolean) => void
+  /**
+   * Chat whose approvals are answered inline (UI v2 Approval card). The
+   * dialog stays mounted as the fallback for approvals in other chats.
+   */
+  suppressChatId?: string | null
 }
 
-export function ApprovalDialog({ onApprove }: ApprovalDialogProps) {
+export function ApprovalDialog({ onApprove, suppressChatId }: ApprovalDialogProps) {
   const [pendingApproval, setPendingApproval] = useState<ApprovalPayload | null>(getPendingApproval())
+  // The approvals store records which chat each approval belongs to
+  const approvalChatId = useApprovalsStore((s) =>
+    pendingApproval ? s.pending.find((a) => a.id === pendingApproval.id)?.chatId : undefined
+  )
 
   useEffect(() => {
     return onPendingApprovalChange(setPendingApproval)
   }, [])
 
-  if (!pendingApproval) return null
+  // This approval is rendered inline in the visible chat — don't double-prompt
+  if (!pendingApproval || (suppressChatId && approvalChatId === suppressChatId)) return null
 
   const { id, tool, action, details } = pendingApproval
   const riskLevel = details.riskLevel || 'UNKNOWN'

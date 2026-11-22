@@ -52,6 +52,16 @@ export function onPendingApprovalChange(fn: (approval: ApprovalPayload | null) =
   }
 }
 
+// Sends add the user bubble locally right away; the server also echoes the
+// user message back over WS (`run_agent`). Swallow echoes matching a locally
+// added send so every send shows exactly one user message — including error
+// paths where the run dies before the server's own echo ever goes out.
+const pendingUserEchoes: Array<{ chatId: string; content: string }> = []
+
+export function expectUserEcho(chatId: string, content: string) {
+  pendingUserEchoes.push({ chatId, content })
+}
+
 /**
  * Set the pending chat ID via the store.
  * Exported for use outside of React components (e.g. ChatView).
@@ -128,6 +138,17 @@ export function useWebSocket() {
           const payload = msg.payload as MessagePayload
           // Attribute to the running chat (fallback: current/pending chat)
           const chatId = runContextRef.current?.chatId || activeChatIdRef.current || useChatStore.getState().pendingChatId
+          // User message echo: drop it when the bubble was already added
+          // locally for this send (normal send, retry, edit-and-resend).
+          if (payload.role === 'user' && !payload.messageId) {
+            const echoIdx = pendingUserEchoes.findIndex(
+              (e) => e.chatId === chatId && e.content === payload.content
+            )
+            if (echoIdx >= 0) {
+              pendingUserEchoes.splice(echoIdx, 1)
+              break
+            }
+          }
           if (chatId) {
             const messageId = payload.messageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`
             // Accumulate assistant messages by messageId (streaming)
@@ -169,6 +190,7 @@ export function useWebSocket() {
             chatId: runContextRef.current?.chatId ?? activeChatIdRef.current ?? useChatStore.getState().pendingChatId,
             tool: payload.tool,
             action: payload.action,
+            code: payload.details?.code,
             receivedAt: Date.now(),
           })
           break
@@ -240,11 +262,14 @@ export function useWebSocket() {
           const payload = msg.payload as ScheduledNotificationPayload
           console.log('[WS] Scheduled notification:', payload)
           if (payload.chatId) {
+            // Flagged with `scheduled` so the chat renders it as the v2
+            // "Routine result" line (clock icon above the bubble).
             addMessage(payload.chatId, {
               id: `sched-${Date.now()}-${Math.random().toString(36).slice(2)}`,
               role: 'assistant',
-              content: `[Scheduled] ${payload.content}`,
+              content: payload.content,
               timestamp: new Date().toISOString(),
+              metadata: { scheduled: true },
             })
           }
           break
@@ -392,7 +417,6 @@ export function useWebSocket() {
 
         case 'error': {
           const payload = msg.payload as ErrorPayload
-          setError(payload.message)
           setLoading(false)
 
           // Persist accumulated thinking before clearing
@@ -412,6 +436,9 @@ export function useWebSocket() {
           clearToolCalls()
           useChatStore.getState().setPendingChatId(null)
           useApprovalsStore.getState().clearForChat(errChatId || '')
+          // Surface the real error payload (message + code) on the chat that
+          // owned the failed run so the view can render the failed-turn card.
+          setError({ message: payload.message, code: payload.code, chatId: errChatId })
           runContextRef.current = null
           setRunContext(null)
           break
@@ -469,7 +496,7 @@ export function useWebSocket() {
       useChatStore.getState().setThinking(null)
     })
     const unsubError = wsClient.onError(() => {
-      setError('WebSocket connection error')
+      setError({ message: 'WebSocket connection error' })
     })
 
     // Small delay to avoid React StrictMode double-mount issues

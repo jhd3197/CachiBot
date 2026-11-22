@@ -193,6 +193,13 @@ export const useBotStore = create<BotState>()(
 // CHAT STORE (Enhanced)
 // =============================================================================
 
+/** Error from the real WS `error` event, attributed to the run's chat. */
+export interface ChatRunError {
+  message: string
+  code?: string
+  chatId?: string | null
+}
+
 interface ChatState {
   chats: Chat[]
   activeChatId: string | null
@@ -201,7 +208,7 @@ interface ChatState {
   toolCalls: ToolCall[]
   instructionDeltas: Record<string, string>
   isLoading: boolean
-  error: string | null
+  error: ChatRunError | null
   replyToMessage: ChatMessage | null
   pendingChatId: string | null
 
@@ -239,7 +246,7 @@ interface ChatState {
   attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
   attachThinkingToLastMessage: (chatId: string, thinking: string) => void
   setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
+  setError: (error: ChatRunError | null) => void
 }
 
 export const useChatStore = create<ChatState>()(
