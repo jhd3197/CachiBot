@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity } from 'lucide-react'
 import { BotListSidebar } from './BotListSidebar'
 import {
   ChatView,
@@ -8,6 +8,7 @@ import {
   ToolsView,
   SettingsView,
   DashboardView,
+  WorkspaceView,
   AppSettingsView,
   WorkView,
   VoiceView,
@@ -22,6 +23,7 @@ import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
 import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
+import { BotAvatar } from '../common/Avatar'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
@@ -30,12 +32,16 @@ import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
+import { useApprovalsStore } from '../../stores/approvals'
+import { useWebSocket, setPendingApproval } from '../../hooks/useWebSocket'
+import { wsClient } from '../../api/websocket'
 import { cn } from '../../lib/utils'
 import type { AppView, BotView } from '../../types'
 
 // Map URL paths to app views
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
+  '/dashboard/usage': 'dashboard-usage',
   '/settings': 'settings',
   '/admin/logs': 'admin-logs',
 }
@@ -73,6 +79,16 @@ export function MainLayout() {
   const { refresh: refreshModels } = useModelsStore()
   const { providers, refresh: refreshProviders } = useProvidersStore()
   const { hasCompletedOnboarding } = useOnboardingStore()
+  // App-level agent connection: one WebSocket for the whole shell, so agent
+  // runs (and their approvals) stay alive while navigating to Workspace etc.
+  const { sendMessage, cancel, isConnected, runContext } = useWebSocket()
+
+  // Answer approval requests from the global dialog (any view)
+  const handleApprove = (id: string, approved: boolean) => {
+    wsClient.sendApproval(id, approved)
+    setPendingApproval(null)
+    useApprovalsStore.getState().resolveApproval(id)
+  }
 
   // Derive appView from URL path
   const appView = getAppViewFromPath(location.pathname)
@@ -239,6 +255,8 @@ export function MainLayout() {
     if (appView) {
       switch (appView) {
         case 'dashboard':
+          return <WorkspaceView activeRun={runContext} />
+        case 'dashboard-usage':
           return <DashboardView />
         case 'settings':
           return <AppSettingsView />
@@ -247,11 +265,20 @@ export function MainLayout() {
       }
     }
 
+    const renderChatView = () => (
+      <ChatView
+        onSendMessage={sendMessage}
+        onCancel={cancel}
+        isConnected={isConnected}
+        runChatId={runContext?.chatId ?? null}
+      />
+    )
+
     // Bot-specific views (from URL or store)
     const viewToRender = botView || activeView
     switch (viewToRender) {
       case 'chats':
-        return <ChatView />
+        return renderChatView()
       case 'rooms':
         return <RoomsView />
       case 'work':
@@ -281,9 +308,17 @@ export function MainLayout() {
       case 'settings':
         return <SettingsView />
       default:
-        return <ChatView />
+        return renderChatView()
     }
   }
+
+  // Mobile top bar context: the bot when a bot route is active, otherwise
+  // the app view name. Replaces the old letter avatar (design uses BotAvatar).
+  const headerBot =
+    (urlBotId ? bots.find((b) => b.id === urlBotId) : undefined) ??
+    (appView ? undefined : bots.find((b) => b.id === activeBotId))
+  const mobileTitle =
+    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : 'Workspace'
 
   return (
     <div className="app-shell ui-v2">
@@ -320,12 +355,27 @@ export function MainLayout() {
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600">
-              <span className="text-sm font-bold text-white">C</span>
+          {headerBot ? (
+            <button
+              type="button"
+              className="app-shell__mobile-title"
+              onClick={() => navigate(`/${headerBot.id}/chats`)}
+            >
+              <BotAvatar color={headerBot.color} name={headerBot.name} size={26} />
+              <span className="app-shell__mobile-title-text">{headerBot.name}</span>
+            </button>
+          ) : (
+            <div className="app-shell__mobile-title">
+              {appView === 'settings' ? (
+                <SettingsIcon size={16} strokeWidth={1.8} />
+              ) : appView === 'admin-logs' ? (
+                <Activity size={16} strokeWidth={1.8} />
+              ) : (
+                <LayoutGrid size={16} strokeWidth={1.8} />
+              )}
+              <span className="app-shell__mobile-title-text">{mobileTitle}</span>
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">CachiBot</span>
-          </div>
+          )}
         </div>
         <UpdateBanner />
         {renderActiveView()}
@@ -336,7 +386,7 @@ export function MainLayout() {
       {/* Dialogs */}
       <CreateBotDialog />
       <SettingsDialog />
-      <ApprovalDialog onApprove={() => {}} />
+      <ApprovalDialog onApprove={handleApprove} />
       <UpdateDialog />
     </div>
   )

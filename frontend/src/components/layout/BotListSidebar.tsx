@@ -136,7 +136,7 @@ export function BotListSidebar({ onNavigate }: BotListSidebarProps) {
     onNavigate?.()
   }
 
-  const isWorkspaceActive = location.pathname === '/dashboard'
+  const isWorkspaceActive = location.pathname === '/dashboard' || location.pathname === '/dashboard/usage'
 
   return (
     <aside className="v2-nav" aria-label="Bots">

@@ -652,7 +652,7 @@ export interface UsageStats {
 export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
 export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
-export type AppView = 'dashboard' | 'admin-logs' | 'settings'
+export type AppView = 'dashboard' | 'dashboard-usage' | 'admin-logs' | 'settings'
 
 // =============================================================================
 // CREATION FLOW TYPES

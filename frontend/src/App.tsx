@@ -47,6 +47,14 @@ function App() {
         }
       />
       <Route
+        path="/dashboard/usage"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
