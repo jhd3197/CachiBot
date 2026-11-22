@@ -998,7 +998,21 @@ class SideTaskService:
             )
 
     async def _sync_single_reply(self, side_task: SideTask) -> None:
-        """Create or update the one parent-chat reply for a side task."""
+        """Create or update the one parent-chat reply for a side task.
+
+        Callers must hold ``self._reply_lock``. A caller may hold a stale
+        copy from before the first reply was persisted (``_transition`` saves
+        the status first, the reply id afterwards) — the record is re-read in
+        that case so a stale ``reply_message_id=None`` can never duplicate
+        the reply.
+        """
+        message_id = side_task.reply_message_id
+        if not message_id:
+            fresh = await self._repo.get(side_task.id)
+            if fresh is not None and fresh.reply_message_id:
+                message_id = fresh.reply_message_id
+                side_task.reply_message_id = fresh.reply_message_id
+
         summary = await self._side_chat_summary(side_task)
         content = _single_reply_content(side_task, summary)
         metadata: dict[str, Any] = {
@@ -1024,17 +1038,21 @@ class SideTaskService:
         message = await self._publish_reply(
             bot_id=side_task.bot_id,
             parent_chat_id=side_task.parent_chat_id,
-            message_id=side_task.reply_message_id,
+            message_id=message_id,
             content=content,
             metadata=metadata,
             reply_to_id=side_task.source_message_id,
         )
-        if side_task.reply_message_id != message.id:
+        if message_id is None and message.id != side_task.reply_message_id:
+            # We created the reply: stamp the record so later syncs update it.
             side_task.reply_message_id = message.id
             await self._repo.update(side_task)
 
     async def _sync_group_reply(self, group_id: str) -> None:
         """Create or update the ONE parent-chat reply for a helper group.
+
+        Callers must hold ``self._reply_lock`` (fresh records are read from
+        the repository, so a stale caller cannot duplicate the message).
 
         The message carries live counts and the per-helper list (ids, titles,
         statuses, child chat ids — all real record data) so the UI can expand

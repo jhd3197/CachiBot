@@ -427,6 +427,25 @@ class TestSingleReply:
         replies = await parent_replies(bot_id, parent.id)
         assert len(replies) == 1
 
+    async def test_stale_record_cannot_duplicate_reply(self, service):
+        """A copy read before the reply id was stamped (reply_message_id=None)
+        must update the existing reply through the locked path, never create a
+        second message."""
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+
+        st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Racy record")
+        await wait_for(lambda: reply_has_status(bot_id, parent.id, "done"))
+
+        stale = await SideTaskRepository().get(st.id)
+        stale.reply_message_id = None
+        await service.svc._reply_in_parent_chat(stale)
+
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.reply_message_id == replies[0].id
+
     async def test_failed_side_task_reply_carries_error(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)
@@ -736,6 +755,14 @@ class TestMessageUpdateScoping:
         st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Scoped task")
         await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
 
+        # Wait until the record carries the reply id (the status lands
+        # before the reply id is stamped).
+        async def reply_id_set() -> bool:
+            latest = await SideTaskRepository().get(st.id)
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_id_set)
+
         pairs = [(m, b) for m, b in stub.scoped if m.type.value == "message_update"]
         assert len(pairs) == 1
         message, bid = pairs[0]
@@ -744,13 +771,19 @@ class TestMessageUpdateScoping:
         assert message.payload["message"]["metadata"]["kind"] == "side_task_reply"
         assert message.payload["message"]["id"]
 
-        # An in-place update broadcasts again with the same message id
-        latest = await SideTaskRepository().get(st.id)
-        await service.svc._sync_single_reply(latest)
+        # A caller holding a STALE copy (reply_message_id=None, as read right
+        # after the status transition) must not create a second reply: the
+        # locked production path re-reads the record and updates in place.
+        stale = await SideTaskRepository().get(st.id)
+        stale.reply_message_id = None
+        await service.svc._reply_in_parent_chat(stale)
         pairs = [(m, b) for m, b in stub.scoped if m.type.value == "message_update"]
         assert len(pairs) == 2
         assert all(b == bot_id for _, b in pairs)
         assert pairs[-1][0].payload["message"]["id"] == pairs[0][0].payload["message"]["id"]
+
+        replies = await parent_replies(bot_id, parent.id)
+        assert len(replies) == 1
 
     async def test_message_update_only_reaches_users_with_bot_access(
         self, scoped_actors, monkeypatch
