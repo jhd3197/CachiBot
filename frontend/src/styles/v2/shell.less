@@ -1,0 +1,510 @@
+// =============================================================================
+// UI v2 shell — styles/v2/shell.less
+// Bot-first sidebar (views 01/02), avatar, sheets, v2 buttons.
+// Values from docs/design/cachibot-v2-final-views/source/*.html
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// BotAvatar (common/Avatar.tsx)
+// -----------------------------------------------------------------------------
+
+.v2-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: @radius-full;
+  flex: none;
+  overflow: hidden;
+
+  &__eye {
+    display: block;
+    border-radius: @radius-full;
+    background: var(--v2-eye);
+  }
+
+  &--img {
+    object-fit: cover;
+    display: block;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Bot-first sidebar
+// -----------------------------------------------------------------------------
+
+.v2-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 10px;
+  background: var(--v2-bg-sidebar);
+  border-right: 1px solid var(--v2-border);
+  color: var(--v2-text);
+  font-family: @font-sans;
+
+  &__top {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+
+  &__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    padding: @sp-4 @sp-3;
+    font-size: @text-sm;
+    color: var(--v2-text-tertiary);
+    text-align: center;
+  }
+
+  &__bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+// 32px icon button (top bar, menu, sheet headers)
+.v2-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--v2-radius-icon-btn);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  flex: none;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+
+  &--active {
+    color: var(--v2-text);
+    background: var(--v2-bg-hover);
+  }
+}
+
+// Search field — 40px tall, 12px radius
+.v2-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-search);
+  color: var(--v2-text-tertiary);
+  box-sizing: border-box;
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+
+    &::placeholder {
+      color: var(--v2-text-tertiary);
+    }
+
+    // Remove webkit search decorations
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
+}
+
+// Bot row — 12px corners, 10px padding
+.v2-bot-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-bg-selected);
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: @font-semibold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__time {
+    margin-left: auto;
+    flex: none;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__chip {
+    align-self: flex-start;
+    max-width: 100%;
+    font-size: 12px;
+    color: var(--v2-text-secondary);
+    background: var(--v2-bg-hover);
+    border-radius: var(--v2-radius-chip);
+    padding: 2px 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__preview {
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Compact workspace menu — keeps every legacy route reachable without
+// showing the old tab bar (Phase B replaces this with real quick links)
+.v2-nav__menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 0 2px 8px;
+}
+
+// Workspace button — 44px tall, 10px radius
+.v2-workspace-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--v2-radius-workspace);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-normal;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-bg-selected);
+    font-weight: @font-semibold;
+  }
+
+  &__icon-tile {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--v2-bg-selected);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Buttons
+// -----------------------------------------------------------------------------
+
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-semibold;
+  cursor: pointer;
+  text-decoration: none;
+  .transition-colors();
+
+  &--primary {
+    background: var(--v2-text);
+    color: var(--v2-bg-main);
+
+    &:hover {
+      opacity: 0.88;
+    }
+  }
+
+  &--secondary {
+    background: var(--v2-bg-button);
+    color: var(--v2-text);
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Sheet (Earlier chats, Files in later phases) — panel over a backdrop
+// -----------------------------------------------------------------------------
+
+.v2-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: @z-modal;
+  background: var(--color-bg-overlay);
+  display: flex;
+  justify-content: center;
+  padding: 8vh @sp-4 @sp-4;
+  box-sizing: border-box;
+}
+
+.v2-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 30rem;
+  max-height: 100%;
+  background: var(--v2-bg-panel);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-sheet);
+  box-shadow: var(--v2-shadow-sheet);
+  overflow: hidden;
+  color: var(--v2-text);
+  font-family: @font-sans;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--v2-border);
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: @font-semibold;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    padding: @sp-8 @sp-4;
+    text-align: center;
+    color: var(--v2-text-tertiary);
+    font-size: 14px;
+  }
+}
+
+// Chat row inside the sheet
+.v2-chat-item {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active {
+    background: var(--v2-bg-selected);
+  }
+
+  &__icon {
+    flex: none;
+    color: var(--v2-text-tertiary);
+    margin-top: 2px;
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: @font-medium;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__pin {
+    flex: none;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__platform-badge {
+    flex: none;
+    font-size: 11px;
+    color: var(--v2-text-secondary);
+    background: var(--v2-bg-hover);
+    border-radius: var(--v2-radius-chip);
+    padding: 1px 6px;
+  }
+
+  &__time {
+    margin-left: auto;
+    flex: none;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__preview {
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__menu-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--v2-bg-panel);
+    color: var(--v2-text-secondary);
+    cursor: pointer;
+    opacity: 0;
+    .transition-colors();
+
+    .v2-chat-item:hover &,
+    &--open {
+      opacity: 1;
+    }
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+  }
+}
+
+// Global search results (common/GlobalSearchDialog.tsx)
+.global-search {
+  &__group-label {
+    .section-label();
+    padding: @sp-2 @sp-3 @sp-1;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__item-icon {
+    .flex-center();
+    height: 1.75rem;
+    width: 1.75rem;
+    flex-shrink: 0;
+    border-radius: @radius-md;
+
+    &--chat {
+      background: color-mix(in srgb, @blue-500 12%, transparent);
+      color: @blue-400;
+    }
+
+    &--room {
+      background: color-mix(in srgb, @purple-500 12%, transparent);
+      color: @purple-400;
+    }
+
+    &--task {
+      background: color-mix(in srgb, @green-500 12%, transparent);
+      color: @green-400;
+    }
+  }
+}

@@ -1,8 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
-import { BotRail } from './BotRail'
-import { BotSidebar } from './BotSidebar'
+import { BotListSidebar } from './BotListSidebar'
 import {
   ChatView,
   RoomsView,
@@ -223,6 +222,18 @@ export function MainLayout() {
     }
   }, [])
 
+  // Mobile drawer: Escape closes it, focus moves into the drawer when opened
+  const navRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    document.addEventListener('keydown', handler)
+    navRef.current?.focus()
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileMenuOpen, setMobileMenuOpen])
+
   const renderActiveView = () => {
     // App-level views take precedence (determined by URL)
     if (appView) {
@@ -275,7 +286,7 @@ export function MainLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell ui-v2">
       <div className="app-shell__body">
       {/* Mobile overlay backdrop */}
       {mobileMenuOpen && (
@@ -285,27 +296,17 @@ export function MainLayout() {
         />
       )}
 
-      {/* Bot Rail - leftmost sidebar (hidden on mobile unless menu open) */}
+      {/* Bot-first sidebar (UI v2): single 300px nav, mobile slide-in drawer */}
       <div
+        ref={navRef}
+        tabIndex={-1}
         className={cn(
-          'app-shell__rail',
-          mobileMenuOpen && 'app-shell__rail--open'
+          'app-shell__nav',
+          mobileMenuOpen && 'app-shell__nav--open'
         )}
       >
-        <BotRail onNavigate={() => setMobileMenuOpen(false)} />
+        <BotListSidebar onNavigate={() => setMobileMenuOpen(false)} />
       </div>
-
-      {/* Bot Sidebar - secondary navigation (hide on app-level views, hidden on mobile unless menu open) */}
-      {!appView && (
-        <div
-          className={cn(
-            'app-shell__sidebar',
-            mobileMenuOpen && 'app-shell__sidebar--open'
-          )}
-        >
-          <BotSidebar onNavigate={() => setMobileMenuOpen(false)} />
-        </div>
-      )}
 
       {/* Main content area */}
       <main className="app-shell__main">
@@ -315,6 +316,7 @@ export function MainLayout() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="btn btn--ghost btn--icon btn--sm"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>

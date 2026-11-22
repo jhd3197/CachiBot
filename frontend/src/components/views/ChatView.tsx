@@ -14,12 +14,14 @@ import {
   Reply,
   X,
   Cpu,
+  History,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
-import { BotIconRenderer } from '../common/BotIconRenderer'
+import { BotAvatar } from '../common/Avatar'
+import { ChatsSheet } from '../chat/ChatsSheet'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
@@ -81,6 +83,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const justCreatedChatRef = useRef(false)
   const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
+  const [showChats, setShowChats] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -1066,10 +1069,43 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
   const showPanel = panelOpen && activeArtifact
 
+  // Chat header — just the bot (design view 02), plus Earlier chats.
+  // Rendered in every chat state, including the empty hero.
+  const chatHeader = (
+    <>
+      <div className="chat-header">
+        <div className="chat-header__bot-info">
+          {activeBot && (
+            <BotAvatar color={activeBot.color} name={activeBot.name} size={30} />
+          )}
+          <h2 className="chat-header__name">
+            {activeBot?.name || 'CachiBot'}
+          </h2>
+        </div>
+        {activeBot && (
+          <button
+            type="button"
+            className="v2-icon-btn"
+            aria-label="Earlier chats"
+            title="Earlier chats"
+            onClick={() => setShowChats(true)}
+          >
+            <History size={18} strokeWidth={1.8} />
+          </button>
+        )}
+      </div>
+      {showChats && activeBot && (
+        <ChatsSheet bot={activeBot} onClose={() => setShowChats(false)} />
+      )}
+    </>
+  )
+
   // Empty state — hero omnibox start state (no chat or chat with no messages)
   if (messages.length === 0) {
     return (
       <div className="chat-view chat-view--hero">
+        {chatHeader}
+        <div className="chat-view--hero__body">
         {/* Hero title */}
         <div className="chat-hero">
           <h2 className="chat-hero__title">
@@ -1142,6 +1178,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             />
           )}
         </div>
+        </div>
       </div>
     )
   }
@@ -1149,27 +1186,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   return (
     <div ref={wrapperRef} className={cn('chat-view-wrapper', showPanel && 'chat-view-wrapper--split')}>
     <div className={cn('chat-view', showPanel && 'chat-view--with-panel')} style={showPanel ? { flex: `0 0 ${(1 - panelWidthRatio) * 100}%` } : undefined}>
-      {/* Chat header with bot info and settings */}
-      <div className="chat-header">
-        <div className="chat-header__bot-info">
-          <div
-            className="chat-header__avatar"
-            style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
-          >
-            <BotIconRenderer
-              icon={activeBot?.icon || 'shield'}
-              size={18}
-              className="text-[var(--color-text-primary)]"
-            />
-          </div>
-          <div>
-            <h2 className="chat-header__name">
-              {activeBot?.name || 'CachiBot'}
-            </h2>
-            <p className="chat-header__model">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
-          </div>
-        </div>
-      </div>
+      {chatHeader}
 
       {/* Messages area */}
       <div className="chat-messages">
