@@ -6,7 +6,7 @@ export type PresetColor = 'green' | 'pink' | 'blue' | 'purple' | 'orange' | 'red
 export type AccentColor = PresetColor | 'custom'
 export type SettingsSection = 'general' | 'knowledge' | 'skills' | 'connections' | 'environment' | 'developer' | 'danger'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
-export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
+export type AutomationSection = 'routines' | 'advanced'
 
 // Accent color palettes (Tailwind-style)
 export const accentColors: Record<PresetColor, { name: string; palette: Record<string, string> }> = {
@@ -205,7 +205,7 @@ export const useUIStore = create<UIState>()(
       showCost: true,
       settingsSection: 'general',
       workSection: 'overview',
-      automationSection: 'all',
+      automationSection: 'routines',
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),

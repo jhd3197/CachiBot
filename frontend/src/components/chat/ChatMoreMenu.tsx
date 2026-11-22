@@ -7,15 +7,10 @@ import {
   BookOpen,
   Download,
   X,
-  Wrench,
-  Puzzle,
-  Code2,
   FolderOpen,
-  type LucideIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useChatStore } from '../../stores/bots'
-import { useUIStore } from '../../stores/ui'
 import { usePluginsStore } from '../../stores/plugins'
 import { useApprovalsStore } from '../../stores/approvals'
 import { useBotAccess } from '../../hooks/useBotAccess'
@@ -41,14 +36,13 @@ interface ChatMoreMenuProps {
  * Export chat and Clear chat. Everything is gated by the caller's role —
  * items the user can't use are hidden, never greyed (view 12).
  *
- * Later-phase homes (view 12) link to the existing pages for now:
- * Runs → /runs?bot={bot} (D1), Routines → /{bot}/automations (D2),
- * Tools/Plugins/Developer → their existing pages until Bot settings D3.
+ * Per view 12, Tools / Plugins / Developer live in Bot settings
+ * ("What it can use" / "Advanced") — no separate entries here.
+ * Knowledge deep-links to the anchored section (/:botId/settings#knowledge).
  */
 export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuProps) {
   const navigate = useNavigate()
   const { canOperate, canEdit } = useBotAccess(bot.id)
-  const { setSettingsSection } = useUIStore()
   const { getMessages, clearMessages } = useChatStore()
   const { plugins } = usePluginsStore()
   const [routines, setRoutines] = useState<number | null>(null)
@@ -82,8 +76,7 @@ export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuPr
     [plugins, capabilities]
   )
 
-  const go = (path: string, section?: Parameters<typeof setSettingsSection>[0]) => {
-    if (section) setSettingsSection(section)
+  const go = (path: string) => {
     onClose()
     navigate(path)
   }
@@ -122,12 +115,6 @@ export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuPr
     onClose()
   }
 
-  const advancedLinks: Array<{ id: string; label: string; icon: LucideIcon; path: string }> = [
-    { id: 'tools', label: 'Tools', icon: Wrench, path: `/${bot.id}/tools` },
-    { id: 'plugins', label: 'Plugins', icon: Puzzle, path: `/${bot.id}/plugins` },
-    { id: 'developer', label: 'Developer', icon: Code2, path: `/${bot.id}/developer` },
-  ]
-
   return (
     <V2Menu className="chat-header__menu" onClose={onClose}>
       <V2MenuLabel>{bot.name}</V2MenuLabel>
@@ -138,7 +125,7 @@ export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuPr
         </V2MenuItem>
       )}
       {canEdit && (
-        <V2MenuItem icon={<Pencil size={16} strokeWidth={1.8} />} onClick={() => go(`/${bot.id}/settings`, 'general')}>
+        <V2MenuItem icon={<Pencil size={16} strokeWidth={1.8} />} onClick={() => go(`/${bot.id}/settings`)}>
           Bot settings
         </V2MenuItem>
       )}
@@ -155,13 +142,13 @@ export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuPr
         <V2MenuItem
           icon={<Clock size={16} strokeWidth={1.8} />}
           suffix={routines && routines > 0 ? routines : undefined}
-          onClick={() => go(`/${bot.id}/automations`)}
+          onClick={() => go(`/${bot.id}/routines`)}
         >
           Routines
         </V2MenuItem>
       )}
       {canEdit && (
-        <V2MenuItem icon={<BookOpen size={16} strokeWidth={1.8} />} onClick={() => go(`/${bot.id}/settings`, 'knowledge')}>
+        <V2MenuItem icon={<BookOpen size={16} strokeWidth={1.8} />} onClick={() => go(`/${bot.id}/settings#knowledge`)}>
           Knowledge
         </V2MenuItem>
       )}
@@ -177,18 +164,6 @@ export function ChatMoreMenu({ bot, chat, onClose, onOpenFiles }: ChatMoreMenuPr
               onClick={() => go(`/${bot.id}/plugins/${p.name}`)}
             >
               {p.label}
-            </V2MenuItem>
-          ))}
-        </>
-      )}
-
-      {canEdit && (
-        <>
-          <V2MenuDivider />
-          <V2MenuLabel>Advanced</V2MenuLabel>
-          {advancedLinks.map((l) => (
-            <V2MenuItem key={l.id} icon={<l.icon size={16} strokeWidth={1.8} />} onClick={() => go(l.path)}>
-              {l.label}
             </V2MenuItem>
           ))}
         </>

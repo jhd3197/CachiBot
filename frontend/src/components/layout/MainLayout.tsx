@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useParams, useNavigate } from 'react-router-dom'
+import { useLocation, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity, History, MoreHorizontal } from 'lucide-react'
 import { BotListSidebar } from './BotListSidebar'
 import { ChatMoreMenu } from '../chat/ChatMoreMenu'
@@ -8,13 +8,15 @@ import {
   RoomsView,
   ToolsView,
   SettingsView,
+  BotSettingsView,
   DashboardView,
   WorkspaceView,
   RunsView,
   AppSettingsView,
   WorkView,
   VoiceView,
-  AutomationsView,
+  RoutinesView,
+  RoutineEditorView,
   ScriptEditorView,
   GlobalLogView,
   PluginsView,
@@ -108,6 +110,7 @@ export function MainLayout() {
     rooms: 'rooms',
     work: 'work',
     automations: 'automations',
+    routines: 'routines',
     voice: 'voice',
     tools: 'tools',
     plugins: 'plugins',
@@ -119,12 +122,19 @@ export function MainLayout() {
   // Redirect legacy URLs
   useEffect(() => {
     if (viewSegment === 'schedules' && urlBotId) {
-      navigate(`/${urlBotId}/automations`, { replace: true })
+      const legacyScheduleId = pathParts[2]
+      navigate(
+        legacyScheduleId
+          ? `/${urlBotId}/routines/${legacyScheduleId}`
+          : `/${urlBotId}/routines`,
+        { replace: true }
+      )
     }
     if (viewSegment === 'tasks' && urlBotId) {
       useUIStore.getState().setWorkSection('quick-tasks')
       navigate(`/${urlBotId}/work`, { replace: true })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pathParts is derived from the URL above
   }, [viewSegment, urlBotId, navigate])
 
   // Sync URL to store state (runs only when URL-derived values change)
@@ -306,12 +316,20 @@ export function MainLayout() {
       case 'work':
         return <WorkView />
       case 'automations': {
-        // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView
+        // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView (scripts
+        // are an advanced building block; the base page moved to /routines)
         const automationSubPath = pathParts[2]
         if (automationSubPath && pathParts[3] === 'edit') {
           return <ScriptEditorView />
         }
-        return <AutomationsView />
+        return <Navigate to={`/${urlBotId}/routines`} replace />
+      }
+      case 'routines': {
+        // /:botId/routines -> list; /new or /:routineId -> editor
+        if (pathParts[2]) {
+          return <RoutineEditorView />
+        }
+        return <RoutinesView />
       }
       case 'voice':
         return <VoiceView />
@@ -328,7 +346,7 @@ export function MainLayout() {
       case 'developer':
         return <SettingsView />
       case 'settings':
-        return <SettingsView />
+        return <BotSettingsView />
       default:
         return renderChatView()
     }
@@ -340,7 +358,7 @@ export function MainLayout() {
     (urlBotId ? bots.find((b) => b.id === urlBotId) : undefined) ??
     (appView ? undefined : bots.find((b) => b.id === activeBotId))
   const mobileTitle =
-    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Exec logs' : appView === 'runs' ? 'Runs' : 'Workspace'
+    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Activity log' : appView === 'runs' ? 'Runs' : 'Workspace'
 
   // Chat routes mount the chat header inline; the mobile top bar folds the
   // bot title + "Earlier chats" into one row (design 02, <1024px).

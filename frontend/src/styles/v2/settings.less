@@ -1,0 +1,476 @@
+// =============================================================================
+// App settings — styles/v2/settings.less
+// Single-column app settings (design view 19): section pills, stacked
+// sections, 48px rows with a right-hand action, 40px select rows.
+// Values from docs/design/cachibot-v2-final-views/source/19-app-settings.html
+// =============================================================================
+
+.v2-settings {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.v2-settings__column {
+  width: 100%;
+  // Design source (19-app-settings.html): max-width 640px, padding 32px 24px 64px
+  max-width: 640px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 20px 16px 48px;
+  }
+}
+
+// ── Top bar: back · title · close ────────────────────────────────────────────
+
+.v2-settings__topbar {
+  display: flex;
+  align-items: center;
+}
+
+.v2-settings__title {
+  margin: 0 auto;
+  font-size: 16px;
+  font-weight: @font-semibold;
+
+  // The app-shell mobile top bar already says "Settings" — the in-page
+  // title would duplicate it (same convention as the chat header)
+  @media (max-width: (@screen-lg - 1px)) {
+    display: none;
+  }
+}
+
+.v2-settings__top-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--v2-radius-icon-btn);
+  background: transparent;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+
+  // With the in-page title hidden on mobile, keep the close button at the
+  // right edge instead of collapsing next to the back button
+  @media (max-width: (@screen-lg - 1px)) {
+    &:last-child {
+      margin-left: auto;
+    }
+  }
+}
+
+// ── Section pills ────────────────────────────────────────────────────────────
+
+.v2-settings__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.v2-settings__pill {
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--v2-border);
+  border-radius: 15px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-text);
+    border-color: var(--v2-text);
+    color: var(--v2-bg-main);
+  }
+}
+
+// ── Sections ─────────────────────────────────────────────────────────────────
+
+.v2-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 28px;
+  border-top: 1px solid var(--v2-border);
+  scroll-margin-top: 16px;
+}
+
+.v2-settings__heading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: @font-bold;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.v2-settings__badge {
+  font-size: 12px;
+  font-weight: @font-normal;
+  color: var(--v2-text-tertiary);
+  border: 1px solid var(--v2-border);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.v2-settings__desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--v2-text-tertiary);
+}
+
+.v2-settings__sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: @font-semibold;
+  color: var(--v2-text-tertiary);
+}
+
+// ── 40px select-style field (design: label + bordered box with chevron) ──────
+
+.v2-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v2-settings__label {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.v2-settings__box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-search);
+  font-size: 14px;
+  box-sizing: border-box;
+
+  // ModelSelect and other inputs fill the box; strip their chrome
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .model-select__trigger,
+  .model-select__button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    height: 30px;
+    font-size: 14px;
+    color: var(--v2-text);
+  }
+}
+
+.v2-settings__box--readonly {
+  color: var(--v2-text);
+}
+
+.v2-settings__chevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--v2-text-tertiary);
+  pointer-events: none;
+}
+
+.v2-settings__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+}
+
+// ── Theme segmented control (design: 4px padding, 12px radius, 30px options) ─
+
+.v2-settings__segmented {
+  align-self: flex-start;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-search);
+}
+
+.v2-settings__segment {
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    color: var(--v2-text);
+  }
+
+  &[aria-checked='true'] {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+}
+
+// ── 48px rows: title + subtitle + right action ──────────────────────────────
+
+.v2-settings__rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2-settings__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--v2-border);
+  font: inherit;
+  text-align: left;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.v2-settings__row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v2-settings__row-title {
+  font-size: 14px;
+  color: var(--v2-text);
+
+  &--danger {
+    color: var(--v2-red);
+  }
+}
+
+.v2-settings__row-sub {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+// 28px text action, transparent background (Change / Add key / Manage / Open)
+.v2-settings__action {
+  flex: none;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: @font-medium;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+}
+
+a.v2-settings__action {
+  color: var(--v2-green);
+
+  &:hover {
+    color: var(--v2-green-hover);
+    background: transparent;
+  }
+}
+
+// Inline editing inside a row (provider keys): input + save/cancel
+.v2-settings__edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.v2-settings__input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--v2-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--v2-text-tertiary);
+  }
+}
+
+// ── Switch (design: 40x24, radius 12, #2a2b2f track, #8b8b8b knob) ───────────
+
+.v2-switch {
+  flex: none;
+  width: 40px;
+  height: 24px;
+  padding: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--v2-bg-avatar-user);
+  cursor: pointer;
+  display: flex;
+  justify-content: flex-start;
+  .transition-colors();
+
+  span {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--v2-text-tertiary);
+    display: block;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+
+  &[aria-checked='true'] {
+    background: var(--v2-green);
+
+    span {
+      transform: translateX(16px);
+      background: var(--v2-bg-main);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// ── Toggle row (design Advanced: 14px/600 title + 13px sub + switch) ────────
+
+.v2-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.v2-settings__toggle-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v2-settings__toggle-title {
+  font-size: 14px;
+  font-weight: @font-semibold;
+}
+
+.v2-settings__toggle-sub {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+// ── Accent color grid (reuses the existing palette data) ─────────────────────
+
+.v2-settings__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+// ── Range / number inputs on a row ───────────────────────────────────────────
+
+.v2-settings__range {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  input[type='range'] {
+    flex: 1;
+    accent-color: var(--v2-green);
+  }
+
+  input[type='number'] {
+    width: 80px;
+  }
+}
+
+// ── Keyboard shortcut list ───────────────────────────────────────────────────
+
+.v2-settings__shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v2-settings__shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.v2-settings__kbd {
+  padding: 2px 7px;
+  border: 1px solid var(--v2-border);
+  border-radius: 6px;
+  background: var(--v2-bg-button);
+  font-family: @font-mono;
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+// ── Provider row subtitle states ─────────────────────────────────────────────
+
+.v2-settings__row--idle {
+  .v2-settings__row-title {
+    color: var(--v2-text-secondary);
+  }
+}

@@ -268,10 +268,10 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
           </button>
           {accountOpen && (
             <V2Menu className="v2-account__menu" onClose={() => setAccountOpen(false)}>
-              <V2MenuItem icon={<CircleUser size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+              <V2MenuItem icon={<CircleUser size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings/account')}>
                 Your account
               </V2MenuItem>
-              <V2MenuItem icon={<Settings size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+              <V2MenuItem icon={<Settings size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings/general')}>
                 Settings
               </V2MenuItem>
               <V2MenuItem
@@ -301,7 +301,7 @@ export function BotListSidebar({ onNavigate, onOpenSearch }: BotListSidebarProps
                 </>
               )}
               <V2MenuDivider />
-              <V2MenuItem icon={<BookOpen size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings')}>
+              <V2MenuItem icon={<BookOpen size={16} strokeWidth={1.8} />} onClick={() => handleNav('/settings/about')}>
                 About and help
               </V2MenuItem>
               <V2MenuItem icon={<LogOut size={16} strokeWidth={1.8} />} onClick={handleSignOut}>

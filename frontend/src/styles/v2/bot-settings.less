@@ -1,0 +1,756 @@
+// =============================================================================
+// Bot settings — styles/v2/bot-settings.less
+// One-column bot settings page (design view 18). Values from
+// /workspace/design-v2/v2b/cachibot-v2-final-views/source/18-bot-settings.html
+// =============================================================================
+
+.bot-settings {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+
+  &__column {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 32px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  // Header: back | bot name | close
+  &__header {
+    display: flex;
+    align-items: center;
+
+    h1 {
+      margin: 0 auto;
+      font-size: 16px;
+      font-weight: @font-semibold;
+    }
+  }
+
+  // Section nav chips — 30px pills, 15px radius
+  &__sections-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    a {
+      height: 30px;
+      padding: 0 11px;
+      border-radius: 15px;
+      border: 1px solid var(--v2-border);
+      color: var(--v2-text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      .transition-colors();
+
+      &:hover {
+        color: var(--v2-text);
+        border-color: var(--v2-border-strong);
+      }
+    }
+  }
+
+  // Section: 28px top padding + hairline rule (design: gap 14 inside)
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 28px;
+    border-top: 1px solid var(--v2-border);
+    scroll-margin-top: 8px;
+
+    &-head {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      h2 {
+        margin: 0;
+        font-size: 17px;
+        font-weight: @font-bold;
+      }
+
+      p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &-error {
+      margin: 0;
+      font-size: 13px;
+      color: @red-400;
+    }
+
+    &-note {
+      margin: 0;
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // Two-line list row — min-height 48px + hairline bottom rule
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    border-bottom: 1px solid var(--v2-border);
+
+    &-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 6px 0;
+    }
+
+    &-title {
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &-sub {
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &-action {
+      flex: none;
+    }
+  }
+
+  // Row action button — 28px, transparent, 13px/500 (design Remove/Edit/Manage)
+  &__row-btn {
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: @font-medium;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+
+    &--danger {
+      color: @red-400;
+    }
+  }
+
+  // Switch row — 14px/600 label + 13px description + switch (gap 16)
+  &__toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    &-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    &-title {
+      font-size: 14px;
+      font-weight: @font-semibold;
+    }
+
+    &-sub {
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+    }
+  }
+
+  // Group label inside a section ("Plugins", "Environment", ...)
+  &__subhead {
+    margin: 6px 0 0;
+    font-size: 13px;
+    font-weight: @font-semibold;
+    color: var(--v2-text-tertiary);
+  }
+
+  // Bordered ghost button — 36px, 10px radius, 14px ("Add documents", ...)
+  &__ghost {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--v2-border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--v2-text-secondary);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: var(--v2-text);
+      border-color: var(--v2-border-strong);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  &__ghost-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  // "Manage individual tools" link row (to the old Tools page)
+  &__manage-tools {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--v2-green);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: var(--v2-green-hover);
+    }
+  }
+
+  &__danger-title {
+    color: @red-400;
+  }
+
+  // Avatar + edit pencil (72px avatar, 28px pencil — design view 18)
+  &__avatar {
+    position: relative;
+    align-self: flex-start;
+
+    &-edit {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      width: 28px;
+      height: 28px;
+      border-radius: @radius-full;
+      border: 2px solid var(--v2-bg-main);
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      .transition-colors();
+
+      &:hover {
+        color: var(--v2-text);
+      }
+    }
+
+    &-popover {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: @z-popover;
+      width: 300px;
+      box-sizing: border-box;
+      background: var(--v2-bg-panel);
+      border: 1px solid var(--v2-border);
+      border-radius: var(--v2-radius-card);
+      box-shadow: var(--v2-shadow-sheet);
+      padding: 16px;
+    }
+
+    &-popover-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: @z-dropdown;
+    }
+  }
+
+  // Name / Title / Instructions / Model fields
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__label {
+    font-size: 14px;
+    color: var(--v2-text-secondary);
+  }
+
+  &__input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 40px;
+    background: var(--v2-bg-inset);
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+    padding: 0 12px;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--v2-text-tertiary);
+    }
+
+    &:focus {
+      border-color: var(--v2-border-strong);
+    }
+  }
+
+  &__textarea {
+    box-sizing: border-box;
+    width: 100%;
+    resize: vertical;
+    background: var(--v2-bg-inset);
+    border: 1px solid var(--v2-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.55;
+    outline: none;
+    .transition-colors();
+
+    &::placeholder {
+      color: var(--v2-text-tertiary);
+    }
+
+    &:focus {
+      border-color: var(--v2-border-strong);
+    }
+  }
+
+  &__reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--v2-text-secondary);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      color: var(--v2-text);
+    }
+  }
+
+  &__save {
+    display: flex;
+  }
+}
+
+// Mobile: full-width column with 16px side padding (375px)
+@media (max-width: (@screen-md - 1px)) {
+  .bot-settings__column {
+    padding: 24px 16px 48px;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Embedded legacy settings panels (Advanced + avatar popover)
+//
+// The panels reused inside Advanced (model slots, environment, API & webhooks)
+// were styled for the old settings view: `.settings-section` falls back to an
+// unpadded bordered card and its heading styles only exist under
+// `.settings-view`. These overrides re-scope the shared legacy classes to
+// v2 under `.bot-settings` only — the old SettingsView keeps its own look.
+// Selectors are scoped under two classes so they win source-order ties against
+// the later-imported legacy sheets (including their `.dark &` variants).
+// -----------------------------------------------------------------------------
+
+.bot-settings .bot-settings__panels,
+.bot-settings .bot-settings__avatar-popover {
+  // Section = simple group: hairline top rule + 13px/600 heading
+  .settings-section {
+    border: 0;
+    background: none;
+    border-radius: 0;
+    border-top: 1px solid var(--v2-border);
+    padding: 16px 0 0;
+
+    &__heading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 12px;
+      font-size: 13px;
+      font-weight: @font-semibold;
+      color: var(--v2-text);
+    }
+
+    &__heading-icon {
+      color: var(--v2-text-secondary);
+      flex: none;
+    }
+
+    &__subtitle {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: @font-semibold;
+      color: var(--v2-text);
+    }
+
+    &__description {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  // Form fields match the main column (40px inputs, inset background, 12px radius)
+  .settings-form {
+    &__label {
+      color: var(--v2-text-secondary);
+    }
+
+    &__label--small {
+      color: var(--v2-text-secondary);
+    }
+
+    &__label--icon {
+      color: var(--v2-text-secondary);
+    }
+
+    &__hint {
+      color: var(--v2-text-tertiary);
+    }
+
+    &__input {
+      height: 40px;
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+      }
+    }
+
+    &__input--small {
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+      }
+    }
+
+    &__textarea {
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+      }
+    }
+
+    &__textarea--mono {
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+      }
+    }
+
+    &__select {
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+      }
+    }
+  }
+
+  // Cards keep a border and get 16px inner padding
+  .capability-toggle {
+    border-radius: 12px;
+    padding: 16px;
+
+    &--active {
+      border-color: var(--v2-border-strong);
+      background: var(--v2-bg-selected);
+    }
+
+    &--inactive {
+      border-color: var(--v2-border);
+      background: var(--v2-bg-inset);
+    }
+
+    &__label {
+      color: var(--v2-text);
+    }
+
+    &__description {
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  .settings-capability-nest {
+    border-left-color: var(--v2-border-strong);
+  }
+
+  .settings-voice-toggle {
+    &__label {
+      color: var(--v2-text);
+    }
+
+    &__sublabel {
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  .settings-voice-chip {
+    &--inactive {
+      border-color: var(--v2-border);
+      background: var(--v2-bg-inset);
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  .settings-icon-btn {
+    &--inactive {
+      border-color: var(--v2-border);
+      background: var(--v2-bg-inset);
+
+      &:hover {
+        border-color: var(--v2-border-strong);
+      }
+    }
+  }
+
+  .settings-coding-agents {
+    border-radius: 12px;
+    border-color: var(--v2-border);
+    background: var(--v2-bg-inset);
+    padding: 16px;
+
+    .dark & {
+      background: var(--v2-bg-inset);
+      border-color: var(--v2-border);
+    }
+
+    &__header {
+      color: var(--v2-text);
+    }
+
+    &__list {
+      border-bottom-color: var(--v2-border);
+    }
+
+    &__item {
+      background: var(--v2-bg-panel);
+
+      .dark & {
+        background: var(--v2-bg-panel);
+      }
+    }
+
+    &__name {
+      color: var(--v2-text);
+    }
+
+    &__binary {
+      color: var(--v2-text-secondary);
+    }
+
+    &__label {
+      color: var(--v2-text-secondary);
+    }
+
+    &__pills {
+      border-color: var(--v2-border);
+      background: var(--v2-bg-panel);
+    }
+
+    &__slider {
+      background: var(--v2-border);
+    }
+
+    &__hint {
+      color: var(--v2-text-secondary);
+
+      code {
+        background: var(--v2-bg-panel);
+
+        .dark & {
+          background: var(--v2-bg-panel);
+        }
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Model picker trigger matches the v2 field look anywhere in the view
+// (General › Model and the Advanced model slots). Its dropdown keeps the
+// legacy styling.
+// -----------------------------------------------------------------------------
+
+.bot-settings {
+  .model-select {
+    &__trigger {
+      height: 40px;
+      background: var(--v2-bg-inset);
+      border: 1px solid var(--v2-border);
+      border-radius: 12px;
+      color: var(--v2-text);
+
+      &:hover {
+        border-color: var(--v2-border-strong);
+      }
+
+      &:focus {
+        border-color: var(--v2-border-strong);
+        box-shadow: none;
+      }
+    }
+
+    &__trigger-text {
+      color: var(--v2-text-secondary);
+
+      &--value {
+        color: var(--v2-text);
+      }
+    }
+
+    &__trigger-chevron {
+      color: var(--v2-text-secondary);
+      border-left-color: var(--v2-border);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Confirmation modals (delete / reset) — the legacy modal styles are scoped
+// under `.settings-view`; this is the same block re-scoped to `.bot-settings`.
+// -----------------------------------------------------------------------------
+
+.bot-settings .settings-modal {
+  .dialog-backdrop();
+
+  &__panel {
+    .dialog-panel(sm);
+    padding: @sp-6;
+    border-radius: @radius-3xl;
+    box-shadow: @shadow-2xl;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: @sp-3;
+    margin-bottom: @sp-4;
+  }
+
+  &__header--danger {
+    color: @red-400;
+  }
+
+  &__header--warning {
+    color: @yellow-400;
+  }
+
+  &__header-title {
+    font-size: @text-lg;
+    font-weight: @font-bold;
+  }
+
+  &__body {
+    margin-bottom: @sp-6;
+    color: var(--color-text-secondary);
+  }
+
+  &__strong {
+    color: var(--color-text-primary);
+    font-weight: @font-bold;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: @sp-2;
+  }
+
+  &__cancel-btn {
+    .button-base();
+    .button-variant(ghost);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+  }
+
+  &__confirm-btn--danger {
+    .button-base();
+    .button-variant(danger);
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+  }
+
+  &__confirm-btn--warning {
+    .button-base();
+    border-radius: @radius-lg;
+    padding: 0 @sp-4;
+    height: @height-md;
+    font-size: @text-sm;
+    background: @yellow-600;
+    color: white;
+
+    &:hover {
+      background: @yellow-500;
+    }
+  }
+}

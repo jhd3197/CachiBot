@@ -456,6 +456,7 @@ class UpdateScheduleRequest(BaseModel):
     description: str | None = None
     functionId: str | None = None
     functionParams: dict[str, Any] | None = None
+    scheduleType: str | None = None
     cronExpression: str | None = None
     intervalSeconds: int | None = None
     runAt: str | None = None
@@ -849,7 +850,8 @@ async def update_schedule(
     # Trigger fields changed -> the next run must be recomputed, otherwise the
     # scheduler would keep firing on the old cadence.
     trigger_changed = (
-        request.cronExpression is not None
+        request.scheduleType is not None
+        or request.cronExpression is not None
         or request.intervalSeconds is not None
         or request.runAt is not None
         or request.eventTrigger is not None
@@ -863,6 +865,8 @@ async def update_schedule(
         schedule.function_id = request.functionId
     if request.functionParams is not None:
         schedule.function_params = request.functionParams
+    if request.scheduleType is not None:
+        schedule.schedule_type = ScheduleType(request.scheduleType)
     if request.cronExpression is not None:
         schedule.cron_expression = request.cronExpression
     if request.intervalSeconds is not None:
@@ -910,6 +914,25 @@ async def toggle_schedule(
     schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
 
     await schedule_repo.toggle_enabled(schedule_id, not schedule.enabled)
+    schedule = require_found(await schedule_repo.get(schedule_id), "Schedule")
+    return ScheduleResponse.from_schedule(schedule)
+
+
+@router.post("/schedules/{schedule_id}/run", status_code=201)
+async def run_schedule(
+    bot_id: str,
+    schedule_id: str,
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
+) -> ScheduleResponse:
+    """Fire a schedule on demand (test run).
+
+    Delivers the schedule's message and records the run without changing the
+    regular cadence (next_run_at / enabled are left untouched).
+    """
+    from cachibot.services.scheduler_service import get_scheduler_service
+
+    schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
+    await get_scheduler_service().run_schedule_now(schedule)
     schedule = require_found(await schedule_repo.get(schedule_id), "Schedule")
     return ScheduleResponse.from_schedule(schedule)
 
