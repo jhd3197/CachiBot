@@ -66,7 +66,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 07 | Computer terminal / coding agent diff | coding agent tools (`coding_agent` capability, `getCodingAgents`) | CLI runs exist; streamed terminal/diff view on a computer needs backend. Phase D. |
 | 08 | Take-over (yellow ring) | — | Needs computer backend. Phase D. |
 | 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
-| 10 | Files sheet | `AssetsView`, `/api/assets`, artifact files | **Phase D4**: modal sheet from a Files button in the chat header. |
+| 10 | Files sheet | `FilesSheet`, chat assets + artifacts stores | **Done (Phase D4)**. Modal sheet from a Files pill in the chat header (Files in the More menu on mobile); room header Files icon opens the same sheet in room mode. |
 | 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
 | 11a–c | Side tasks | — | **New feature (principle 9)**, not UI-only. Proposed as phase E after D. |
 | 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
@@ -538,7 +538,7 @@ into the chat More menu under "From plugins" (hidden when none).
 ### Phase C2 — not backed yet (hidden, no fake data)
 
 - **Notifications bell** (views 13/14) — no notifications backend exists.
-- **Files button** in the chat header (view 14) — phase D4; space reserved.
+- **Files button** in the chat header (view 14) — built in phase D4.
 - **Computer button / preview pane** (view 14) — needs the computer backend
   (phase D); deliberately not built.
 - **"Needs you" on Runs beyond live approvals** — stuck/failed runs
@@ -667,6 +667,82 @@ change-password, admin executions). No new tests needed.
 ## Later phases
 
 - **Phase D** — D2 Routine editor (17), D3 Bot settings (18), D4 Files sheet (10).
+
+## Phase D4 scope (Files sheet, view 10)
+
+New `frontend/src/components/chat/FilesSheet.tsx` (+ `styles/v2/files.less`)
+— the modal sheet from design `source/10-files.html` (620px dialog on the
+`#0e0f11` sidebar surface, 18px radius, 32px pill chips, 30×36 extension
+tiles, rows with a right-side action). It opens from:
+
+- a **Files pill** in the chat header, left of "Earlier chats" (desktop
+  ≥1024px — the chat header row is hidden below that), and
+- the **room header's Files icon** (C2), now in room mode instead of
+  switching the panel to the old assets view mode.
+
+On mobile the sheet is **full-screen** (below 640px) and Files sits at the
+top of the chat **More menu** (`ChatMoreMenu` gained an optional
+`onOpenFiles`) — no new top-bar button, per the phase brief.
+
+### Data source per element (all real; nothing placeholder)
+
+| Element | Source | Notes |
+|---|---|---|
+| Sheet rows — chat files | `GET /api/bots/{id}/assets` (bot-level listing, new) | One call returns all chat-owned assets of the bot, newest first (default limit 200, max 500). The server matches a chat asset to the bot via the chats table (platform chats) **or** the `bot_id` recorded in the asset metadata at upload/capture time (browser-local chats have no chats row). `ownerId` carries the chat id for per-chat downloads. |
+| Row origin (Made by / Sent by you) | `uploadedByBotId` / `uploadedByUserId` on each asset | Written by the real upload path (user) and by the agent's file auto-capture / sandbox document capture (bot). Assets with neither (rare) appear only under All. |
+| Row meta "date · size" | `createdAt` (via `parseApiDate`) + `sizeBytes` | Today / Yesterday / weekday (within the week) / "Nov 17" labels; size in B/KB/MB (`49 B`, `908 B`, `4 KB`). Nothing is invented when a field is missing. |
+| Download | existing `downloadChatAsset` / `downloadRoomAsset` | Per-row blob download with the original filename. |
+| Open rows | artifacts store (`stores/artifacts.ts`) | Artifacts whose `chatId` belongs to one of the bot's chats, minus those already backed by a chat asset (document artifacts carry `metadata.assetId`; same-title-same-chat dedupes too). **Open** closes the sheet and opens the existing artifact panel (`setActive`) — the design's "Open on computer" has no computer backend. |
+| Chips | computed from the loaded rows | All / Made by \<Bot\> / Sent by you; a chip that would always be empty is hidden, and an active filter falls back to All. |
+| Room mode | `GET /api/rooms/{id}/assets` | Subtitle "Files shared in \<room\>"; chips become All / Made by bots / Sent by you (bot chip hidden when empty, as always). Upload stays in the sheet header and delete on row hover, so the old room assets view loses nothing. |
+| Footer ("Files live in the bot's /workspace…", design 10) | — | **Dropped** — no /workspace persistence story exists; it would be fiction. |
+
+### Behavior changes
+
+- Chat header gained the Files pill (desktop); mobile top bar gains Files at
+  the top of the More menu. The Files sheet opens over the chat from either.
+- Room header Files icon opens the same sheet in room mode. The old `assets`
+  view mode stays in code (and `AssetsView` untouched) but is no longer the
+  entry point; list/upload/download/delete all remain reachable via the
+  sheet. Chat-mode asset delete was already unreachable in the v2 shell
+  (only the dead `AssetsView` chat branch offered it) and stays that way.
+
+### Backend change
+
+- `GET /api/bots/{id}/assets` (`cachibot/api/routes/assets.py`, viewer-or-higher
+  via `require_bot_access`) returns a bot's chat assets newest-first with a
+  `limit` param (default 200, max 500); `AssetRepository.get_by_bot` joins the
+  chats table on `bot_id` and also matches assets whose metadata carries the
+  bot id (recorded at upload/capture time in the chat upload route, the agent
+  file auto-capture and the sandbox document capture — local browser chats
+  have no chats row, a plain join alone would lose them). Room assets are
+  excluded.
+- Tests: `tests/test_bot_assets_api.py` mocks the repository and the auth
+  user lookup (no PostgreSQL — runs in CI): 401 without a token, rows
+  serialize with `ownerId`/origin fields, `limit` passed through with a 422
+  outside 1–500. `ruff`/`ruff format`/`mypy`/`pytest` all pass.
+
+### Phase D4 — not backed yet (hidden, no fake data)
+
+- **"Open on computer"** row action (design 10) — no computer backend;
+  artifacts open in the app's artifact panel instead.
+- **Date on artifact rows** — the artifact model has no timestamp, so those
+  rows show no date (size only when the emitter provided
+  `metadata.fileSize`, which document artifacts do).
+- **Chat assets created before the bot-level listing existed** carry no
+  `bot_id` metadata, and browser-local chats from before that change have no
+  chats row either — those rows are only matched when their chat is in the
+  chats table (platform chats). Rows created after the change are fully
+  covered.
+- **Open on an artifact whose chat has no loaded messages** — the ChatView
+  empty-hero branch returns early without rendering the artifact panel
+  (pre-existing layout branch, not introduced here); normal artifact chats
+  have messages and work.
+
+## Later phases
+
+- **Phase D** — D2 Routine editor (17), D3 Bot settings (18),
+  D5 App settings + Activity log (19, 20).
 - **Phase E (proposal)** — side tasks (11a–c); needs backend support.
 - **The bot's computer** (views 04–09, 11): requires a new backend. Not
   started; the Computer button and preview pane stay hidden.

@@ -18,6 +18,7 @@ import {
   ArrowDown,
   Mic,
   MoreHorizontal,
+  FolderOpen,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -26,6 +27,7 @@ import { useModelsStore } from '../../stores/models'
 import { useApprovalsStore } from '../../stores/approvals'
 import { BotAvatar } from '../common/Avatar'
 import { ChatsSheet } from '../chat/ChatsSheet'
+import { FilesSheet } from '../chat/FilesSheet'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
@@ -140,6 +142,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
   const [showChats, setShowChats] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [voiceMode, setVoiceMode] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
@@ -1472,11 +1475,11 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const showPanel = panelOpen && activeArtifact
 
   // Chat header — just the bot (design views 02/14): the bot name opens Bot
-  // settings, the history icon keeps "Earlier chats", and the "..." menu
-  // holds Runs / Routines / Knowledge / plugin pages / Export / Clear.
-  // Rendered in every chat state, including the empty hero. Below 1024px
-  // the whole row is hidden (mobile top bar carries avatar/name/history).
-  // A Files button (design 14) lands here in phase D4 — space is reserved.
+  // settings, Files opens the Files sheet (design 10), the history icon keeps
+  // "Earlier chats", and the "..." menu holds Runs / Routines / Knowledge /
+  // plugin pages / Export / Clear. Rendered in every chat state, including
+  // the empty hero. Below 1024px the whole row is hidden (mobile top bar
+  // carries avatar/name/history; Files lives in its More menu).
   const chatHeader = (
     <>
       <div className="chat-header">
@@ -1504,6 +1507,16 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         </div>
         {activeBot && (
           <div className="chat-header__actions">
+            <button
+              type="button"
+              className="v2-files-btn"
+              aria-label="Files"
+              title="Files"
+              onClick={() => setShowFiles(true)}
+            >
+              <FolderOpen size={15} strokeWidth={1.8} />
+              Files
+            </button>
             <button
               type="button"
               className="v2-icon-btn"
@@ -1536,6 +1549,9 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
       </div>
       {showChats && activeBot && (
         <ChatsSheet bot={activeBot} onClose={() => setShowChats(false)} />
+      )}
+      {showFiles && activeBot && (
+        <FilesSheet bot={activeBot} onClose={() => setShowFiles(false)} />
       )}
     </>
   )

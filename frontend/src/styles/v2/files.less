@@ -1,0 +1,258 @@
+// =============================================================================
+// UI v2 Files sheet — styles/v2/files.less
+// Modal sheet listing what a bot made or you sent (design view 10) and the
+// room's shared files (design view 13 header). Exact values from
+// docs/design/cachibot-v2-final-views/source/10-files.html. Dark/light via
+// the --v2-* tokens.
+// =============================================================================
+
+.ui-v2 {
+  // Backdrop: dim + center the sheet near the top (design 10: 90px padding)
+  .v2-files-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: @z-modal;
+    background: var(--color-bg-overlay);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 90px @sp-4 @sp-4;
+    box-sizing: border-box;
+  }
+
+  // Dialog: 620px column on the sidebar surface (design 10 uses #0e0f11)
+  .v2-files {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 620px;
+    max-width: 100%;
+    max-height: calc(100vh - 106px);
+    box-sizing: border-box;
+    padding: 22px 24px 18px;
+    border-radius: 18px;
+    background: var(--v2-bg-sidebar);
+    border: 1px solid var(--v2-border);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    color: var(--v2-text);
+    font-family: @font-sans;
+
+    &__header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: @font-bold;
+      }
+    }
+
+    &__subtitle {
+      font-size: 13px;
+      color: var(--v2-text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex: none;
+    }
+
+    &__upload {
+      height: 30px;
+      font-size: 13px;
+      font-weight: @font-medium;
+    }
+
+    // Chips: 32px pills; active is the white primary (design 10)
+    &__chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    &__chip {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 16px;
+      border: 1px solid var(--v2-border);
+      background: transparent;
+      color: var(--v2-text-secondary);
+      font: inherit;
+      font-size: 13px;
+      font-weight: @font-medium;
+      cursor: pointer;
+      .transition-colors();
+
+      &:hover {
+        color: var(--v2-text);
+      }
+
+      &--active,
+      &--active:hover {
+        background: var(--v2-text);
+        border-color: var(--v2-text);
+        color: var(--v2-bg-main);
+      }
+    }
+
+    &__list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      margin: 0 -4px;
+      padding: 0 4px;
+      .scrollbar-thin();
+    }
+
+    // Row: tile + name/meta + action, hairline top border (design 10)
+    &__row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 4px;
+      border-top: 1px solid var(--v2-border);
+    }
+
+    // File-type tile: 30x36 with the extension in mono 9px (design 10)
+    &__tile {
+      width: 30px;
+      height: 36px;
+      border-radius: 5px;
+      background: var(--v2-bg-hover);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
+      box-sizing: border-box;
+      font-family: @font-mono;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--v2-text-secondary);
+      flex: none;
+    }
+
+    &__main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    &__name {
+      font-size: 14px;
+      font-weight: @font-semibold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &__meta {
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &__action {
+      height: 28px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--v2-text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: @font-medium;
+      cursor: pointer;
+      flex: none;
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-hover);
+      }
+    }
+
+    &__delete {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--v2-text-secondary);
+      cursor: pointer;
+      flex: none;
+      opacity: 0;
+      .transition-colors();
+
+      &:hover {
+        background: var(--v2-bg-hover);
+        color: var(--v2-red);
+      }
+    }
+
+    &__empty {
+      padding: @sp-8 @sp-4;
+      text-align: center;
+      color: var(--v2-text-tertiary);
+      font-size: 14px;
+    }
+  }
+
+  // Row hover reveals the delete button (room rows)
+  .v2-files__row:hover .v2-files__delete {
+    opacity: 1;
+  }
+
+  // Chat header Files pill (design 10/14: 34px, folder icon + label)
+  .v2-files-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--v2-border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: @font-medium;
+    cursor: pointer;
+    flex: none;
+    .transition-colors();
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+}
+
+// Mobile: the sheet takes over the whole screen (design 10 is desktop-only;
+// a 620px dialog would crowd a 375px viewport)
+@media (max-width: 640px) {
+  .ui-v2 {
+    .v2-files-backdrop {
+      padding: 0;
+    }
+
+    .v2-files {
+      width: 100%;
+      max-width: none;
+      max-height: none;
+      min-height: 100%;
+      border-radius: 0;
+      border: 0;
+    }
+  }
+}

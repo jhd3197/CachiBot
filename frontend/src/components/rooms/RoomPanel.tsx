@@ -15,6 +15,7 @@ import { DashboardCardsView } from './DashboardCardsView'
 import { TimelineView } from './TimelineView'
 import { RoomTasksView } from './RoomTasksView'
 import { AssetsView } from '../common/AssetsView'
+import { FilesSheet } from '../chat/FilesSheet'
 import { BotAvatar } from '../common/Avatar'
 import { V2Menu, V2MenuItem, V2MenuLabel, V2MenuDivider } from '../common/V2Menu'
 import { useAuthStore } from '../../stores/auth'
@@ -32,6 +33,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   const [room, setRoom] = useState<Room | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Connect WebSocket only after the initial REST load finishes so that
@@ -179,7 +181,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
             className="v2-icon-btn"
             title="Files"
             aria-label="Files"
-            onClick={() => setViewMode(roomId, 'assets')}
+            onClick={() => setShowFiles(true)}
           >
             <FolderOpen size={17} strokeWidth={1.8} />
           </button>
@@ -366,6 +368,12 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           onUpdate={handleSettingsUpdate}
           onDelete={handleDeleteRoom}
         />
+      )}
+
+      {/* Files sheet (design 10/13) — the room's shared files; upload and
+          delete stay reachable here, formerly in the assets view mode */}
+      {showFiles && room && (
+        <FilesSheet roomId={room.id} roomTitle={room.title} onClose={() => setShowFiles(false)} />
       )}
     </div>
   )
