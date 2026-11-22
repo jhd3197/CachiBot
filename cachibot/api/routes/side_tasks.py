@@ -50,6 +50,8 @@ class SideTaskResponse(BaseModel):
     mergedCommit: str | None
     mergedFiles: list[dict[str, object]]
     conflictFiles: list[str]
+    sourceMessageId: str | None
+    replyMessageId: str | None
     error: str | None
     workId: str | None
     createdAt: str
@@ -73,6 +75,13 @@ class StartSideTaskRequest(BaseModel):
     startedBy: SideTaskStartedBy = Field(default=SideTaskStartedBy.USER)
     groupId: str | None = Field(default=None, description="Helper group id (E3)")
     groupTitle: str | None = Field(default=None, description="Helper group title (E3)")
+    sourceMessageId: str | None = Field(
+        default=None,
+        description=(
+            "Parent-chat message this side task answers (validated to belong to "
+            "the chat; the latest user message in the chat is used when omitted)"
+        ),
+    )
 
 
 @router.get("/side-tasks")
@@ -160,6 +169,7 @@ async def start_side_task(
             kind=request.kind,
             group_id=request.groupId,
             group_title=request.groupTitle,
+            source_message_id=request.sourceMessageId,
         )
     except SideTaskStartError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

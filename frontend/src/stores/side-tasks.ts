@@ -33,7 +33,13 @@ interface SideTasksState {
   /** Insert or replace one record (from the API or a WS event). */
   upsert: (task: SideTask) => void
 
-  start: (botId: string, chatId: string, prompt: string, title?: string) => Promise<SideTask>
+  start: (
+    botId: string,
+    chatId: string,
+    prompt: string,
+    title?: string,
+    sourceMessageId?: string | null
+  ) => Promise<SideTask>
   stop: (botId: string, sideTaskId: string) => Promise<void>
   retryMerge: (botId: string, sideTaskId: string) => Promise<void>
   discard: (botId: string, sideTaskId: string) => Promise<void>
@@ -77,8 +83,8 @@ export const useSideTasksStore = create<SideTasksState>()((set, get) => ({
       loadedFor: { ...state.loadedFor, [task.botId]: true },
     })),
 
-  start: async (botId, chatId, prompt, title) => {
-    const task = await startSideTask(botId, chatId, { prompt, title })
+  start: async (botId, chatId, prompt, title, sourceMessageId) => {
+    const task = await startSideTask(botId, chatId, { prompt, title, sourceMessageId })
     get().upsert(task)
     return task
   },

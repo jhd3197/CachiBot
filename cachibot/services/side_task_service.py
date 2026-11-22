@@ -24,6 +24,19 @@ conflict (or git refusing because the parent tree has local changes in the
 same files) aborts the merge — the parent tree ends exactly as before — and
 the side task becomes ``needs_you`` (reason ``merge_conflict``) with the
 branch and worktree kept so no work is lost.
+
+Thread replies: a side task records ``source_message_id`` — the parent-chat
+message that started it (explicit for More > Do this on the side; otherwise
+the latest user message in the parent chat, which is the message the
+current turn is answering). While it waits or runs, the parent chat shows
+only a quiet live indicator (from ``side_task_update``). When it settles
+(merged / done / failed / stopped / needs_you), ONE assistant reply message
+is persisted in the parent chat — quoting the source message, with the
+outcome and the merge details in its metadata — and every later state
+change (needs_you -> merged after Retry merge, discard, resume) updates
+that same message in place. Bot-started helpers share ONE group reply that
+updates as helpers progress. Clients are pushed the create/update via the
+scoped ``message_update`` WebSocket event.
 """
 
 from __future__ import annotations
@@ -101,6 +114,9 @@ class SideTaskService:
         self._running: dict[str, asyncio.Task[None]] = {}
         # side_task_id -> reason, for running turns paused with needs_you
         self._pending_needs_you: dict[str, str] = {}
+        # Serializes parent-chat reply create/update (concurrent finishes of
+        # helpers in one group must not each create their own reply message)
+        self._reply_lock = asyncio.Lock()
         # Serializes slot allocation across starts/stops/finishes
         self._lock = asyncio.Lock()
 
@@ -119,12 +135,20 @@ class SideTaskService:
         kind: SideTaskKind = SideTaskKind.SIDE,
         group_id: str | None = None,
         group_title: str | None = None,
+        source_message_id: str | None = None,
     ) -> SideTask:
         """Create a side task for a parent chat and queue or run it.
 
+        ``source_message_id`` is the parent-chat message the side task is
+        started from (for a reply in the parent chat). It must belong to the
+        parent chat. When omitted, the latest user message in the parent chat
+        is used — bot tools and the composer have no specific message, and
+        the latest user message is the one the current turn is answering.
+
         Raises:
             SideTaskStartError: If the parent chat is missing, is itself a
-                side task, or the workspace isn't a git repo.
+                side task, the workspace isn't a git repo, or the source
+                message doesn't belong to the parent chat.
         """
         parent = await self._chat_repo.get_chat(parent_chat_id)
         if parent is None or parent.bot_id != bot_id:
@@ -135,6 +159,9 @@ class SideTaskService:
             )
 
         await self._ensure_git_workspace()
+        source_message_id = await self._resolve_source_message(
+            bot_id, parent_chat_id, source_message_id
+        )
 
         side_task = SideTask(
             id=str(uuid.uuid4()),
@@ -147,6 +174,7 @@ class SideTaskService:
             group_id=group_id,
             group_title=group_title,
             started_by=started_by,
+            source_message_id=source_message_id,
         )
 
         # The side task's own chat, nested under its parent (sidebar tree)
@@ -218,6 +246,31 @@ class SideTaskService:
                 f"({workspace} is not inside a git work tree)"
             )
 
+    async def _resolve_source_message(
+        self,
+        bot_id: str,
+        parent_chat_id: str,
+        source_message_id: str | None,
+    ) -> str | None:
+        """Resolve and validate the parent-chat message a side task answers.
+
+        An explicit id must belong to the parent chat. When omitted (composer
+        start, or a bot tool that has no message reference), the latest user
+        message in the parent chat is used — it is the message the current
+        turn is answering. Returns None when the parent chat has no user
+        message at all (replies then render without a quoted snippet).
+        """
+        if source_message_id:
+            existing = await self._knowledge_repo.get_bot_message(source_message_id)
+            if existing is None or existing.chat_id != parent_chat_id:
+                raise SideTaskStartError(
+                    f"Source message {source_message_id} does not belong to chat {parent_chat_id}"
+                )
+            return source_message_id
+        messages = await self._knowledge_repo.get_bot_messages(bot_id, parent_chat_id, limit=200)
+        last_user = next((m for m in reversed(messages) if m.role == "user"), None)
+        return last_user.id if last_user is not None else None
+
     async def start_helpers(
         self,
         *,
@@ -225,13 +278,15 @@ class SideTaskService:
         bot_id: str,
         items: list[dict[str, Any]],
         group_title: str | None = None,
+        source_message_id: str | None = None,
     ) -> tuple[str, list[SideTask]]:
         """Start one helper per item, all in one new group (bot-started).
 
         Each item is ``{"title": ..., "prompt": ...}`` (title optional; it
         is derived from the prompt when missing). Helpers share the new
         ``group_id`` and the per-parent limit still applies: extras queue
-        in ``waiting_for_slot`` and are promoted FIFO as slots free.
+        in ``waiting_for_slot`` and are promoted FIFO as slots free. All
+        helpers share one ``source_message_id`` (see ``start``).
 
         Raises:
             SideTaskStartError: If the items are invalid or the parent chat
@@ -262,6 +317,7 @@ class SideTaskService:
 
         group_id = str(uuid.uuid4())
         started: list[SideTask] = []
+        resolved_source = source_message_id
         for item in normalized:
             started.append(
                 await self.start(
@@ -273,8 +329,17 @@ class SideTaskService:
                     kind=SideTaskKind.HELPER,
                     group_id=group_id,
                     group_title=group_title,
+                    source_message_id=resolved_source,
                 )
             )
+            if resolved_source is None:
+                # Share the fallback-resolved message across the group.
+                resolved_source = started[-1].source_message_id
+        try:
+            async with self._reply_lock:
+                await self._sync_group_reply(group_id)
+        except Exception:
+            logger.debug("Could not write helper group reply", exc_info=True)
         return group_id, started
 
     async def group_summary(self, group_id: str) -> SideTaskGroupSummary | None:
@@ -324,6 +389,18 @@ class SideTaskService:
         for side_task in active:
             await self._stop_one(side_task)
         return len(active)
+
+    async def shutdown(self) -> None:
+        """Cancel every in-flight side-task turn and wait for it to settle.
+
+        Used at app shutdown and by tests in teardown, so no background turn
+        outlives the database/loop it was started with.
+        """
+        tasks = [t for t in self._running.values() if not t.done()]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _stop_one(self, side_task: SideTask) -> None:
         """Stop one side task and promote the next waiting one."""
@@ -887,45 +964,218 @@ class SideTaskService:
         side_task.updated_at = datetime.now(timezone.utc)
         await self._repo.update(side_task)
         await self._broadcast(side_task)
-        await self._note_parent_chat(side_task)
+        await self._reply_in_parent_chat(side_task)
 
-    async def _note_parent_chat(self, side_task: SideTask) -> None:
-        """Persist one short system note in the parent chat when a bot-started
-        side task or helper settles (merged / done / failed / needs_you).
+    # ------------------------------------------------------------------
+    # Parent-chat thread replies (E5)
+    # ------------------------------------------------------------------
 
-        The note is what the parent chat history knows about its side tasks
-        (E4 renders the richer cards from ``side_task_update``). It is
-        skipped for user-started side tasks: the user started those
-        themselves. The message model carries free-form roles and the chat
-        UI renders ``system`` messages inline, so this is safe.
+    async def _reply_in_parent_chat(self, side_task: SideTask) -> None:
+        """Keep the parent chat's thread reply in sync with a state change.
+
+        One reply per side task (and one per helper group), always: the first
+        qualifying transition creates it, later transitions update it in
+        place — a settled side task never leaves a stale amber reply behind,
+        and there is never a duplicate. While a side task merely waits or
+        runs, the chat shows the quiet live indicator instead (rendered from
+        ``side_task_update``), so nothing is persisted here for those states
+        — except a resume, which must clear a previous needs-you reply.
         """
-        if side_task.started_by != SideTaskStartedBy.BOT:
-            return
-        if side_task.status not in (
-            SideTaskStatus.MERGED,
-            SideTaskStatus.DONE,
-            SideTaskStatus.FAILED,
-            SideTaskStatus.NEEDS_YOU,
-        ):
-            return
-        content = _parent_chat_note(side_task)
-        if not content:
-            return
         try:
-            await self._knowledge_repo.save_bot_message(
-                BotMessage(
-                    id=str(uuid.uuid4()),
-                    bot_id=side_task.bot_id,
-                    chat_id=side_task.parent_chat_id,
-                    role="system",
-                    content=content,
-                    timestamp=datetime.now(timezone.utc),
-                )
-            )
+            async with self._reply_lock:
+                if side_task.group_id:
+                    await self._sync_group_reply(side_task.group_id)
+                    return
+                if side_task.status in _SINGLE_REPLY_STATUSES or (
+                    side_task.status == SideTaskStatus.RUNNING and side_task.reply_message_id
+                ):
+                    await self._sync_single_reply(side_task)
         except Exception:
             logger.debug(
-                "Could not write parent-chat note for side task %s", side_task.id, exc_info=True
+                "Could not sync parent-chat reply for side task %s",
+                side_task.id,
+                exc_info=True,
             )
+
+    async def _sync_single_reply(self, side_task: SideTask) -> None:
+        """Create or update the one parent-chat reply for a side task.
+
+        Callers must hold ``self._reply_lock``. A caller may hold a stale
+        copy from before the first reply was persisted (``_transition`` saves
+        the status first, the reply id afterwards) — the record is re-read in
+        that case so a stale ``reply_message_id=None`` can never duplicate
+        the reply.
+        """
+        message_id = side_task.reply_message_id
+        if not message_id:
+            fresh = await self._repo.get(side_task.id)
+            if fresh is not None and fresh.reply_message_id:
+                message_id = fresh.reply_message_id
+                side_task.reply_message_id = fresh.reply_message_id
+
+        summary = await self._side_chat_summary(side_task)
+        content = _single_reply_content(side_task, summary)
+        metadata: dict[str, Any] = {
+            "kind": "side_task_reply",
+            "sideTaskId": side_task.id,
+            "title": side_task.title,
+            "chatId": side_task.chat_id,
+            "status": side_task.status.value,
+        }
+        if side_task.source_message_id:
+            metadata["replyTo"] = side_task.source_message_id
+        if side_task.status == SideTaskStatus.MERGED:
+            metadata["mergedFiles"] = side_task.merged_files
+            if side_task.merged_commit:
+                metadata["mergedCommit"] = side_task.merged_commit
+        if side_task.status == SideTaskStatus.FAILED and side_task.error:
+            metadata["error"] = _one_line(side_task.error, 300)
+        if side_task.status == SideTaskStatus.NEEDS_YOU:
+            if side_task.needs_you_reason:
+                metadata["needsYouReason"] = side_task.needs_you_reason
+            if side_task.conflict_files:
+                metadata["conflictFiles"] = side_task.conflict_files
+        message = await self._publish_reply(
+            bot_id=side_task.bot_id,
+            parent_chat_id=side_task.parent_chat_id,
+            message_id=message_id,
+            content=content,
+            metadata=metadata,
+            reply_to_id=side_task.source_message_id,
+        )
+        if message_id is None and message.id != side_task.reply_message_id:
+            # We created the reply: stamp the record so later syncs update it.
+            side_task.reply_message_id = message.id
+            await self._repo.update(side_task)
+
+    async def _sync_group_reply(self, group_id: str) -> None:
+        """Create or update the ONE parent-chat reply for a helper group.
+
+        Callers must hold ``self._reply_lock`` (fresh records are read from
+        the repository, so a stale caller cannot duplicate the message).
+
+        The message carries live counts and the per-helper list (ids, titles,
+        statuses, child chat ids — all real record data) so the UI can expand
+        a helper row without another round trip.
+        """
+        tasks = await self._repo.get_by_group(group_id)
+        if not tasks:
+            return
+        first = tasks[0]
+        total = len(tasks)
+        waiting = sum(1 for t in tasks if t.status == SideTaskStatus.WAITING_FOR_SLOT)
+        running = sum(1 for t in tasks if t.status == SideTaskStatus.RUNNING)
+        needs_you = sum(1 for t in tasks if t.status == SideTaskStatus.NEEDS_YOU)
+        failed = sum(1 for t in tasks if t.status == SideTaskStatus.FAILED)
+        done = total - waiting - running - needs_you - failed  # done + merged + stopped
+        title = first.group_title or f"{total} helpers"
+        if needs_you:
+            status = "needs_you"
+        elif failed:
+            status = "failed"
+        elif running or waiting:
+            status = "running"
+        else:
+            status = "settled"
+        metadata: dict[str, Any] = {
+            "kind": "side_task_group_reply",
+            "groupId": group_id,
+            "title": title,
+            "status": status,
+            "total": total,
+            "done": done,
+            "failed": failed,
+            "running": running,
+            "waiting": waiting,
+            "needsYou": needs_you,
+            "items": [
+                {"id": t.id, "title": t.title, "status": t.status.value, "chatId": t.chat_id}
+                for t in tasks
+            ],
+        }
+        reply_to_id = next((t.source_message_id for t in tasks if t.source_message_id), None)
+        if reply_to_id:
+            metadata["replyTo"] = reply_to_id
+        existing_id = next((t.reply_message_id for t in tasks if t.reply_message_id), None)
+        message = await self._publish_reply(
+            bot_id=first.bot_id,
+            parent_chat_id=first.parent_chat_id,
+            message_id=existing_id,
+            content=_group_reply_content(title, total, done, running, waiting, needs_you, failed),
+            metadata=metadata,
+            reply_to_id=reply_to_id,
+        )
+        if existing_id is None:
+            await self._repo.set_reply_message_for_group(group_id, message.id)
+
+    async def _publish_reply(
+        self,
+        *,
+        bot_id: str,
+        parent_chat_id: str,
+        message_id: str | None,
+        content: str,
+        metadata: dict[str, Any],
+        reply_to_id: str | None,
+    ) -> BotMessage:
+        """Create the parent-chat reply, or update it in place when it exists.
+
+        Updating in place (same id, chat and timestamp) is what keeps the
+        reply unique per side task / group across every state change.
+        """
+        if message_id:
+            existing = await self._knowledge_repo.get_bot_message(message_id)
+            if existing is not None and existing.chat_id == parent_chat_id:
+                existing.content = content
+                existing.metadata = metadata
+                existing.reply_to_id = reply_to_id
+                await self._knowledge_repo.update_bot_message(existing)
+                await self._notify_message_update(bot_id, existing)
+                return existing
+        message = BotMessage(
+            id=str(uuid.uuid4()),
+            bot_id=bot_id,
+            chat_id=parent_chat_id,
+            role="assistant",
+            content=content,
+            timestamp=datetime.now(timezone.utc),
+            metadata=metadata,
+            reply_to_id=reply_to_id,
+        )
+        await self._knowledge_repo.save_bot_message(message)
+        await self._notify_message_update(bot_id, message)
+        return message
+
+    async def _side_chat_summary(self, side_task: SideTask) -> str | None:
+        """The side chat's last assistant message, trimmed to one short line."""
+        messages = await self._knowledge_repo.get_bot_messages(
+            side_task.bot_id, side_task.chat_id, limit=_RESUME_HISTORY_LIMIT
+        )
+        last_assistant = next((m for m in reversed(messages) if m.role == "assistant"), None)
+        if last_assistant is None:
+            return None
+        return _one_line(last_assistant.content, 200) or None
+
+    async def _notify_message_update(self, bot_id: str, message: BotMessage) -> None:
+        """Push a created/updated parent-chat message to clients with bot access."""
+        try:
+            from cachibot.api.websocket import get_ws_manager
+            from cachibot.models.websocket import WSMessage
+
+            payload = {
+                "id": message.id,
+                "chatId": message.chat_id,
+                "role": message.role,
+                "content": message.content,
+                "timestamp": message.timestamp.isoformat(),
+                "metadata": message.metadata,
+                "replyToId": message.reply_to_id,
+            }
+            await get_ws_manager().broadcast_to_bot(
+                WSMessage.message_update(message.chat_id, payload), bot_id
+            )
+        except Exception:
+            logger.debug("Could not broadcast message update", exc_info=True)
 
     async def _sync_work_status(self, side_task: SideTask) -> None:
         """Mirror the side task status onto its Work row (for Runs)."""
@@ -984,22 +1234,66 @@ def _one_line(text: str, limit: int = 200) -> str:
     return " ".join(text.split())[:limit]
 
 
-def _parent_chat_note(side_task: SideTask) -> str:
-    """One short line for the parent chat about a settled bot-started side task."""
-    label = "Helper" if side_task.kind == SideTaskKind.HELPER else "Side task"
+# States that get a persisted parent-chat reply for a single (ungrouped)
+# side task. Waiting/running show the quiet live indicator instead; a
+# resumed side task (RUNNING with an existing reply) updates it in place so
+# a stale needs-you reply never keeps offering actions.
+_SINGLE_REPLY_STATUSES = (
+    SideTaskStatus.NEEDS_YOU,
+    SideTaskStatus.DONE,
+    SideTaskStatus.MERGED,
+    SideTaskStatus.FAILED,
+    SideTaskStatus.STOPPED,
+)
+
+
+def _files_label(count: int) -> str:
+    return "1 file" if count == 1 else f"{count} files"
+
+
+def _single_reply_content(side_task: SideTask, summary: str | None) -> str:
+    """The reply body: what the side task did, or a short record-derived line."""
+    if summary:
+        return summary
     title = side_task.title
     if side_task.status == SideTaskStatus.MERGED:
         count = len(side_task.merged_files)
-        files = "1 file" if count == 1 else f"{count} files"
-        commit = (side_task.merged_commit or "")[:7]
-        suffix = f" (commit {commit})" if commit else ""
-        return f'{label} "{title}" merged back · {files} changed{suffix}'
+        suffix = f" · {_files_label(count)} changed" if count else ""
+        return f'Brought in "{title}"{suffix}'
     if side_task.status == SideTaskStatus.DONE:
-        return f'{label} "{title}" finished with no changes to bring back'
+        return f'"{title}" finished with no changes to bring back'
     if side_task.status == SideTaskStatus.FAILED:
-        return f'{label} "{title}" failed: {_one_line(side_task.error or "unknown error")}'
-    reason = side_task.needs_you_reason or "see the side task"
-    return f'{label} "{title}" needs you: {_one_line(reason)}'
+        return f'"{title}" failed: {_one_line(side_task.error or "unknown error", 120)}'
+    if side_task.status == SideTaskStatus.STOPPED:
+        return f'"{title}" stopped'
+    if side_task.status == SideTaskStatus.NEEDS_YOU:
+        reason = side_task.needs_you_reason or "see the side task"
+        return f'"{title}" needs you: {_one_line(reason, 120)}'
+    return f'"{title}" is working again'
+
+
+def _group_reply_content(
+    title: str,
+    total: int,
+    done: int,
+    running: int,
+    waiting: int,
+    needs_you: int,
+    failed: int,
+) -> str:
+    """One line for a helper group, e.g. "Tests: 2 of 3 done · 1 running"."""
+    if done == total:
+        return f'"{title}": all {total} done'
+    parts = [f"{done} of {total} done"]
+    if running:
+        parts.append(f"{running} running")
+    if waiting:
+        parts.append(f"{waiting} waiting for a slot")
+    if needs_you:
+        parts.append(f"{needs_you} needs you")
+    if failed:
+        parts.append(f"{failed} failed")
+    return f'"{title}": ' + " · ".join(parts)
 
 
 # Singleton

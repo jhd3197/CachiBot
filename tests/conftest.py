@@ -3,6 +3,7 @@
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -191,3 +192,57 @@ async def regular_user_with_token(api_client, auth_service):
     )
     token = auth_service.create_access_token(user.id, user.role.value)
     return user, token
+
+
+# ---------------------------------------------------------------------------
+# Hermetic side-task git operations
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def hermetic_side_task_git(tmp_path, monkeypatch):
+    """Keep every side-task git operation inside the system temp dir.
+
+    Belt and braces on top of the per-test fixtures: worktrees are rooted in
+    a tmp dir, and any worktree/branch/merge helper called on a repository
+    outside the system temp dir raises instead of touching a real checkout.
+    """
+    import functools
+    import tempfile
+
+    import cachibot.services.side_task_worktrees as wt
+
+    tmp_root = tempfile.gettempdir()
+    monkeypatch.setattr(
+        wt, "worktrees_base_dir", lambda: Path(tmp_root) / "cachibot-test-worktrees"
+    )
+
+    guarded = (
+        "create_worktree",
+        "remove_worktree",
+        "delete_branch",
+        "commit_all_changes",
+        "merge_side_branch",
+        "cleanup_after_merge",
+        "branch_sha",
+        "is_branch_merged",
+        "head_sha",
+        "changed_files_vs_base",
+    )
+
+    def _wrap(fn):
+        @functools.wraps(fn)
+        def wrapper(repo_path, *args, **kwargs):
+            resolved = str(Path(repo_path).resolve())
+            if not (resolved == tmp_root or resolved.startswith(tmp_root + "/")):
+                raise RuntimeError(
+                    f"Refusing side-task git operation outside the system temp dir: {repo_path}"
+                )
+            return fn(repo_path, *args, **kwargs)
+
+        return wrapper
+
+    for name in guarded:
+        monkeypatch.setattr(wt, name, _wrap(getattr(wt, name)))
+
+    yield

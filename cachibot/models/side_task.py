@@ -98,6 +98,14 @@ class SideTask(BaseModel):
     merged_files: list[dict[str, Any]] = Field(default_factory=list)
     conflict_files: list[str] = Field(default_factory=list)
 
+    # Thread reply (E5): parent-chat message that started the side task
+    # (validated to belong to the parent chat at start; falls back to the
+    # latest user message in the parent chat when not given explicitly), and
+    # the single parent-chat reply message, created on the first qualifying
+    # transition and updated in place after.
+    source_message_id: str | None = Field(default=None)
+    reply_message_id: str | None = Field(default=None)
+
     # Results
     error: str | None = Field(default=None)
 

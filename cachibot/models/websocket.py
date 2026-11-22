@@ -25,6 +25,7 @@ class WSMessageType(str, Enum):
     DOCUMENT_STATUS = "document_status"  # Document processing progress
     JOB_UPDATE = "job_update"  # Job/work execution progress
     SIDE_TASK_UPDATE = "side_task_update"  # Side task state change (full record)
+    MESSAGE_UPDATE = "message_update"  # A persisted chat message was created/updated in place
     EXECUTION_START = "execution_start"  # New execution began
     EXECUTION_LOG = "execution_log"  # Live log line
     EXECUTION_PROGRESS = "execution_progress"  # Progress update
@@ -477,3 +478,16 @@ class WSMessage(BaseModel):
     def side_task_update(cls, payload: dict[str, Any]) -> "WSMessage":
         """Create a side task update (full record, camelCase keys)."""
         return cls(type=WSMessageType.SIDE_TASK_UPDATE, payload=payload)
+
+    @classmethod
+    def message_update(cls, chat_id: str, message: dict[str, Any]) -> "WSMessage":
+        """A persisted chat message was created or updated in place.
+
+        Carries the full message (id, role, content, metadata, replyToId) so
+        clients can upsert it into the chat it belongs to. Used for side-task
+        replies, which the backend rewrites as their side task progresses.
+        """
+        return cls(
+            type=WSMessageType.MESSAGE_UPDATE,
+            payload={"chatId": chat_id, "message": message},
+        )

@@ -315,6 +315,53 @@ export interface SideTaskMergedFile {
   status: string
 }
 
+/**
+ * Metadata of the assistant reply message a side task (or helper group)
+ * persists in the parent chat (kind "side_task_reply"): the thread-style
+ * report that quotes the message that started it. The message body is the
+ * short summary; the structured outcome lives here, from the real record.
+ */
+export interface SideTaskReplyMetadata {
+  kind: 'side_task_reply'
+  sideTaskId: string
+  title: string
+  /** The side task's own chat ("View thread" target). */
+  chatId: string
+  status: SideTaskStatus
+  /** Parent-chat message quoted (== message.replyToId). */
+  replyTo?: string
+  mergedFiles?: SideTaskMergedFile[]
+  mergedCommit?: string
+  error?: string
+  needsYouReason?: string
+  conflictFiles?: string[]
+}
+
+/** One per-helper row carried by a group reply (kind "side_task_group_reply"). */
+export interface SideTaskGroupReplyItem {
+  id: string
+  title: string
+  status: SideTaskStatus
+  chatId: string
+}
+
+export interface SideTaskGroupReplyMetadata {
+  kind: 'side_task_group_reply'
+  groupId: string
+  title: string
+  status: 'running' | 'needs_you' | 'failed' | 'settled'
+  total: number
+  done: number
+  failed: number
+  running: number
+  waiting: number
+  needsYou: number
+  items: SideTaskGroupReplyItem[]
+  replyTo?: string
+}
+
+export type SideTaskReplyKind = 'side_task_reply' | 'side_task_group_reply'
+
 /** Full side-task record as returned by the REST API and `side_task_update`. */
 export interface SideTask {
   id: string
@@ -335,6 +382,10 @@ export interface SideTask {
   mergedCommit: string | null
   mergedFiles: SideTaskMergedFile[]
   conflictFiles: string[]
+  /** Parent-chat message this side task answers (thread-reply source). */
+  sourceMessageId: string | null
+  /** The one parent-chat reply message (created once, updated in place). */
+  replyMessageId: string | null
   error: string | null
   workId: string | null
   createdAt: string
@@ -589,6 +640,7 @@ export type WSMessageType =
   | 'error'
   | 'done'
   | 'job_update'
+  | 'message_update'
   | 'task_update'
   | 'side_task_update'
 
