@@ -42,6 +42,11 @@ class Chat(Base):
     platform_chat_id: Mapped[str | None] = mapped_column(String, nullable=True)
     pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    parent_chat_id: Mapped[str | None] = mapped_column(
+        String,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

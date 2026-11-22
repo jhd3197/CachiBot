@@ -55,6 +55,7 @@ from cachibot.storage.models.platform_config import PlatformToolConfig
 from cachibot.storage.models.room import Room, RoomBot, RoomMember, RoomMessage
 from cachibot.storage.models.room_task import RoomTask
 from cachibot.storage.models.room_task_event import RoomTaskEvent
+from cachibot.storage.models.side_task import SideTask
 from cachibot.storage.models.skill import BotSkill, Skill
 from cachibot.storage.models.user import User
 from cachibot.storage.models.work import Function, Schedule, Task, Todo, Work, WorkJob
@@ -100,6 +101,8 @@ __all__ = [
     "Task",
     "WorkJob",
     "Todo",
+    # Side tasks
+    "SideTask",
     # Groups & access
     "Group",
     "GroupMember",

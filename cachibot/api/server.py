@@ -52,6 +52,7 @@ from cachibot.api.routes import (
     rooms,
     scripts,
     setup,
+    side_tasks,
     skills,
     telemetry,
     update,
@@ -193,6 +194,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     job_runner = get_job_runner()
     await job_runner.start()
 
+    # Resume side tasks that were running before a restart (worktrees and
+    # chat history survive); the per-parent limit still applies.
+    try:
+        from cachibot.services.side_task_service import get_side_task_service
+
+        await get_side_task_service().resume_on_startup()
+    except Exception as exc:
+        startup_logger.warning("Side task resume skipped: %s", exc)
+
     # Start the log retention service (cleans up old execution logs)
     log_retention = get_log_retention_service()
     await log_retention.start()
@@ -315,6 +325,7 @@ def create_app(
     app.include_router(external_plugins.router, tags=["external-plugins"])
     app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
+    app.include_router(side_tasks.router, tags=["side-tasks"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])
     app.include_router(admin_executions.router, tags=["admin-executions"])

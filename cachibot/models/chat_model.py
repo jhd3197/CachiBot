@@ -19,6 +19,7 @@ class Chat(BaseModel):
     platform_chat_id: str | None = None  # The platform's chat ID
     pinned: bool = False
     archived: bool = False  # Archived chats are hidden and won't be re-synced
+    parent_chat_id: str | None = None  # Set for side-task chats (one level deep)
     created_at: datetime
     updated_at: datetime
 
@@ -41,6 +42,7 @@ class ChatResponse(BaseModel):
     platformChatId: str | None
     pinned: bool
     archived: bool
+    parentChatId: str | None
     createdAt: str
     updatedAt: str
 
@@ -54,6 +56,7 @@ class ChatResponse(BaseModel):
             platformChatId=chat.platform_chat_id,
             pinned=chat.pinned,
             archived=chat.archived,
+            parentChatId=chat.parent_chat_id,
             createdAt=chat.created_at.isoformat(),
             updatedAt=chat.updated_at.isoformat(),
         )

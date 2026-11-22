@@ -43,17 +43,20 @@ class ConnectionManager:
 
     def __init__(self) -> None:
         self.active_connections: dict[str, WebSocket] = {}
+        self.client_users: dict[str, User] = {}
         self.pending_approvals: dict[str, asyncio.Event] = {}
         self.approval_results: dict[str, bool] = {}
 
-    async def connect(self, websocket: WebSocket, client_id: str) -> None:
-        """Accept a new WebSocket connection."""
+    async def connect(self, websocket: WebSocket, client_id: str, user: User) -> None:
+        """Accept a new WebSocket connection (remembering its user)."""
         await websocket.accept()
         self.active_connections[client_id] = websocket
+        self.client_users[client_id] = user
 
     def disconnect(self, client_id: str) -> None:
         """Remove a WebSocket connection."""
         self.active_connections.pop(client_id, None)
+        self.client_users.pop(client_id, None)
         # Clean up any pending approvals
         self.pending_approvals.pop(client_id, None)
 
@@ -66,6 +69,21 @@ class ConnectionManager:
         """Send a message to all connected clients."""
         for websocket in self.active_connections.values():
             await websocket.send_json(message.model_dump())
+
+    async def broadcast_to_bot(self, message: WSMessage, bot_id: str) -> None:
+        """Send a message only to sockets whose user can view this bot.
+
+        Uses the same access rules as the REST bot-access dependency:
+        admins see everything; others need ownership or group access.
+        """
+        from cachibot.api.auth import user_has_bot_access
+
+        for client_id, websocket in list(self.active_connections.items()):
+            user = self.client_users.get(client_id)
+            if user is None:
+                continue
+            if await user_has_bot_access(user.id, user.role, bot_id):
+                await websocket.send_json(message.model_dump())
 
 
 manager = ConnectionManager()
@@ -155,7 +173,7 @@ async def websocket_endpoint(
         return
 
     client_id = str(uuid.uuid4())
-    await manager.connect(websocket, client_id)
+    await manager.connect(websocket, client_id, user=user)
 
     # Get workspace from app state
     workspace = websocket.app.state.workspace
@@ -182,6 +200,7 @@ async def websocket_endpoint(
 
     agent: CachibotAgent | None = None
     current_task: asyncio.Task[None] | None = None
+    current_chat_id: str | None = None
 
     try:
         while True:
@@ -357,6 +376,7 @@ async def websocket_endpoint(
                 reply_to_id = payload.get("replyToId")
 
                 # Run agent in background task
+                current_chat_id = chat_id
                 current_task = asyncio.create_task(
                     run_agent(
                         agent,
@@ -374,6 +394,14 @@ async def websocket_endpoint(
                 if current_task and not current_task.done():
                     current_task.cancel()
                     await manager.send(client_id, WSMessage.error("Cancelled by user"))
+                # Cascade: stopping the main task stops its side tasks
+                if current_chat_id:
+                    try:
+                        from cachibot.services.side_task_service import get_side_task_service
+
+                        await get_side_task_service().stop_all_for_parent(current_chat_id)
+                    except Exception:
+                        logger.debug("Could not stop side tasks for chat %s", current_chat_id)
 
             elif msg_type == WSMessageType.APPROVAL:
                 # Handle approval response
