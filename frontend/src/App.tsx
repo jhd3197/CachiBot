@@ -195,6 +195,30 @@ function App() {
         }
       />
       <Route
+        path="/:botId/routines"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/routines/new"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/:botId/routines/:routineId"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/:botId/voice"
         element={
           <ProtectedRoute>

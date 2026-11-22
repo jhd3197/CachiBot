@@ -75,7 +75,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 14 | Chat More menu | chat header | **Done (Phase C2)**. Bot settings/Runs/Routines/Knowledge + plugin pages + Export/Clear; Files reserved for D4. |
 | 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
-| 17 | Routine editor | `/:botId/automations` | **Phase D2**. Automations become Routines. |
+| 17 | Routine editor | `/:botId/automations` | **Done (Phase D2)**. Routines list (plain-words rows) + `RoutineEditorView` over the Schedule API; scripts/functions under Advanced; `/automations` redirects. |
 | 18 | Bot settings | `/:botId/settings` | **Phase D3**: General, Knowledge, Skills, What it can use, Connections, Computer (hidden until backend), Advanced. |
 | 19 | App settings | `/settings` | **Phase D5**: General, Appearance, Models, Data, People, Advanced, About. |
 | 20 | Activity log | `/admin/logs` | **Phase D5**: admins only, linked from Runs. |
@@ -478,6 +478,116 @@ into the chat More menu under "From plugins" (hidden when none).
 - **Phase E (proposal)** — side tasks (11a–c); needs backend support.
 - **The bot's computer** (views 04–09, 11): requires a new backend. Not
   started; the Computer button and preview pane stay hidden.
+
+## Phase D2 — Routines + Routine editor (views 12/17)
+
+Per the updated bundle (`source/12-where-things-moved.html`): **Automations
+became Routines** (plain-words editor); scripts and functions are advanced
+steps; the Timeline moved into Runs (separate PR at `/runs`).
+
+### Routines list — `RoutinesView` at `/:botId/routines`
+
+Replaces the old `AutomationsView` (deleted). `/:botId/automations` redirects
+to `/routines`; `/:botId/automations/:id/edit` (script editor) still works.
+Narrow 680px column in the v2 language (`styles/v2/routines.less`):
+
+| Element | Source |
+|---|---|
+| "Routines" H1 + "Things \<Bot\> does on its own" | bot store (real bot name) |
+| New routine button | `/:botId/routines/new` (hidden below Editor — the API requires EDITOR) |
+| Routines \| Advanced tabs | `stores/ui` `automationSection` (`'routines' \| 'advanced'`, persisted values from the old union fall through to Routines) |
+| "See runs" link | `/runs?bot=<id>` — lands with the Runs PR; in this branch the fallback route catches it |
+| Routine row: name | `schedule.name` |
+| Routine row: plain-words summary | `describeSchedule()` in `frontend/src/lib/schedules.ts` — parses the real trigger ("Every Monday at 7:30 AM", "Every 30 minutes", "One time · …", `Cron: …`, …) |
+| Routine row: Active toggle | `POST /schedules/{id}/toggle` (immediate; hidden below Operator) |
+| Routine row: "Last run …" | `schedule.lastRunAt`, relative; hidden when never run |
+| Advanced tab | Scripts and Functions as `AutomationCard`s (edit/run/toggle, unchanged behavior) |
+
+The old Timeline tab is dropped here (it lives in Runs now). The old "New
+Script" button was removed: it navigated to `/:botId/automations/new`, which
+never rendered an editor (no script-create UI exists — pre-existing dead
+button, not a lost feature). Search filters the active tab.
+
+### Routine editor — `RoutineEditorView` at `/:botId/routines/new` + `/:botId/routines/:routineId`
+
+The design's single narrow column (max-width 680px, page padding 32px 24px
+64px, 24px column gap, exact values from `source/17-routine-editor.html` —
+same artwork as the old view 13), styled with phase A tokens. Legacy
+`/:botId/schedules[/:scheduleId]` URLs redirect here.
+
+| Element | Source |
+|---|---|
+| Back / "Routine" / Close | navigate to `/:botId/routines` |
+| Active toggle | `POST /schedules/{id}/toggle` (immediate, edit mode only) |
+| Delete | `DELETE /schedules/{id}` with `confirm()` (edit mode only) |
+| Test run | `POST /api/bots/{bot_id}/schedules/{schedule_id}/run` — fires once without shifting `next_run_at`/`enabled` (edit mode only) |
+| Name | `schedule.name` |
+| "What should \<Bot\> do?" | `schedule.functionParams.message` (initial value falls back to `description`, which is what the scheduler delivers when no message is set) |
+| "When to run · your time zone (\<tz\>)" | shows the **schedule's own timezone** when editing (cron h/m are interpreted in it; PATCH doesn't send `timezone` so it is preserved); new routines default to the browser zone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) and save it |
+| Trigger card | `scheduleType` + `cronExpression` / `intervalSeconds` / `runAt` / `eventTrigger`. Kinds: Every day / Weekdays / Weekly (+ day chip) / Hourly (+ minute) / Custom cron / Every N minutes-hours / One time / Event |
+| "+ Add trigger" | **hidden** — the schedules table stores exactly one trigger per routine (view 17 shows it because that concept supports many). It appears only as the restore affordance after the trigger card's remove X is clicked; new routines start with a daily 9:00 card and Save requires a trigger |
+| Helper text | lists only supported triggers and states "One trigger per routine" |
+| Advanced (collapsible) | Description, linked Function, Max concurrent runs, Catch up missed runs, read-only meta (next run / last run / run count / schedule time zone) |
+| Save | `POST` (create, lands on the new routine's editor) or `PATCH` (update) |
+
+### Backend changes (split into their own PR — hunks kept unchanged here)
+
+- `POST /schedules/{id}/run` + `SchedulerService.run_schedule_now()` — test run
+  (delivery + `record_run`, cadence untouched).
+- `compute_next_run()` helper (`scheduler_service.py`) — schedules created or
+  edited via the API never got `next_run_at` set (only the LLM plugin did), so
+  they would never fire. `create_schedule` and `update_schedule` (whenever a
+  trigger field changes) now compute it; invalid cron → 422.
+- `UpdateScheduleRequest.scheduleType` — trigger kind can now be changed via PATCH.
+
+### Behavior changes
+
+- `/automations` (incl. the sidebar's Automations icon, left exactly as-is) and
+  `WorkspaceView`'s Routines quick link now land on `/routines`; the Workspace
+  quick link was updated to point there directly.
+- Schedule cards became plain-words routine rows that open the editor (the old
+  card click was a no-op); the Timeline tab and the never-working New Script
+  button are gone from this page.
+
+### Role gating (view 12: Routines are Operator+)
+
+Gated with the existing `useBotAccess` hook; items are **hidden**, never greyed:
+
+| Role | List (`RoutinesView`) | Editor (`RoutineEditorView`) |
+|---|---|---|
+| Viewer | rows readable; no New routine button, no Active toggle; empty-state copy points at editors | header + short read-only notice ("view-only access…"); the form is not rendered |
+| Operator | toggle shown (toggle/run are Operator+ on the API) | read-only form (all fields disabled) + Active toggle + Test run; Save/Delete hidden; one-line notice that editing needs editor access |
+| Editor/Owner/Admin | everything | everything |
+
+The Advanced tab's script/function cards hide Run/Toggle for viewers the same way
+(`onRun`/`onToggle` become `undefined`). Levels match the backend: schedules
+toggle/run = OPERATOR, create/update/delete = EDITOR; scripts run/activate/disable
+= OPERATOR, create/patch/delete = EDITOR.
+
+**No "New script" entry point exists**: `ScriptEditorView` only edits existing
+scripts (`getScript`), no UI calls `createScript`, and the old button navigated to
+a URL that never rendered an editor — so scripts remain edit-only from the
+Advanced tab, as documented above.
+
+### Phase D2 — not backed yet
+
+- **`/runs` route**: "See runs" links to `/runs?bot=<id>`, which ships in the
+  Runs PR; until then the app fallback catches it.
+- **Multiple triggers per routine**: one `schedule_type` per schedule, so the
+  editor models one trigger (see "+ Add trigger" above).
+- **Keyword / webhook / new-chat / "when another task finishes" triggers**:
+  no backend trigger types for these (only cron/interval/once/event).
+- **Event triggers don't fire automatically**: `schedule_type = 'event'` rows are
+  creatable and editable but nothing in the backend publishes those events to
+  the scheduler.
+- **Conditions / fixed steps / retries** (design's Advanced label): those exist
+  on Functions/Scripts, not on Schedules. `functionId` can't be cleared once set
+  (PATCH ignores `null`, pre-existing API behavior).
+- **Script/function creation UI**: scripts and functions can only be created via
+  the API or LLM tools; the editor UIs are edit-only.
+- Schedule delivery goes through the scheduler's existing message path
+  (`functionParams.message` → platform chat / WS broadcast); it is not an
+  agent turn with tool access.
 
 ## Known limitations / decisions
 
