@@ -43,7 +43,7 @@ desktop; a cloud computer (later, see §4).
 | A desktop with windows | Desktops with views (app windows and site windows), layouts, split panes, a selected view, a rail | `vela/desktops/` (`service.py`, `store.py`, `models.py`), `web/src/desktops/` | **Yes.** The bot's computer is one Vela desktop. The "open windows" list in view 04 is the desktop's views. |
 | A browser the agent drives | Agent desktops: a supervised Node worker running Playwright Chromium, one browser context per desktop, typed tools (observe, open site, open app, click, type, key, scroll, wait, attach file, needs person, finish) | `vela/desktops/runtime.py`, `vela/agent_runs/tools.py`, `scripts/browser-worker/` | **Yes.** This is the Browser app of Mini Vela. |
 | Safety around the browser | Per-desktop site policy (read only, or ask before sending), held requests shown for approval, "outcome unknown" handling, network policy in the worker, sign-in never automated | `vela/desktops/site_policy.py`, `vela/agent_runs/approvals.py`, `browser-worker/src/network-policy.mjs` | **Yes.** Covers view 08's sign-in wall and "stops to ask you". |
-| Watching | Per-window frames served through the authenticated API (`/views/{id}/frame`, ~1 fps watching, ~3 fps controlling); several watchers share one capture | `vela/agent_runs/viewer.py`, `web/src/desktops/RemoteView.jsx` | **Yes**, proxied through CachiBot. Vela deliberately never captures the whole desktop (it would include the owner's approval prompt); see §6 Q4. |
+| Watching | Per-window frames served through the authenticated API (`/views/{id}/frame`, ~1 fps watching, ~3 fps controlling); several watchers share one capture | `vela/agent_runs/viewer.py`, `web/src/desktops/RemoteView.jsx` | **Yes**, proxied through CachiBot. Vela deliberately never captures the whole desktop; the full-desktop preview is added only for controller mode (VP6, §6 Q4). |
 | Take over / hand back | Control leases: taking over stops the agent's dispatch, bumps the control epoch, then grants a lease; input (click, type, allowed keys, scroll) is checked against the lease, view, epoch and frame age; "Carry on" | `vela/agent_runs/control.py`, `viewer.py`, `POST /api/desktops/{id}/takeover` and `/takeover/{lease}/input` | **Yes.** This is view 08. |
 | Needs you | `task_needs_person`, held approvals, queue holds after a failed or unknown run, `GET /api/desktops/attention` | `vela/agent_runs/`, `vela/desktops/api.py` | **Yes**, mapped to CachiBot's needs-you card. |
 | Files | Shares with strict path resolution, trash, upload caps and audit; agent files staged per desktop with size limits and expiry | `vela/files.py`, `vela/agent_runs/artifacts.py` | **Partly.** A share pointed at `/workspace` gives the Files app; the bot's own file access still goes through CachiBot's file tools on the same volume. |
@@ -103,11 +103,11 @@ Alternatives considered:
    but Vela caps agent desktops at two per server, all bots would share one
    data dir and one browser process, and per-bot workspaces would be folders
    inside one container. It doesn't match "each bot gets its own workspace" as
-   cleanly. Kept as a fallback for small machines (§6 Q1).
+   cleanly. Dropped (§6 Q1).
 2. **Delegate whole tasks to Vela's own agent loop** (`POST /tasks` with Vela's
    model). No driver API needed, but the bot would hand its work to a second
    agent with a different model, and CachiBot's chat, tools, budget and Runs
-   would see only the outcome. Rejected as the default (§6 Q3).
+   would see only the outcome. Rejected (§6 Q3).
 3. **The from-scratch Docker stack** (Xvfb + noVNC) in the previous version of
    this plan. It duplicates what Vela already does well, and has none of Vela's
    approval and sign-in safety. Dropped.
@@ -148,10 +148,10 @@ Alternatives considered:
 | **VP3 Driver API** | Let a controller drive an agent desktop step by step: open a driven run (no Vela model), `POST …/runs/{id}/steps` with one tool call, get the observation back, and `finish` or `needs_person`. Every step goes through the same validation, policy, approvals, effects and leases as Vela's own loop. Events stream for activity. | CachiBot's agent is the brain; Vela only runs its own model loop today. | 3–4 days |
 | **VP4 Terminal** | A terminal view kind backed by a PTY, available **only** in computer mode (inside the container, which is the sandbox); frames for watching, input under the same lease rules, agent tools `terminal_run` / `terminal_read` with output caps and timeouts; environment rooted at `/workspace`. | Views 06 and 07 (dev server, coding agent in the terminal). Vela forbids a shell in agent desktops on the host, which stays true outside computer mode (§6 Q2). | 4–5 days |
 | **VP5 Workspace files + editor** | In computer mode, a built-in `/workspace` share and a plain-text editor view (open, edit, save, through the same path rules); "open file in editor" API. | Mini Vela's Files and Editor apps, and "Open on computer" from the Files sheet. | 2–3 days |
-| **VP6 Viewer additions** | Watcher reporting in `GET /viewer` (viewer heartbeats), right click and drag-scroll in take-over input, a lightweight "activity" field per desktop. | Decisions 5 and 6; the activity line in view 04. | 1–2 days |
-| VP7 (later) | serverkit-vela: create instances from the `computer` target with the controller mode and an API-key write scope for a CachiBot controller. | The cloud computer option. Not in this plan's estimate. | later |
+| **VP6 Viewer additions + full-desktop capture** | Watcher reporting in `GET /viewer` (viewer heartbeats), right click and drag-scroll in take-over input, a lightweight "activity" field per desktop, and an opt-in full-desktop frame (`GET /api/desktops/{id}/frame`) enabled only in controller mode and only for the controller token. | Decisions 5 and 6; the activity line and full-desktop preview in view 04 (§6 Q4). | 2–3 days |
+| Later | serverkit-vela: create instances from the `computer` target with the controller mode and an API-key write scope for a CachiBot controller. | The cloud computer option. Not in this plan's estimate. | later |
 
-Vela total for VP1–VP6: about **12–18 working days**, 6 PRs.
+Vela total for VP1–VP6: about **13–19 working days**, 6 PRs.
 
 ### CachiBot adds
 
@@ -177,23 +177,15 @@ Vela total for VP1–VP6: about **12–18 working days**, 6 PRs.
   progress, "Open on computer", the mobile full desktop with touch take-over.
   All hidden while `available` is false.
 
-## 6. Open questions for Juan
+## 6. Decisions on the Vela approach (Juan, Nov 23, 2026)
 
-1. **One container per bot** (recommended, matches "each bot gets its own
-   workspace"), or one shared Vela with an agent desktop per bot on small
-   machines? Each container costs roughly 0.6–1 GB of RAM while awake.
-2. **A terminal inside Vela.** Vela's agent desktops forbid a shell by design.
-   OK to add one only in computer mode (inside the container), keeping the
-   rule unchanged everywhere else?
-3. **CachiBot drives, Vela enforces** (recommended: a new driver API so
-   CachiBot's own agent and model make each step), or hand whole tasks to
-   Vela's own agent loop and model?
-4. **The preview shows one window, not the whole desktop.** Vela never
-   captures the whole desktop, on purpose. View 04's preview would show the
-   focused window plus the open-windows list. OK?
-5. **Vela releases.** CachiBot pins a Vela release to build from, so the Vela
-   PRs need a Vela release before CachiBot can ship the feature. Should I
-   release Vela (dev → main) when VP1–VP3 land, or wait for all six?
+| # | Question | Decision | What it changes |
+|---|---|---|---|
+| 1 | Containers | **One Vela container per bot.** | As in §3. The shared-Vela fallback is dropped. |
+| 2 | Terminal in Vela | **Yes, add a terminal only in CachiBot's container mode.** | VP4 is gated on the controller mode from VP1. Vela's "no shell" rule for agent desktops is unchanged everywhere else, and its docs say so. |
+| 3 | Who drives | **CachiBot's agent drives each step.** | VP3's driver API is the only path CachiBot uses; Vela's own model loop is not involved for CachiBot bots. |
+| 4 | Chat preview | **Patch Vela to allow a full-desktop preview.** | New in VP6: an opt-in full-desktop capture, available **only** in the token-only controller mode (VP1) and only to the controller token. Vela's default (never capture the whole desktop) stays everywhere else. In computer mode the owner's approval prompts are answered in CachiBot, not on the Vela desktop, so the capture does not show an approval control to the bot's side. |
+| 5 | Vela release | **Release Vela after VP1–VP3 land.** | CachiBot C1 pins that release; VP4–VP6 ship in the following Vela release, which C3/C4 then pin. The version and tag are reported before tagging. |
 
 ## 7. Phases and estimates
 
@@ -208,7 +200,7 @@ without Docker.
 | VP2 | Vela | `computer` image target | VP1 | 1–2 days |
 | **C1** | CachiBot | Docker probe, local image build with progress, `ComputerService`, per-bot volumes and workspace, migration 016, `GET /computer` + wake/sleep/stop, `computer_update` | VP1, VP2 | 3–4 days |
 | VP3 | Vela | Driver API | VP1 | 3–4 days |
-| VP6 | Vela | Viewer additions (watchers, right click, drag-scroll, activity) | — | 1–2 days |
+| VP6 | Vela | Viewer additions (watchers, right click, drag-scroll, activity) and the controller-only full-desktop capture | VP1 | 2–3 days |
 | **C2** | CachiBot | Frame and input proxy, watchers keep it awake, needs-you mapping, take-over and hand back | VP3, VP6 | 2–3 days |
 | VP4 | Vela | Terminal (computer mode only) | VP1 | 4–5 days |
 | VP5 | Vela | Workspace share + editor | VP1 | 2–3 days |
@@ -216,8 +208,8 @@ without Docker.
 | **C4** | CachiBot | UI: views 04–09 and 11, Bot settings › Computer, build progress, Open on computer, mobile full desktop with touch | C2, C3 | 4–6 days |
 | **C5** | CachiBot | Hardening: Docker Desktop on Windows/macOS, resource caps (`--memory`, `--cpus`, `--pids-limit`), container egress rules, recovery when a container dies, docs | C4 | 2–3 days |
 
-**Total: about 27–38 working days (roughly 5.5–7.5 weeks): 6 Vela PRs and 5
-CachiBot PRs.** Vela work and CachiBot work overlap after VP1/VP2, so the
+**Total: about 28–39 working days (roughly 5.5–8 weeks): 6 Vela PRs and 5
+CachiBot PRs.** Vela is released after VP1–VP3 (§6 Q5). Vela work and CachiBot work overlap after VP1/VP2, so the
 calendar time is shorter than the sum.
 
 Compared with the from-scratch plan (19–27 days), this is larger because it
