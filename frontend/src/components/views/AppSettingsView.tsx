@@ -74,6 +74,8 @@ import {
 } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
+import { Spinner } from '../common/Spinner'
+import { useDelayedFlag } from '../../hooks/useDelayedFlag'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
 
@@ -2742,6 +2744,7 @@ function UpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
 
 function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const [checking, setChecking] = useState(false)
+  const showChecking = useDelayedFlag(checking)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
@@ -2816,8 +2819,14 @@ function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) 
                 {downloadProgress ? `${Math.round(downloadProgress.percent)}%` : 'Downloading…'}
               </span>
             ) : (
-              <button type="button" className="v2-settings__action" disabled={checking} onClick={() => void handleCheck()}>
-                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+              <button
+                type="button"
+                className="v2-settings__action"
+                disabled={checking}
+                aria-busy={checking || undefined}
+                onClick={() => void handleCheck()}
+              >
+                {showChecking ? <Spinner size="sm" /> : 'Check again'}
               </button>
             )
           }
@@ -2836,6 +2845,7 @@ function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) 
 
 function PipUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const { checkResult, isChecking, checkForUpdate } = useUpdateStore()
+  const showChecking = useDelayedFlag(isChecking)
 
   useEffect(() => {
     checkForUpdate()
@@ -2857,8 +2867,14 @@ function PipUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
         title="Version"
         sub={versionSub}
         action={
-          <button type="button" className="v2-settings__action" disabled={isChecking} onClick={() => checkForUpdate(true)}>
-            {isChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+          <button
+            type="button"
+            className="v2-settings__action"
+            disabled={isChecking}
+            aria-busy={isChecking || undefined}
+            onClick={() => checkForUpdate(true)}
+          >
+            {showChecking ? <Spinner size="sm" /> : 'Check again'}
           </button>
         }
       />

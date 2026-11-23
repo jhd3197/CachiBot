@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
 import { useAutomationsStore } from '../../stores/automations'
 import { useUIStore } from '../../stores/ui'
 import { useBotAccess } from '../../hooks/useBotAccess'
+import { PageLoading } from '../common/PageLoading'
 import { AutomationCard } from '../automations/AutomationCard'
 import {
   getScripts,
@@ -187,9 +188,7 @@ export function RoutinesView() {
 
         {/* Content */}
         {loading ? (
-          <div className="routines__loading">
-            <Loader2 className="h-5 w-5 animate-spin" />
-          </div>
+          <PageLoading pending={loading} label="Loading routines..." />
         ) : !showAdvanced ? (
           filteredSchedules.length === 0 ? (
             <div className="routines__empty">

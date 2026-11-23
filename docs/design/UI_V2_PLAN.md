@@ -1079,6 +1079,71 @@ Frontend (`SideTaskChatView` + `SideTaskDiffDialog` + `SideTaskReply` +
   settles the record; a finish with unmerged commits on the branch merges
   them back instead of reporting "done" with the work left behind.
 
+## L1: v2 loading primitives
+
+Shared loading pieces, built before the boot-screen restyle. Two proof call
+sites only — no mass migration.
+
+### Built
+
+- `Spinner` (`components/common/Spinner.tsx`, `styles/components/spinner.less`)
+  — one CSS-ring drawing (no second icon API), sizes `sm`/`md`/`lg` = 12/14/18px,
+  ring always `currentColor`. Default color is `--v2-text-tertiary` inside
+  `.ui-v2`, `--color-text-secondary` on legacy surfaces; both defaults use
+  `:where()` so a utility class still wins via `className` (UpdateDialog's
+  `text-accent-500` keeps working). `label` keeps the visually-hidden
+  "Loading..." text; pass `label=""` + `aria-hidden` when decorative.
+- `Skeleton` (`components/common/Skeleton.tsx`, `styles/v2/loading.less`) —
+  variants `line` / `row` / `card` / `list` (list composes rows). Pulses
+  between `--v2-bg-hover` and `--v2-bg-inset`; radii from tokens (row 12,
+  card 14); no hard-coded colors.
+- `PageLoading` (`components/common/PageLoading.tsx`) — centered `Spinner`
+  (md) plus optional skeleton children, inside the current panel only. Never
+  a full-viewport takeover (`.users-loading` is the anti-pattern). Pass
+  `pending` and it appears only after `delayMs` of pending time.
+- `StatusLine` (`components/common/StatusLine.tsx`) — React wrapper over
+  `.v2-status-line` (`styles/v2/chat.less`): 13px `--v2-text-tertiary` line,
+  optional `icon` (defaults to `Spinner sm` while `pending`), optional
+  `markColor` dot for L3's bot-colored status mark; children are the status
+  text.
+- `Button pending` (`components/common/Button.tsx`, `buttons.less`) —
+  `pending?: boolean` disables the button, sets `aria-busy="true"`, and
+  overlays a `Spinner sm` while the label keeps its layout space, so the
+  width never jumps.
+- `useDelayedFlag(pending, delayMs = 200)` (`hooks/useDelayedFlag.ts`) —
+  false until `pending` has been true for `delayMs`, false again immediately
+  when pending drops.
+- Reduced motion (`styles/v2/motion.less`, imported after all animated
+  components from `styles/index.less`) — `@media (prefers-reduced-motion:
+  reduce)` kills the spinner, skeleton pulse, `spin-slow`, `pulse`,
+  `typing-bounce`, `runs__spin`, and the app-loader animations. Everything
+  holds still; no spin, no pulse.
+
+### Rules
+
+- Spinners on fast operations go through `useDelayedFlag` (default 200ms) or
+  a `pending` prop that applies it; skeletons may still show immediately.
+- v2 surfaces use `--v2-*` tokens only — no new color literals.
+
+### Proof call sites
+
+- `RoutinesView` loading state: `PageLoading` (replaces the Loader2 in
+  `.routines__loading`, whose less block is gone).
+- `AppSettingsView` update "Check again" actions (Electron + Pip rows):
+  `Spinner sm` with `useDelayedFlag` + `disabled` / `aria-busy`.
+- `RunsView` loading spinners: new `Spinner`; the `runs__spinner` class typo
+  (the class never existed in `runs.less`) is gone.
+
+### Deferred
+
+- L2: boot screens (`AppLoader`, desktop splash, `index.html`) restyle; they
+  already inherit the motion kill-switch.
+- L3: chat `TypingIndicator` / `ThinkingIndicator` / `ToolCallDisplay`
+  migration onto `StatusLine` (the pending spinner and `markColor` dot are
+  already in place).
+- L5: legacy pages (Users, Plugins, Marketplace, auth) keep their own
+  patterns for now.
+
 ## Known limitations / decisions
 
 - Views 04–09 and 11 need backend infrastructure that does not exist; Phase A/B

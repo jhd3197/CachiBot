@@ -480,6 +480,16 @@
       flex: none;
     }
 
+    // Small bot-colored mark (L3 "grey status line + bot-colored dot");
+    // rendered only when the caller passes a markColor, inline style wins.
+    &__mark {
+      width: 8px;
+      height: 8px;
+      border-radius: @radius-full;
+      background: var(--v2-text-tertiary);
+      flex: none;
+    }
+
     &__actions {
       margin-left: auto;
       display: flex;
