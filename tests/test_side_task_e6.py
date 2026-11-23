@@ -169,6 +169,15 @@ async def status_is(side_task_id: str, status: SideTaskStatus) -> bool:
     return latest is not None and latest.status == status
 
 
+async def parent_side_task_replies(bot_id: str, parent_chat_id: str) -> list:
+    """The parent chat's persisted side-task thread replies."""
+    return [
+        m
+        for m in await KnowledgeRepository().get_bot_messages(bot_id, parent_chat_id, limit=100)
+        if (m.metadata or {}).get("kind") == "side_task_reply"
+    ]
+
+
 async def make_bot(owner_user_id: str | None = None) -> str:
     bot_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -295,14 +304,18 @@ class TestReplyContinuation:
         assert {f["path"] for f in first.merged_files} == {"side.txt"}
         assert not Path(first.worktree_path).exists()  # cleaned up after the merge
 
-        # The parent chat has exactly one thread reply
-        replies_before = [
-            m
-            for m in await KnowledgeRepository().get_bot_messages(bot_id, parent.id, limit=50)
-            if (m.metadata or {}).get("kind") == "side_task_reply"
-        ]
-        assert len(replies_before) == 1
-        reply_id = replies_before[0].id
+        # The settle persists the status BEFORE posting the parent-chat
+        # reply, so on slow runners the reply lands a few awaits later:
+        # wait for the exact outcome — exactly one reply, stamped on the
+        # record — instead of reading right after the status flip.
+        async def one_stamped_reply() -> bool:
+            record = await SideTaskRepository().get(st.id)
+            if record is None or not record.reply_message_id:
+                return False
+            return len(await parent_side_task_replies(bot_id, parent.id)) == 1
+
+        await wait_for(one_stamped_reply)
+        reply_id = (await SideTaskRepository().get(st.id)).reply_message_id
 
         # Reply inside the side task: it lands in the side chat, the task
         # runs again and only the NEW file comes back
@@ -313,8 +326,6 @@ class TestReplyContinuation:
         side_msgs = await KnowledgeRepository().get_bot_messages(bot_id, st.chat_id, limit=50)
         assert any(m.role == "user" and m.content == "Also add side2.txt" for m in side_msgs)
 
-        # The second merge's base was re-stamped at the first branch tip:
-        # only the new file is reported, and the reply is the same message
         # The continued turn branched from the first merge commit, so its
         # base is that merge — and only the new file is reported
         latest = await SideTaskRepository().get(st.id)
@@ -325,16 +336,25 @@ class TestReplyContinuation:
         assert latest.base_commit != first.base_commit
         assert git(service.workspace, "rev-parse", "HEAD").stdout.strip() == latest.merged_commit
 
-        # Same parent-chat reply, updated in place — never a duplicate
-        replies_after = [
-            m
-            for m in await KnowledgeRepository().get_bot_messages(bot_id, parent.id, limit=50)
-            if (m.metadata or {}).get("kind") == "side_task_reply"
-        ]
+        # Same parent-chat reply, updated in place for the second merge —
+        # again wait until the message actually reflects the second
+        # bring-in before asserting on it.
+        async def reply_shows_second_merge() -> bool:
+            record = await SideTaskRepository().get(st.id)
+            replies = await parent_side_task_replies(bot_id, parent.id)
+            if record is None or len(replies) != 1:
+                return False
+            msg = replies[0]
+            return (
+                msg.id == record.reply_message_id
+                and msg.metadata.get("status") == "merged"
+                and {f["path"] for f in msg.metadata.get("mergedFiles", [])} == {"side2.txt"}
+            )
+
+        await wait_for(reply_shows_second_merge)
+        replies_after = await parent_side_task_replies(bot_id, parent.id)
         assert len(replies_after) == 1
         assert replies_after[0].id == reply_id
-        assert replies_after[0].metadata["status"] == "merged"
-        assert {f["path"] for f in replies_after[0].metadata["mergedFiles"]} == {"side2.txt"}
 
     async def test_reply_on_done_recreates_worktree_from_current_parent_head(self, service):
         """A `done` task merged nothing: its worktree/branch are gone, so a
