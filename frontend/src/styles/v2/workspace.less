@@ -1,0 +1,275 @@
+// =============================================================================
+// Workspace — styles/v2/workspace.less
+// "Your bots" page (design view 01): Needs you / Bots / This week / quick links.
+// Values from docs/design/cachibot-v2-final-views/source/01-workspace.html
+// =============================================================================
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--v2-bg-main);
+  color: var(--v2-text);
+  font-family: @font-sans;
+  .scrollbar-thin();
+}
+
+.workspace__column {
+  width: 100%;
+  // Design source (01-workspace.html): main padding 40px 32px 64px, column max-width 760px
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 40px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    padding: 24px 16px 48px;
+    gap: 32px;
+  }
+}
+
+.workspace__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: @font-bold;
+  letter-spacing: -0.01em;
+}
+
+.workspace__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace__section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.workspace__section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: @font-semibold;
+}
+
+.workspace__section-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.workspace__empty {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 14px;
+  color: var(--v2-text-tertiary);
+}
+
+// ── Needs you ────────────────────────────────────────────────────────────────
+
+.workspace__needs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace__need {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--v2-bg-panel);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+}
+
+.workspace__need-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: @radius-full;
+  background: var(--v2-bg-hover);
+  color: var(--v2-text-secondary);
+  flex: none;
+}
+
+.workspace__need-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workspace__need-label {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.workspace__need-text {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+// Clickable description (e.g. stuck runs → /runs): same look, hover reveals
+.workspace__need-text--link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+// ── Bots ─────────────────────────────────────────────────────────────────────
+
+.workspace__bots {
+  display: flex;
+  flex-direction: column;
+  transition: opacity 150ms ease;
+
+  &--loading {
+    opacity: 0.6;
+  }
+}
+
+.workspace__bot-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--v2-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .workspace__bot-name {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.workspace__bot-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.workspace__bot-name {
+  font-size: 15px;
+  font-weight: @font-semibold;
+  .truncate();
+}
+
+.workspace__bot-desc {
+  font-weight: @font-normal;
+  color: var(--v2-text-tertiary);
+}
+
+.workspace__bot-status {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  .truncate();
+}
+
+.workspace__bot-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+  text-align: right;
+  flex: none;
+
+  @media (max-width: 560px) {
+    display: none;
+  }
+}
+
+.workspace__bot-chevron {
+  color: var(--v2-text-tertiary);
+  flex: none;
+}
+
+// ── This week ────────────────────────────────────────────────────────────────
+
+.workspace__link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--v2-green);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--v2-green-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.workspace__week {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-card);
+}
+
+.workspace__week-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workspace__week-label {
+  font-size: 13px;
+  color: var(--v2-text-tertiary);
+}
+
+.workspace__week-value {
+  font-size: 22px;
+  font-weight: @font-semibold;
+  font-variant-numeric: tabular-nums;
+  .truncate();
+}
+
+// ── Quick links ──────────────────────────────────────────────────────────────
+
+.workspace__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

@@ -81,6 +81,11 @@
       "artifactName": "CachiBot-${version}-linux.${ext}",
       "category": "Utility"
     },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none"
+      ]
+    },
     "publish": {
       "provider": "github",
       "owner": "jhd3197",

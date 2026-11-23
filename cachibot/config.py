@@ -12,6 +12,16 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def cachibot_data_dir() -> Path:
+    """Directory for CachiBot's own data (database, assets, side-task worktrees).
+
+    The single source of truth for the location; the rest of the app uses
+    ``Path.home() / ".cachibot"`` for its database, assets and uploads.
+    """
+    return Path.home() / ".cachibot"
+
+
 # Try to import tomllib (Python 3.11+) or tomli as fallback
 try:
     import tomllib

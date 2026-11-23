@@ -123,6 +123,31 @@ def _inject_coding_agent_instructions(
     return (prompt or "") + CODING_AGENT_MENTION_INSTRUCTIONS
 
 
+async def side_task_tool_exclusions(chat_id: str | None) -> set[str]:
+    """Tools to hide from the agent running in *chat_id*.
+
+    The side task starters are only offered in a main chat. A chat that is
+    itself a side task or helper (``parent_chat_id`` set) cannot start more
+    side tasks — they are one level deep — so the tools are excluded from
+    its registry. The service rejects such starts too; hiding the tools
+    just means the model never sees them there.
+    """
+    if not chat_id:
+        return set()
+    try:
+        from cachibot.storage.repository import ChatRepository
+
+        chat = await ChatRepository().get_chat(chat_id)
+    except Exception:
+        logger.debug("Side tool gating skipped: chat %s lookup failed", chat_id, exc_info=True)
+        return set()
+    if chat is not None and chat.parent_chat_id is not None:
+        from cachibot.plugins.side_tasks import SIDE_TASK_TOOL_NAMES
+
+        return set(SIDE_TASK_TOOL_NAMES)
+    return set()
+
+
 async def build_bot_agent(
     config: Config,
     *,
@@ -273,6 +298,7 @@ async def build_bot_agent(
         on_artifact=on_artifact,
         platform_metadata=platform_metadata,
         workspace=workspace,
+        excluded_tools=await side_task_tool_exclusions(chat_id) or None,
     )
 
     # 8. Dynamic instructions

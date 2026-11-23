@@ -27,6 +27,22 @@ export function formatTime(date: Date | string): string {
   })
 }
 
+/**
+ * Parse a timestamp from the REST API into a correct Date.
+ *
+ * The backend stores UTC datetimes and serializes them with a plain
+ * `isoformat()` (no offset) — that is the app-wide convention across routes,
+ * and SQLite drops tz info on write. A string without an offset is therefore
+ * UTC; strings that do carry an offset or Z (e.g. some WS payloads) parse
+ * as-is. Using this instead of `new Date(apiString)` avoids displaying UTC
+ * times as if they were local.
+ */
+export function parseApiDate(value: string | Date): Date {
+  if (value instanceof Date) return value
+  const hasOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value)
+  return new Date(hasOffset ? value : `${value}Z`)
+}
+
 /** Darken a hex color by a percentage (0-100). */
 export function darkenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16)
@@ -68,6 +84,16 @@ export function slugify(text: string): string {
 
 export function downloadJson(data: unknown, filename: string): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export function downloadText(text: string, filename: string, mime = 'text/markdown'): void {
+  const blob = new Blob([text], { type: mime })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

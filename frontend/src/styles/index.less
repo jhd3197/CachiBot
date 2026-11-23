@@ -10,6 +10,9 @@
 // 2. CSS custom properties (light + dark)
 @import './theme.less';
 
+// 2b. UI v2 design tokens (scoped to .ui-v2, docs/design/cachibot-v2-final-views)
+@import './v2/tokens.less';
+
 // 3. Global resets and defaults
 @import './base.less';
 
@@ -39,12 +42,21 @@
 @import './components/update-banner.less';
 @import './components/markdown.less';
 @import './components/tooltip.less';
-@import './components/bot-rail.less';
-@import './components/bot-sidebar.less';
+@import './v2/shell.less';
+@import './v2/workspace.less';
+@import './v2/bot-settings.less';
+@import './v2/runs.less';
+@import './v2/files.less';
+@import './v2/chat.less';
+@import './v2/settings.less';
+@import './v2/activity-log.less';
 @import './components/chat.less';
 @import './components/artifacts.less';
 @import './components/rooms.less';
 @import './components/automations.less';
+@import './v2/routines.less';
+@import './v2/routine-editor.less';
+@import './v2/side-tasks.less';
 @import './components/marketplace.less';
 
 // 6b. View-specific components

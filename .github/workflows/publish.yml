@@ -40,6 +40,25 @@ jobs:
         uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
+      - name: Resolve release version from VERSION file
+        id: release_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          latest_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
+          latest_version="${latest_tag#v}"
+          [[ -n "${latest_version}" ]] || latest_version="0.0.0"
+          custom_tag=""
+          if [[ "${file_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            highest="$(printf '%s\n%s\n' "${latest_version}" "${file_version}" | sort -V | tail -1)"
+            if [[ "${file_version}" != "${latest_version}" && "${highest}" == "${file_version}" ]]; then
+              custom_tag="${file_version}"
+            fi
+          fi
+          echo "custom_tag=${custom_tag}" >> "$GITHUB_OUTPUT"
+          echo "VERSION file: ${file_version} | latest tag: v${latest_version} | custom_tag: ${custom_tag:-<default patch bump>}"
+
       - name: Bump version and push tag
         id: bump_version
         uses: mathieudutour/github-tag-action@v6.0
@@ -48,6 +67,9 @@ jobs:
           release_branches: main
           default_bump: patch
           tag_prefix: 'v'
+          # Empty when VERSION is not a valid semver strictly greater than the
+          # latest tag — the action then falls back to default_bump (patch).
+          custom_tag: ${{ steps.release_version.outputs.custom_tag }}
 
       - name: Update VERSION file
         run: |
@@ -319,6 +341,12 @@ jobs:
         with:
           ref: v${{ needs.release.outputs.new_version }}
 
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -488,9 +516,21 @@ jobs:
         if: matrix.platform != 'win'
         run: chmod +x build/backend/cachibot-server
 
-      - name: Install RPM tools
+      - name: Install RPM and system FPM (Linux)
         if: matrix.platform == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
+        run: |
+          sudo apt-get update
+          # electron-builder 25 bundles fpm 1.9.3, whose spec output is
+          # incompatible with rpmbuild >= 4.20 (hundreds of "File not found:
+          # .../BUILDROOT/..." errors). Install a current system fpm via gem
+          # and select it with USE_SYSTEM_FPM below.
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+          fpm --version
+
+      - name: Enable electron-builder debug logging (Linux)
+        if: matrix.platform == 'linux'
+        run: echo "DEBUG=electron-builder" >> "$GITHUB_ENV"
 
       # Build Electron app (unsigned — notarization disabled for now)
       - name: Build Electron app
@@ -506,6 +546,9 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use the system fpm installed above (Linux only; macOS/Windows
+          # targets don't use fpm).
+          USE_SYSTEM_FPM: ${{ matrix.platform == 'linux' && 'true' || 'false' }}
 
       # Sign Windows installer with Azure Trusted Signing
       - name: Sign Windows installer

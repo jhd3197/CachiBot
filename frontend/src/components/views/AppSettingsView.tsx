@@ -1,34 +1,23 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import QRCode from 'qrcode'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  Settings,
   Moon,
   Sun,
   Monitor,
   Eye as EyeIcon,
-  Keyboard,
   Shield,
-  Database,
   Trash2,
   Download,
-  Upload,
   RefreshCw,
   ExternalLink,
-  Info,
-  Palette,
-  Sliders,
-  FolderOpen,
   AlertTriangle,
   Brain,
-  Users,
   UserPlus,
   User as UserIcon,
   MoreVertical,
   Check,
   X,
-  Mail,
-  AtSign,
   Loader2,
   ChevronRight,
   ChevronDown,
@@ -37,23 +26,17 @@ import {
   Briefcase,
   CheckSquare,
   BarChart3,
-  Key,
   EyeOff,
-  Save,
-  Cloud,
-  Server,
   Star,
   Sparkles,
   Search,
   Plus,
-  Smartphone,
-  QrCode,
   Timer,
-  Heart,
-  Zap,
+  ChevronLeft,
+  Lock,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useUIStore, Theme, AccentColor, PresetColor, accentColors, generatePalette } from '../../stores/ui'
+import { useUIStore, Theme, PresetColor, accentColors, generatePalette } from '../../stores/ui'
 import { useOnboardingStore } from '../../stores/onboarding'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
@@ -68,7 +51,7 @@ import {
   resetTelemetryId,
   getTelemetryPreview,
 } from '../../api/telemetry'
-import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
+import { changePassword, listUsers } from '../../api/auth'
 import {
   listGroups,
   createGroup,
@@ -77,154 +60,425 @@ import {
   addMember,
   removeMember,
 } from '../../api/groups'
-import { checkHealth, createMobilePairToken, getFirewallStatus, enableFirewallRule, clearBotPlatformData, type HealthInfo, type PairTokenResponse, type FirewallStatus } from '../../api/client'
-import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { getExecutionStats } from '../../api/execution-log'
+import {
+  updateConfig,
+  checkHealth,
+  createMobilePairToken,
+  getFirewallStatus,
+  enableFirewallRule,
+  clearBotPlatformData,
+  type HealthInfo,
+  type PairTokenResponse,
+  type FirewallStatus,
+} from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
-import { cn } from '../../lib/utils'
-import type { Config, User, UserRole, Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
+import { cn, parseApiDate } from '../../lib/utils'
+import type { Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
 
-type SettingsTab = 'general' | 'appearance' | 'models' | 'keys' | 'advanced' | 'data' | 'users' | 'groups'
+/**
+ * App settings (design view 19): one narrow column, section pills deep-link to
+ * /settings/<section>. Every option from the old tabbed settings is mapped
+ * into the design's sections; items the design shows but no real source backs
+ * (language picker, budget, developer mode, licenses…) are hidden — see
+ * UI_V2_PLAN.md "Phase D5 - not backed yet".
+ *
+ * Section map (old tab -> new section): keys -> models, users/groups ->
+ * people, everything else keeps its name. /settings/account scrolls to the
+ * Your account block in General.
+ */
 
-const VALID_TABS: SettingsTab[] = ['general', 'appearance', 'models', 'keys', 'advanced', 'data', 'users', 'groups']
+type SettingsSection = 'general' | 'appearance' | 'models' | 'data' | 'people' | 'advanced' | 'about'
+
+const SECTION_IDS: SettingsSection[] = ['general', 'appearance', 'models', 'data', 'people', 'advanced', 'about']
+
+const SECTION_LABELS: Record<SettingsSection, string> = {
+  general: 'General',
+  appearance: 'Appearance',
+  models: 'Models',
+  data: 'Data',
+  people: 'People',
+  advanced: 'Advanced',
+  about: 'About',
+}
+
+/** Old deep links keep working, mapped onto the new sections. */
+const TAB_ALIASES: Record<string, SettingsSection> = {
+  general: 'general',
+  appearance: 'appearance',
+  models: 'models',
+  keys: 'models',
+  data: 'data',
+  people: 'people',
+  users: 'people',
+  groups: 'people',
+  advanced: 'advanced',
+  about: 'about',
+  account: 'general',
+}
 
 export function AppSettingsView() {
   const { settingsTab: urlTab } = useParams<{ settingsTab?: string }>()
   const navigate = useNavigate()
-  const {
-    theme,
-    setTheme,
-    accentColor,
-    setAccentColor,
-    customHex,
-    setCustomHex,
-    showThinking,
-    setShowThinking,
-    showCost,
-    setShowCost,
-    sidebarCollapsed,
-    setSidebarCollapsed,
-  } = useUIStore()
-  const { config } = useConfigStore()
   const { user: currentUser } = useAuthStore()
-
   const isAdmin = currentUser?.role === 'admin'
-  const isManagerOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager'
+  const isManagerOrAdmin = isAdmin || currentUser?.role === 'manager'
 
-  const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null)
+  // Resolve the URL tab (with legacy aliases) to a visible section
+  const resolveSection = (): { section: SettingsSection; valid: boolean } => {
+    if (!urlTab) return { section: 'general', valid: true }
+    const section = TAB_ALIASES[urlTab]
+    if (!section) return { section: 'general', valid: false }
+    // People holds admin (users) and manager+ (groups) content only
+    if (section === 'people' && !isManagerOrAdmin) return { section: 'general', valid: false }
+    return { section, valid: true }
+  }
+  const { section: activeSection, valid } = resolveSection()
 
   useEffect(() => {
-    checkHealth()
-      .then(setHealthInfo)
-      .catch(() => {})
-  }, [])
+    if (urlTab && !valid) navigate('/settings', { replace: true })
+  }, [urlTab, valid, navigate])
 
-  // Determine active tab from URL, with validation
-  const getActiveTab = (): SettingsTab => {
-    if (!urlTab) return 'general'
-    if (!VALID_TABS.includes(urlTab as SettingsTab)) return 'general'
-    // Non-admins can't access users tab
-    if (urlTab === 'users' && !isAdmin) return 'general'
-    // Non-managers can't access groups tab
-    if (urlTab === 'groups' && !isManagerOrAdmin) return 'general'
-    return urlTab as SettingsTab
-  }
-
-  const activeTab = getActiveTab()
-
-  // Redirect if URL tab is invalid or unauthorized
+  // Deep link scrolls to the target section (or the account block); bare
+  // /settings stays at the top so the header and pills remain visible
+  const firstScroll = useRef(true)
   useEffect(() => {
-    if (urlTab && activeTab !== urlTab) {
-      navigate('/settings/general', { replace: true })
-    }
-  }, [urlTab, activeTab, navigate])
+    if (!urlTab) return
+    const target =
+      urlTab === 'account'
+        ? document.getElementById('v2s-account')
+        : document.getElementById(`v2s-${activeSection}`)
+    if (!target) return
+    target.scrollIntoView({ behavior: firstScroll.current ? 'auto' : 'smooth', block: 'start' })
+    firstScroll.current = false
+  }, [activeSection, urlTab])
 
-  const handleTabChange = (tabId: SettingsTab) => {
-    navigate(`/settings/${tabId}`)
+  const goSection = (section: SettingsSection) => {
+    navigate(section === 'general' ? '/settings/general' : `/settings/${section}`)
   }
 
-  const tabs = [
-    { id: 'general' as SettingsTab, label: 'General', icon: Settings },
-    { id: 'appearance' as SettingsTab, label: 'Appearance', icon: Palette },
-    { id: 'models' as SettingsTab, label: 'Models', icon: Brain },
-    { id: 'keys' as SettingsTab, label: 'API Keys', icon: Key },
-    { id: 'advanced' as SettingsTab, label: 'Advanced', icon: Sliders },
-    { id: 'data' as SettingsTab, label: 'Data & Privacy', icon: Database },
-    ...(isManagerOrAdmin ? [{ id: 'groups' as SettingsTab, label: 'Groups', icon: Users }] : []),
-    ...(isAdmin ? [{ id: 'users' as SettingsTab, label: 'Users', icon: UserPlus }] : []),
-  ]
+  const visibleSections = SECTION_IDS.filter((s) => s !== 'people' || isManagerOrAdmin)
 
   return (
-    <div className="app-settings">
-      {/* Header */}
-      <div className="app-settings__header">
-        <div>
-          <h1 className="app-settings__title">Settings</h1>
-          <p className="app-settings__subtitle">Configure CachiBot preferences</p>
+    <div className="v2-settings">
+      <div className="v2-settings__column">
+        {/* Top bar per design: back · centered title · close */}
+        <div className="v2-settings__topbar">
+          <button
+            type="button"
+            className="v2-settings__top-btn"
+            aria-label="Back"
+            onClick={() => navigate(-1)}
+          >
+            <ChevronLeft size={18} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+          <h1 className="v2-settings__title">Settings</h1>
+          <button
+            type="button"
+            className="v2-settings__top-btn"
+            aria-label="Close"
+            onClick={() => navigate('/dashboard')}
+          >
+            <X size={18} strokeWidth={1.8} aria-hidden="true" />
+          </button>
         </div>
-      </div>
 
-      <div className="app-settings__body">
-        {/* Sidebar */}
-        <nav className="settings-nav">
-          <div className="space-y-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  'settings-nav__item',
-                  activeTab === tab.id && 'settings-nav__item--active'
-                )}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        {/* Section pills (jump links) */}
+        <nav className="v2-settings__nav" aria-label="Sections">
+          {visibleSections.map((section) => (
+            <button
+              key={section}
+              type="button"
+              className={cn('v2-settings__pill', activeSection === section && 'v2-settings__pill--active')}
+              onClick={() => goSection(section)}
+            >
+              {SECTION_LABELS[section]}
+            </button>
+          ))}
         </nav>
 
-        {/* Content */}
-        <div className="app-settings__content">
-          <div className="app-settings__content-inner space-y-8">
-            {activeTab === 'general' && (
-              <GeneralSettings
-                showThinking={showThinking}
-                setShowThinking={setShowThinking}
-                showCost={showCost}
-                setShowCost={setShowCost}
-                config={config}
-                healthInfo={healthInfo}
-              />
-            )}
-            {activeTab === 'appearance' && (
-              <AppearanceSettings
-                theme={theme}
-                setTheme={setTheme}
-                accentColor={accentColor}
-                setAccentColor={setAccentColor}
-                customHex={customHex}
-                setCustomHex={setCustomHex}
-                sidebarCollapsed={sidebarCollapsed}
-                setSidebarCollapsed={setSidebarCollapsed}
-              />
-            )}
-            {activeTab === 'models' && <ModelsSettings />}
-            {activeTab === 'keys' && <ApiKeysSettings />}
-            {activeTab === 'advanced' && <AdvancedSettings config={config} />}
-            {activeTab === 'data' && <DataSettings />}
-            {activeTab === 'groups' && isManagerOrAdmin && <GroupsSettings currentUser={currentUser} />}
-            {activeTab === 'users' && isAdmin && <UsersSettings currentUser={currentUser} />}
-          </div>
-        </div>
+        <GeneralSection />
+        <AppearanceSection />
+        <ModelsSection />
+        <DataSection />
+        {isManagerOrAdmin && <PeopleSection isAdmin={isAdmin} />}
+        <AdvancedSection isAdmin={isAdmin} />
+        <AboutSection />
       </div>
     </div>
   )
 }
 
 // =============================================================================
-// GENERAL SETTINGS
+// SHARED V2 PRIMITIVES
 // =============================================================================
+
+function V2Section({
+  id,
+  title,
+  badge,
+  desc,
+  children,
+}: {
+  id: string
+  title: string
+  badge?: string
+  desc?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section id={`v2s-${id}`} className="v2-settings__section" aria-label={title}>
+      <h2 className="v2-settings__heading">
+        {title}
+        {badge && <span className="v2-settings__badge">{badge}</span>}
+      </h2>
+      {desc && <p className="v2-settings__desc">{desc}</p>}
+      {children}
+    </section>
+  )
+}
+
+/** 48px row: title (+optional subtitle) left, action button right. */
+function V2Row({
+  title,
+  sub,
+  danger,
+  action,
+  children,
+}: {
+  title: React.ReactNode
+  sub?: React.ReactNode
+  danger?: boolean
+  /** Right-hand 28px action (button or link) */
+  action?: React.ReactNode
+  children?: React.ReactNode
+}) {
+  return (
+    <div className="v2-settings__row">
+      <span className="v2-settings__row-main">
+        <span className={cn('v2-settings__row-title', danger && 'v2-settings__row-title--danger')}>
+          {title}
+        </span>
+        {sub && <span className="v2-settings__row-sub">{sub}</span>}
+        {children}
+      </span>
+      {action}
+    </div>
+  )
+}
+
+/** Toggle row with the design's 40x24 switch. */
+function V2Toggle({
+  title,
+  sub,
+  checked,
+  onChange,
+  disabled,
+}: {
+  title: string
+  sub?: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="v2-settings__toggle">
+      <span className="v2-settings__toggle-main">
+        <span className="v2-settings__toggle-title">{title}</span>
+        {sub && <span className="v2-settings__toggle-sub">{sub}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={title}
+        className="v2-switch"
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+      >
+        <span />
+      </button>
+    </div>
+  )
+}
+
+/** 40px select-style field: label above, bordered box with chevron. */
+function V2Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className="v2-settings__field">
+      <span className="v2-settings__label">{label}</span>
+      {children}
+      {hint && <p className="v2-settings__hint">{hint}</p>}
+    </label>
+  )
+}
+
+// =============================================================================
+// GENERAL
+// =============================================================================
+
+function GeneralSection() {
+  const { showThinking, setShowThinking, showCost, setShowCost } = useUIStore()
+  const { config } = useConfigStore()
+  const { user } = useAuthStore()
+  const [showChangePassword, setShowChangePassword] = useState(false)
+
+  const handleDisplayToggle = async (key: 'showThinking' | 'showCost', value: boolean) => {
+    if (key === 'showThinking') setShowThinking(value)
+    else setShowCost(value)
+    try {
+      await updateConfig({ [key === 'showThinking' ? 'show_thinking' : 'show_cost']: value })
+    } catch {
+      console.error('Failed to update setting')
+    }
+  }
+
+  return (
+    <V2Section id="general" title="General">
+      {/* Your account: real auth-store identity + the real change-password API */}
+      <div id="v2s-account" style={{ display: 'contents' }}>
+        <h3 className="v2-settings__sub">Your account</h3>
+        <div className="v2-settings__rows">
+          <V2Row title="Username" sub={user?.username || '—'} />
+          <V2Row title="Email" sub={user?.email || '—'} />
+          <V2Row
+            title="Password"
+            sub="Change the password you sign in with"
+            action={
+              <button type="button" className="v2-settings__action" onClick={() => setShowChangePassword(true)}>
+                Change
+              </button>
+            }
+          />
+        </div>
+      </div>
+
+      <h3 className="v2-settings__sub">Display</h3>
+      <V2Toggle
+        title="Show thinking process"
+        sub="Display the AI's reasoning and thought process"
+        checked={showThinking}
+        onChange={(v) => void handleDisplayToggle('showThinking', v)}
+      />
+      <V2Toggle
+        title="Show token costs"
+        sub="Display estimated costs for API calls"
+        checked={showCost}
+        onChange={(v) => void handleDisplayToggle('showCost', v)}
+      />
+
+      {/* Real server values (read-only — no endpoint changes them) */}
+      {(config?.timezone || config?.workspacePath) && (
+        <>
+          <h3 className="v2-settings__sub">Server</h3>
+          <div className="v2-settings__rows">
+            {config?.timezone && <V2Row title="Time zone" sub={config.timezone} />}
+            {config?.workspacePath && <V2Row title="Workspace" sub={config.workspacePath} />}
+          </div>
+        </>
+      )}
+
+      <StartOnBootSection />
+      <MobilePairingSection />
+      <SetupWizardRow />
+      {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
+    </V2Section>
+  )
+}
+
+function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (next.length < 8) {
+      toast.error('New password must be at least 8 characters')
+      return
+    }
+    if (next !== confirm) {
+      toast.error('New passwords do not match')
+      return
+    }
+    setSaving(true)
+    try {
+      await changePassword({ current_password: current, new_password: next })
+      toast.success('Password changed')
+      onClose()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to change password')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="settings-modal">
+      <div className="settings-modal__panel--sm mx-4">
+        <h2 className="settings-modal__heading mb-4">Change password</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="settings-modal__label">Current password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
+              <input
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                className="settings-modal__input pl-10"
+                required
+                autoComplete="current-password"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="settings-modal__label">New password</label>
+            <input
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              className="settings-modal__input"
+              required
+              minLength={8}
+              placeholder="Min. 8 characters"
+              autoComplete="new-password"
+            />
+          </div>
+          <div>
+            <label className="settings-modal__label">Confirm new password</label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="settings-modal__input"
+              required
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Change password'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 function StartOnBootSection() {
   const [enabled, setEnabled] = useState(false)
@@ -244,122 +498,40 @@ function StartOnBootSection() {
   }
 
   return (
-    <Section icon={Zap} title="Startup">
-      <div className="space-y-4">
-        <ToggleField
-          label="Start on Boot"
-          description="Automatically launch CachiBot when you log in to your computer"
-          checked={enabled}
-          onChange={handleToggle}
-        />
-      </div>
-    </Section>
+    <>
+      <h3 className="v2-settings__sub">Startup</h3>
+      <V2Toggle
+        title="Start on boot"
+        sub="Automatically launch CachiBot when you log in to your computer"
+        checked={enabled}
+        onChange={(v) => void handleToggle(v)}
+      />
+    </>
   )
 }
 
-function GeneralSettings({
-  showThinking,
-  setShowThinking,
-  showCost,
-  setShowCost,
-  config,
-  healthInfo,
-}: {
-  showThinking: boolean
-  setShowThinking: (show: boolean) => void
-  showCost: boolean
-  setShowCost: (show: boolean) => void
-  config: Config | null
-  healthInfo: HealthInfo | null
-}) {
+function SetupWizardRow() {
+  const navigate = useNavigate()
+
+  const handleRunWizard = () => {
+    useOnboardingStore.getState().resetStep()
+    navigate('/onboarding')
+  }
+
   return (
     <>
-      <Section icon={EyeIcon} title="Display Options">
-        <div className="space-y-4">
-          <ToggleField
-            label="Show Thinking Process"
-            description="Display the AI's reasoning and thought process"
-            checked={showThinking}
-            onChange={setShowThinking}
-          />
-          <ToggleField
-            label="Show Token Costs"
-            description="Display estimated costs for API calls"
-            checked={showCost}
-            onChange={setShowCost}
-          />
-        </div>
-      </Section>
-
-
-      <StartOnBootSection />
-
-      <Section icon={FolderOpen} title="Workspace">
-        <div className="space-y-4">
-          <Field label="Workspace Path">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={config?.workspacePath || './workspace'}
-                readOnly
-                className="settings-input settings-input--readonly flex-1"
-              />
-              <button className="settings-btn-secondary">
-                Browse
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              Directory where bots can read and write files
-            </p>
-          </Field>
-        </div>
-      </Section>
-
-      <Section icon={Info} title="About">
-        <div className="space-y-3">
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Version</span>
-            <span className="settings-info-row__value">
-              {window.electronAPI?.appVersion ?? healthInfo?.version ?? '...'}
-            </span>
-          </div>
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Build</span>
-            <span className="settings-info-row__value">
-              {healthInfo?.build ?? '...'}
-            </span>
-          </div>
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Python</span>
-            <span className="settings-info-row__value">
-              {healthInfo?.python ?? '...'}
-            </span>
-          </div>
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Platform</span>
-            <span className="settings-info-row__value">
-              {healthInfo?.platform ?? '...'}
-            </span>
-          </div>
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Documentation</span>
-            <a
-              href="https://github.com/jhd3197/CachiBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="settings-info-row__link"
-            >
-              GitHub
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        </div>
-      </Section>
-
-      <MobilePairingSection />
-
-      <SetupWizardButton />
-      <UpdatesSection healthInfo={healthInfo} />
+      <h3 className="v2-settings__sub">Setup</h3>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Run setup wizard"
+          sub="Re-run the initial setup to configure API keys, models, and preferences"
+          action={
+            <button type="button" className="v2-settings__action" onClick={handleRunWizard}>
+              Run
+            </button>
+          }
+        />
+      </div>
     </>
   )
 }
@@ -372,7 +544,6 @@ function MobilePairingSection() {
   const [firewall, setFirewall] = useState<FirewallStatus | null>(null)
   const [firewallLoading, setFirewallLoading] = useState(false)
 
-  // Check firewall status on mount
   useEffect(() => {
     getFirewallStatus().then(setFirewall).catch(() => {})
   }, [])
@@ -408,11 +579,10 @@ function MobilePairingSection() {
     }
   }
 
-  // Countdown timer and auto-refresh
   useEffect(() => {
     if (!showQr || countdown <= 0) return
     const interval = setInterval(() => {
-      setCountdown(prev => {
+      setCountdown((prev) => {
         if (prev <= 1) {
           fetchToken()
           return 0
@@ -424,68 +594,48 @@ function MobilePairingSection() {
   }, [showQr, countdown > 0])
 
   const qrValue = pairData
-    ? `cachibot://pair?url=${encodeURIComponent(pairData.url)}&token=${encodeURIComponent(pairData.token)}${pairData.urls.map(u => `&urls=${encodeURIComponent(u)}`).join('')}`
+    ? `cachibot://pair?url=${encodeURIComponent(pairData.url)}&token=${encodeURIComponent(pairData.token)}${pairData.urls.map((u) => `&urls=${encodeURIComponent(u)}`).join('')}`
     : ''
 
   return (
-    <Section icon={Smartphone} title="Mobile App">
-      <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-        Pair your mobile device to access CachiBot on the go. Open the CachiBot mobile app and scan the QR code.
-      </p>
-
-      {/* Firewall status (Windows only) */}
-      {firewall?.needed && (
-        <div className={`flex items-center justify-between p-3 rounded-lg mb-4 border ${
-          firewall.enabled
-            ? 'bg-green-500/10 border-green-500/20'
-            : 'bg-yellow-500/10 border-yellow-500/20'
-        }`}>
-          <div className="flex items-center gap-3">
-            <Shield className={`h-4 w-4 ${firewall.enabled ? 'text-green-500' : 'text-yellow-500'}`} />
-            <div>
-              <p className="text-sm font-medium text-[var(--color-text-primary)]">
-                {firewall.enabled ? 'LAN access enabled' : 'LAN access blocked'}
-              </p>
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                {firewall.enabled
-                  ? `Windows Firewall allows connections on port ${firewall.port}`
-                  : 'Windows Firewall is blocking connections from your phone'}
-              </p>
-            </div>
-          </div>
-          {!firewall.enabled && (
+    <>
+      <h3 className="v2-settings__sub">Mobile app</h3>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Pair mobile device"
+          sub="Open the CachiBot mobile app and scan the QR code"
+          action={
             <button
-              onClick={handleEnableFirewall}
-              disabled={firewallLoading}
-              className="settings-btn-primary flex items-center gap-2 text-sm"
+              type="button"
+              className="v2-settings__action"
+              disabled={loading}
+              onClick={() => void fetchToken()}
             >
-              {firewallLoading ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Shield className="h-3 w-3" />
-              )}
-              Allow
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Pair'}
             </button>
-          )}
-        </div>
-      )}
-
-      <button
-        onClick={fetchToken}
-        disabled={loading}
-        className="settings-btn-primary flex items-center gap-2"
-      >
-        {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <QrCode className="h-4 w-4" />
+          }
+        />
+        {firewall?.needed && !firewall.enabled && (
+          <V2Row
+            title="LAN access blocked"
+            sub={`Windows Firewall is blocking connections on port ${firewall.port}`}
+            action={
+              <button
+                type="button"
+                className="v2-settings__action"
+                disabled={firewallLoading}
+                onClick={() => void handleEnableFirewall()}
+              >
+                {firewallLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Allow'}
+              </button>
+            }
+          />
         )}
-        Pair Mobile Device
-      </button>
+      </div>
 
       {showQr && pairData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowQr(false)}>
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Scan QR Code</h3>
               <button onClick={() => setShowQr(false)} className="p-1 rounded hover:bg-gray-100">
@@ -505,7 +655,7 @@ function MobilePairingSection() {
           </div>
         </div>
       )}
-    </Section>
+    </>
   )
 }
 
@@ -533,561 +683,107 @@ function QrCodeDisplay({ value, size }: { value: string; size: number }) {
   return <img src={dataUrl} width={size} height={size} alt="QR Code" className="rounded" />
 }
 
-function SetupWizardButton() {
-  const navigate = useNavigate()
+// =============================================================================
+// APPEARANCE
+// =============================================================================
 
-  const handleRunWizard = () => {
-    useOnboardingStore.getState().resetStep()
-    navigate('/onboarding')
-  }
-
-  return (
-    <Section icon={RefreshCw} title="Setup">
-      <div className="settings-card-row">
-        <div>
-          <h4 className="settings-card-row__title">Run Setup Wizard</h4>
-          <p className="settings-card-row__desc">
-            Re-run the initial setup to configure API keys, models, and preferences
-          </p>
-        </div>
-        <button
-          onClick={handleRunWizard}
-          className="settings-btn-accent flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Run Wizard
-        </button>
-      </div>
-    </Section>
-  )
-}
-
-function UpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
-  const isElectron = window.electronAPI?.isDesktop || healthInfo?.desktop
-  if (isElectron) return <ElectronUpdatesSection healthInfo={healthInfo} />
-  return <PipUpdatesSection healthInfo={healthInfo} />
-}
-
-function ElectronUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
-  const [checking, setChecking] = useState(false)
-  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
-  const [downloading, setDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
-  const [downloaded, setDownloaded] = useState(false)
-  const [updateError, setUpdateError] = useState<string | null>(null)
-  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true)
-  const [autoInstallUpdates, setAutoInstallUpdates] = useState(false)
-  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable')
-
-  const currentVersion = healthInfo?.version || '...'
-
-  // Listen for startup / periodic auto-check push from main process
-  useEffect(() => {
-    const api = window.electronAPI
-    if (!api) return
-    const cleanup = api.onUpdateAvailable((info) => {
-      setUpdateInfo(info)
-    })
-    return cleanup
-  }, [])
-
-  // Listen for download progress
-  useEffect(() => {
-    const api = window.electronAPI
-    if (!api) return
-    const cleanup = api.onUpdateProgress((progress) => {
-      setDownloadProgress(progress)
-    })
-    return cleanup
-  }, [])
-
-  // Listen for download completed (after SHA verification)
-  useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onUpdateDownloaded) return
-    const cleanup = api.onUpdateDownloaded(() => {
-      setDownloading(false)
-      setDownloaded(true)
-    })
-    return cleanup
-  }, [])
-
-  // Listen for update errors
-  useEffect(() => {
-    const api = window.electronAPI
-    if (!api?.onUpdateError) return
-    const cleanup = api.onUpdateError((error) => {
-      setUpdateError(error.message)
-      setDownloading(false)
-      setDownloaded(false)
-    })
-    return cleanup
-  }, [])
-
-  // Load auto-update toggle setting
-  useEffect(() => {
-    window.electronAPI?.getSetting?.('autoUpdateEnabled', true).then((val) => {
-      setAutoUpdateEnabled(val as boolean)
-    })
-  }, [])
-
-  // Load auto-install updates setting
-  useEffect(() => {
-    window.electronAPI?.getSetting?.('autoInstallUpdates', false).then((val) => {
-      setAutoInstallUpdates(val as boolean)
-    })
-  }, [])
-
-  // Load update channel setting
-  useEffect(() => {
-    window.electronAPI?.getSetting?.('updateChannel', 'stable').then((val) => {
-      setUpdateChannel(val as 'stable' | 'beta')
-    })
-  }, [])
-
-  const handleCheck = async () => {
-    const api = window.electronAPI
-    if (!api) return
-    setChecking(true)
-    setUpdateError(null)
-    try {
-      const result = await api.checkForUpdate()
-      setUpdateInfo(result)
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const handleDownload = async () => {
-    const api = window.electronAPI
-    if (!api) return
-    setDownloading(true)
-    setDownloadProgress(null)
-    const result = await api.downloadUpdate()
-    if (!result.success) {
-      setDownloading(false)
-      toast.error('Failed to download update')
-    }
-  }
-
-  const handleInstall = () => {
-    window.electronAPI?.installUpdate()
-  }
-
-  const handleToggleAutoUpdate = async () => {
-    const newValue = !autoUpdateEnabled
-    await window.electronAPI?.setSetting?.('autoUpdateEnabled', newValue)
-    setAutoUpdateEnabled(newValue)
-  }
-
-  const handleToggleAutoInstall = async () => {
-    const newValue = !autoInstallUpdates
-    await window.electronAPI?.setSetting?.('autoInstallUpdates', newValue)
-    setAutoInstallUpdates(newValue)
-  }
-
-  const handleToggleChannel = async () => {
-    const newChannel = updateChannel === 'stable' ? 'beta' : 'stable'
-    await window.electronAPI?.setSetting?.('updateChannel', newChannel)
-    setUpdateChannel(newChannel)
-  }
-
-  // Normalize release notes — electron-updater may return a string or an array
-  const releaseNotes = (() => {
-    const notes = updateInfo?.releaseNotes
-    if (!notes) return null
-    if (typeof notes === 'string') return notes
-    if (Array.isArray(notes)) {
-      return notes.map((n: { version?: string; note?: string }) => n.note || '').join('\n\n')
-    }
-    return null
-  })()
-
-  const buildBadge = healthInfo?.build ? (
-    <span
-      className={cn(
-        'build-badge',
-        healthInfo.build === 'release'
-          ? 'build-badge--release'
-          : healthInfo.build === 'dev'
-            ? 'build-badge--dev'
-            : 'build-badge--other'
-      )}
-    >
-      {healthInfo.build}
-    </span>
-  ) : null
-
-  return (
-    <Section icon={Download} title="Updates">
-      <div className="space-y-4">
-        <div className="settings-info-row">
-          <span className="settings-info-row__label">Automatic Update Checks</span>
-          <button
-            onClick={handleToggleAutoUpdate}
-            className={cn('settings-btn-secondary text-sm', autoUpdateEnabled ? 'text-green-400' : 'text-zinc-400')}
-          >
-            {autoUpdateEnabled ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-
-        <div className="settings-info-row">
-          <div>
-            <span className="settings-info-row__label">Auto-install Updates on Startup</span>
-            <span className="block text-xs text-[var(--color-text-tertiary)]">
-              Automatically download and install updates when the app starts
-            </span>
-          </div>
-          <button
-            onClick={handleToggleAutoInstall}
-            className={cn('settings-btn-secondary text-sm', autoInstallUpdates ? 'text-green-400' : 'text-zinc-400')}
-          >
-            {autoInstallUpdates ? 'Enabled' : 'Disabled'}
-          </button>
-        </div>
-
-        <div className="settings-info-row">
-          <span className="settings-info-row__label">Update Channel</span>
-          <button
-            onClick={handleToggleChannel}
-            className={cn('settings-btn-secondary text-sm', updateChannel === 'beta' ? 'text-yellow-400' : 'text-zinc-400')}
-          >
-            {updateChannel === 'beta' ? 'Beta' : 'Stable'}
-          </button>
-        </div>
-
-        <div className="settings-info-row">
-          <span className="settings-info-row__label">Current Version</span>
-          <span className="settings-info-row__value">
-            {currentVersion}
-            {buildBadge}
-          </span>
-        </div>
-
-        {updateInfo?.available && (
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Available Version</span>
-            <span className="font-mono text-accent-500">{updateInfo.version}</span>
-          </div>
-        )}
-
-        {updateInfo && !updateInfo.available && (
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Status</span>
-            <span className="text-green-400">Up to date</span>
-          </div>
-        )}
-
-        {updateError && (
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Last Error</span>
-            <span className="text-red-400 text-sm">{updateError}</span>
-          </div>
-        )}
-
-        {updateInfo?.available && releaseNotes && (
-          <details className="mt-2">
-            <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
-              Release notes
-            </summary>
-            <div className="mt-2 rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-app)] p-4">
-              <MarkdownRenderer content={releaseNotes} />
-            </div>
-          </details>
-        )}
-
-        {downloading && downloadProgress && (
-          <div className="space-y-1">
-            <div className="flex justify-between text-sm text-[var(--color-text-secondary)]">
-              <span>Downloading...</span>
-              <span>{Math.round(downloadProgress.percent)}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
-              <div
-                className="h-full rounded-full bg-accent-500 transition-all"
-                style={{ width: `${downloadProgress.percent}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          {!downloaded && !downloading && (
-            <>
-              <button
-                onClick={handleCheck}
-                disabled={checking}
-                className="settings-btn-secondary flex items-center gap-2"
-              >
-                {checking ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Check for Updates
-              </button>
-              {updateInfo?.available && (
-                <button
-                  onClick={handleDownload}
-                  className="settings-btn-accent flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Update
-                </button>
-              )}
-            </>
-          )}
-          {downloaded && (
-            <button
-              onClick={handleInstall}
-              className="settings-btn-accent flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Restart &amp; Install
-            </button>
-          )}
-        </div>
-      </div>
-    </Section>
-  )
-}
-
-function PipUpdatesSection({ healthInfo }: { healthInfo: HealthInfo | null }) {
+function AppearanceSection() {
   const {
-    checkResult,
-    isChecking,
-    optIntoBeta,
-    setOptIntoBeta,
-    checkForUpdate,
-    openDialog,
-    lastCheckAt,
-  } = useUpdateStore()
+    theme,
+    setTheme,
+    accentColor,
+    setAccentColor,
+    customHex,
+    setCustomHex,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+  } = useUIStore()
 
-  useEffect(() => {
-    checkForUpdate()
-  }, [checkForUpdate])
-
-  const currentVersion = window.electronAPI?.appVersion || checkResult?.current_version || healthInfo?.version || '...'
-  const latestStable = checkResult?.latest_stable
-  const latestPrerelease = checkResult?.latest_prerelease
-  const hasUpdate = checkResult?.update_available || checkResult?.prerelease_available
-
-  const formatRelativeTime = (timestamp: number) => {
-    if (!timestamp) return 'Never'
-    const seconds = Math.floor((Date.now() - timestamp) / 1000)
-    if (seconds < 60) return 'Just now'
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
-  }
-
-  const buildBadge = healthInfo?.build ? (
-    <span
-      className={cn(
-        'build-badge',
-        healthInfo.build === 'release'
-          ? 'build-badge--release'
-          : healthInfo.build === 'dev'
-            ? 'build-badge--dev'
-            : 'build-badge--other'
-      )}
-    >
-      {healthInfo.build}
-    </span>
-  ) : null
-
-  return (
-    <Section icon={Download} title="Updates">
-      <div className="space-y-4">
-        <div className="settings-info-row">
-          <span className="settings-info-row__label">Current Version</span>
-          <span className="settings-info-row__value">
-            {currentVersion}
-            {buildBadge}
-          </span>
-        </div>
-
-        <div className="settings-info-row">
-          <span className="settings-info-row__label">Latest Version</span>
-          {latestStable ? (
-            <span
-              className={cn(
-                'font-mono',
-                checkResult?.update_available
-                  ? 'text-accent-500'
-                  : 'text-green-400'
-              )}
-            >
-              {latestStable}
-              {!checkResult?.update_available && ' (up to date)'}
-            </span>
-          ) : (
-            <span className="text-[var(--color-text-secondary)]">—</span>
-          )}
-        </div>
-
-        {latestPrerelease && optIntoBeta && (
-          <div className="settings-info-row">
-            <span className="settings-info-row__label">Latest Pre-release</span>
-            <span className="font-mono text-amber-400">{latestPrerelease}</span>
-          </div>
-        )}
-
-        <ToggleField
-          label="Include Pre-release Versions"
-          description="Opt into beta and development builds"
-          checked={optIntoBeta}
-          onChange={setOptIntoBeta}
-        />
-
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--color-text-secondary)]">
-            Last checked: {formatRelativeTime(lastCheckAt)}
-          </span>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => checkForUpdate(true)}
-            disabled={isChecking}
-            className="settings-btn-secondary flex items-center gap-2"
-          >
-            {isChecking ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Check Now
-          </button>
-          {hasUpdate && (
-            <button
-              onClick={openDialog}
-              className="flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500"
-            >
-              <Download className="h-4 w-4" />
-              Update Available — View Details
-            </button>
-          )}
-        </div>
-      </div>
-    </Section>
-  )
-}
-
-// =============================================================================
-// APPEARANCE SETTINGS
-// =============================================================================
-
-function AppearanceSettings({
-  theme,
-  setTheme,
-  accentColor,
-  setAccentColor,
-  customHex,
-  setCustomHex,
-  sidebarCollapsed,
-  setSidebarCollapsed,
-}: {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-  accentColor: AccentColor
-  setAccentColor: (color: AccentColor) => void
-  customHex: string
-  setCustomHex: (hex: string) => void
-  sidebarCollapsed: boolean
-  setSidebarCollapsed: (collapsed: boolean) => void
-}) {
   const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
     { value: 'light', label: 'Light', icon: Sun },
     { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'System', icon: Monitor },
   ]
 
-  const colorOptions = Object.entries(accentColors) as [PresetColor, typeof accentColors[PresetColor]][]
+  const colorOptions = Object.entries(accentColors) as [PresetColor, (typeof accentColors)[PresetColor]][]
   const customPalette = generatePalette(customHex)
 
   return (
-    <>
-      <Section icon={Palette} title="Theme">
-        <div className="space-y-4">
-          <Field label="Color Theme">
-            <div className="flex gap-2">
-              {themeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setTheme(option.value)}
-                  className={cn(
-                    'settings-theme-btn',
-                    theme === option.value && 'settings-theme-btn--active'
-                  )}
-                >
-                  <option.icon className="h-4 w-4" />
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </Field>
+    <V2Section id="appearance" title="Appearance">
+      {/* Theme segmented control (exact geometry from the design) */}
+      <div role="radiogroup" aria-label="Theme" className="v2-settings__segmented">
+        {themeOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={theme === option.value}
+            className="v2-settings__segment"
+            onClick={() => setTheme(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
-          <Field label="Accent Color">
-            <div className="settings-color-grid">
-              {colorOptions.map(([value, { palette }]) => (
-                <button
-                  key={value}
-                  onClick={() => setAccentColor(value)}
-                  className={cn(
-                    'settings-color-circle',
-                    accentColor === value && 'settings-color-circle--active'
-                  )}
-                  style={{
-                    backgroundColor: palette[500],
-                    boxShadow: accentColor === value ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${palette[500]}` : undefined,
-                  }}
-                  title={value.charAt(0).toUpperCase() + value.slice(1)}
-                />
-              ))}
-              <label
-                className={cn(
-                  'settings-color-circle settings-color-circle--custom',
-                  accentColor === 'custom' && 'settings-color-circle--active'
-                )}
-                style={{
-                  backgroundColor: customPalette[500],
-                  boxShadow: accentColor === 'custom' ? `0 0 0 2px var(--color-bg-primary), 0 0 0 4px ${customPalette[500]}` : undefined,
-                }}
-                title="Custom"
-              >
-                <Plus className="settings-color-circle__icon" />
-                <input
-                  type="color"
-                  value={customHex}
-                  onChange={(e) => setCustomHex(e.target.value)}
-                  className="settings-color-circle__input"
-                />
-              </label>
-            </div>
-          </Field>
+      <V2Field label="Accent color">
+        <div className="v2-settings__colors">
+          {colorOptions.map(([value, { palette }]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setAccentColor(value)}
+              className={cn(
+                'settings-color-circle',
+                accentColor === value && 'settings-color-circle--active'
+              )}
+              style={{
+                backgroundColor: palette[500],
+                boxShadow:
+                  accentColor === value
+                    ? `0 0 0 2px var(--v2-bg-main), 0 0 0 4px ${palette[500]}`
+                    : undefined,
+              }}
+              title={value.charAt(0).toUpperCase() + value.slice(1)}
+            />
+          ))}
+          <label
+            className={cn(
+              'settings-color-circle settings-color-circle--custom',
+              accentColor === 'custom' && 'settings-color-circle--active'
+            )}
+            style={{
+              backgroundColor: customPalette[500],
+              boxShadow:
+                accentColor === 'custom'
+                  ? `0 0 0 2px var(--v2-bg-main), 0 0 0 4px ${customPalette[500]}`
+                  : undefined,
+            }}
+            title="Custom"
+          >
+            <Plus className="settings-color-circle__icon" />
+            <input
+              type="color"
+              value={customHex}
+              onChange={(e) => setCustomHex(e.target.value)}
+              className="settings-color-circle__input"
+            />
+          </label>
         </div>
-      </Section>
+      </V2Field>
 
-      <Section icon={Sliders} title="Layout">
-        <div className="space-y-4">
-          <ToggleField
-            label="Collapse Sidebar by Default"
-            description="Start with sidebar in compact mode"
-            checked={sidebarCollapsed}
-            onChange={setSidebarCollapsed}
-          />
-        </div>
-      </Section>
-    </>
+      <V2Toggle
+        title="Collapse sidebar by default"
+        sub="Start with the sidebar in compact mode"
+        checked={sidebarCollapsed}
+        onChange={setSidebarCollapsed}
+      />
+    </V2Section>
   )
 }
 
 // =============================================================================
-// MODELS SETTINGS
+// MODELS
 // =============================================================================
 
 const MODEL_PROVIDER_LABELS: Record<string, string> = {
@@ -1136,7 +832,7 @@ function formatModelPrice(rate: number | null) {
   return `$${rate.toFixed(4)}`.replace(/0+$/, '')
 }
 
-function ModelsSettings() {
+function ModelsSection() {
   const {
     groups,
     embeddingGroups,
@@ -1157,16 +853,20 @@ function ModelsSettings() {
   }, [refresh])
 
   const handleDefaultModelChange = async (model: string) => {
-    if (model) {
-      await updateDefaultModel(model)
+    if (!model) return
+    await updateDefaultModel(model)
+    // Mirror the choice into the server config (same as the quick settings)
+    try {
+      await updateConfig({ model })
+    } catch {
+      console.error('Failed to update model in config')
     }
   }
 
   const handleEmbeddingModelChange = async (model: string) => {
-    if (model) {
-      await updateDefaultEmbeddingModel(model)
-      toast.success('Embedding model updated')
-    }
+    if (!model) return
+    await updateDefaultEmbeddingModel(model)
+    toast.success('Embedding model updated')
   }
 
   const handleUtilityModelChange = async (model: string) => {
@@ -1174,7 +874,6 @@ function ModelsSettings() {
     toast.success('Utility model updated')
   }
 
-  // Filter models by search
   const filteredGroups: Record<string, import('../../api/models').ModelInfo[]> = {}
   for (const [provider, modelList] of Object.entries(groups)) {
     const filtered = search
@@ -1192,229 +891,174 @@ function ModelsSettings() {
   const toggleProvider = (provider: string) =>
     setExpanded((prev) => ({ ...prev, [provider]: !prev[provider] }))
 
-  // Auto-expand all when searching
   const isSearching = search.length > 0
 
   return (
-    <>
-      {/* Default model */}
-      <Section icon={Brain} title="Default Model">
-        <div className="space-y-4">
-          <Field label="System Default Model">
-            <ModelSelect
-              value={defaultModel}
-              onChange={handleDefaultModelChange}
-              placeholder="Select default model..."
-              className="w-full"
-            />
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              Used when no specific model is configured for a bot.
-            </p>
-          </Field>
+    <V2Section
+      id="models"
+      title="Models"
+      desc="The default every bot uses unless its own settings say otherwise."
+    >
+      <V2Field label="Default model">
+        <div className="v2-settings__box">
+          <ModelSelect
+            value={defaultModel}
+            onChange={(m) => void handleDefaultModelChange(m)}
+            placeholder="Pick a model"
+            className="w-full"
+          />
         </div>
-      </Section>
+      </V2Field>
 
-      {/* Utility model */}
-      <Section icon={Zap} title="Utility Model">
-        <div className="space-y-4">
-          <Field label="Default Utility Model">
-            <ModelSelect
-              value={defaultUtilityModel}
-              onChange={handleUtilityModelChange}
-              placeholder="Falls back to system default model"
-              className="w-full"
-              filter={(m) => !m.supports_image_generation && !m.supports_audio}
-            />
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              Fast/cheap model for background tasks (name generation, message routing, JSON extraction). Falls back to the system default model if not set.
-            </p>
-          </Field>
+      <V2Field label="Utility model" hint="Fast/cheap model for background tasks. Falls back to the default model if not set.">
+        <div className="v2-settings__box">
+          <ModelSelect
+            value={defaultUtilityModel}
+            onChange={(m) => void handleUtilityModelChange(m)}
+            placeholder="Falls back to the default model"
+            className="w-full"
+            filter={(m) => !m.supports_image_generation && !m.supports_audio}
+          />
         </div>
-      </Section>
+      </V2Field>
 
-      {/* Embedding model */}
-      <Section icon={Database} title="Embedding Model">
-        <div className="space-y-4">
-          <Field label="Document Embedding Model">
-            <ModelSelect
-              value={defaultEmbeddingModel}
-              onChange={handleEmbeddingModelChange}
-              placeholder="Select embedding model..."
-              className="w-full"
-              groups={embeddingGroups}
-              filter={(m) => m.supports_embedding}
-            />
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              Used for knowledge base document indexing and retrieval. Changing this model requires re-indexing existing documents.
-            </p>
-          </Field>
+      <V2Field label="Embedding model" hint="Used for knowledge base indexing. Changing it requires re-indexing existing documents.">
+        <div className="v2-settings__box">
+          <ModelSelect
+            value={defaultEmbeddingModel}
+            onChange={(m) => void handleEmbeddingModelChange(m)}
+            placeholder="Pick an embedding model"
+            className="w-full"
+            groups={embeddingGroups}
+            filter={(m) => m.supports_embedding}
+          />
         </div>
-      </Section>
+      </V2Field>
 
-      {/* Available models - collapsible providers */}
-      <Section icon={Brain} title="Available Models">
-        <div className="space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-            <input
-              type="text"
-              placeholder="Search models..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="settings-input settings-input--search w-full"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 settings-modal__close-btn"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+      <ProvidersList />
 
-          {/* Summary */}
-          <p className="text-xs text-[var(--color-text-secondary)]">
-            {isSearching
-              ? `${filteredTotal} result${filteredTotal !== 1 ? 's' : ''} across ${providerCount} provider${providerCount !== 1 ? 's' : ''}`
-              : `${totalModels} model${totalModels !== 1 ? 's' : ''} from ${providerCount} provider${providerCount !== 1 ? 's' : ''}`}
+      <h3 className="v2-settings__sub">Available models</h3>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+        <input
+          type="text"
+          placeholder="Search models..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="settings-input settings-input--search w-full"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 settings-modal__close-btn"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-[var(--color-text-secondary)]">
+        {isSearching
+          ? `${filteredTotal} result${filteredTotal !== 1 ? 's' : ''} across ${providerCount} provider${providerCount !== 1 ? 's' : ''}`
+          : `${totalModels} model${totalModels !== 1 ? 's' : ''} from ${providerCount} provider${providerCount !== 1 ? 's' : ''}`}
+      </p>
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-6 text-[var(--color-text-secondary)]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Discovering models...
+        </div>
+      )}
+      {!loading && totalModels === 0 && (
+        <div className="text-center py-6">
+          <Brain className="h-7 w-7 text-[var(--color-text-tertiary)] mx-auto mb-2" />
+          <p className="text-sm text-[var(--color-text-secondary)]">No models available</p>
+          <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+            Configure API keys to discover models.
           </p>
+        </div>
+      )}
+      {!loading && totalModels > 0 && filteredTotal === 0 && (
+        <div className="text-center py-6 text-[var(--color-text-secondary)] text-sm">
+          No models match your search
+        </div>
+      )}
+      {!loading && (
+        <div className="space-y-1.5">
+          {Object.entries(filteredGroups)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([provider, modelList]) => {
+              const label =
+                MODEL_PROVIDER_LABELS[provider] ||
+                provider.charAt(0).toUpperCase() + provider.slice(1)
+              const dotColor = MODEL_PROVIDER_COLORS[provider] || 'bg-zinc-500'
+              const isOpen = isSearching || expanded[provider]
 
-          {/* Loading */}
-          {loading && (
-            <div className="flex items-center justify-center gap-2 py-6 text-[var(--color-text-secondary)]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Discovering models...
-            </div>
-          )}
-
-          {/* Empty */}
-          {!loading && totalModels === 0 && (
-            <div className="text-center py-6">
-              <Brain className="h-7 w-7 text-[var(--color-text-tertiary)] mx-auto mb-2" />
-              <p className="text-sm text-[var(--color-text-secondary)]">No models available</p>
-              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-                Configure API keys to discover models.
-              </p>
-            </div>
-          )}
-
-          {/* No search results */}
-          {!loading && totalModels > 0 && filteredTotal === 0 && (
-            <div className="text-center py-6 text-[var(--color-text-secondary)] text-sm">
-              No models match your search
-            </div>
-          )}
-
-          {/* Provider accordions */}
-          {!loading && (
-            <div className="space-y-1.5">
-              {Object.entries(filteredGroups)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([provider, modelList]) => {
-                  const label =
-                    MODEL_PROVIDER_LABELS[provider] ||
-                    provider.charAt(0).toUpperCase() + provider.slice(1)
-                  const dotColor = MODEL_PROVIDER_COLORS[provider] || 'bg-zinc-500'
-                  const isOpen = isSearching || expanded[provider]
-
-                  return (
-                    <div
-                      key={provider}
-                      className="model-provider"
-                    >
-                      {/* Provider header - clickable */}
-                      <button
-                        onClick={() => toggleProvider(provider)}
-                        className="model-provider__header"
-                      >
-                        <ChevronRight
-                          className={cn(
-                            'h-3.5 w-3.5 text-[var(--color-text-secondary)] transition-transform',
-                            isOpen && 'rotate-90'
-                          )}
-                        />
-                        <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
-                        <span className="model-provider__label">
-                          {label}
-                        </span>
-                        <span className="model-provider__count">
-                          {modelList.length}
-                        </span>
-                      </button>
-
-                      {/* Model list */}
-                      {isOpen && (
-                        <div className="model-provider__list">
-                          {modelList.map((m) => {
-                            const isDefault = m.id === defaultModel
-                            return (
-                              <div
-                                key={m.id}
-                                className={cn(
-                                  'model-row group',
-                                  isDefault && 'model-row--default'
-                                )}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span
-                                      className="model-row__name truncate"
-                                      title={m.id}
-                                    >
-                                      {m.id}
-                                    </span>
-                                    {isDefault && (
-                                      <Star className="h-3 w-3 shrink-0 fill-current text-accent-500" />
-                                    )}
-                                    {m.is_reasoning && (
-                                      <Sparkles className="h-3 w-3 shrink-0 text-purple-400" />
-                                    )}
-                                  </div>
-                                  <div className="model-row__meta">
-                                    <span>{formatModelNum(m.context_window)} ctx</span>
-                                    {m.pricing && (
-                                      <>
-                                        <span className="model-row__separator">/</span>
-                                        <span className="model-row__price-in">
-                                          {formatModelPrice(m.pricing.input)}
-                                        </span>
-                                        <span className="model-row__separator">&middot;</span>
-                                        <span className="model-row__price-out">
-                                          {formatModelPrice(m.pricing.output)}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                {!isDefault && (
-                                  <button
-                                    onClick={() => handleDefaultModelChange(m.id)}
-                                    className="model-row__star-btn"
-                                    title="Set as default"
-                                  >
-                                    <Star className="h-3.5 w-3.5" />
-                                  </button>
+              return (
+                <div key={provider} className="model-provider">
+                  <button onClick={() => toggleProvider(provider)} className="model-provider__header">
+                    <ChevronRight
+                      className={cn(
+                        'h-3.5 w-3.5 text-[var(--color-text-secondary)] transition-transform',
+                        isOpen && 'rotate-90'
+                      )}
+                    />
+                    <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
+                    <span className="model-provider__label">{label}</span>
+                    <span className="model-provider__count">{modelList.length}</span>
+                  </button>
+                  {isOpen && (
+                    <div className="model-provider__list">
+                      {modelList.map((m) => {
+                        const isDefault = m.id === defaultModel
+                        return (
+                          <div
+                            key={m.id}
+                            className={cn('model-row group', isDefault && 'model-row--default')}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="model-row__name truncate" title={m.id}>
+                                  {m.id}
+                                </span>
+                                {isDefault && <Star className="h-3 w-3 shrink-0 fill-current text-accent-500" />}
+                                {m.is_reasoning && <Sparkles className="h-3 w-3 shrink-0 text-purple-400" />}
+                              </div>
+                              <div className="model-row__meta">
+                                <span>{formatModelNum(m.context_window)} ctx</span>
+                                {m.pricing && (
+                                  <>
+                                    <span className="model-row__separator">/</span>
+                                    <span className="model-row__price-in">{formatModelPrice(m.pricing.input)}</span>
+                                    <span className="model-row__separator">&middot;</span>
+                                    <span className="model-row__price-out">{formatModelPrice(m.pricing.output)}</span>
+                                  </>
                                 )}
                               </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                            </div>
+                            {!isDefault && (
+                              <button
+                                onClick={() => void handleDefaultModelChange(m.id)}
+                                className="model-row__star-btn"
+                                title="Set as default"
+                              >
+                                <Star className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
-                  )
-                })}
-            </div>
-          )}
+                  )}
+                </div>
+              )
+            })}
         </div>
-      </Section>
-    </>
+      )}
+    </V2Section>
   )
 }
 
 // =============================================================================
-// API KEYS SETTINGS
+// PROVIDERS (Models section) — design rows: name + state, Add key / Change
 // =============================================================================
 
 const CLOUD_PROVIDERS = new Set([
@@ -1442,18 +1086,32 @@ const PROVIDER_LABELS: Record<string, string> = {
   local_http: 'Local HTTP',
 }
 
-function ApiKeysSettings() {
+interface ProviderState {
+  editing: string | null // provider currently being added/replaced
+  value: string
+  visible: boolean
+  saving: boolean
+  showExtras: boolean
+  extraEditing: string | null // "providerName:envKey"
+  extraValue: string
+  extraVisible: boolean
+  extraSaving: boolean
+}
+
+function ProvidersList() {
   const { providers, loading, refresh, update, remove, updateKey, removeKey } = useProvidersStore()
-  const { refresh: refreshModels } = useModelsStore()
-  const [editValues, setEditValues] = useState<Record<string, string>>({})
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set())
-  const [saving, setSaving] = useState<string | null>(null)
-  const [replacingKeys, setReplacingKeys] = useState<Set<string>>(new Set())
-  const [expandedAzure, setExpandedAzure] = useState(false)
-  const [extraEditValues, setExtraEditValues] = useState<Record<string, string>>({})
-  const [extraReplacingKeys, setExtraReplacingKeys] = useState<Set<string>>(new Set())
-  const [extraVisibleKeys, setExtraVisibleKeys] = useState<Set<string>>(new Set())
-  const [extraSaving, setExtraSaving] = useState<string | null>(null)
+  const { groups: modelGroups, refresh: refreshModels } = useModelsStore()
+  const [state, setState] = useState<ProviderState>({
+    editing: null,
+    value: '',
+    visible: false,
+    saving: false,
+    showExtras: false,
+    extraEditing: null,
+    extraValue: '',
+    extraVisible: false,
+    extraSaving: false,
+  })
 
   useEffect(() => {
     refresh()
@@ -1464,75 +1122,31 @@ function ApiKeysSettings() {
     .sort((a, b) => (a.name === 'cachibot' ? -1 : b.name === 'cachibot' ? 1 : 0))
   const localProviders = providers.filter((p) => !CLOUD_PROVIDERS.has(p.name))
 
-  // --- Primary key helpers ---
-
-  const enterReplaceMode = (name: string) => {
-    setReplacingKeys((prev) => new Set(prev).add(name))
-    setEditValues((prev) => ({ ...prev, [name]: '' }))
+  const beginEdit = (name: string, isConfigured: boolean) => {
+    setState((s) => ({ ...s, editing: name, value: '', visible: false }))
+    void isConfigured
   }
 
-  const cancelReplaceMode = (name: string) => {
-    setReplacingKeys((prev) => {
-      const next = new Set(prev)
-      next.delete(name)
-      return next
-    })
-    setEditValues((prev) => {
-      const next = { ...prev }
-      delete next[name]
-      return next
-    })
-    setVisibleKeys((prev) => {
-      const next = new Set(prev)
-      next.delete(name)
-      return next
-    })
-  }
+  const cancelEdit = () => setState((s) => ({ ...s, editing: null, value: '', visible: false }))
 
   const handleSave = async (name: string) => {
-    const value = editValues[name]
-    if (!value?.trim()) return
-
-    setSaving(name)
+    if (!state.value.trim()) return
+    setState((s) => ({ ...s, saving: true }))
     try {
-      await update(name, value.trim())
-      setEditValues((prev) => {
-        const next = { ...prev }
-        delete next[name]
-        return next
-      })
-      setVisibleKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(name)
-        return next
-      })
-      setReplacingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(name)
-        return next
-      })
+      await update(name, state.value.trim())
       refreshModels()
       toast.success(`${PROVIDER_LABELS[name] || name} key saved`)
+      cancelEdit()
     } catch {
       toast.error(`Failed to save ${PROVIDER_LABELS[name] || name} key`)
     } finally {
-      setSaving(null)
+      setState((s) => ({ ...s, saving: false }))
     }
   }
 
   const handleDelete = async (name: string) => {
     try {
       await remove(name)
-      setEditValues((prev) => {
-        const next = { ...prev }
-        delete next[name]
-        return next
-      })
-      setReplacingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(name)
-        return next
-      })
       refreshModels()
       toast.success(`${PROVIDER_LABELS[name] || name} key removed`)
     } catch {
@@ -1540,426 +1154,233 @@ function ApiKeysSettings() {
     }
   }
 
-  const toggleVisibility = (name: string) => {
-    setVisibleKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) {
-        next.delete(name)
-      } else {
-        next.add(name)
-      }
-      return next
-    })
-  }
+  const extraKey = (providerName: string, envKey: string) => `${providerName}:${envKey}`
 
-  // --- Extra key helpers (keyed by "providerName:envKey") ---
+  const beginExtraEdit = (providerName: string, envKey: string) =>
+    setState((s) => ({ ...s, extraEditing: extraKey(providerName, envKey), extraValue: '', extraVisible: false }))
 
-  const extraCompositeKey = (providerName: string, envKey: string) => `${providerName}:${envKey}`
+  const cancelExtraEdit = () =>
+    setState((s) => ({ ...s, extraEditing: null, extraValue: '', extraVisible: false }))
 
-  const enterExtraReplaceMode = (providerName: string, envKey: string) => {
-    const ck = extraCompositeKey(providerName, envKey)
-    setExtraReplacingKeys((prev) => new Set(prev).add(ck))
-    setExtraEditValues((prev) => ({ ...prev, [ck]: '' }))
-  }
-
-  const cancelExtraReplaceMode = (providerName: string, envKey: string) => {
-    const ck = extraCompositeKey(providerName, envKey)
-    setExtraReplacingKeys((prev) => {
-      const next = new Set(prev)
-      next.delete(ck)
-      return next
-    })
-    setExtraEditValues((prev) => {
-      const next = { ...prev }
-      delete next[ck]
-      return next
-    })
-    setExtraVisibleKeys((prev) => {
-      const next = new Set(prev)
-      next.delete(ck)
-      return next
-    })
-  }
-
-  const toggleExtraVisibility = (providerName: string, envKey: string) => {
-    const ck = extraCompositeKey(providerName, envKey)
-    setExtraVisibleKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(ck)) {
-        next.delete(ck)
-      } else {
-        next.add(ck)
-      }
-      return next
-    })
-  }
-
-  const handleExtraSave = async (providerName: string, envKey: string) => {
-    const ck = extraCompositeKey(providerName, envKey)
-    const value = extraEditValues[ck]
-    if (!value?.trim()) return
-
-    setExtraSaving(ck)
+  const handleExtraSave = async (providerName: string, ek: { env_key: string }) => {
+    if (!state.extraValue.trim()) return
+    setState((s) => ({ ...s, extraSaving: true }))
     try {
-      await updateKey(providerName, envKey, value.trim())
-      setExtraEditValues((prev) => {
-        const next = { ...prev }
-        delete next[ck]
-        return next
-      })
-      setExtraVisibleKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(ck)
-        return next
-      })
-      setExtraReplacingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(ck)
-        return next
-      })
-      toast.success(`${envKey} saved`)
+      await updateKey(providerName, ek.env_key, state.extraValue.trim())
+      toast.success(`${ek.env_key} saved`)
+      cancelExtraEdit()
     } catch {
-      toast.error(`Failed to save ${envKey}`)
+      toast.error(`Failed to save ${ek.env_key}`)
     } finally {
-      setExtraSaving(null)
+      setState((s) => ({ ...s, extraSaving: false }))
     }
   }
 
   const handleExtraDelete = async (providerName: string, envKey: string) => {
-    const ck = extraCompositeKey(providerName, envKey)
     try {
       await removeKey(providerName, envKey)
-      setExtraEditValues((prev) => {
-        const next = { ...prev }
-        delete next[ck]
-        return next
-      })
-      setExtraReplacingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(ck)
-        return next
-      })
       toast.success(`${envKey} removed`)
     } catch {
       toast.error(`Failed to remove ${envKey}`)
     }
   }
 
-  // --- Render extra key field (same 3-state pattern as primary) ---
-
-  const renderExtraKeyField = (providerName: string, ek: { env_key: string; type: string; configured: boolean; masked_value: string; label: string; group: string }) => {
-    const ck = extraCompositeKey(providerName, ek.env_key)
-    const isReplacing = extraReplacingKeys.has(ck)
-    const isVisible = extraVisibleKeys.has(ck)
-    const inputValue = extraEditValues[ck] ?? ''
-    const isSaving = extraSaving === ck
-    const isApiKey = ek.type === 'api_key'
-
+  if (loading && providers.length === 0) {
     return (
-      <div key={ek.env_key} className="provider-card__extra-field">
-        <div className="provider-card__extra-field-label">
-          <span className="text-sm font-medium text-[var(--color-text-primary)]">{ek.label}</span>
-          <code className="provider-card__extra-field-env">{ek.env_key}</code>
-          {ek.configured && (
-            <span className="provider-card__badge provider-card__badge--active" style={{ marginLeft: 4 }}>Set</span>
-          )}
-        </div>
-
-        {/* State 1: Not configured — show input + save */}
-        {!ek.configured && !isReplacing && (
-          <div className="flex gap-2">
-            <input
-              type={isVisible || !isApiKey ? 'text' : 'password'}
-              value={inputValue}
-              onChange={(e) => setExtraEditValues((prev) => ({ ...prev, [ck]: e.target.value }))}
-              placeholder={isApiKey ? 'Enter key...' : 'Enter value...'}
-              className="provider-card__key-input flex-1"
-            />
-            {isApiKey && (
-              <button
-                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
-                className="provider-card__visibility-btn-bordered"
-                title={isVisible ? 'Hide' : 'Show'}
-              >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </button>
-            )}
-            <button
-              onClick={() => handleExtraSave(providerName, ek.env_key)}
-              disabled={!inputValue.trim() || isSaving}
-              className="provider-card__save-btn"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
-            </button>
-          </div>
-        )}
-
-        {/* State 2: Configured, viewing — show masked value + eye + replace + delete */}
-        {ek.configured && !isReplacing && (
-          <div className="flex items-center gap-2">
-            <div className="provider-card__masked">
-              {isVisible ? ek.masked_value : (isApiKey ? ek.masked_value.replace(/./g, '*').slice(0, 20) + '****' : ek.masked_value)}
-            </div>
-            {isApiKey && (
-              <button
-                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
-                className="provider-card__visibility-btn"
-                title={isVisible ? 'Hide' : 'Show'}
-              >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </button>
-            )}
-            <button
-              onClick={() => enterExtraReplaceMode(providerName, ek.env_key)}
-              className="provider-card__replace-btn"
-              title="Replace"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => handleExtraDelete(providerName, ek.env_key)}
-              className="provider-card__delete-btn"
-              title="Remove"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* State 3: Configured, replacing — show input + save + cancel */}
-        {ek.configured && isReplacing && (
-          <div className="flex gap-2">
-            <input
-              type={isVisible || !isApiKey ? 'text' : 'password'}
-              value={inputValue}
-              onChange={(e) => setExtraEditValues((prev) => ({ ...prev, [ck]: e.target.value }))}
-              placeholder={isApiKey ? 'Enter new key...' : 'Enter new value...'}
-              className="provider-card__key-input flex-1"
-            />
-            {isApiKey && (
-              <button
-                onClick={() => toggleExtraVisibility(providerName, ek.env_key)}
-                className="provider-card__visibility-btn-bordered"
-                title={isVisible ? 'Hide' : 'Show'}
-              >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </button>
-            )}
-            <button
-              onClick={() => handleExtraSave(providerName, ek.env_key)}
-              disabled={!inputValue.trim() || isSaving}
-              className="provider-card__save-btn"
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
-            </button>
-            <button
-              onClick={() => cancelExtraReplaceMode(providerName, ek.env_key)}
-              className="provider-card__cancel-btn"
-              title="Cancel"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-accent-500" />
       </div>
     )
   }
 
-  // --- Render provider card with 3 clean states ---
-
-  const renderProviderCard = (provider: typeof providers[0]) => {
-    const isReplacing = replacingKeys.has(provider.name)
-    const inputValue = editValues[provider.name] ?? ''
-    const isVisible = visibleKeys.has(provider.name)
-    const isSaving = saving === provider.name
+  const renderProvider = (provider: (typeof providers)[0]) => {
     const label = PROVIDER_LABELS[provider.name] || provider.name
     const isEndpoint = provider.type === 'endpoint'
     const isCachibot = provider.name === 'cachibot'
-    const isAzure = provider.name === 'azure'
-    const hasExtraKeys = provider.extra_keys && provider.extra_keys.length > 0
-    const configuredExtraCount = hasExtraKeys ? provider.extra_keys.filter((ek) => ek.configured).length : 0
+    const isEditing = state.editing === provider.name
+    const hasExtras = !!provider.extra_keys && provider.extra_keys.length > 0
+    const configuredExtras = hasExtras ? provider.extra_keys.filter((ek) => ek.configured).length : 0
+    const modelCount = modelGroups[provider.name]?.length ?? null
+
+    const subtitle = (() => {
+      const parts: string[] = []
+      if (isEndpoint) {
+        parts.push(provider.configured ? 'Endpoint set' : 'No endpoint')
+      } else {
+        parts.push(provider.configured ? 'Key added' : 'No key')
+      }
+      if (isEndpoint && provider.configured && modelCount != null && modelCount > 0) {
+        parts.push(`${modelCount} model${modelCount !== 1 ? 's' : ''}`)
+      }
+      if (hasExtras) parts.push(`${configuredExtras}/${provider.extra_keys.length} extra keys`)
+      return parts.join(' · ')
+    })()
 
     return (
-      <div
-        key={provider.name}
-        className={cn('provider-card', isCachibot && 'provider-card--featured')}
-      >
-        <div className="provider-card__header">
-          <div className="flex items-center gap-2">
-            {isCachibot && <Sparkles className="h-4 w-4 text-[var(--accent-500)]" />}
-            <h4 className="provider-card__name">{label}</h4>
-            <span
-              className={cn(
-                'provider-card__badge',
-                provider.configured
-                  ? 'provider-card__badge--active'
-                  : 'provider-card__badge--inactive'
-              )}
-            >
-              {provider.configured ? 'Active' : 'Not set'}
-            </span>
+      <div key={provider.name} className="v2-settings__row" style={{ flexWrap: 'wrap' }}>
+        <span className="v2-settings__row-main">
+          <span className={cn('v2-settings__row-title', !provider.configured && 'text-[var(--v2-text-secondary)]')}>
+            {label}
             {isCachibot && (
-              <a
-                href={provider.configured ? 'https://cachibot.ai/dashboard' : 'https://cachibot.ai/register'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="provider-card__cta-link"
-              >
-                {provider.configured ? 'Dashboard' : 'Sign up for a key'} <ExternalLink className="h-2.5 w-2.5" />
-              </a>
+              <>
+                {' '}
+                <a
+                  href={provider.configured ? 'https://cachibot.ai/dashboard' : 'https://cachibot.ai/register'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="v2-settings__action"
+                  style={{ display: 'inline-flex', height: 22, verticalAlign: 'middle' }}
+                >
+                  {provider.configured ? 'Dashboard' : 'Get a key'} <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              </>
             )}
-          </div>
-          {provider.configured && (
-            <button
-              onClick={() => handleDelete(provider.name)}
-              className="provider-card__delete-btn"
-              title="Remove key"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+          </span>
+          <span className="v2-settings__row-sub">{subtitle}</span>
+        </span>
 
-        <p className="provider-card__env-key">
-          {isEndpoint ? 'Endpoint URL' : 'API Key'}: <code className="text-[var(--color-text-secondary)]">{provider.env_key}</code>
-          {provider.default && (
-            <span className="ml-1 text-[var(--color-text-secondary)]">(default: {provider.default})</span>
-          )}
-        </p>
-
-        {/* State 1: Not configured — show input + save */}
-        {!provider.configured && !isReplacing && (
-          <div className="flex gap-2">
+        {isEditing ? (
+          <span className="v2-settings__edit">
             <input
-              type={isVisible || isEndpoint ? 'text' : 'password'}
-              value={inputValue}
-              onChange={(e) =>
-                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
-              }
-              placeholder={isEndpoint ? (provider.default || 'Enter endpoint URL...') : 'Enter API key...'}
-              className="provider-card__key-input flex-1"
+              type={state.visible || isEndpoint ? 'text' : 'password'}
+              value={state.value}
+              onChange={(e) => setState((s) => ({ ...s, value: e.target.value }))}
+              placeholder={isEndpoint ? 'Enter endpoint URL...' : 'Enter API key...'}
+              className="v2-settings__input"
+              autoFocus
             />
             {!isEndpoint && (
               <button
-                onClick={() => toggleVisibility(provider.name)}
-                className="provider-card__visibility-btn-bordered"
-                title={isVisible ? 'Hide' : 'Show'}
+                type="button"
+                className="v2-settings__action"
+                title={state.visible ? 'Hide' : 'Show'}
+                onClick={() => setState((s) => ({ ...s, visible: !s.visible }))}
               >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                {state.visible ? <EyeOff className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
               </button>
             )}
             <button
-              onClick={() => handleSave(provider.name)}
-              disabled={!inputValue.trim() || isSaving}
-              className="provider-card__save-btn"
+              type="button"
+              className="v2-settings__action"
+              disabled={!state.value.trim() || state.saving}
+              onClick={() => void handleSave(provider.name)}
             >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Save
+              {state.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
             </button>
-          </div>
-        )}
-
-        {/* State 2: Configured, viewing — show masked value + eye toggle + replace button */}
-        {provider.configured && !isReplacing && (
-          <div className="flex items-center gap-2">
-            <div className="provider-card__masked">
-              {isVisible ? provider.masked_value : (isEndpoint ? provider.masked_value : provider.masked_value.replace(/./g, '*').slice(0, 20) + '****')}
-            </div>
-            {!isEndpoint && (
+            <button type="button" className="v2-settings__action" onClick={cancelEdit}>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </span>
+        ) : (
+          <>
+            {isEndpoint ? (
+              <button type="button" className="v2-settings__action" onClick={() => beginEdit(provider.name, provider.configured)}>
+                {provider.configured ? 'Change' : 'Add endpoint'}
+              </button>
+            ) : (
+              <button type="button" className="v2-settings__action" onClick={() => beginEdit(provider.name, provider.configured)}>
+                {provider.configured ? 'Change' : 'Add key'}
+              </button>
+            )}
+            {provider.configured && (
               <button
-                onClick={() => toggleVisibility(provider.name)}
-                className="provider-card__visibility-btn"
-                title={isVisible ? 'Hide' : 'Show'}
+                type="button"
+                className="v2-settings__action"
+                title="Remove key"
+                onClick={() => void handleDelete(provider.name)}
               >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
-            <button
-              onClick={() => enterReplaceMode(provider.name)}
-              className="provider-card__replace-btn"
-              title="Replace key"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          </>
         )}
 
-        {/* State 3: Configured, replacing — show input + save + cancel */}
-        {provider.configured && isReplacing && (
-          <div className="flex gap-2">
-            <input
-              type={isVisible || isEndpoint ? 'text' : 'password'}
-              value={inputValue}
-              onChange={(e) =>
-                setEditValues((prev) => ({ ...prev, [provider.name]: e.target.value }))
-              }
-              placeholder={isEndpoint ? 'Enter new endpoint URL...' : 'Enter new API key...'}
-              className="provider-card__key-input flex-1"
-            />
-            {!isEndpoint && (
-              <button
-                onClick={() => toggleVisibility(provider.name)}
-                className="provider-card__visibility-btn-bordered"
-                title={isVisible ? 'Hide' : 'Show'}
-              >
-                {isVisible ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-              </button>
-            )}
+        {/* Extra keys (e.g. Azure deployment configuration) */}
+        {hasExtras && !isEditing && (
+          <div style={{ flexBasis: '100%' }}>
             <button
-              onClick={() => handleSave(provider.name)}
-              disabled={!inputValue.trim() || isSaving}
-              className="provider-card__save-btn"
+              type="button"
+              className="v2-settings__action"
+              onClick={() => setState((s) => ({ ...s, showExtras: !s.showExtras }))}
             >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Save
-            </button>
-            <button
-              onClick={() => cancelReplaceMode(provider.name)}
-              className="provider-card__cancel-btn"
-              title="Cancel"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Azure extra keys section */}
-        {isAzure && hasExtraKeys && (
-          <div className="provider-card__extra-keys">
-            <button
-              onClick={() => setExpandedAzure((prev) => !prev)}
-              className="provider-card__extra-toggle"
-            >
-              {expandedAzure ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <span>Additional Configuration</span>
-              <span className="text-xs text-[var(--color-text-secondary)] ml-auto">
-                {configuredExtraCount}/{provider.extra_keys.length} configured
+              {state.showExtras ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              Additional configuration
+              <span className="v2-settings__row-sub" style={{ marginLeft: 4 }}>
+                {configuredExtras}/{provider.extra_keys.length} set
               </span>
             </button>
-            {expandedAzure && (
-              <div className="provider-card__extra-list">
-                {(['primary', 'claude', 'mistral'] as const).map((groupId) => {
-                  const groupKeys = provider.extra_keys.filter((ek) => ek.group === groupId)
-                  if (groupKeys.length === 0) return null
-                  const groupLabels: Record<string, string> = {
-                    primary: 'Primary',
-                    claude: 'Claude Override',
-                    mistral: 'Mistral Override',
-                  }
+            {state.showExtras && (
+              <div className="space-y-3" style={{ padding: '8px 0 4px' }}>
+                {provider.extra_keys.map((ek) => {
+                  const ck = extraKey(provider.name, ek.env_key)
+                  const isExtraEditing = state.extraEditing === ck
+                  const isApiKey = ek.type === 'api_key'
                   return (
-                    <div key={groupId} className="provider-card__extra-group">
-                      <div className="provider-card__extra-group-label">{groupLabels[groupId]}</div>
-                      {groupKeys.map((ek) => renderExtraKeyField(provider.name, ek))}
+                    <div key={ek.env_key} className="provider-card__extra-field">
+                      <div className="provider-card__extra-field-label">
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">{ek.label}</span>
+                        <code className="provider-card__extra-field-env">{ek.env_key}</code>
+                        {ek.configured && !isExtraEditing && (
+                          <span className="provider-card__badge provider-card__badge--active" style={{ marginLeft: 4 }}>
+                            Set
+                          </span>
+                        )}
+                      </div>
+                      {isExtraEditing ? (
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type={state.extraVisible || !isApiKey ? 'text' : 'password'}
+                            value={state.extraValue}
+                            onChange={(e) => setState((s) => ({ ...s, extraValue: e.target.value }))}
+                            placeholder={isApiKey ? 'Enter key...' : 'Enter value...'}
+                            className="v2-settings__input"
+                            autoFocus
+                          />
+                          {isApiKey && (
+                            <button
+                              type="button"
+                              className="v2-settings__action"
+                              title={state.extraVisible ? 'Hide' : 'Show'}
+                              onClick={() => setState((s) => ({ ...s, extraVisible: !s.extraVisible }))}
+                            >
+                              {state.extraVisible ? <EyeOff className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="v2-settings__action"
+                            disabled={!state.extraValue.trim() || state.extraSaving}
+                            onClick={() => void handleExtraSave(provider.name, ek)}
+                          >
+                            {state.extraSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                          </button>
+                          <button type="button" className="v2-settings__action" onClick={cancelExtraEdit}>
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 items-center">
+                          <span className="provider-card__masked">
+                            {ek.masked_value}
+                          </span>
+                          <button
+                            type="button"
+                            className="v2-settings__action"
+                            title="Replace"
+                            onClick={() => beginExtraEdit(provider.name, ek.env_key)}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="v2-settings__action"
+                            title="Remove"
+                            onClick={() => void handleExtraDelete(provider.name, ek.env_key)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -1971,185 +1392,49 @@ function ApiKeysSettings() {
     )
   }
 
-  if (loading && providers.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
-      </div>
-    )
-  }
-
   return (
     <>
-      {/* CachiBot.ai promo banner */}
-      <div className="cachibot-promo">
-        <div className="cachibot-promo__glow" />
-        <div className="cachibot-promo__content">
-          <div className="cachibot-promo__icon-row">
-            <div className="cachibot-promo__icon-circle">
-              <Zap className="h-5 w-5" />
-            </div>
-            <span className="cachibot-promo__badge">Free Tier Available</span>
-          </div>
-          <h3 className="cachibot-promo__title">
-            Get a free CachiBot API key
-          </h3>
-          <p className="cachibot-promo__desc">
-            Access CachiBot-hosted models with a free API key. No credit card required &mdash;
-            sign up in seconds and start chatting right away.
-          </p>
-          <div className="cachibot-promo__actions">
-            <a
-              href="https://cachibot.ai/register"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cachibot-promo__link"
-            >
-              <Sparkles className="h-4 w-4" />
-              Create free account
-            </a>
-            <a
-              href="https://cachibot.ai/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cachibot-promo__link cachibot-promo__link--ghost"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Already have an account? Dashboard
-            </a>
-          </div>
-          <div className="cachibot-promo__footer">
-            <a
-              href="https://github.com/jhd3197/CachiBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cachibot-promo__github"
-            >
-              <Heart className="h-3.5 w-3.5" />
-              Star us on GitHub
-            </a>
-          </div>
-        </div>
+      <h3 className="v2-settings__sub">Providers</h3>
+      <div className="v2-settings__rows">
+        {cloudProviders.map(renderProvider)}
+        {localProviders.map(renderProvider)}
       </div>
-
-      <Section icon={Cloud} title="Cloud Providers">
-        <div className="space-y-4">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Configure API keys for cloud-based AI providers. Models will be automatically discovered
-            once a valid key is saved.
-          </p>
-          {cloudProviders.map(renderProviderCard)}
-        </div>
-      </Section>
-
-      <Section icon={Server} title="Local Providers">
-        <div className="space-y-4">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Configure endpoints for locally-running model servers.
-          </p>
-          {localProviders.map(renderProviderCard)}
-        </div>
-      </Section>
     </>
   )
 }
 
 // =============================================================================
-// ADVANCED SETTINGS
+// DATA
 // =============================================================================
 
-function AdvancedSettings({
-  config,
-}: {
-  config: Config | null
-}) {
-  return (
-    <>
-      <Section icon={Shield} title="Security">
-        <div className="space-y-4">
-          <ToggleField
-            label="Require Approval for Actions"
-            description="Ask before executing potentially dangerous operations"
-            checked={config?.agent.approveActions ?? true}
-            onChange={() => {}}
-          />
-          <Field label="Sandbox Timeout">
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                value={config?.sandbox.timeoutSeconds ?? 30}
-                className="settings-input w-24"
-              />
-              <span className="text-sm text-[var(--color-text-secondary)]">seconds</span>
-            </div>
-          </Field>
-        </div>
-      </Section>
-
-      <Section icon={Sliders} title="AI Configuration">
-        <div className="space-y-4">
-          <Field label="Default Temperature">
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                defaultValue={config?.agent.temperature ?? 0.7}
-                className="flex-1"
-              />
-              <span className="w-12 text-center text-sm text-[var(--color-text-secondary)]">
-                {config?.agent.temperature ?? 0.7}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              Controls randomness in responses (0 = deterministic, 1 = creative)
-            </p>
-          </Field>
-
-          <Field label="Max Iterations">
-            <input
-              type="number"
-              value={config?.agent.maxIterations ?? 20}
-              min={1}
-              max={100}
-              className="settings-input w-32"
-            />
-            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-              Maximum tool calls per conversation turn
-            </p>
-          </Field>
-        </div>
-      </Section>
-
-      <Section icon={Keyboard} title="Keyboard Shortcuts">
-        <div className="space-y-3">
-          <ShortcutItem label="New Chat" shortcut="Ctrl + N" />
-          <ShortcutItem label="Toggle Sidebar" shortcut="Ctrl + B" />
-          <ShortcutItem label="Command Palette" shortcut="Ctrl + K" />
-          <ShortcutItem label="Settings" shortcut="Ctrl + ," />
-          <ShortcutItem label="Send Message" shortcut="Enter" />
-          <ShortcutItem label="New Line" shortcut="Shift + Enter" />
-        </div>
-      </Section>
-    </>
-  )
-}
-
-// =============================================================================
-// DATA SETTINGS
-// =============================================================================
-
-function DataSettings() {
+function DataSection() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showTelemetryPreview, setShowTelemetryPreview] = useState(false)
   const [telemetryPayload, setTelemetryPayload] = useState<Record<string, unknown> | null>(null)
   const [showResetIdConfirm, setShowResetIdConfirm] = useState(false)
   const { status: telemetryStatus, refresh: refreshTelemetry } = useTelemetryStore()
+  const { bots } = useBotStore()
+  const [retentionDays, setRetentionDays] = useState<number | null>(null)
+  const importRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     refreshTelemetry()
   }, [refreshTelemetry])
+
+  // Real retention setting (same value the server's log retention enforces)
+  useEffect(() => {
+    let cancelled = false
+    const firstBot = bots[0]
+    if (!firstBot) return
+    getExecutionStats(firstBot.id, '30d')
+      .then((stats) => {
+        if (!cancelled && typeof stats.retentionDays === 'number') setRetentionDays(stats.retentionDays)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [bots])
 
   const handleToggleTelemetry = async () => {
     try {
@@ -2205,6 +1490,50 @@ function DataSettings() {
     URL.revokeObjectURL(url)
   }
 
+  /** Real restore of a file produced by Export (same localStorage keys). */
+  const handleImportFile = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text()) as Record<string, unknown>
+      const keys = ['bots', 'chats', 'jobs', 'tasks', 'connections', 'ui', 'usage'] as const
+      let restored = 0
+      for (const key of keys) {
+        const value = parsed[key]
+        if (typeof value === 'string') {
+          localStorage.setItem(`cachibot-${key}`, value)
+          restored++
+        }
+      }
+      if (restored === 0) {
+        toast.error('This file does not look like a CachiBot backup')
+        return
+      }
+      toast.success(`Restored ${restored} data set${restored !== 1 ? 's' : ''} — reloading…`)
+      setTimeout(() => window.location.reload(), 600)
+    } catch {
+      toast.error('Failed to read the backup file')
+    }
+  }
+
+  const handleClearCache = async () => {
+    try {
+      if (window.electronAPI?.clearCache) {
+        const result = await window.electronAPI.clearCache()
+        if (result.success) {
+          toast.success('Cache cleared')
+        } else {
+          toast.error(result.error || 'Failed to clear cache')
+        }
+      } else {
+        const keys = Object.keys(localStorage).filter((k) => k.startsWith('cachibot_marketplace_cache_'))
+        keys.forEach((k) => localStorage.removeItem(k))
+        toast.success(`Cleared ${keys.length} cached entries`)
+        window.location.reload()
+      }
+    } catch {
+      toast.error('Failed to clear cache')
+    }
+  }
+
   const handleClearAll = () => {
     localStorage.removeItem('cachibot-bots')
     localStorage.removeItem('cachibot-chats')
@@ -2216,92 +1545,127 @@ function DataSettings() {
   }
 
   return (
-    <>
-      <Section icon={Shield} title="Privacy & Telemetry">
-        <div className="space-y-4">
-          {/* Telemetry toggle */}
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">Anonymous Analytics</h4>
-              <p className="settings-card-row__desc">
-                Send anonymous usage statistics to help improve CachiBot
-              </p>
-            </div>
-            <button
-              onClick={handleToggleTelemetry}
-              className={cn(
-                'settings-toggle__switch',
-                telemetryStatus?.enabled
-                  ? 'settings-toggle__switch--on'
-                  : 'settings-toggle__switch--off'
-              )}
-            >
-              <span
-                className={cn(
-                  'settings-toggle__knob',
-                  telemetryStatus?.enabled ? 'settings-toggle__knob--on' : 'settings-toggle__knob--off'
-                )}
-              />
-            </button>
+    <V2Section id="data" title="Data">
+      {retentionDays != null && (
+        <>
+          <h3 className="v2-settings__sub">Runs and logs</h3>
+          <div className="v2-settings__rows">
+            <V2Row title="Keep runs and logs" sub={`${retentionDays} days`} />
           </div>
+        </>
+      )}
 
-          {/* View report */}
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">View Telemetry Report</h4>
-              <p className="settings-card-row__desc">
-                See exactly what data would be sent
-              </p>
-            </div>
-            <button
-              onClick={handleViewTelemetryReport}
-              className="settings-btn-secondary flex items-center gap-2"
-            >
-              <EyeIcon className="h-4 w-4" />
+      <h3 className="v2-settings__sub">Backups</h3>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Export everything"
+          sub="Download your bots, chats, jobs and settings as JSON"
+          action={
+            <button type="button" className="v2-settings__action" onClick={handleExport}>
+              Export
+            </button>
+          }
+        />
+        <V2Row
+          title="Import from backup"
+          sub="Restore a previous export on this device"
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => importRef.current?.click()}>
+              Import
+            </button>
+          }
+        />
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) void handleImportFile(file)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
+      <h3 className="v2-settings__sub">Privacy and telemetry</h3>
+      <V2Toggle
+        title="Anonymous analytics"
+        sub="Send anonymous usage statistics to help improve CachiBot"
+        checked={!!telemetryStatus?.enabled}
+        onChange={() => void handleToggleTelemetry()}
+      />
+      <div className="v2-settings__rows">
+        <V2Row
+          title="View telemetry report"
+          sub="See exactly what data would be sent"
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => void handleViewTelemetryReport()}>
               View
             </button>
-          </div>
-
-          {/* Reset ID */}
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">Reset Install ID</h4>
-              <p className="settings-card-row__desc">
-                Generate a new anonymous identifier{telemetryStatus?.install_id && (
-                  <span className="ml-1 font-mono text-xs text-[var(--color-text-secondary)]">
-                    ({telemetryStatus.install_id.slice(0, 8)}...)
-                  </span>
-                )}
-              </p>
-            </div>
-            <button
-              onClick={() => setShowResetIdConfirm(true)}
-              className="settings-btn-secondary flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
+          }
+        />
+        <V2Row
+          title="Reset install ID"
+          sub={
+            <>
+              Generate a new anonymous identifier
+              {telemetryStatus?.install_id && (
+                <span className="ml-1 font-mono text-xs">({telemetryStatus.install_id.slice(0, 8)}…)</span>
+              )}
+            </>
+          }
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => setShowResetIdConfirm(true)}>
               Reset
             </button>
-          </div>
-
-          {/* Last sent */}
-          {telemetryStatus?.last_sent && (
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              Last sent: {new Date(telemetryStatus.last_sent).toLocaleString()}
-            </p>
-          )}
-
-          {/* Telemetry info link */}
+          }
+        />
+        {telemetryStatus?.last_sent && (
+          <V2Row title="Last sent" sub={parseApiDate(telemetryStatus.last_sent).toLocaleString()} />
+        )}
+        <div style={{ padding: '6px 0' }}>
           <a
             href="https://cachibot.ai/telemetry"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-accent-500 hover:text-accent-400"
+            className="v2-settings__action"
           >
             Learn more about what we collect
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
-      </Section>
+      </div>
+
+      <h3 className="v2-settings__sub">Bot data</h3>
+      <BotDataManager />
+
+      <h3 className="v2-settings__sub">Cache</h3>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Clear cache"
+          sub="Remove cached responses and temporary data"
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => void handleClearCache()}>
+              Clear
+            </button>
+          }
+        />
+      </div>
+
+      <h3 className="v2-settings__sub">Danger zone</h3>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Delete all data"
+          sub="Permanently delete local bots, chats, jobs, tasks and usage. Can't be undone."
+          danger
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => setShowDeleteConfirm(true)}>
+              Delete
+            </button>
+          }
+        />
+      </div>
 
       {/* Telemetry preview modal */}
       {showTelemetryPreview && telemetryPayload && (
@@ -2309,21 +1673,13 @@ function DataSettings() {
           <div className="settings-modal__panel" style={{ maxWidth: '32rem' }}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="settings-modal__heading">Telemetry Report Preview</h2>
-              <button
-                onClick={() => setShowTelemetryPreview(false)}
-                className="settings-modal__close-btn"
-              >
+              <button onClick={() => setShowTelemetryPreview(false)} className="settings-modal__close-btn">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <pre className="settings-modal__pre">
-              {JSON.stringify(telemetryPayload, null, 2)}
-            </pre>
+            <pre className="settings-modal__pre">{JSON.stringify(telemetryPayload, null, 2)}</pre>
             <div className="settings-modal__footer">
-              <button
-                onClick={() => setShowTelemetryPreview(false)}
-                className="settings-modal__cancel-btn"
-              >
+              <button onClick={() => setShowTelemetryPreview(false)} className="settings-modal__cancel-btn">
                 Close
               </button>
             </div>
@@ -2340,120 +1696,20 @@ function DataSettings() {
               <h2 className="settings-modal__heading">Reset Install ID?</h2>
             </div>
             <p className="mb-6 text-sm settings-modal__body-text">
-              This will generate a new anonymous identifier. Your previous telemetry data
-              will no longer be associated with this installation.
+              This will generate a new anonymous identifier. Your previous telemetry data will no longer be
+              associated with this installation.
             </p>
             <div className="settings-modal__footer">
-              <button
-                onClick={() => setShowResetIdConfirm(false)}
-                className="settings-modal__cancel-btn"
-              >
+              <button onClick={() => setShowResetIdConfirm(false)} className="settings-modal__cancel-btn">
                 Cancel
               </button>
-              <button
-                onClick={handleResetId}
-                className="settings-modal__confirm-btn"
-              >
+              <button onClick={() => void handleResetId()} className="settings-modal__confirm-btn">
                 Reset ID
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <Section icon={Database} title="Data Management">
-        <div className="space-y-4">
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">Export Data</h4>
-              <p className="settings-card-row__desc">
-                Download all your data as a JSON file
-              </p>
-            </div>
-            <button
-              onClick={handleExport}
-              className="settings-btn-accent flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-          </div>
-
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">Import Data</h4>
-              <p className="settings-card-row__desc">
-                Restore from a previous backup
-              </p>
-            </div>
-            <button className="settings-btn-secondary flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Import
-            </button>
-          </div>
-        </div>
-      </Section>
-
-      {/* Bot Data Manager */}
-      <BotDataManager />
-
-      <Section icon={RefreshCw} title="Cache">
-        <div className="space-y-4">
-          <div className="settings-card-row">
-            <div>
-              <h4 className="settings-card-row__title">Clear Cache</h4>
-              <p className="settings-card-row__desc">
-                Remove cached responses and temporary data
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  if (window.electronAPI?.clearCache) {
-                    const result = await window.electronAPI.clearCache()
-                    if (result.success) {
-                      toast.success('Cache cleared')
-                    } else {
-                      toast.error(result.error || 'Failed to clear cache')
-                    }
-                  } else {
-                    // Browser mode: clear marketplace cache from localStorage
-                    const keys = Object.keys(localStorage).filter(k =>
-                      k.startsWith('cachibot_marketplace_cache_')
-                    )
-                    keys.forEach(k => localStorage.removeItem(k))
-                    toast.success(`Cleared ${keys.length} cached entries`)
-                    window.location.reload()
-                  }
-                } catch {
-                  toast.error('Failed to clear cache')
-                }
-              }}
-              className="settings-btn-secondary flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Clear
-            </button>
-          </div>
-        </div>
-      </Section>
-
-      <Section icon={AlertTriangle} title="Danger Zone" danger>
-        <div className="settings-danger-zone">
-          <h4 className="settings-danger-zone__title">Delete All Data</h4>
-          <p className="settings-danger-zone__desc">
-            Permanently delete all bots, chats, jobs, tasks, and settings. This
-            cannot be undone.
-          </p>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="settings-btn-danger mt-3"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Everything
-          </button>
-        </div>
-      </Section>
 
       {/* Delete confirmation modal */}
       {showDeleteConfirm && (
@@ -2464,32 +1720,26 @@ function DataSettings() {
               <h2 className="settings-modal__heading">Delete All Data</h2>
             </div>
             <p className="mb-6 settings-modal__body-text">
-              Are you sure you want to delete all your data? This will remove all
-              bots, chats, jobs, tasks, connections, and settings.
+              Are you sure you want to delete all your local data? This will remove bots, chats, jobs, tasks,
+              connections, and usage stored in this browser.
             </p>
             <div className="settings-modal__footer">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="settings-modal__cancel-btn"
-              >
+              <button onClick={() => setShowDeleteConfirm(false)} className="settings-modal__cancel-btn">
                 Cancel
               </button>
-              <button
-                onClick={handleClearAll}
-                className="settings-modal__confirm-btn--danger"
-              >
+              <button onClick={handleClearAll} className="settings-modal__confirm-btn--danger">
                 Delete Everything
               </button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </V2Section>
   )
 }
 
 // =============================================================================
-// BOT DATA MANAGER
+// BOT DATA MANAGER (kept from the previous settings; inner markup unchanged)
 // =============================================================================
 
 type DataCategory = 'chats' | 'jobs' | 'tasks' | 'usage' | 'platform'
@@ -2517,17 +1767,14 @@ function BotDataManager() {
   const [selectedItems, setSelectedItems] = useState<Map<string, Set<DataCategory>>>(new Map())
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [clearing, setClearing] = useState(false)
-  // Compute data info for each bot
+
   const botDataInfos = useMemo((): BotDataInfo[] => {
     return bots.map((bot) => {
       const allBotChats = chats.filter((c) => c.botId === bot.id)
       const localChats = allBotChats.filter((c) => !c.platform)
       const platformChats = allBotChats.filter((c) => c.platform)
 
-      const localMessagesCount = localChats.reduce(
-        (acc, chat) => acc + (messages[chat.id]?.length || 0),
-        0
-      )
+      const localMessagesCount = localChats.reduce((acc, chat) => acc + (messages[chat.id]?.length || 0), 0)
       const botJobs = jobs.filter((j) => j.botId === bot.id)
       const botTasks = tasks.filter((t) => t.botId === bot.id)
       const hasUsageData = !!stats.byBot[bot.id]
@@ -2546,7 +1793,6 @@ function BotDataManager() {
     })
   }, [bots, chats, messages, jobs, tasks, stats.byBot])
 
-  // Toggle bot expansion
   const toggleBot = (botId: string) => {
     setExpandedBots((prev) => {
       const next = new Set(prev)
@@ -2559,7 +1805,6 @@ function BotDataManager() {
     })
   }
 
-  // Toggle category selection for a bot
   const toggleCategory = (botId: string, category: DataCategory) => {
     setSelectedItems((prev) => {
       const next = new Map(prev)
@@ -2581,7 +1826,6 @@ function BotDataManager() {
     })
   }
 
-  // Select all categories for a bot
   const selectAllForBot = (botId: string, info: BotDataInfo) => {
     setSelectedItems((prev) => {
       const next = new Map(prev)
@@ -2599,7 +1843,6 @@ function BotDataManager() {
     })
   }
 
-  // Clear selection for a bot
   const clearSelectionForBot = (botId: string) => {
     setSelectedItems((prev) => {
       const next = new Map(prev)
@@ -2608,10 +1851,8 @@ function BotDataManager() {
     })
   }
 
-  // Check if anything is selected
   const hasSelection = selectedItems.size > 0
 
-  // Get total items selected
   const getTotalSelectedItems = () => {
     let total = 0
     selectedItems.forEach((categories, botId) => {
@@ -2626,18 +1867,14 @@ function BotDataManager() {
     return total
   }
 
-  // Perform the actual deletion
   const handleClearSelected = async () => {
     setClearing(true)
 
-    // Get stores directly for mutations
     const chatStore = useChatStore.getState()
     const jobStore = useJobStore.getState()
     const taskStore = useTaskStore.getState()
 
-    // Process each bot's selected categories
     for (const [botId, categories] of selectedItems) {
-      // Clear local chats and messages (non-platform only)
       if (categories.has('chats')) {
         const localOnlyChats = chats.filter((c) => c.botId === botId && !c.platform)
         localOnlyChats.forEach((chat) => {
@@ -2645,7 +1882,6 @@ function BotDataManager() {
         })
       }
 
-      // Clear jobs
       if (categories.has('jobs')) {
         const botJobs = jobs.filter((j) => j.botId === botId)
         botJobs.forEach((job) => {
@@ -2653,7 +1889,6 @@ function BotDataManager() {
         })
       }
 
-      // Clear tasks
       if (categories.has('tasks')) {
         const botTasks = tasks.filter((t) => t.botId === botId)
         botTasks.forEach((task) => {
@@ -2661,30 +1896,25 @@ function BotDataManager() {
         })
       }
 
-      // Clear usage stats for this bot
       if (categories.has('usage')) {
         clearBotStats(botId)
       }
 
-      // Clear platform data (Telegram/Discord messages from backend AND local synced copies)
       if (categories.has('platform')) {
-        // First, delete local platform chats (synced copies)
         const localPlatformChats = chats.filter((c) => c.botId === botId && c.platform)
         localPlatformChats.forEach((chat) => {
           chatStore.deleteChat(chat.id)
         })
 
-        // Then, delete from backend database
         try {
           await clearBotPlatformData(botId)
-        } catch (err) {
-          console.error('Failed to clear platform data:', err)
-          toast.error(`Failed to clear platform data for bot`)
+        } catch {
+          console.error('Failed to clear platform data')
+          toast.error('Failed to clear platform data for bot')
         }
       }
     }
 
-    // Small delay for UX
     await new Promise((resolve) => setTimeout(resolve, 300))
 
     setClearing(false)
@@ -2693,7 +1923,6 @@ function BotDataManager() {
     toast.success('Selected data cleared successfully')
   }
 
-  // Category icons and labels
   const categoryConfig: Record<DataCategory, { icon: typeof MessageSquare; label: string; color: string }> = {
     chats: { icon: MessageSquare, label: 'Local Chats', color: 'text-blue-400' },
     jobs: { icon: Briefcase, label: 'Jobs', color: 'text-purple-400' },
@@ -2703,176 +1932,138 @@ function BotDataManager() {
   }
 
   return (
-    <Section icon={Bot} title="Bot Data Manager">
-      <div className="space-y-4">
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          Clear specific data for each bot while keeping bot settings and connections intact.
-        </p>
+    <>
+      <div className="space-y-2">
+        {botDataInfos.length === 0 && (
+          <p className="text-sm text-[var(--color-text-secondary)]">No bots yet.</p>
+        )}
+        {botDataInfos.map((info) => {
+          const isExpanded = expandedBots.has(info.botId)
+          const botSelected = selectedItems.get(info.botId)
+          const hasData =
+            info.chatsCount > 0 ||
+            info.jobsCount > 0 ||
+            info.tasksCount > 0 ||
+            info.hasUsageData ||
+            info.platformChatsCount > 0
 
-        {/* Bot list */}
-        <div className="space-y-2">
-          {botDataInfos.map((info) => {
-            const isExpanded = expandedBots.has(info.botId)
-            const botSelected = selectedItems.get(info.botId)
-            const hasData =
-              info.chatsCount > 0 ||
-              info.jobsCount > 0 ||
-              info.tasksCount > 0 ||
-              info.hasUsageData ||
-              info.platformChatsCount > 0
-
-            return (
-              <div
-                key={info.botId}
-                className="bot-data-card"
-              >
-                {/* Bot header */}
-                <button
-                  onClick={() => toggleBot(info.botId)}
-                  className="bot-data-card__header"
+          return (
+            <div key={info.botId} className="bot-data-card">
+              <button onClick={() => toggleBot(info.botId)} className="bot-data-card__header">
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                )}
+                <div
+                  className="h-8 w-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: info.botColor + '20' }}
                 >
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-[var(--color-text-secondary)]" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-[var(--color-text-secondary)]" />
-                  )}
-                  <div
-                    className="h-8 w-8 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: info.botColor + '20' }}
-                  >
-                    <Bot className="h-4 w-4" style={{ color: info.botColor }} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="bot-data-card__name">{info.botName}</div>
-                    <div className="bot-data-card__stats">
-                      {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
-                      {info.platformChatsCount > 0 && (
-                        <span className="text-cyan-400"> · {info.platformChatsCount} platform chats</span>
-                      )}
-                    </div>
-                  </div>
-                  {botSelected && botSelected.size > 0 && (
-                    <span className="bot-data-card__selected-badge">
-                      {botSelected.size} selected
-                    </span>
-                  )}
-                </button>
-
-                {/* Expanded content */}
-                {isExpanded && (
-                  <div className="bot-data-card__content">
-                    {!hasData ? (
-                      <p className="text-sm text-[var(--color-text-secondary)] text-center py-2">
-                        No data to clear for this bot
-                      </p>
-                    ) : (
-                      <>
-                        {/* Quick actions */}
-                        <div className="bot-data-card__quick-actions">
-                          <button
-                            onClick={() => selectAllForBot(info.botId, info)}
-                            className="bot-data-card__quick-btn"
-                          >
-                            Select all
-                          </button>
-                          <span className="bot-data-card__separator">&middot;</span>
-                          <button
-                            onClick={() => clearSelectionForBot(info.botId)}
-                            className="bot-data-card__quick-btn"
-                          >
-                            Clear selection
-                          </button>
-                        </div>
-
-                        {/* Data categories */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {/* Chats */}
-                          {info.chatsCount > 0 && (
-                            <DataCategoryItem
-                              category="chats"
-                              config={categoryConfig.chats}
-                              count={info.chatsCount}
-                              detail={`${info.messagesCount} messages`}
-                              selected={botSelected?.has('chats') || false}
-                              onToggle={() => toggleCategory(info.botId, 'chats')}
-                            />
-                          )}
-
-                          {/* Jobs */}
-                          {info.jobsCount > 0 && (
-                            <DataCategoryItem
-                              category="jobs"
-                              config={categoryConfig.jobs}
-                              count={info.jobsCount}
-                              selected={botSelected?.has('jobs') || false}
-                              onToggle={() => toggleCategory(info.botId, 'jobs')}
-                            />
-                          )}
-
-                          {/* Tasks */}
-                          {info.tasksCount > 0 && (
-                            <DataCategoryItem
-                              category="tasks"
-                              config={categoryConfig.tasks}
-                              count={info.tasksCount}
-                              selected={botSelected?.has('tasks') || false}
-                              onToggle={() => toggleCategory(info.botId, 'tasks')}
-                            />
-                          )}
-
-                          {/* Usage */}
-                          {info.hasUsageData && (
-                            <DataCategoryItem
-                              category="usage"
-                              config={categoryConfig.usage}
-                              count={1}
-                              detail="statistics"
-                              selected={botSelected?.has('usage') || false}
-                              onToggle={() => toggleCategory(info.botId, 'usage')}
-                            />
-                          )}
-
-                          {/* Platform Messages (Telegram/Discord) */}
-                          {info.platformChatsCount > 0 && (
-                            <DataCategoryItem
-                              category="platform"
-                              config={categoryConfig.platform}
-                              count={info.platformChatsCount}
-                              detail="Telegram/Discord"
-                              selected={botSelected?.has('platform') || false}
-                              onToggle={() => toggleCategory(info.botId, 'platform')}
-                            />
-                          )}
-                        </div>
-
-                      </>
+                  <Bot className="h-4 w-4" style={{ color: info.botColor }} />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="bot-data-card__name">{info.botName}</div>
+                  <div className="bot-data-card__stats">
+                    {info.chatsCount} local chats · {info.jobsCount} jobs · {info.tasksCount} tasks
+                    {info.platformChatsCount > 0 && (
+                      <span className="text-cyan-400"> · {info.platformChatsCount} platform chats</span>
                     )}
                   </div>
+                </div>
+                {botSelected && botSelected.size > 0 && (
+                  <span className="bot-data-card__selected-badge">{botSelected.size} selected</span>
                 )}
-              </div>
-            )
-          })}
-        </div>
+              </button>
 
-        {/* Clear button */}
-        {hasSelection && (
-          <div className="settings-delete-bar">
-            <div className="text-sm">
-              <span className="settings-delete-bar__count">{getTotalSelectedItems()}</span>
-              <span className="settings-delete-bar__label"> items selected for deletion</span>
+              {isExpanded && (
+                <div className="bot-data-card__content">
+                  {!hasData ? (
+                    <p className="text-sm text-[var(--color-text-secondary)] text-center py-2">
+                      No data to clear for this bot
+                    </p>
+                  ) : (
+                    <>
+                      <div className="bot-data-card__quick-actions">
+                        <button onClick={() => selectAllForBot(info.botId, info)} className="bot-data-card__quick-btn">
+                          Select all
+                        </button>
+                        <span className="bot-data-card__separator">&middot;</span>
+                        <button onClick={() => clearSelectionForBot(info.botId)} className="bot-data-card__quick-btn">
+                          Clear selection
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {info.chatsCount > 0 && (
+                          <DataCategoryItem
+                            category="chats"
+                            config={categoryConfig.chats}
+                            count={info.chatsCount}
+                            detail={`${info.messagesCount} messages`}
+                            selected={botSelected?.has('chats') || false}
+                            onToggle={() => toggleCategory(info.botId, 'chats')}
+                          />
+                        )}
+                        {info.jobsCount > 0 && (
+                          <DataCategoryItem
+                            category="jobs"
+                            config={categoryConfig.jobs}
+                            count={info.jobsCount}
+                            selected={botSelected?.has('jobs') || false}
+                            onToggle={() => toggleCategory(info.botId, 'jobs')}
+                          />
+                        )}
+                        {info.tasksCount > 0 && (
+                          <DataCategoryItem
+                            category="tasks"
+                            config={categoryConfig.tasks}
+                            count={info.tasksCount}
+                            selected={botSelected?.has('tasks') || false}
+                            onToggle={() => toggleCategory(info.botId, 'tasks')}
+                          />
+                        )}
+                        {info.hasUsageData && (
+                          <DataCategoryItem
+                            category="usage"
+                            config={categoryConfig.usage}
+                            count={1}
+                            detail="statistics"
+                            selected={botSelected?.has('usage') || false}
+                            onToggle={() => toggleCategory(info.botId, 'usage')}
+                          />
+                        )}
+                        {info.platformChatsCount > 0 && (
+                          <DataCategoryItem
+                            category="platform"
+                            config={categoryConfig.platform}
+                            count={info.platformChatsCount}
+                            detail="Telegram/Discord"
+                            selected={botSelected?.has('platform') || false}
+                            onToggle={() => toggleCategory(info.botId, 'platform')}
+                          />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => setShowConfirmModal(true)}
-              className="settings-modal__confirm-btn--danger flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear Selected
-            </button>
-          </div>
-        )}
+          )
+        })}
       </div>
 
-      {/* Confirmation modal */}
+      {hasSelection && (
+        <div className="settings-delete-bar">
+          <div className="text-sm">
+            <span className="settings-delete-bar__count">{getTotalSelectedItems()}</span>
+            <span className="settings-delete-bar__label"> items selected for deletion</span>
+          </div>
+          <button onClick={() => setShowConfirmModal(true)} className="settings-modal__confirm-btn--danger flex items-center gap-2">
+            <Trash2 className="h-4 w-4" />
+            Clear Selected
+          </button>
+        </div>
+      )}
+
       {showConfirmModal && (
         <div className="settings-modal">
           <div className="settings-modal__panel" style={{ maxWidth: '28rem' }}>
@@ -2883,8 +2074,6 @@ function BotDataManager() {
             <p className="mb-4 settings-modal__body-text">
               Are you sure you want to clear the selected data? This action cannot be undone.
             </p>
-
-            {/* Summary of what will be deleted */}
             <div className="mb-6 settings-modal__summary space-y-2">
               {Array.from(selectedItems.entries()).map(([botId, categories]) => {
                 const info = botDataInfos.find((b) => b.botId === botId)
@@ -2899,20 +2088,11 @@ function BotDataManager() {
                 )
               })}
             </div>
-
             <div className="settings-modal__footer">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                disabled={clearing}
-                className="settings-modal__cancel-btn"
-              >
+              <button onClick={() => setShowConfirmModal(false)} disabled={clearing} className="settings-modal__cancel-btn">
                 Cancel
               </button>
-              <button
-                onClick={handleClearSelected}
-                disabled={clearing}
-                className="settings-modal__confirm-btn--danger flex items-center gap-2"
-              >
+              <button onClick={() => void handleClearSelected()} disabled={clearing} className="settings-modal__confirm-btn--danger flex items-center gap-2">
                 {clearing ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -2929,11 +2109,10 @@ function BotDataManager() {
           </div>
         </div>
       )}
-    </Section>
+    </>
   )
 }
 
-// Data category item component
 interface DataCategoryItemProps {
   category: DataCategory
   config: { icon: typeof MessageSquare; label: string; color: string }
@@ -2947,19 +2126,8 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
   const Icon = config.icon
 
   return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        'data-category',
-        selected && 'data-category--selected'
-      )}
-    >
-      <div
-        className={cn(
-          'data-category__icon-box',
-          selected && 'data-category__icon-box--selected'
-        )}
-      >
+    <button onClick={onToggle} className={cn('data-category', selected && 'data-category--selected')}>
+      <div className={cn('data-category__icon-box', selected && 'data-category__icon-box--selected')}>
         {selected ? (
           <Check className="h-3.5 w-3.5 text-red-400" />
         ) : (
@@ -2979,29 +2147,79 @@ function DataCategoryItem({ config, count, detail, selected, onToggle }: DataCat
 }
 
 // =============================================================================
-// GROUPS SETTINGS (Manager+)
+// PEOPLE (Manager+; the badge matches the admin-only parts)
 // =============================================================================
 
-function GroupsSettings({ currentUser }: { currentUser: User | null }) {
+function PeopleSection({ isAdmin }: { isAdmin: boolean }) {
+  const [userCount, setUserCount] = useState<number | null>(null)
+  const [groupCount, setGroupCount] = useState<number | null>(null)
+  const [manageGroups, setManageGroups] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    if (isAdmin) {
+      listUsers(1, 0)
+        .then((res) => { if (!cancelled) setUserCount(res.total) })
+        .catch(() => {})
+    }
+    listGroups()
+      .then((groups) => { if (!cancelled) setGroupCount(groups.length) })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [isAdmin])
+
+  return (
+    <V2Section id="people" title="People" badge={isAdmin ? 'Admins' : undefined}>
+      <div className="v2-settings__rows">
+        {isAdmin && (
+          <V2Row
+            title="Users"
+            sub={userCount != null ? `${userCount} ${userCount === 1 ? 'person' : 'people'}` : 'User accounts and roles'}
+            action={
+              <Link to="/users" className="v2-settings__action">
+                Manage
+              </Link>
+            }
+          />
+        )}
+        <V2Row
+          title="Groups"
+          sub={
+            groupCount != null
+              ? `${groupCount} ${groupCount === 1 ? 'group' : 'groups'} · who can use which bots`
+              : 'Who can use which bots'
+          }
+          action={
+            <button type="button" className="v2-settings__action" onClick={() => setManageGroups((v) => !v)}>
+              {manageGroups ? 'Close' : 'Manage'}
+            </button>
+          }
+        />
+      </div>
+      {manageGroups && <GroupsManager />}
+    </V2Section>
+  )
+}
+
+function GroupsManager() {
+  const { user: currentUser } = useAuthStore()
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Create group modal state
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', description: '' })
   const [creating, setCreating] = useState(false)
 
-  // Group detail panel state
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   const [activeGroup, setActiveGroup] = useState<GroupWithMembers | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
 
-  // Add member modal state
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [addMemberForm, setAddMemberForm] = useState({ userId: '', role: 'member' as GroupRole })
   const [addingMember, setAddingMember] = useState(false)
 
-  // Context menu state
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
 
   useEffect(() => {
@@ -3057,8 +2275,7 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
       setCreateForm({ name: '', description: '' })
       toast.success('Group created successfully')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create group'
-      toast.error(message)
+      toast.error(err instanceof Error ? err.message : 'Failed to create group')
     } finally {
       setCreating(false)
     }
@@ -3072,8 +2289,7 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
       if (activeGroupId === groupId) setActiveGroupId(null)
       toast.success('Group deleted')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete group'
-      toast.error(message)
+      toast.error(err instanceof Error ? err.message : 'Failed to delete group')
     }
     setMenuOpen(null)
   }
@@ -3097,17 +2313,12 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
           member_count: activeGroup.member_count + 1,
         })
       }
-      setGroups(
-        groups.map((g) =>
-          g.id === activeGroupId ? { ...g, member_count: g.member_count + 1 } : g
-        )
-      )
+      setGroups(groups.map((g) => (g.id === activeGroupId ? { ...g, member_count: g.member_count + 1 } : g)))
       setShowAddMemberModal(false)
       setAddMemberForm({ userId: '', role: 'member' })
       toast.success('Member added successfully')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to add member'
-      toast.error(message)
+      toast.error(err instanceof Error ? err.message : 'Failed to add member')
     } finally {
       setAddingMember(false)
     }
@@ -3125,15 +2336,10 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
           member_count: activeGroup.member_count - 1,
         })
       }
-      setGroups(
-        groups.map((g) =>
-          g.id === activeGroupId ? { ...g, member_count: g.member_count - 1 } : g
-        )
-      )
+      setGroups(groups.map((g) => (g.id === activeGroupId ? { ...g, member_count: g.member_count - 1 } : g)))
       toast.success('Member removed')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to remove member'
-      toast.error(message)
+      toast.error(err instanceof Error ? err.message : 'Failed to remove member')
     }
   }
 
@@ -3145,100 +2351,88 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
       </div>
     )
   }
 
   return (
-    <>
-      <Section icon={Users} title="Groups">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              {groups.length} group{groups.length !== 1 ? 's' : ''} total
-            </p>
-            <Button size="sm" onClick={() => setShowCreateModal(true)}>
-              <UserPlus className="h-4 w-4 mr-1.5" />
-              Create Group
-            </Button>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          {groups.length} group{groups.length !== 1 ? 's' : ''} total
+        </p>
+        <Button size="sm" onClick={() => setShowCreateModal(true)}>
+          <UserPlus className="h-4 w-4 mr-1.5" />
+          Create Group
+        </Button>
+      </div>
 
-          {/* Groups Table */}
-          <div className="settings-table">
-            <div className="settings-table__header-row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5">
-              <div>Name</div>
-              <div>Description</div>
-              <div>Members</div>
-              <div></div>
-            </div>
+      <div className="settings-table">
+        <div className="settings-table__header-row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5">
+          <div>Name</div>
+          <div>Description</div>
+          <div>Members</div>
+          <div></div>
+        </div>
 
-            {groups.length === 0 ? (
-              <div className="settings-table__empty py-8">
-                No groups found
+        {groups.length === 0 ? (
+          <div className="settings-table__empty py-8">No groups found</div>
+        ) : (
+          groups.map((group) => (
+            <div
+              key={group.id}
+              className={cn(
+                'settings-table__row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5 items-center cursor-pointer text-sm',
+                activeGroupId === group.id && 'settings-table__row--active'
+              )}
+              onClick={() => setActiveGroupId(activeGroupId === group.id ? null : group.id)}
+            >
+              <div className="font-medium truncate">{group.name}</div>
+              <div className="text-[var(--color-text-secondary)] truncate">
+                {group.description || '—'}
               </div>
-            ) : (
-              groups.map((group) => (
-                <div
-                  key={group.id}
-                  className={cn(
-                    'settings-table__row grid grid-cols-[1fr_1fr_80px_48px] gap-4 px-4 py-2.5 items-center cursor-pointer text-sm',
-                    activeGroupId === group.id && 'settings-table__row--active'
-                  )}
-                  onClick={() => setActiveGroupId(activeGroupId === group.id ? null : group.id)}
-                >
-                  <div className="font-medium truncate">{group.name}</div>
-                  <div className="text-[var(--color-text-secondary)] truncate">
-                    {group.description || '\u2014'}
-                  </div>
-                  <div>{group.member_count}</div>
-                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <div>{group.member_count}</div>
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setMenuOpen(menuOpen === group.id ? null : group.id)} className="settings-btn-ghost p-1.5">
+                  <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                </button>
+                {menuOpen === group.id && (
+                  <div className="settings-context-menu" style={{ width: '10rem' }}>
                     <button
-                      onClick={() => setMenuOpen(menuOpen === group.id ? null : group.id)}
-                      className="settings-btn-ghost p-1.5"
+                      onClick={() => { setActiveGroupId(group.id); setMenuOpen(null) }}
+                      className="settings-context-menu__item w-full"
                     >
-                      <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)]" />
+                      View Members
                     </button>
-                    {menuOpen === group.id && (
-                      <div className="settings-context-menu" style={{ width: '10rem' }}>
-                        <button
-                          onClick={() => { setActiveGroupId(group.id); setMenuOpen(null) }}
-                          className="settings-context-menu__item w-full"
-                        >
-                          View Members
-                        </button>
-                        {isGroupOwnerOrAdmin(group) && (
-                          <button
-                            onClick={() => handleDeleteGroup(group.id)}
-                            className="settings-context-menu__item settings-context-menu__item--danger w-full"
-                          >
-                            Delete Group
-                          </button>
-                        )}
-                      </div>
+                    {isGroupOwnerOrAdmin(group) && (
+                      <button
+                        onClick={() => void handleDeleteGroup(group.id)}
+                        className="settings-context-menu__item settings-context-menu__item--danger w-full"
+                      >
+                        Delete Group
+                      </button>
                     )}
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </Section>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
-      {/* Group Detail Panel */}
       {activeGroupId && (
-        <Section icon={Shield} title={activeGroup?.name || 'Group Details'}>
+        <div className="border border-[var(--color-border-primary)] rounded-xl p-4">
           {loadingDetail ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
             </div>
           ) : activeGroup ? (
             <div className="space-y-4">
               {activeGroup.description && (
                 <p className="text-sm text-[var(--color-text-secondary)]">{activeGroup.description}</p>
               )}
-
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-[var(--color-text-secondary)]">
                   Members ({activeGroup.members.length})
@@ -3251,26 +2445,17 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
                     <Plus className="h-3.5 w-3.5" />
                     Add Member
                   </button>
-                  <button
-                    onClick={() => setActiveGroupId(null)}
-                    className="settings-btn-ghost p-1"
-                  >
+                  <button onClick={() => setActiveGroupId(null)} className="settings-btn-ghost p-1">
                     <X className="h-4 w-4 text-[var(--color-text-secondary)]" />
                   </button>
                 </div>
               </div>
-
               <div className="settings-table">
                 {activeGroup.members.length === 0 ? (
-                  <div className="settings-table__empty py-6">
-                    No members yet
-                  </div>
+                  <div className="settings-table__empty py-6">No members yet</div>
                 ) : (
                   activeGroup.members.map((member: GroupMember) => (
-                    <div
-                      key={member.user_id}
-                      className="member-row"
-                    >
+                    <div key={member.user_id} className="member-row">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="member-row__avatar">
                           {member.role === 'owner' ? (
@@ -3282,32 +2467,17 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
                         <div className="min-w-0">
                           <div className="member-row__name truncate">
                             {member.username}
-                            {member.user_id === currentUser?.id && (
-                              <span className="member-row__you-tag">You</span>
-                            )}
+                            {member.user_id === currentUser?.id && <span className="member-row__you-tag">You</span>}
                           </div>
-                          <div className="member-row__email truncate">
-                            {member.email}
-                          </div>
+                          <div className="member-row__email truncate">{member.email}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={cn(
-                            'role-badge',
-                            member.role === 'owner'
-                              ? 'role-badge--owner'
-                              : 'role-badge--default'
-                          )}
-                        >
+                        <span className={cn('role-badge', member.role === 'owner' ? 'role-badge--owner' : 'role-badge--default')}>
                           {member.role}
                         </span>
                         {member.user_id !== currentUser?.id && (
-                          <button
-                            onClick={() => handleRemoveMember(member.user_id)}
-                            className="member-row__remove-btn"
-                            title="Remove member"
-                          >
+                          <button onClick={() => void handleRemoveMember(member.user_id)} className="member-row__remove-btn" title="Remove member">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -3318,19 +2488,16 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
               </div>
             </div>
           ) : null}
-        </Section>
+        </div>
       )}
 
-      {/* Create Group Modal */}
       {showCreateModal && (
         <div className="settings-modal">
           <div className="settings-modal__panel--sm mx-4">
             <h2 className="settings-modal__heading mb-4">Create New Group</h2>
             <form onSubmit={handleCreateGroup} className="space-y-4">
               <div>
-                <label className="settings-modal__label">
-                  Name
-                </label>
+                <label className="settings-modal__label">Name</label>
                 <input
                   type="text"
                   value={createForm.name}
@@ -3341,9 +2508,7 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
                 />
               </div>
               <div>
-                <label className="settings-modal__label">
-                  Description
-                </label>
+                <label className="settings-modal__label">Description</label>
                 <input
                   type="text"
                   value={createForm.description}
@@ -3365,16 +2530,13 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
         </div>
       )}
 
-      {/* Add Member Modal */}
       {showAddMemberModal && (
         <div className="settings-modal">
           <div className="settings-modal__panel--sm mx-4">
             <h2 className="settings-modal__heading mb-4">Add Member</h2>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div>
-                <label className="settings-modal__label">
-                  User ID
-                </label>
+                <label className="settings-modal__label">User ID</label>
                 <input
                   type="text"
                   value={addMemberForm.userId}
@@ -3385,9 +2547,7 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
                 />
               </div>
               <div>
-                <label className="settings-modal__label">
-                  Role
-                </label>
+                <label className="settings-modal__label">Role</label>
                 <select
                   value={addMemberForm.role}
                   onChange={(e) => setAddMemberForm({ ...addMemberForm, role: e.target.value as GroupRole })}
@@ -3410,533 +2570,298 @@ function GroupsSettings({ currentUser }: { currentUser: User | null }) {
         </div>
       )}
 
-      {/* Click outside to close menu */}
       {menuOpen && <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />}
-    </>
+    </div>
   )
 }
 
 // =============================================================================
-// USERS SETTINGS (Admin Only)
+// ADVANCED
 // =============================================================================
 
-function UsersSettings({ currentUser }: { currentUser: User | null }) {
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const [total, setTotal] = useState(0)
+function AdvancedSection({ isAdmin }: { isAdmin: boolean }) {
+  const { config, updateConfig: updateLocalConfig } = useConfigStore()
+  const navigate = useNavigate()
 
-  // Create user modal state
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [createForm, setCreateForm] = useState({
-    email: '',
-    username: '',
-    password: '',
-    role: 'user' as UserRole,
-  })
-  const [creating, setCreating] = useState(false)
-
-  // Edit user state
-  const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [editForm, setEditForm] = useState({
-    email: '',
-    username: '',
-    role: 'user' as UserRole,
-  })
-  const [updating, setUpdating] = useState(false)
-
-  // Context menu state
-  const [menuOpen, setMenuOpen] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const fetchUsers = async () => {
+  // Server-backed agent settings (PUT /api/config — same calls the quick
+  // settings dialog makes). Hidden until the config loads.
+  const handleApproveActions = async (value: boolean) => {
+    updateLocalConfig({ approveActions: value })
     try {
-      const response = await listUsers()
-      setUsers(response.users)
-      setTotal(response.total)
+      await updateConfig({ approve_actions: value })
     } catch {
-      toast.error('Failed to load users')
-    } finally {
-      setLoading(false)
+      toast.error('Failed to update setting')
     }
   }
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!createForm.email || !createForm.username || !createForm.password) {
-      toast.error('All fields are required')
-      return
-    }
-    if (createForm.password.length < 8) {
-      toast.error('Password must be at least 8 characters')
-      return
-    }
-
-    setCreating(true)
+  const handleTemperature = async (value: number) => {
+    updateLocalConfig({ temperature: value })
     try {
-      const newUser = await createUser(createForm)
-      setUsers([newUser, ...users])
-      setTotal(total + 1)
-      setShowCreateModal(false)
-      setCreateForm({ email: '', username: '', password: '', role: 'user' })
-      toast.success('User created successfully')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create user'
-      toast.error(message)
-    } finally {
-      setCreating(false)
+      await updateConfig({ temperature: value })
+    } catch {
+      toast.error('Failed to update setting')
     }
   }
 
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingUser) return
-
-    setUpdating(true)
+  const handleMaxIterations = async (value: number) => {
+    updateLocalConfig({ maxIterations: value })
     try {
-      const updated = await updateUser(editingUser.id, editForm)
-      setUsers(users.map((u) => (u.id === updated.id ? updated : u)))
-      setEditingUser(null)
-      toast.success('User updated successfully')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update user'
-      toast.error(message)
-    } finally {
-      setUpdating(false)
+      await updateConfig({ max_iterations: value })
+    } catch {
+      toast.error('Failed to update setting')
     }
-  }
-
-  const handleDeactivateUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to deactivate this user?')) return
-
-    try {
-      await deactivateUser(userId)
-      setUsers(users.map((u) => (u.id === userId ? { ...u, is_active: false } : u)))
-      toast.success('User deactivated')
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to deactivate user'
-      toast.error(message)
-    }
-    setMenuOpen(null)
-  }
-
-  const startEditing = (user: User) => {
-    setEditingUser(user)
-    setEditForm({
-      email: user.email,
-      username: user.username,
-      role: user.role,
-    })
-    setMenuOpen(null)
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-cachi-500" />
-      </div>
-    )
   }
 
   return (
-    <>
-      <Section icon={Users} title="User Management">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-[var(--color-text-secondary)]">
-              {total} user{total !== 1 ? 's' : ''} total
-            </p>
-            <Button onClick={() => setShowCreateModal(true)} size="sm">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </div>
+    <V2Section id="advanced" title="Advanced">
+      <div className="v2-settings__rows">
+        {isAdmin && (
+          <V2Row
+            title={
+              <>
+                Activity log <span className="v2-settings__badge">Admins</span>
+              </>
+            }
+            sub="Every tool and code run, across all bots"
+            action={
+              <button type="button" className="v2-settings__action" onClick={() => navigate('/admin/logs')}>
+                Open
+              </button>
+            }
+          />
+        )}
+        <V2Row title="Server" sub={window.location.host} />
+      </div>
 
-          {/* Users Table */}
-          <div className="settings-table">
-            {/* Table Header */}
-            <div className="settings-table__header-row grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2">
-              <div>User</div>
-              <div>Email</div>
-              <div>Role</div>
-              <div>Status</div>
-              <div></div>
+      {config && (
+        <>
+          <h3 className="v2-settings__sub">Agent</h3>
+          <V2Toggle
+            title="Require approval for actions"
+            sub="Ask before executing potentially dangerous operations"
+            checked={config.agent.approveActions}
+            onChange={(v) => void handleApproveActions(v)}
+          />
+          <V2Field label={`Default temperature · ${config.agent.temperature}`}>
+            <div className="v2-settings__range">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={config.agent.temperature}
+                onChange={(e) => void handleTemperature(Number(e.target.value))}
+              />
             </div>
-
-            {/* User Rows */}
-            {users.length === 0 ? (
-              <div className="settings-table__empty py-6">
-                No users found
-              </div>
-            ) : (
-              users.map((user) => (
-                <div
-                  key={user.id}
-                  className="settings-table__row grid grid-cols-[1fr_1fr_80px_80px_40px] gap-2 px-4 py-2.5 items-center"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="user-avatar-circle">
-                      <AtSign className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="member-row__name truncate">{user.username}</div>
-                      {user.id === currentUser?.id && (
-                        <div className="text-xs text-accent-500">You</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="member-row__email truncate">{user.email}</div>
-                  <div>
-                    <span
-                      className={cn(
-                        'role-badge',
-                        user.role === 'admin'
-                          ? 'role-badge--admin'
-                          : user.role === 'manager'
-                            ? 'role-badge--manager'
-                            : 'role-badge--default'
-                      )}
-                    >
-                      {user.role === 'admin' ? (
-                        <Shield className="h-3 w-3" />
-                      ) : (
-                        <UserIcon className="h-3 w-3" />
-                      )}
-                      {user.role}
-                    </span>
-                  </div>
-                  <div>
-                    <span
-                      className={cn(
-                        'status-badge',
-                        user.is_active
-                          ? 'status-badge--active'
-                          : 'status-badge--inactive'
-                      )}
-                    >
-                      {user.is_active ? (
-                        <Check className="h-3 w-3" />
-                      ) : (
-                        <X className="h-3 w-3" />
-                      )}
-                      {user.is_active ? 'Active' : 'Off'}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => setMenuOpen(menuOpen === user.id ? null : user.id)}
-                      className="settings-btn-ghost p-1"
-                      disabled={user.id === currentUser?.id}
-                    >
-                      <MoreVertical className="h-4 w-4 text-[var(--color-text-secondary)]" />
-                    </button>
-                    {menuOpen === user.id && (
-                      <div className="settings-context-menu" style={{ width: '9rem' }}>
-                        <button
-                          onClick={() => startEditing(user)}
-                          className="settings-context-menu__item w-full"
-                        >
-                          Edit User
-                        </button>
-                        {user.is_active && (
-                          <button
-                            onClick={() => handleDeactivateUser(user.id)}
-                            className="settings-context-menu__item settings-context-menu__item--danger w-full"
-                          >
-                            Deactivate
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </Section>
-
-      {/* Create User Modal */}
-      {showCreateModal && (
-        <div className="settings-modal">
-          <div className="settings-modal__panel--sm mx-4">
-            <h2 className="settings-modal__heading mb-4">Create New User</h2>
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="settings-modal__label">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
-                  <input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, email: e.target.value })
-                    }
-                    className="settings-modal__input pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="settings-modal__label">
-                  Username
-                </label>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-text-secondary)]" />
-                  <input
-                    type="text"
-                    value={createForm.username}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, username: e.target.value })
-                    }
-                    className="settings-modal__input pl-10"
-                    required
-                    minLength={3}
-                    maxLength={32}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="settings-modal__label">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={createForm.password}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, password: e.target.value })
-                  }
-                  className="settings-modal__input"
-                  required
-                  minLength={8}
-                  placeholder="Min. 8 characters"
-                />
-              </div>
-              <div>
-                <label className="settings-modal__label">
-                  Role
-                </label>
-                <select
-                  value={createForm.role}
-                  onChange={(e) =>
-                    setCreateForm({
-                      ...createForm,
-                      role: e.target.value as UserRole,
-                    })
-                  }
-                  className="settings-modal__select"
-                >
-                  <option value="user">User</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="flex-1"
-                  onClick={() => setShowCreateModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1" disabled={creating}>
-                  {creating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Create User'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <p className="v2-settings__hint">Controls randomness in responses (0 = deterministic, 1 = creative)</p>
+          </V2Field>
+          <V2Field label="Max iterations">
+            <div className="v2-settings__box v2-settings__box--readonly">
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={config.agent.maxIterations}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  if (Number.isFinite(v) && v >= 1) void handleMaxIterations(v)
+                }}
+                className="v2-settings__input"
+                style={{ border: 0, padding: 0, height: 30 }}
+              />
+            </div>
+            <p className="v2-settings__hint">Maximum tool calls per conversation turn</p>
+          </V2Field>
+        </>
       )}
 
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="settings-modal">
-          <div className="settings-modal__panel--sm mx-4">
-            <h2 className="settings-modal__heading mb-4">Edit User</h2>
-            <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div>
-                <label className="settings-modal__label">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, email: e.target.value })
-                  }
-                  className="settings-modal__input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="settings-modal__label">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={editForm.username}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, username: e.target.value })
-                  }
-                  className="settings-modal__input"
-                  required
-                  minLength={3}
-                  maxLength={32}
-                />
-              </div>
-              <div>
-                <label className="settings-modal__label">
-                  Role
-                </label>
-                <select
-                  value={editForm.role}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      role: e.target.value as UserRole,
-                    })
-                  }
-                  className="settings-modal__select"
-                >
-                  <option value="user">User</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="flex-1"
-                  onClick={() => setEditingUser(null)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="flex-1" disabled={updating}>
-                  {updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Save Changes'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Click outside to close menu */}
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setMenuOpen(null)}
-        />
-      )}
-    </>
-  )
-}
-
-// =============================================================================
-// SHARED COMPONENTS
-// =============================================================================
-
-interface SectionProps {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  danger?: boolean
-  children: React.ReactNode
-}
-
-function Section({ icon: Icon, title, danger, children }: SectionProps) {
-  return (
-    <div className="settings-section">
-      <div
-        className={cn(
-          'settings-section__header',
-          danger && 'settings-section__header--danger'
-        )}
-      >
-        <Icon
-          className={cn('settings-section__icon', danger && 'settings-section__icon--danger')}
-        />
-        <h3
-          className={cn(
-            'settings-section__title',
-            danger && 'settings-section__title--danger'
-          )}
-        >
-          {title}
-        </h3>
+      <h3 className="v2-settings__sub">Keyboard shortcuts</h3>
+      <div className="v2-settings__shortcuts">
+        <ShortcutItem label="New chat" shortcut="Ctrl + N" />
+        <ShortcutItem label="Toggle sidebar" shortcut="Ctrl + B" />
+        <ShortcutItem label="Command palette" shortcut="Ctrl + K" />
+        <ShortcutItem label="Settings" shortcut="Ctrl + ," />
+        <ShortcutItem label="Send message" shortcut="Enter" />
+        <ShortcutItem label="New line" shortcut="Shift + Enter" />
       </div>
-      <div className="settings-section__body">{children}</div>
-    </div>
-  )
-}
-
-interface FieldProps {
-  label: string
-  children: React.ReactNode
-}
-
-function Field({ label, children }: FieldProps) {
-  return (
-    <div>
-      <label className="settings-field__label">
-        {label}
-      </label>
-      {children}
-    </div>
-  )
-}
-
-interface ToggleFieldProps {
-  label: string
-  description: string
-  checked: boolean
-  onChange: (checked: boolean) => void
-}
-
-function ToggleField({ label, description, checked, onChange }: ToggleFieldProps) {
-  return (
-    <div className="settings-toggle">
-      <div>
-        <h4 className="settings-toggle__label">{label}</h4>
-        <p className="settings-toggle__desc">{description}</p>
-      </div>
-      <button
-        onClick={() => onChange(!checked)}
-        className={cn(
-          'settings-toggle__switch',
-          checked ? 'settings-toggle__switch--on' : 'settings-toggle__switch--off'
-        )}
-      >
-        <span
-          className={cn(
-            'settings-toggle__knob',
-            checked ? 'settings-toggle__knob--on' : 'settings-toggle__knob--off'
-          )}
-        />
-      </button>
-    </div>
+    </V2Section>
   )
 }
 
 function ShortcutItem({ label, shortcut }: { label: string; shortcut: string }) {
   return (
-    <div className="shortcut-item">
-      <span className="shortcut-item__label">{label}</span>
-      <kbd className="shortcut-item__kbd">
-        {shortcut}
-      </kbd>
+    <div className="v2-settings__shortcut">
+      <span>{label}</span>
+      <kbd className="v2-settings__kbd">{shortcut}</kbd>
+    </div>
+  )
+}
+
+// =============================================================================
+// ABOUT
+// =============================================================================
+
+function AboutSection() {
+  const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null)
+
+  useEffect(() => {
+    checkHealth()
+      .then(setHealthInfo)
+      .catch(() => {})
+  }, [])
+
+  return (
+    <V2Section id="about" title="About">
+      <UpdatesRows healthInfo={healthInfo} />
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Source code"
+          sub="github.com/jhd3197/CachiBot"
+          action={
+            <a href="https://github.com/jhd3197/CachiBot" target="_blank" rel="noopener noreferrer" className="v2-settings__action">
+              Open
+            </a>
+          }
+        />
+        {healthInfo?.build && <V2Row title="Build" sub={healthInfo.build} />}
+        {healthInfo?.python && <V2Row title="Python" sub={healthInfo.python} />}
+        {healthInfo?.platform && <V2Row title="Platform" sub={healthInfo.platform} />}
+      </div>
+    </V2Section>
+  )
+}
+
+function UpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const isElectron = window.electronAPI?.isDesktop || healthInfo?.desktop
+  return isElectron ? (
+    <ElectronUpdatesRows healthInfo={healthInfo} />
+  ) : (
+    <PipUpdatesRows healthInfo={healthInfo} />
+  )
+}
+
+function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const [checking, setChecking] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
+  const [downloaded, setDownloaded] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+
+  const currentVersion = healthInfo?.version || window.electronAPI?.appVersion || '...'
+
+  useEffect(() => {
+    const api = window.electronAPI
+    if (!api) return
+    const cleanups = [
+      api.onUpdateAvailable?.((info) => setUpdateInfo(info)),
+      api.onUpdateProgress?.((progress) => setDownloadProgress(progress)),
+      api.onUpdateDownloaded?.(() => {
+        setDownloading(false)
+        setDownloaded(true)
+      }),
+      api.onUpdateError?.((error) => {
+        setUpdateError(error.message)
+        setDownloading(false)
+        setDownloaded(false)
+      }),
+    ]
+    return () => cleanups.forEach((c) => c?.())
+  }, [])
+
+  const handleCheck = async () => {
+    const api = window.electronAPI
+    if (!api) return
+    setChecking(true)
+    setUpdateError(null)
+    try {
+      const result = await api.checkForUpdate()
+      setUpdateInfo(result)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const handleDownload = async () => {
+    const api = window.electronAPI
+    if (!api) return
+    setDownloading(true)
+    setDownloadProgress(null)
+    const result = await api.downloadUpdate()
+    if (!result.success) {
+      setDownloading(false)
+      toast.error('Failed to download update')
+    }
+  }
+
+  const versionSub = updateInfo
+    ? updateInfo.available
+      ? `${currentVersion} · update available (v${updateInfo.version})`
+      : `${currentVersion} · up to date`
+    : `${currentVersion}`
+
+  return (
+    <>
+      <div className="v2-settings__rows">
+        <V2Row
+          title="Version"
+          sub={versionSub}
+          action={
+            downloaded ? (
+              <button type="button" className="v2-settings__action" onClick={() => window.electronAPI?.installUpdate()}>
+                Restart &amp; install
+              </button>
+            ) : downloading ? (
+              <span className="v2-settings__action" aria-busy="true">
+                {downloadProgress ? `${Math.round(downloadProgress.percent)}%` : 'Downloading…'}
+              </span>
+            ) : (
+              <button type="button" className="v2-settings__action" disabled={checking} onClick={() => void handleCheck()}>
+                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+              </button>
+            )
+          }
+        />
+        {updateError && <V2Row title="Last error" sub={updateError} />}
+      </div>
+      {updateInfo?.available && !downloaded && !downloading && (
+        <button type="button" className="v2-btn v2-btn--primary" onClick={() => void handleDownload()}>
+          <Download className="h-4 w-4" />
+          Download update
+        </button>
+      )}
+    </>
+  )
+}
+
+function PipUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
+  const { checkResult, isChecking, checkForUpdate } = useUpdateStore()
+
+  useEffect(() => {
+    checkForUpdate()
+  }, [checkForUpdate])
+
+  const currentVersion = window.electronAPI?.appVersion || checkResult?.current_version || healthInfo?.version || '...'
+  const latestStable = checkResult?.latest_stable
+  const upToDate = !!latestStable && !checkResult?.update_available
+
+  const versionSub = upToDate
+    ? `${currentVersion} · up to date`
+    : latestStable
+      ? `${currentVersion} · v${latestStable} available`
+      : currentVersion
+
+  return (
+    <div className="v2-settings__rows">
+      <V2Row
+        title="Version"
+        sub={versionSub}
+        action={
+          <button type="button" className="v2-settings__action" disabled={isChecking} onClick={() => checkForUpdate(true)}>
+            {isChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+          </button>
+        }
+      />
     </div>
   )
 }

@@ -19,6 +19,47 @@ logger = logging.getLogger(__name__)
 _POLL_INTERVAL = 30
 
 
+def compute_next_run(
+    schedule_type: ScheduleType,
+    *,
+    cron_expression: str | None = None,
+    interval_seconds: int | None = None,
+    run_at: datetime | None = None,
+    timezone: str = "UTC",
+) -> datetime | None:
+    """Compute the next run time for a schedule spec.
+
+    Returns ``None`` for event triggers (they fire via publish, not polling)
+    and when the spec is missing the field its type needs.
+    """
+    if schedule_type == ScheduleType.ONCE:
+        return run_at
+
+    if schedule_type == ScheduleType.EVENT:
+        return None
+
+    try:
+        tz = ZoneInfo(timezone)
+    except Exception:
+        tz = ZoneInfo("UTC")
+    now = datetime.now(tz)
+
+    if schedule_type == ScheduleType.INTERVAL:
+        if not interval_seconds:
+            return None
+        return now + timedelta(seconds=interval_seconds)
+
+    if schedule_type == ScheduleType.CRON:
+        if not cron_expression:
+            return None
+        from croniter import croniter
+
+        next_run: datetime = croniter(cron_expression, now).get_next(datetime)
+        return next_run
+
+    return None
+
+
 class SchedulerService:
     """Background service that fires due schedules and reminders."""
 
@@ -79,21 +120,7 @@ class SchedulerService:
 
     async def _fire_schedule(self, schedule: Schedule) -> None:
         """Execute a single due schedule."""
-        params = schedule.function_params or {}
-        message = params.get("message") or schedule.description or schedule.name
-        chat_id = params.get("chat_id")
-
-        logger.info(
-            "Firing schedule %s (%s) for bot %s",
-            schedule.id,
-            schedule.name,
-            schedule.bot_id,
-        )
-
-        await self._deliver_message(schedule.bot_id, message, chat_id)
-
-        # Record the run
-        await self._schedule_repo.record_run(schedule.id)
+        await self._deliver_schedule(schedule)
 
         # Calculate and set next_run_at (or disable for one-time)
         if schedule.schedule_type == ScheduleType.ONCE:
@@ -122,6 +149,38 @@ class SchedulerService:
                         schedule.cron_expression,
                     )
                     await self._schedule_repo.toggle_enabled(schedule.id, False)
+
+    async def run_schedule_now(self, schedule: Schedule) -> None:
+        """Fire a schedule on demand (test run) without rescheduling it.
+
+        Delivers the message and records the run, but leaves ``next_run_at``
+        and ``enabled`` untouched so the regular cadence is not shifted.
+        """
+        logger.info(
+            "Manually firing schedule %s (%s) for bot %s",
+            schedule.id,
+            schedule.name,
+            schedule.bot_id,
+        )
+        await self._deliver_schedule(schedule)
+
+    async def _deliver_schedule(self, schedule: Schedule) -> None:
+        """Deliver a schedule's message and record the run."""
+        params = schedule.function_params or {}
+        message = params.get("message") or schedule.description or schedule.name
+        chat_id = params.get("chat_id")
+
+        logger.info(
+            "Firing schedule %s (%s) for bot %s",
+            schedule.id,
+            schedule.name,
+            schedule.bot_id,
+        )
+
+        await self._deliver_message(schedule.bot_id, message, chat_id)
+
+        # Record the run
+        await self._schedule_repo.record_run(schedule.id)
 
     # ------------------------------------------------------------------
     # Todo Reminders

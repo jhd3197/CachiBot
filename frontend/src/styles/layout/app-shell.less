@@ -36,35 +36,21 @@
   });
 }
 
-// Rail/Sidebar container — mobile slide-in
-.app-shell__rail {
+// Nav container — UI v2 single bot-first sidebar (300px at 1440 width).
+// Mobile: fixed slide-in drawer; desktop: static column.
+.app-shell__nav {
   position: fixed;
   inset: 0 auto 0 0;
   z-index: @z-modal;
+  width: min(300px, calc(100vw - 3rem));
   transform: translateX(-100%);
   transition: transform @transition-slow;
+  outline: none;
 
   .screen-lg({
     position: static;
-    transform: none;
-  });
-
-  &--open {
-    transform: translateX(0);
-  }
-}
-
-.app-shell__sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 72px;
-  z-index: @z-modal;
-  transform: translateX(calc(-100% - 72px));
-  transition: transform @transition-slow;
-
-  .screen-lg({
-    position: static;
+    width: var(--v2-sidebar-width);
+    flex: none;
     transform: none;
   });
 
@@ -84,4 +70,41 @@
   .screen-lg({
     display: none;
   });
+}
+
+// Trailing actions on the mobile top bar (Earlier chats + More on chat
+// routes). Relative so the chat More menu anchors to this cluster — the
+// 260px menu stays inside a 375px viewport.
+.app-shell__mobile-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+// Mobile top-bar context: BotAvatar + bot name on bot routes, view name otherwise.
+// The chat's own header hides its bot block below @screen-lg, so the title
+// isn't duplicated (chat keeps only the "Earlier chats" button there).
+.app-shell__mobile-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: @font-semibold;
+
+  // Icon variant (app views)
+  svg {
+    color: var(--v2-text-secondary, var(--color-text-secondary));
+    flex: none;
+  }
+}
+
+.app-shell__mobile-title-text {
+  .truncate();
 }

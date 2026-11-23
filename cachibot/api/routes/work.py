@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from cachibot.api.auth import require_bot_access, require_bot_access_level
@@ -456,6 +456,7 @@ class UpdateScheduleRequest(BaseModel):
     description: str | None = None
     functionId: str | None = None
     functionParams: dict[str, Any] | None = None
+    scheduleType: str | None = None
     cronExpression: str | None = None
     intervalSeconds: int | None = None
     runAt: str | None = None
@@ -780,6 +781,24 @@ async def create_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Create a new schedule."""
+    from cachibot.services.scheduler_service import compute_next_run
+
+    schedule_type = ScheduleType(request.scheduleType)
+    run_at = datetime.fromisoformat(request.runAt) if request.runAt else None
+    try:
+        next_run_at = compute_next_run(
+            schedule_type,
+            cron_expression=request.cronExpression,
+            interval_seconds=request.intervalSeconds,
+            run_at=run_at,
+            timezone=request.timezone,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid cron expression: {request.cronExpression}",
+        ) from None
+
     now = datetime.now(timezone.utc)
     schedule = Schedule(
         id=str(uuid.uuid4()),
@@ -788,10 +807,10 @@ async def create_schedule(
         description=request.description,
         function_id=request.functionId,
         function_params=request.functionParams,
-        schedule_type=ScheduleType(request.scheduleType),
+        schedule_type=schedule_type,
         cron_expression=request.cronExpression,
         interval_seconds=request.intervalSeconds,
-        run_at=datetime.fromisoformat(request.runAt) if request.runAt else None,
+        run_at=run_at,
         event_trigger=request.eventTrigger,
         timezone=request.timezone,
         enabled=True,
@@ -799,6 +818,7 @@ async def create_schedule(
         catch_up=request.catchUp,
         created_at=now,
         updated_at=now,
+        next_run_at=next_run_at,
     )
     await schedule_repo.save(schedule)
     return ScheduleResponse.from_schedule(schedule)
@@ -823,7 +843,19 @@ async def update_schedule(
     user: User = Depends(require_bot_access_level(BotAccessLevel.EDITOR)),
 ) -> ScheduleResponse:
     """Update a schedule."""
+    from cachibot.services.scheduler_service import compute_next_run
+
     schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
+
+    # Trigger fields changed -> the next run must be recomputed, otherwise the
+    # scheduler would keep firing on the old cadence.
+    trigger_changed = (
+        request.scheduleType is not None
+        or request.cronExpression is not None
+        or request.intervalSeconds is not None
+        or request.runAt is not None
+        or request.eventTrigger is not None
+    )
 
     if request.name is not None:
         schedule.name = request.name
@@ -833,6 +865,8 @@ async def update_schedule(
         schedule.function_id = request.functionId
     if request.functionParams is not None:
         schedule.function_params = request.functionParams
+    if request.scheduleType is not None:
+        schedule.schedule_type = ScheduleType(request.scheduleType)
     if request.cronExpression is not None:
         schedule.cron_expression = request.cronExpression
     if request.intervalSeconds is not None:
@@ -850,6 +884,21 @@ async def update_schedule(
     if request.catchUp is not None:
         schedule.catch_up = request.catchUp
 
+    if trigger_changed:
+        try:
+            schedule.next_run_at = compute_next_run(
+                schedule.schedule_type,
+                cron_expression=schedule.cron_expression,
+                interval_seconds=schedule.interval_seconds,
+                run_at=schedule.run_at,
+                timezone=schedule.timezone,
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid cron expression: {schedule.cron_expression}",
+            ) from None
+
     schedule.updated_at = datetime.now(timezone.utc)
     await schedule_repo.update(schedule)
     return ScheduleResponse.from_schedule(schedule)
@@ -865,6 +914,25 @@ async def toggle_schedule(
     schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
 
     await schedule_repo.toggle_enabled(schedule_id, not schedule.enabled)
+    schedule = require_found(await schedule_repo.get(schedule_id), "Schedule")
+    return ScheduleResponse.from_schedule(schedule)
+
+
+@router.post("/schedules/{schedule_id}/run", status_code=201)
+async def run_schedule(
+    bot_id: str,
+    schedule_id: str,
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
+) -> ScheduleResponse:
+    """Fire a schedule on demand (test run).
+
+    Delivers the schedule's message and records the run without changing the
+    regular cadence (next_run_at / enabled are left untouched).
+    """
+    from cachibot.services.scheduler_service import get_scheduler_service
+
+    schedule = require_bot_ownership(await schedule_repo.get(schedule_id), bot_id, "Schedule")
+    await get_scheduler_service().run_schedule_now(schedule)
     schedule = require_found(await schedule_repo.get(schedule_id), "Schedule")
     return ScheduleResponse.from_schedule(schedule)
 

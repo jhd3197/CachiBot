@@ -193,6 +193,13 @@ export const useBotStore = create<BotState>()(
 // CHAT STORE (Enhanced)
 // =============================================================================
 
+/** Error from the real WS `error` event, attributed to the run's chat. */
+export interface ChatRunError {
+  message: string
+  code?: string
+  chatId?: string | null
+}
+
 interface ChatState {
   chats: Chat[]
   activeChatId: string | null
@@ -201,7 +208,7 @@ interface ChatState {
   toolCalls: ToolCall[]
   instructionDeltas: Record<string, string>
   isLoading: boolean
-  error: string | null
+  error: ChatRunError | null
   replyToMessage: ChatMessage | null
   pendingChatId: string | null
 
@@ -219,6 +226,8 @@ interface ChatState {
   // Messages
   addMessage: (chatId: string, message: ChatMessage) => void
   updateMessage: (chatId: string, messageId: string, content: string) => void
+  /** Insert, or replace in place (side-task replies update as they settle). */
+  upsertMessage: (chatId: string, message: ChatMessage) => void
   updateLastAssistantMessage: (chatId: string, updates: Partial<ChatMessage>) => void
   updateLastAssistantMessageMetadata: (chatId: string, metadata: Record<string, unknown>) => void
   getMessages: (chatId: string) => ChatMessage[]
@@ -239,7 +248,7 @@ interface ChatState {
   attachToolCallsToLastMessage: (chatId: string, toolCalls: ToolCall[]) => void
   attachThinkingToLastMessage: (chatId: string, thinking: string) => void
   setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
+  setError: (error: ChatRunError | null) => void
 }
 
 export const useChatStore = create<ChatState>()(
@@ -342,6 +351,23 @@ export const useChatStore = create<ChatState>()(
             ),
           },
         })),
+
+      upsertMessage: (chatId, message) =>
+        set((state) => {
+          const chatMessages = state.messages[chatId] || []
+          const index = chatMessages.findIndex((m) => m.id === message.id)
+          if (index === -1) {
+            return {
+              messages: { ...state.messages, [chatId]: [...chatMessages, message] },
+            }
+          }
+          return {
+            messages: {
+              ...state.messages,
+              [chatId]: chatMessages.map((m, i) => (i === index ? { ...m, ...message } : m)),
+            },
+          }
+        }),
 
       updateLastAssistantMessage: (chatId, updates) =>
         set((state) => {

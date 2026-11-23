@@ -213,6 +213,23 @@ async def get_manager_or_admin_user(
     return user
 
 
+async def user_has_bot_access(user_id: str, role: UserRole, bot_id: str) -> bool:
+    """Check a user can view a bot (same rules as require_bot_access).
+
+    Admins can access any bot. Regular users can access their own bots
+    or bots shared with them via groups (any access level).
+    """
+    if role == UserRole.ADMIN:
+        return True
+
+    ownership_repo = OwnershipRepository()
+    if await ownership_repo.user_owns_bot(user_id, bot_id):
+        return True
+
+    access_repo = BotAccessRepository()
+    return await access_repo.get_user_bot_access_level(user_id, bot_id) is not None
+
+
 async def require_bot_access(
     bot_id: str,
     user: User = Depends(get_current_user),
@@ -233,19 +250,7 @@ async def require_bot_access(
     Raises:
         HTTPException 403 if user doesn't have access
     """
-    # Admins bypass ownership checks
-    if user.role == UserRole.ADMIN:
-        return user
-
-    # Check ownership
-    ownership_repo = OwnershipRepository()
-    if await ownership_repo.user_owns_bot(user.id, bot_id):
-        return user
-
-    # Check group-based access
-    access_repo = BotAccessRepository()
-    level = await access_repo.get_user_bot_access_level(user.id, bot_id)
-    if level is not None:
+    if await user_has_bot_access(user.id, user.role, bot_id):
         return user
 
     raise HTTPException(

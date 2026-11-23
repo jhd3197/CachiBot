@@ -15,12 +15,19 @@ import {
   Brain,
   Pin,
   Bookmark,
+  Check,
+  Clock,
+  Pencil,
+  MoreHorizontal,
+  GitBranch,
 } from 'lucide-react'
 import { ReactionBar as ReactionBarLazy } from '../rooms/ReactionBar'
 import { useChatStore, useBotStore } from '../../stores/bots'
 import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { BotIconRenderer } from '../common/BotIconRenderer'
+import { BotAvatar } from '../common/Avatar'
+import { V2Menu, V2MenuItem } from '../common/V2Menu'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ArtifactCard } from '../artifacts/ArtifactCard'
 import { cn, copyToClipboard, darkenColor } from '../../lib/utils'
@@ -230,7 +237,7 @@ function getToolModel(toolName: string): string | undefined {
   return bot?.models?.[slot as keyof BotModels] || undefined
 }
 
-function MessageToolCallItem({ call }: { call: ToolCall }) {
+export function MessageToolCallItem({ call }: { call: ToolCall }) {
   const resultStr = typeof call.result === 'string' ? call.result : JSON.stringify(call.result ?? '', null, 2)
   const hasMedia = isMediaResult(call.result)
   const [expanded, setExpanded] = useState(hasMedia)
@@ -673,3 +680,486 @@ export function MessageBubble({
 
 // Re-export ChatMessage type alias for convenience
 export type { ChatMessage, ToolCall }
+
+// =============================================================================
+// UI v2 — bot-first chat message (design 02/03)
+// =============================================================================
+
+// Friendly verbs for the collapsed tool-activity line ("Read 3 files · …"),
+// keyed by the real tool names the backend emits (cachibot/plugins/*).
+const TOOL_SUMMARY_RULES: Array<{ match: RegExp; singular: string; plural: string }> = [
+  { match: /^file_read$/, singular: 'read 1 file', plural: 'read {n} files' },
+  { match: /^file_write$/, singular: 'wrote 1 file', plural: 'wrote {n} files' },
+  { match: /^file_edit$/, singular: 'edited 1 file', plural: 'edited {n} files' },
+  { match: /^file_(list|info)$/, singular: 'checked 1 file', plural: 'checked {n} files' },
+  { match: /^python_execute$/, singular: 'ran code once', plural: 'ran code {n} times' },
+  { match: /^(shell|bash|run_command|execute_command)$/, singular: 'ran 1 command', plural: 'ran {n} commands' },
+  { match: /^(web_search|kb_search|note_search)$/, singular: 'ran 1 search', plural: 'ran {n} searches' },
+  { match: /^generate_image$/, singular: 'generated 1 image', plural: 'generated {n} images' },
+  { match: /^generate_audio$/, singular: 'generated 1 audio clip', plural: 'generated {n} audio clips' },
+  { match: /^transcribe_audio$/, singular: 'transcribed 1 audio clip', plural: 'transcribed {n} audio clips' },
+  { match: /^coding_agent$/, singular: 'ran the coding agent once', plural: 'ran the coding agent {n} times' },
+  { match: /^(work_|todo_|schedule_|task_complete)/, singular: 'updated work once', plural: 'updated work {n} times' },
+  { match: /^note_save$/, singular: 'saved 1 note', plural: 'saved {n} notes' },
+]
+
+function toolSummarySegment(tool: string, count: number): string {
+  const rule = TOOL_SUMMARY_RULES.find((r) => r.match.test(tool))
+  if (!rule) {
+    return `used ${tool} ${count === 1 ? 'once' : `${count} times`}`
+  }
+  return count === 1 ? rule.singular : rule.plural.replace('{n}', String(count))
+}
+
+/** Collapsed "✓ Read 3 files · ran 2 commands" line from real tool calls. */
+export function buildToolSummary(toolCalls: ToolCall[]): string {
+  const order: string[] = []
+  const counts = new Map<string, number>()
+  for (const call of toolCalls) {
+    if (!counts.has(call.tool)) {
+      counts.set(call.tool, 0)
+      order.push(call.tool)
+    }
+    counts.set(call.tool, (counts.get(call.tool) || 0) + 1)
+  }
+  const summary = order
+    .map((tool) => toolSummarySegment(tool, counts.get(tool) || 0))
+    .join(' · ')
+  return summary.charAt(0).toUpperCase() + summary.slice(1)
+}
+
+/**
+ * Hover "More" menu (design 11c): on any message, "Do this on the side"
+ * starts a side task prefilled from that message's text. Anchored to the
+ * side the turn sits on so it never clips off-screen (user turns are
+ * right-aligned, bot turns left-aligned).
+ */
+function DoOnSideMenu({ onDoOnSide, align }: { onDoOnSide: () => void; align: 'left' | 'right' }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="v2-icon-action"
+        title="More"
+        aria-label="More"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </button>
+      {open && (
+        <V2Menu
+          className={cn('v2-msg-more-menu', align === 'left' ? 'v2-msg-more-menu--left' : 'v2-msg-more-menu--right')}
+          onClose={() => setOpen(false)}
+        >
+          <V2MenuItem
+            icon={<GitBranch size={16} strokeWidth={1.8} />}
+            onClick={() => {
+              setOpen(false)
+              onDoOnSide()
+            }}
+          >
+            Do this on the side
+          </V2MenuItem>
+        </V2Menu>
+      )}
+    </span>
+  )
+}
+
+export interface MessageBubbleV2Props {
+  message: {
+    id: string
+    content: string
+    timestamp: string
+    isUser: boolean
+    isSystem?: boolean
+    toolCalls?: ToolCall[]
+    metadata?: Record<string, unknown>
+    replyToId?: string
+    thinking?: string
+  }
+  botName: string
+  botColor?: string
+  chatId?: string
+  isStreaming?: boolean
+  onReply?: () => void
+  onRegenerate?: () => void
+  /** Edit-and-resend: called with the edited text for user messages */
+  onEditSend?: (newContent: string) => void
+  /** More › "Do this on the side": starts a side task prefilled from this message */
+  onDoOnSide?: () => void
+}
+
+/**
+ * UI v2 message: centered-column turn with a small BotAvatar + name label,
+ * plain bubbles (#1a1b1e pill), hover icon actions, edit-in-place for user
+ * messages, and tool activity collapsed into one muted line (design 02/03).
+ */
+export function MessageBubbleV2({
+  message,
+  botName,
+  botColor,
+  chatId,
+  isStreaming,
+  onReply,
+  onRegenerate,
+  onEditSend,
+  onDoOnSide,
+}: MessageBubbleV2Props) {
+  const { isUser, isSystem } = message
+  const [copied, setCopied] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
+  const [showToolCalls, setShowToolCalls] = useState(false)
+  const [showThinkingPanel, setShowThinkingPanel] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(message.content)
+  const { showThinking } = useUIStore()
+  const getMessageById = useChatStore((s) => s.getMessageById)
+
+  if (isSystem) {
+    return (
+      <div className="chat-message chat-message--system">
+        {message.content}
+      </div>
+    )
+  }
+
+  const replyToMessage = chatId && message.replyToId
+    ? getMessageById(chatId, message.replyToId)
+    : undefined
+
+  const citedIds = !isUser && chatId ? parseCiteMarkers(message.content) : []
+  const displayContent = !isUser ? stripCiteMarkers(message.content) : message.content
+
+  const handleCopy = () => {
+    copyToClipboard(message.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const hasToolCalls = !isUser && !!message.toolCalls && message.toolCalls.length > 0
+  const hasThinking = !isUser && !!message.thinking && showThinking
+  const hasMetadata = !isUser && message.metadata && (
+    message.metadata.tokens !== undefined ||
+    message.metadata.cost !== undefined ||
+    message.metadata.model !== undefined
+  )
+  const isScheduled = !isUser && message.metadata?.scheduled === true
+
+  // --- User turn -------------------------------------------------------------
+  if (isUser) {
+    return (
+      <div id={`msg-${message.id}`} className="v2-msg v2-msg--user">
+        {replyToMessage && (
+          <ReplyPreview
+            content={replyToMessage.content}
+            authorLabel={replyToMessage.role === 'user' ? 'You' : botName}
+            onClick={() => scrollToMessage(replyToMessage.id)}
+          />
+        )}
+        {editing ? (
+          <div className="v2-msg__edit">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  const trimmed = draft.trim()
+                  if (trimmed) {
+                    setEditing(false)
+                    onEditSend?.(trimmed)
+                  }
+                }
+                if (e.key === 'Escape') {
+                  setEditing(false)
+                  setDraft(message.content)
+                }
+              }}
+              rows={Math.min(6, Math.max(1, draft.split('\n').length))}
+              autoFocus
+              className="v2-msg__edit-input"
+            />
+            <div className="v2-msg__edit-actions">
+              <button
+                type="button"
+                className="v2-mini-btn"
+                onClick={() => {
+                  setEditing(false)
+                  setDraft(message.content)
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="v2-mini-btn v2-mini-btn--primary"
+                disabled={!draft.trim()}
+                onClick={() => {
+                  const trimmed = draft.trim()
+                  setEditing(false)
+                  if (trimmed) onEditSend?.(trimmed)
+                }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="v2-msg__bubble v2-msg__bubble--user">
+              <div className="whitespace-pre-wrap">{displayContent}</div>
+            </div>
+            <div className="v2-msg__actions v2-msg__actions--user">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(message.content)
+                  setEditing(true)
+                }}
+                className="v2-icon-action"
+                title="Edit"
+                aria-label="Edit"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="v2-icon-action"
+                title={copied ? 'Copied' : 'Copy'}
+                aria-label={copied ? 'Copied' : 'Copy'}
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+              {onDoOnSide && <DoOnSideMenu onDoOnSide={onDoOnSide} align="right" />}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // --- Bot turn ---------------------------------------------------------------
+  return (
+    <div id={`msg-${message.id}`} className="v2-msg v2-msg--bot">
+      <div className="v2-msg__who">
+        <BotAvatar color={botColor} name={botName} size={22} />
+        <span className="v2-msg__name">{botName}</span>
+      </div>
+
+      {isScheduled && (
+        <div className="v2-work-line">
+          <Clock className="v2-work-line__icon" />
+          <span>Scheduled routine</span>
+        </div>
+      )}
+
+      {hasToolCalls && (
+        <button
+          type="button"
+          onClick={() => setShowToolCalls(!showToolCalls)}
+          className="v2-work-line v2-work-line--button"
+          aria-expanded={showToolCalls}
+        >
+          {message.toolCalls!.every((c) => c.success !== false) ? (
+            <Check className="v2-work-line__icon" />
+          ) : (
+            <XCircle className="v2-work-line__icon v2-work-line__icon--error" />
+          )}
+          <span>{buildToolSummary(message.toolCalls!)}</span>
+          <ChevronDown
+            className={cn(
+              'v2-work-line__chevron',
+              showToolCalls && 'v2-work-line__chevron--open'
+            )}
+          />
+        </button>
+      )}
+
+      {replyToMessage && (
+        <ReplyPreview
+          content={replyToMessage.content}
+          authorLabel={replyToMessage.role === 'user' ? 'You' : botName}
+          onClick={() => scrollToMessage(replyToMessage.id)}
+        />
+      )}
+
+      {citedIds.length > 0 && !replyToMessage && chatId && citedIds.map((citeId) => {
+        const cited = getMessageById(chatId, citeId)
+        if (!cited) return null
+        return (
+          <ReplyPreview
+            key={citeId}
+            content={cited.content}
+            authorLabel={cited.role === 'user' ? 'You' : botName}
+            onClick={() => scrollToMessage(citeId)}
+          />
+        )
+      })}
+
+      <div className="v2-msg__bubble v2-msg__bubble--bot">
+        {!displayContent && isStreaming ? (
+          <div className="chat-typing-dots">
+            <span className="chat-typing-dots__dot" />
+            <span className="chat-typing-dots__dot" />
+            <span className="chat-typing-dots__dot" />
+          </div>
+        ) : (
+          <MarkdownRenderer content={displayContent} />
+        )}
+      </div>
+
+      {/* Media previews from tool results — always visible */}
+      {hasToolCalls && (
+        <MediaPreviews artifacts={extractMediaArtifacts(message.toolCalls!)} />
+      )}
+
+      {/* Artifact cards — rendered inline when a message has associated artifacts */}
+      <MessageArtifactCards messageId={message.id} />
+
+      {/* Expanded tool call details (existing ToolCallList item) */}
+      {showToolCalls && hasToolCalls && (
+        <div className="chat-message__tools-panel">
+          {message.toolCalls!.map((call) => (
+            <MessageToolCallItem key={call.id} call={call} />
+          ))}
+        </div>
+      )}
+
+      {/* Thinking collapsible section */}
+      {hasThinking && showThinkingPanel && (
+        <div className="chat-msg-thinking">
+          <div className="chat-msg-thinking__header">
+            <Brain className="h-3 w-3" />
+            <span>Thinking</span>
+          </div>
+          <div className="chat-msg-thinking__content">
+            {message.thinking}
+          </div>
+        </div>
+      )}
+
+      {/* Usage info popover */}
+      {showInfo && hasMetadata && (
+        <div className="chat-message__info-panel">
+          <div className="chat-message__info-grid">
+            {message.metadata?.model !== undefined && (
+              <>
+                <span>Model:</span>
+                <span className="chat-message__info-value">{String(message.metadata.model)}</span>
+              </>
+            )}
+            {message.metadata?.tokens !== undefined && (
+              <>
+                <span>Tokens:</span>
+                <span className="chat-message__info-value">
+                  {Number(message.metadata.tokens).toLocaleString()}
+                  {(message.metadata.promptTokens !== undefined || message.metadata.completionTokens !== undefined) && (
+                    <span className="text-[var(--color-text-secondary)] ml-1">
+                      ({Number(message.metadata.promptTokens || 0).toLocaleString()} in / {Number(message.metadata.completionTokens || 0).toLocaleString()} out)
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
+            {message.metadata?.cost !== undefined && (
+              <>
+                <span>Cost:</span>
+                <span className="chat-message__info-value">${Number(message.metadata.cost).toFixed(6)}</span>
+              </>
+            )}
+            {message.metadata?.iterations !== undefined && Number(message.metadata.iterations) > 1 && (
+              <>
+                <span>Iterations:</span>
+                <span className="chat-message__info-value">{Number(message.metadata.iterations)}</span>
+              </>
+            )}
+            {message.metadata?.elapsedMs !== undefined && Number(message.metadata.elapsedMs) > 0 && (
+              <>
+                <span>Time:</span>
+                <span className="chat-message__info-value">
+                  {Number(message.metadata.elapsedMs) < 1000
+                    ? `${Math.round(Number(message.metadata.elapsedMs))}ms`
+                    : `${(Number(message.metadata.elapsedMs) / 1000).toFixed(1)}s`}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hover actions (design 03 — quiet icon row) */}
+      <div className="v2-msg__actions">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="v2-icon-action"
+          title={copied ? 'Copied' : 'Copy'}
+          aria-label={copied ? 'Copied' : 'Copy'}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+        {onRegenerate && (
+          <button
+            type="button"
+            onClick={onRegenerate}
+            className="v2-icon-action"
+            title="Regenerate"
+            aria-label="Regenerate"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {onReply && (
+          <button
+            type="button"
+            onClick={onReply}
+            className="v2-icon-action"
+            title="Reply"
+            aria-label="Reply"
+          >
+            <Reply className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {hasToolCalls && (
+          <button
+            type="button"
+            onClick={() => setShowToolCalls(!showToolCalls)}
+            className={cn('v2-icon-action', showToolCalls && 'v2-icon-action--active')}
+            title={`Tools (${message.toolCalls!.length})`}
+            aria-label={`Tools (${message.toolCalls!.length})`}
+          >
+            <Code className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {hasThinking && (
+          <button
+            type="button"
+            onClick={() => setShowThinkingPanel(!showThinkingPanel)}
+            className={cn('v2-icon-action', showThinkingPanel && 'v2-icon-action--active')}
+            title="Thinking"
+            aria-label="Thinking"
+          >
+            <Brain className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {hasMetadata && (
+          <button
+            type="button"
+            onClick={() => setShowInfo(!showInfo)}
+            className={cn('v2-icon-action', showInfo && 'v2-icon-action--active')}
+            title="Info"
+            aria-label="Info"
+          >
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {onDoOnSide && <DoOnSideMenu onDoOnSide={onDoOnSide} align="left" />}
+      </div>
+    </div>
+  )
+}

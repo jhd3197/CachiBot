@@ -1,0 +1,792 @@
+// =============================================================================
+// UI v2 shell — styles/v2/shell.less
+// Bot-first sidebar (views 01/02), avatar, sheets, v2 buttons.
+// Values from docs/design/cachibot-v2-final-views/source/*.html
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// BotAvatar (common/Avatar.tsx)
+// -----------------------------------------------------------------------------
+
+.v2-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: @radius-full;
+  flex: none;
+  overflow: hidden;
+
+  &__eye {
+    display: block;
+    border-radius: @radius-full;
+    background: var(--v2-eye);
+  }
+
+  &--img {
+    object-fit: cover;
+    display: block;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Bot-first sidebar (design 13/02): "Bots" heading row, bot rows, Rooms
+// group, Workspace + Account at the bottom.
+// -----------------------------------------------------------------------------
+
+.v2-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 10px;
+  background: var(--v2-bg-sidebar);
+  border-right: 1px solid var(--v2-border);
+  color: var(--v2-text);
+  font-family: @font-sans;
+
+  &__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    padding: @sp-4 @sp-3;
+    font-size: @text-sm;
+    color: var(--v2-text-tertiary);
+    text-align: center;
+  }
+
+  &__bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 8px;
+    border-top: 1px solid var(--v2-border);
+  }
+}
+
+// "Bots" heading row — 36px tall, title + search / new-bot icon buttons
+// (design 13: notifications bell omitted — no notifications source exists)
+.v2-nav__heading {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 4px 0 10px;
+
+  &-title {
+    font-size: 15px;
+    font-weight: @font-semibold;
+  }
+
+  &-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+  }
+}
+
+// Rooms group under the bots (design 13): 28px group label row + room rows
+.v2-rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    height: 28px;
+
+    &-label {
+      font-size: 12px;
+      font-weight: @font-semibold;
+      color: var(--v2-text-tertiary);
+    }
+
+    &-actions {
+      margin-left: auto;
+      display: flex;
+    }
+  }
+}
+
+// Room row — stacked bot avatars + name + real last-message subtitle
+.v2-room-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-bg-selected);
+  }
+
+  // Stacked avatars: 22px circles overlapping by 10px, ring in sidebar color
+  &__avatars {
+    display: flex;
+    flex: none;
+
+    & > *:not(:first-child) {
+      margin-left: -10px;
+    }
+
+    & > * {
+      border: 2px solid var(--v2-bg-sidebar);
+      border-radius: @radius-full;
+      display: flex;
+    }
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: @font-semibold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__subtitle {
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Account row at the bottom of the sidebar (design 13)
+.v2-account-wrap {
+  position: relative;
+}
+
+.v2-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: @radius-full;
+    background: var(--v2-bg-avatar-user);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: @font-semibold;
+    flex: none;
+  }
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__gear {
+    color: var(--v2-text-tertiary);
+    flex: none;
+  }
+
+  // Menu opens upward, anchored to the row (design 13)
+  &__menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    z-index: @z-modal;
+  }
+}
+
+// 32px icon button (top bar, sheet headers)
+.v2-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--v2-radius-icon-btn);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  flex: none;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text);
+  }
+
+  &--active {
+    color: var(--v2-text);
+    background: var(--v2-bg-hover);
+  }
+}
+
+// Search field — 40px tall, 12px radius
+.v2-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-search);
+  color: var(--v2-text-tertiary);
+  box-sizing: border-box;
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+
+    &::placeholder {
+      color: var(--v2-text-tertiary);
+    }
+
+    // Remove webkit search decorations
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+  }
+}
+
+// Bot row — 12px corners, 10px padding
+.v2-bot-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-bg-selected);
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: @font-semibold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__time {
+    margin-left: auto;
+    flex: none;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__chip {
+    align-self: flex-start;
+    max-width: 100%;
+    font-size: 12px;
+    color: var(--v2-text-secondary);
+    background: var(--v2-bg-hover);
+    border-radius: var(--v2-radius-chip);
+    padding: 2px 7px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__preview {
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Workspace button — 44px tall, 10px radius
+.v2-workspace-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--v2-radius-workspace);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-normal;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active,
+  &--active:hover {
+    background: var(--v2-bg-selected);
+    font-weight: @font-semibold;
+  }
+
+  &__icon-tile {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--v2-bg-selected);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Dropdown menu (design 13/14 account + chat More menus): 260px, 14px radius
+// -----------------------------------------------------------------------------
+
+.v2-menu {
+  width: 260px;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--v2-bg-menu);
+  border: 1px solid var(--v2-border);
+  box-shadow: var(--v2-shadow-menu);
+  display: flex;
+  flex-direction: column;
+  font-family: @font-sans;
+
+  &__label {
+    padding: 8px 10px 4px;
+    font-size: 12px;
+    font-weight: @font-semibold;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--v2-border);
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    .transition-colors();
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+
+    &-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      color: var(--v2-text-secondary);
+
+      .v2-menu__item--danger & {
+        color: var(--v2-red);
+      }
+    }
+
+    &-label {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &-suffix {
+      flex: none;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+
+    &--danger {
+      color: var(--v2-red);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Buttons
+// -----------------------------------------------------------------------------
+
+.v2-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: @font-semibold;
+  cursor: pointer;
+  text-decoration: none;
+  .transition-colors();
+
+  &--primary {
+    background: var(--v2-text);
+    color: var(--v2-bg-main);
+
+    &:hover {
+      opacity: 0.88;
+    }
+  }
+
+  &--secondary {
+    background: var(--v2-bg-button);
+    color: var(--v2-text);
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+// Toggle switch — 40x24 track, 18px knob (design views 13/18)
+.v2-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border: 0;
+  border-radius: 12px;
+  padding: 3px;
+  cursor: pointer;
+  background: var(--v2-border-strong);
+  display: flex;
+  flex: none;
+  .transition-colors();
+
+  &__knob {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--v2-text-tertiary);
+    display: block;
+    .transition-colors();
+  }
+
+  &[aria-checked='true'] {
+    background: var(--v2-text);
+    justify-content: flex-end;
+
+    .v2-switch__knob {
+      background: var(--v2-bg-main);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Sheet (Earlier chats, Files in later phases) — panel over a backdrop
+// -----------------------------------------------------------------------------
+.v2-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: @z-modal;
+  background: var(--color-bg-overlay);
+  display: flex;
+  justify-content: center;
+  padding: 8vh @sp-4 @sp-4;
+  box-sizing: border-box;
+}
+
+.v2-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 30rem;
+  max-height: 100%;
+  background: var(--v2-bg-panel);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--v2-radius-sheet);
+  box-shadow: var(--v2-shadow-sheet);
+  overflow: hidden;
+  color: var(--v2-text);
+  font-family: @font-sans;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--v2-border);
+
+    h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: @font-semibold;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px;
+    .scrollbar-thin();
+  }
+
+  &__empty {
+    padding: @sp-8 @sp-4;
+    text-align: center;
+    color: var(--v2-text-tertiary);
+    font-size: 14px;
+  }
+}
+
+// Chat row inside the sheet
+.v2-chat-item {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--v2-radius-row);
+  background: transparent;
+  color: var(--v2-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  .transition-colors();
+
+  &:hover {
+    background: var(--v2-bg-hover);
+  }
+
+  &--active {
+    background: var(--v2-bg-selected);
+  }
+
+  &__icon {
+    flex: none;
+    color: var(--v2-text-tertiary);
+    margin-top: 2px;
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: @font-medium;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__pin {
+    flex: none;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__platform-badge {
+    flex: none;
+    font-size: 11px;
+    color: var(--v2-text-secondary);
+    background: var(--v2-bg-hover);
+    border-radius: var(--v2-radius-chip);
+    padding: 1px 6px;
+  }
+
+  &__time {
+    margin-left: auto;
+    flex: none;
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__preview {
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__menu-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--v2-bg-panel);
+    color: var(--v2-text-secondary);
+    cursor: pointer;
+    opacity: 0;
+    .transition-colors();
+
+    &--open {
+      opacity: 1;
+    }
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+  }
+}
+
+// Row hover reveals the menu button (a `.v2-chat-item:hover &` here would
+// compile with the .ui-v2 parent prefix and never match)
+.v2-chat-item:hover .v2-chat-item__menu-btn {
+  opacity: 1;
+}
+
+// Global search results (common/GlobalSearchDialog.tsx)
+.global-search {
+  &__group-label {
+    .section-label();
+    padding: @sp-2 @sp-3 @sp-1;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__item-icon {
+    .flex-center();
+    height: 1.75rem;
+    width: 1.75rem;
+    flex-shrink: 0;
+    border-radius: @radius-md;
+
+    &--chat {
+      background: color-mix(in srgb, @blue-500 12%, transparent);
+      color: @blue-400;
+    }
+
+    &--room {
+      background: color-mix(in srgb, @purple-500 12%, transparent);
+      color: @purple-400;
+    }
+
+    &--task {
+      background: color-mix(in srgb, @green-500 12%, transparent);
+      color: @green-400;
+    }
+  }
+}

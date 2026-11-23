@@ -294,6 +294,145 @@ export interface Chat {
 }
 
 // =============================================================================
+// SIDE TASK TYPES (principle 9 — child chats that work in parallel)
+// =============================================================================
+
+export type SideTaskStatus =
+  | 'waiting_for_slot'
+  | 'running'
+  | 'needs_you'
+  | 'done'
+  | 'merged'
+  | 'failed'
+  | 'stopped'
+
+export type SideTaskKind = 'side' | 'helper'
+export type SideTaskStartedBy = 'user' | 'bot'
+
+/** One path changed on the side branch relative to base, as recorded on merge. */
+export interface SideTaskMergedFile {
+  path: string
+  status: string
+}
+
+/**
+ * Metadata of the assistant reply message a side task (or helper group)
+ * persists in the parent chat (kind "side_task_reply"): the thread-style
+ * report that quotes the message that started it. The message body is the
+ * short summary; the structured outcome lives here, from the real record.
+ */
+export interface SideTaskReplyMetadata {
+  kind: 'side_task_reply'
+  sideTaskId: string
+  title: string
+  /** The side task's own chat ("View thread" target). */
+  chatId: string
+  status: SideTaskStatus
+  /** Parent-chat message quoted (== message.replyToId). */
+  replyTo?: string
+  mergedFiles?: SideTaskMergedFile[]
+  mergedCommit?: string
+  error?: string
+  needsYouReason?: string
+  conflictFiles?: string[]
+}
+
+/** One per-helper row carried by a group reply (kind "side_task_group_reply"). */
+export interface SideTaskGroupReplyItem {
+  id: string
+  title: string
+  status: SideTaskStatus
+  chatId: string
+}
+
+export interface SideTaskGroupReplyMetadata {
+  kind: 'side_task_group_reply'
+  groupId: string
+  title: string
+  status: 'running' | 'needs_you' | 'failed' | 'settled'
+  total: number
+  done: number
+  failed: number
+  running: number
+  waiting: number
+  needsYou: number
+  items: SideTaskGroupReplyItem[]
+  replyTo?: string
+}
+
+export type SideTaskReplyKind = 'side_task_reply' | 'side_task_group_reply'
+
+/** Full side-task record as returned by the REST API and `side_task_update`. */
+export interface SideTask {
+  id: string
+  botId: string
+  parentChatId: string
+  chatId: string
+  title: string
+  prompt: string
+  kind: SideTaskKind
+  groupId: string | null
+  groupTitle: string | null
+  status: SideTaskStatus
+  needsYouReason: string | null
+  startedBy: SideTaskStartedBy
+  worktreePath: string | null
+  branch: string | null
+  baseCommit: string | null
+  mergedCommit: string | null
+  mergedFiles: SideTaskMergedFile[]
+  conflictFiles: string[]
+  /** Parent-chat message this side task answers (thread-reply source). */
+  sourceMessageId: string | null
+  /** The one parent-chat reply message (created once, updated in place). */
+  replyMessageId: string | null
+  error: string | null
+  workId: string | null
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+  updatedAt: string
+}
+
+/** Aggregate view of one helper group (GET /side-task-groups/{groupId}). */
+export interface SideTaskGroupSummary {
+  groupId: string
+  title: string | null
+  total: number
+  done: number
+  failed: number
+  running: number
+  waiting: number
+  needsYou: number
+  items: SideTask[]
+}
+
+/** Chat row as returned by GET /api/bots/{id}/chats (includes side-task chats). */
+export interface BackendChat {
+  id: string
+  botId: string
+  title: string
+  platform: string | null
+  platformChatId: string | null
+  pinned: boolean
+  archived: boolean
+  parentChatId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Message row as returned by GET /api/bots/{id}/chats/{chatId}/messages. */
+export interface BackendMessage {
+  id: string
+  chatId: string
+  role: string
+  content: string
+  timestamp: string
+  metadata: Record<string, unknown>
+  replyToId: string | null
+}
+
+// =============================================================================
 // JOB TYPES
 // =============================================================================
 
@@ -501,7 +640,9 @@ export type WSMessageType =
   | 'error'
   | 'done'
   | 'job_update'
+  | 'message_update'
   | 'task_update'
+  | 'side_task_update'
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType
@@ -649,10 +790,10 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
-export type AutomationSection = 'all' | 'functions' | 'scripts' | 'schedules' | 'timeline'
-export type AppView = 'dashboard' | 'admin-logs' | 'settings'
+export type AutomationSection = 'routines' | 'advanced'
+export type AppView = 'dashboard' | 'dashboard-usage' | 'runs' | 'admin-logs' | 'settings'
 
 // =============================================================================
 // CREATION FLOW TYPES
@@ -1211,6 +1352,7 @@ export interface Room {
   members: RoomMember[]
   bots: RoomBot[]
   messageCount: number
+  lastMessage?: RoomMessage | null
   createdAt: string
   updatedAt: string
 }

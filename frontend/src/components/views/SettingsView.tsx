@@ -298,6 +298,59 @@ const STT_LANGUAGES = [
 ]
 
 function GeneralSection({ form, setForm }: GeneralSectionProps) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <label className="settings-form__label">Name</label>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            className="settings-form__input"
+          />
+        </div>
+
+        <div>
+          <label className="settings-form__label">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            rows={2}
+            className="settings-form__textarea"
+          />
+        </div>
+      </div>
+
+      <ModelsCapabilitiesSection form={form} setForm={setForm} />
+      <AppearanceSection form={form} setForm={setForm} />
+
+      {/* System Prompt */}
+      <div className="settings-section">
+        <h3 className="settings-section__heading">
+          <Brain className="h-4 w-4 settings-section__heading-icon" />
+          System Prompt
+        </h3>
+        <textarea
+          value={form.systemPrompt}
+          onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
+          rows={6}
+          placeholder="Define the bot's personality and behavior..."
+          className="settings-form__textarea--mono"
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Models, image/audio generation, and coding agents — the parts of the old
+ * General section that the UI v2 bot settings view (BotSettingsView) reuses
+ * inside its "Advanced" collapsible. Exported for that view.
+ * `showDefault` is false there because the default model lives in the
+ * General section (design view 18).
+ */
+export function ModelsCapabilitiesSection({ form, setForm, showDefault = true }: GeneralSectionProps & { showDefault?: boolean }) {
   const { imageGroups, audioGroups } = useModelsStore()
   const { getActiveBot, updateBot } = useBotStore()
   const { isCapabilityDisabled } = usePlatformToolsStore()
@@ -335,29 +388,7 @@ function GeneralSection({ form, setForm }: GeneralSectionProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <label className="settings-form__label">Name</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="settings-form__input"
-          />
-        </div>
-
-        <div>
-          <label className="settings-form__label">Description</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={2}
-            className="settings-form__textarea"
-          />
-        </div>
-      </div>
-
+    <div>
       {/* Models */}
       <div className="settings-section">
         <h3 className="settings-section__heading">
@@ -365,25 +396,28 @@ function GeneralSection({ form, setForm }: GeneralSectionProps) {
           Models
         </h3>
         <div className="space-y-4">
-          <div>
-            <label className="settings-form__label--small">
-              <Layers className="h-3.5 w-3.5" />
-              Default Model
-            </label>
-            <ModelSelect
-              value={form.models?.default || form.model || ''}
-              onChange={(model) => {
-                const models: BotModels = { ...(form.models || { default: '' }), default: model }
-                setForm({ ...form, model, models })
-              }}
-              placeholder="Use system default"
-              className="w-full"
-              filter={(m) => !m.supports_image_generation && !m.supports_audio}
-            />
-            <p className="settings-form__hint">
-              Main conversational model. Leave empty to use the system default.
-            </p>
-          </div>
+          {/* Default Model (the General section has its own picker — design view 18) */}
+          {showDefault && (
+            <div>
+              <label className="settings-form__label--small">
+                <Layers className="h-3.5 w-3.5" />
+                Default Model
+              </label>
+              <ModelSelect
+                value={form.models?.default || form.model || ''}
+                onChange={(model) => {
+                  const models: BotModels = { ...(form.models || { default: '' }), default: model }
+                  setForm({ ...form, model, models })
+                }}
+                placeholder="Use system default"
+                className="w-full"
+                filter={(m) => !m.supports_image_generation && !m.supports_audio}
+              />
+              <p className="settings-form__hint">
+                Main conversational model. Leave empty to use the system default.
+              </p>
+            </div>
+          )}
 
           {/* Utility Model */}
           <div>
@@ -687,7 +721,17 @@ function GeneralSection({ form, setForm }: GeneralSectionProps) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
 
+/**
+ * Icon + color pickers. Exported for BotSettingsView, where the same picker
+ * opens from the avatar's edit pencil.
+ */
+export function AppearanceSection({ form, setForm }: GeneralSectionProps) {
+  return (
+    <div>
       {/* Appearance */}
       <div className="settings-section">
         <h3 className="settings-section__heading">
@@ -755,26 +799,11 @@ function GeneralSection({ form, setForm }: GeneralSectionProps) {
           </div>
         </div>
       </div>
-
-      {/* System Prompt */}
-      <div className="settings-section">
-        <h3 className="settings-section__heading">
-          <Brain className="h-4 w-4 settings-section__heading-icon" />
-          System Prompt
-        </h3>
-        <textarea
-          value={form.systemPrompt}
-          onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
-          rows={6}
-          placeholder="Define the bot's personality and behavior..."
-          className="settings-form__textarea--mono"
-        />
-      </div>
     </div>
   )
 }
 
-function KnowledgeSection({ botId }: { botId: string }) {
+export function KnowledgeSection({ botId }: { botId: string }) {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [showNoteEditor, setShowNoteEditor] = useState(false)
   const [chunksDoc, setChunksDoc] = useState<{ id: string; filename: string } | null>(null)
@@ -863,7 +892,7 @@ function KnowledgeSection({ botId }: { botId: string }) {
   )
 }
 
-function SkillsSection({ botId }: { botId: string }) {
+export function SkillsSection({ botId }: { botId: string }) {
   const [allSkills, setAllSkills] = useState<SkillDefinition[]>([])
   const [activeSkillIds, setActiveSkillIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -1206,13 +1235,14 @@ function SkillCard({ skill, isActive, onToggle, onDelete, showDelete }: SkillCar
   )
 }
 
-// Skill install dialog component
+// Skill install dialog component — exported for BotSettingsView (design view 18
+// "New skill" button reuses the existing install flow).
 interface SkillInstallDialogProps {
   onClose: () => void
   onInstalled: (skill: SkillDefinition) => void
 }
 
-function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
+export function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1295,7 +1325,7 @@ function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogProps) {
   )
 }
 
-function ConnectionsSection({ botId }: { botId: string }) {
+export function ConnectionsSection({ botId }: { botId: string }) {
   return (
     <div className="space-y-6">
       <div>
@@ -1308,7 +1338,7 @@ function ConnectionsSection({ botId }: { botId: string }) {
   )
 }
 
-function DangerSection({
+export function DangerSection({
   botId,
   botName,
   isDefault,

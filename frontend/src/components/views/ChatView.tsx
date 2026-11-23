@@ -1,9 +1,9 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Send,
   Square,
-  Paperclip,
+  Plus,
   Sparkles,
   ChevronDown,
   Code,
@@ -14,28 +14,56 @@ import {
   Reply,
   X,
   Cpu,
+  History,
+  ArrowDown,
+  Mic,
+  MoreHorizontal,
+  FolderOpen,
+  GitBranch,
+  Paperclip,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
-import { BotIconRenderer } from '../common/BotIconRenderer'
+import { useApprovalsStore } from '../../stores/approvals'
+import { useSideTasksStore } from '../../stores/side-tasks'
+import { BotAvatar } from '../common/Avatar'
+import { V2Menu, V2MenuItem } from '../common/V2Menu'
+import { ChatsSheet } from '../chat/ChatsSheet'
+import { FilesSheet } from '../chat/FilesSheet'
+import {
+  SideTaskGroupReplyView,
+  SideTaskIndicator,
+  SideTaskReplyView,
+  sideTaskGroupReplyMetadata,
+  sideTaskReplyMetadata,
+} from '../side-tasks/SideTaskReply'
+import { SideTaskChatView } from '../side-tasks/SideTaskChatView'
+import { StartSideTaskDialog } from '../side-tasks/StartSideTaskDialog'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
+import { uploadChatAsset } from '../../api/assets'
+import { getChatMessages } from '../../api/side-tasks'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
-import { useWebSocket, setPendingChatId } from '../../hooks/useWebSocket'
+import { setPendingChatId, setPendingApproval, expectUserEcho } from '../../hooks/useWebSocket'
+import { wsClient } from '../../api/websocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
-import { MessageBubble, isMediaResult } from '../chat/MessageBubble'
+import { MessageBubbleV2, isMediaResult } from '../chat/MessageBubble'
+import { ErrorCard, ApprovalCard, StoppedLine } from '../chat/ChatCards'
+import { ChatMoreMenu } from '../chat/ChatMoreMenu'
+import { VoiceMode } from '../chat/VoiceMode'
+import { FindInChatBar } from '../chat/FindInChatBar'
 import { ArtifactPanel } from '../artifacts/ArtifactPanel'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useWorkspaceStore } from '../../stores/workspace'
 import { WorkspaceSelector } from '../chat/WorkspaceSelector'
 import { TaskProgress } from '../chat/TaskProgress'
-import type { ToolCall, BotIcon, BotModels, Chat, Bot, CodingAgentInfo } from '../../types'
+import type { ToolCall, BotIcon, BotModels, BotCapabilities, ToolConfigs, Chat, Bot, CodingAgentInfo, ChatMessage, SideTask } from '../../types'
 
 // =============================================================================
 // BOT CREATION HELPERS
@@ -52,26 +80,72 @@ function pickRandomColor(): string {
   return BOT_COLORS[Math.floor(Math.random() * BOT_COLORS.length)]
 }
 
-interface ChatViewProps {
-  onSendMessage?: (message: string) => void
-  onCancel?: () => void
-  isConnected?: boolean
+interface ChatViewSendOptions {
+  systemPrompt?: string
+  botId?: string
+  chatId?: string
+  model?: string
+  models?: BotModels
+  capabilities?: BotCapabilities
+  toolConfigs?: ToolConfigs
+  replyToId?: string
+  workspace?: string | null
 }
 
-export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp }: ChatViewProps) {
+interface ChatViewProps {
+  onSendMessage: (message: string, options?: ChatViewSendOptions) => void
+  onCancel: () => void
+  isConnected: boolean
+  /** Chat that owns the in-flight run (null when idle); gates run-scoped UI */
+  runChatId?: string | null
+}
+
+// Day separators from real message timestamps (design 02 "Today 9:14 AM")
+function dayKeyOf(timestamp: string): string {
+  return new Date(timestamp).toDateString()
+}
+
+function dayLabel(timestamp: string): string {
+  const d = new Date(timestamp)
+  const now = new Date()
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (dayKeyOf(timestamp) === dayKeyOf(now.toISOString())) {
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    return `Today ${time}`
+  }
+  if (dayKeyOf(timestamp) === yesterday.toDateString()) {
+    return 'Yesterday'
+  }
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+// Unwrap find highlights, restoring the original text nodes.
+function clearFindMarks(root: HTMLElement) {
+  const marks = root.querySelectorAll<HTMLElement>('.v2-find-mark')
+  for (const mark of marks) {
+    const parent = mark.parentNode
+    if (!parent) continue
+    parent.replaceChild(document.createTextNode(mark.textContent || ''), mark)
+    parent.normalize()
+  }
+}
+
+export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: ChatViewProps) {
   const navigate = useNavigate()
-  const { activeChatId, getMessages, thinking, toolCalls, isLoading, addMessage, addChat, setActiveChat, replyToMessage, setReplyTo } = useChatStore()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { activeChatId, chats, messages: messagesByChat, thinking, toolCalls, isLoading, error: runError, addMessage, addChat, setActiveChat, updateMessage, upsertMessage, replyToMessage, setReplyTo } = useChatStore()
   const { getActiveBot, activeBotId, bots, addBot, setActiveBot } = useBotStore()
   const { showThinking } = useUIStore()
   const creationFlow = useCreationFlowStore()
-  const { sendMessage: wsSendMessage, cancel: wsCancel, isConnected: wsIsConnected } = useWebSocket()
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
-  const { canOperate } = useBotAccess(activeBotId)
+  const { canOperate, canEdit: canEditBot } = useBotAccess(activeBotId)
   const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
 
-  // Use prop values if provided, otherwise fall back to WebSocket hook values
-  const isConnected = isConnectedProp ?? wsIsConnected
-  const handleCancel = onCancel ?? wsCancel
+  // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
+  // owns the in-flight run — the connection lives at the app level now.
+  const runVisibleHere = !runChatId || runChatId === activeChatId
+  const handleCancel = onCancel
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState(() => {
     const bot = useBotStore.getState().getActiveBot()
@@ -81,9 +155,66 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   const justCreatedChatRef = useRef(false)
   const [animateIsland, setAnimateIsland] = useState(false)
   const [showCommandMenu, setShowCommandMenu] = useState(false)
+  const [showChats, setShowChats] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [voiceMode, setVoiceMode] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const stickToBottomRef = useRef(true)
+  const prevMsgCountRef = useRef(0)
+  const [scrolledUp, setScrolledUp] = useState(false)
+  const [newCount, setNewCount] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [attachStatus, setAttachStatus] = useState<string | null>(null)
+  const modelPillOpenRef = useRef<(() => void) | null>(null)
+  const [stoppedUserMessageId, setStoppedUserMessageId] = useState<string | null>(null)
+  const [findOpen, setFindOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [findCursor, setFindCursor] = useState(0)
+  const [findCount, setFindCount] = useState(0)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // Side tasks (principle 9): the parent chat's replies/indicators and the
+  // side-task chat view both read from the store, fed by the list endpoint +
+  // side_task_update.
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  const [sideTaskPrefill, setSideTaskPrefill] = useState<string | null>(null)
+  const ensureSideTasks = useSideTasksStore((s) => s.ensureForBot)
+  useEffect(() => {
+    if (activeBotId) void ensureSideTasks(activeBotId)
+  }, [activeBotId, ensureSideTasks])
+
+  // Side-task replies are persisted server-side. Merge any this browser
+  // missed (offline when it was written, or a fresh browser profile) into
+  // the local history; only reply-kind messages are merged, so locally
+  // echoed bubbles are never duplicated.
+  useEffect(() => {
+    if (!activeBotId || !activeChatId) return
+    let cancelled = false
+    getChatMessages(activeBotId, activeChatId, 200)
+      .then((rows) => {
+        if (cancelled) return
+        for (const row of rows) {
+          const kind = row.metadata?.kind
+          if (kind !== 'side_task_reply' && kind !== 'side_task_group_reply') continue
+          upsertMessage(activeChatId, {
+            id: row.id,
+            role: row.role as ChatMessage['role'],
+            content: row.content,
+            timestamp: row.timestamp,
+            metadata: row.metadata,
+            replyToId: row.replyToId ?? undefined,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [activeBotId, activeChatId, upsertMessage])
 
   // @mention coding agent autocomplete state
   const [showAgentMentions, setShowAgentMentions] = useState(false)
@@ -159,6 +290,17 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
   const activeBot = getActiveBot()
 
+  // ?voice=1 deep link (the /:botId/voice route redirects here): enter voice
+  // mode once the view is mounted, then strip the param from the URL.
+  useEffect(() => {
+    if (searchParams.get('voice') === '1') {
+      setVoiceMode(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('voice')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
   // Sync selectedModel when the active bot changes
   useEffect(() => {
     const bot = useBotStore.getState().getActiveBot()
@@ -206,8 +348,49 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     (a) => a.id.startsWith(agentMentionFilter) || a.name.toLowerCase().startsWith(agentMentionFilter)
   )
 
-  const messages = activeChatId ? getMessages(activeChatId) : []
+  const messages = useMemo(
+    () => (activeChatId ? messagesByChat[activeChatId] ?? [] : []),
+    [messagesByChat, activeChatId]
+  )
   const isInCreationFlow = creationFlow.step !== 'idle'
+
+  // The open chat may itself BE a side task's chat (design 11b). Derived
+  // from the stable byId map (a selecting selector that builds a new array
+  // every call trips getSnapshot caching in zustand v5).
+  const sideTasksById = useSideTasksStore((s) => s.byId)
+  const sideTaskForChat = useMemo(
+    () =>
+      activeChatId
+        ? Object.values(sideTasksById).find((t) => t.chatId === activeChatId)
+        : undefined,
+    [sideTasksById, activeChatId]
+  )
+  // Quiet indicators: side tasks of THIS chat that only wait or run are
+  // shown as one small line under their source message (grouped helpers are
+  // covered by their persisted group reply instead). Keyed by source message.
+  const activeSinglesBySource = useMemo(() => {
+    const map: Record<string, SideTask[]> = {}
+    if (!activeChatId) return map
+    for (const task of Object.values(sideTasksById)) {
+      if (task.parentChatId !== activeChatId || task.groupId) continue
+      if (task.status !== 'running' && task.status !== 'waiting_for_slot') continue
+      if (!task.sourceMessageId) continue
+      const list = map[task.sourceMessageId] ?? []
+      list.push(task)
+      map[task.sourceMessageId] = list
+    }
+    return map
+  }, [sideTasksById, activeChatId])
+
+  // Pending approvals for THIS chat — rendered inline (design 03 Approval card)
+  const pendingApprovals = useApprovalsStore((s) => s.pending)
+  const chatApprovals = useMemo(
+    () => (activeChatId ? pendingApprovals.filter((a) => a.chatId === activeChatId) : []),
+    [pendingApprovals, activeChatId]
+  )
+
+  // Real WS error attributed to this chat — rendered as the failed-turn card
+  const showErrorCard = !!runError && (runError.chatId == null || runError.chatId === activeChatId) && !isLoading
 
   // Get existing bot names for uniqueness validation
   const existingBotNames = bots.map((bot) => bot.name)
@@ -594,10 +777,119 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     return true
   }, [creationFlow, flowUserInputs, addMessage, addBot, setActiveBot, addChat, setActiveChat])
 
-  // Auto-scroll to bottom
+  // Auto-create a chat when needed (send or attach); returns the chat id
+  const ensureChatId = useCallback((): string | null => {
+    if (activeChatId) return activeChatId
+    if (!activeBotId) return null
+    const newChatId = crypto.randomUUID()
+    const newChat: Chat = {
+      id: newChatId,
+      botId: activeBotId,
+      title: 'New chat',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
+    }
+    addChat(newChat)
+    setActiveChat(newChatId)
+    // Set pending chat ID for WebSocket messages that arrive before state updates
+    setPendingChatId(newChatId)
+    // Navigate to the new chat URL for persistence on refresh
+    navigate(`/${activeBotId}/chats/${newChatId}`)
+    return newChatId
+  }, [activeChatId, activeBotId, addChat, setActiveChat, navigate])
+
+  // Normal send path shared by the composer, Continue, regenerate and
+  // edit-and-resend: auto-create the chat, add the user bubble locally
+  // (exactly once — the matching server echo is swallowed in useWebSocket,
+  // and runs that error out still show the message), then hand off to the
+  // app-level WS.
+  const sendUserMessage = useCallback((text: string, opts?: { skipLocalUserMessage?: boolean }) => {
+    const chatIdToUse = ensureChatId()
+    if (chatIdToUse) {
+      // Arm the echo swallow first so a fast server echo can't slip through.
+      expectUserEcho(chatIdToUse, text)
+      if (!opts?.skipLocalUserMessage) {
+        addMessage(chatIdToUse, {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: text,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    }
+
+    // Default capabilities for backwards compatibility
+    const defaultCapabilities = {
+      codeExecution: true,
+      fileOperations: true,
+      gitOperations: false,
+      shellAccess: false,
+      webAccess: false,
+      dataOperations: false,
+      contacts: false,
+      connections: false,
+      workManagement: true,
+      imageGeneration: false,
+      audioGeneration: false,
+      codingAgent: false,
+    }
+
+    const effectiveModels: BotModels = {
+      ...(activeBot?.models || {}),
+      default: selectedModel || getBotDefaultModel(activeBot!) || '',
+    }
+    onSendMessage(text, {
+      systemPrompt: activeBot?.systemPrompt,
+      botId: activeBot?.id,
+      chatId: chatIdToUse ?? undefined,
+      model: selectedModel || activeBot?.model,
+      models: effectiveModels,
+      capabilities: activeBot?.capabilities || defaultCapabilities,
+      toolConfigs: activeBot?.toolConfigs,
+      replyToId: replyToMessage?.id,
+      workspace: activeWorkspace,
+    })
+    setStoppedUserMessageId(null)
+  }, [ensureChatId, activeBot, selectedModel, onSendMessage, replyToMessage, activeWorkspace])
+
+  // Auto-scroll: follow the stream only while pinned to the bottom; when the
+  // user scrolls up, count the new messages and offer the "Jump to latest" pill.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const count = messages.length
+    if (stickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    } else if (count > prevMsgCountRef.current) {
+      setNewCount((c) => c + count - prevMsgCountRef.current)
+    }
+    prevMsgCountRef.current = count
   }, [messages, thinking, toolCalls])
+
+  // Switching chats pins back to the bottom
+  useEffect(() => {
+    stickToBottomRef.current = true
+    setScrolledUp(false)
+    setNewCount(0)
+    setStoppedUserMessageId(null)
+    prevMsgCountRef.current = useChatStore.getState().getMessages(activeChatId || '').length
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+  }, [activeChatId])
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    stickToBottomRef.current = nearBottom
+    setScrolledUp(!nearBottom)
+    if (nearBottom) setNewCount(0)
+  }, [])
+
+  const jumpToLatest = useCallback(() => {
+    stickToBottomRef.current = true
+    setScrolledUp(false)
+    setNewCount(0)
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -616,6 +908,94 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       return () => clearTimeout(timer)
     }
   }, [messages.length])
+
+  // Ctrl/Cmd+F opens find-in-chat (design 03)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setFindOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  useEffect(() => {
+    setFindCursor(0)
+  }, [findQuery])
+
+  // Highlight matched text in place — the walk runs over the rendered DOM so
+  // markdown bubbles highlight too. The current match is more prominent and
+  // scrolls into view. The still-streaming message is skipped (its text nodes
+  // change every token; it gets marked once the run finishes).
+  useEffect(() => {
+    const root = listRef.current
+    if (!root) return
+    clearFindMarks(root)
+    if (!findOpen) {
+      setFindCount(0)
+      return
+    }
+    const q = findQuery.trim()
+    if (!q) {
+      setFindCount(0)
+      return
+    }
+    const lower = q.toLowerCase()
+    const streamingEl = isLoading && runVisibleHere && messages.length > 0
+      ? root.querySelector(`#msg-${CSS.escape(messages[messages.length - 1].id)}`)
+      : null
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    const textNodes: Text[] = []
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+      const el = (node as Text).parentElement
+      if (!el || el.closest('textarea, input, script, style')) continue
+      if (streamingEl && streamingEl.contains(el)) continue
+      textNodes.push(node as Text)
+    }
+    const marks: HTMLElement[] = []
+    for (const textNode of textNodes) {
+      const text = textNode.nodeValue || ''
+      const lowerText = text.toLowerCase()
+      const fragments: Array<Text | HTMLElement> = []
+      let last = 0
+      let idx = lowerText.indexOf(lower)
+      while (idx !== -1) {
+        if (idx > last) fragments.push(document.createTextNode(text.slice(last, idx)))
+        const mark = document.createElement('span')
+        mark.className = 'v2-find-mark'
+        mark.textContent = text.slice(idx, idx + q.length)
+        fragments.push(mark)
+        marks.push(mark)
+        last = idx + q.length
+        idx = lowerText.indexOf(lower, last)
+      }
+      if (fragments.length === 0) continue
+      if (last < text.length) fragments.push(document.createTextNode(text.slice(last)))
+      const parent = textNode.parentNode
+      if (!parent) continue
+      for (const frag of fragments) parent.insertBefore(frag, textNode)
+      parent.removeChild(textNode)
+    }
+    setFindCount(marks.length)
+    if (marks.length === 0) return
+    const current = ((findCursor % marks.length) + marks.length) % marks.length
+    marks[current].classList.add('v2-find-mark--current')
+    marks[current].scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [findOpen, findQuery, findCursor, messages, isLoading, runVisibleHere])
+
+  const findTotal = findCount
+  const findCurrent = findTotal === 0 ? 0 : ((findCursor % findTotal) + findTotal) % findTotal + 1
+
+  const handleFindPrev = useCallback(() => {
+    setFindCursor((c) => (findTotal === 0 ? 0 : c - 1))
+  }, [findTotal])
+
+  const handleFindNext = useCallback(() => {
+    setFindCursor((c) => (findTotal === 0 ? 0 : c + 1))
+  }, [findTotal])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -758,66 +1138,94 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
       }
     }
 
-    // Normal message handling - use WebSocket with bot's systemPrompt
-    if (onSendMessage) {
-      onSendMessage(trimmedInput)
-    } else {
-      // Auto-create a chat if none is active
-      let chatIdToUse = activeChatId
-      if (!chatIdToUse && activeBotId) {
-        const newChatId = crypto.randomUUID()
-        const newChat: Chat = {
-          id: newChatId,
-          botId: activeBotId,
-          title: trimmedInput.slice(0, 50) + (trimmedInput.length > 50 ? '...' : ''),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messageCount: 0,
-        }
-        addChat(newChat)
-        setActiveChat(newChatId)
-        chatIdToUse = newChatId
-        // Set pending chat ID for WebSocket messages that arrive before state updates
-        setPendingChatId(newChatId)
-        // Navigate to the new chat URL for persistence on refresh
-        navigate(`/${activeBotId}/chats/${newChatId}`)
-      }
-
-      // Default capabilities for backwards compatibility
-      const defaultCapabilities = {
-        codeExecution: true,
-        fileOperations: true,
-        gitOperations: false,
-        shellAccess: false,
-        webAccess: false,
-        dataOperations: false,
-        contacts: false,
-        connections: false,
-        workManagement: true,
-        imageGeneration: false,
-        audioGeneration: false,
-        codingAgent: false,
-      }
-
-      const effectiveModels: BotModels = {
-        ...(activeBot?.models || {}),
-        default: selectedModel || getBotDefaultModel(activeBot!) || '',
-      }
-      wsSendMessage(trimmedInput, {
-        systemPrompt: activeBot?.systemPrompt,
-        botId: activeBot?.id,
-        chatId: chatIdToUse ?? undefined,
-        model: selectedModel || activeBot?.model,
-        models: effectiveModels,
-        capabilities: activeBot?.capabilities || defaultCapabilities,
-        toolConfigs: activeBot?.toolConfigs,
-        replyToId: replyToMessage?.id,
-        workspace: activeWorkspace,
-      })
-    }
+    // Normal message handling - send through the app-level WebSocket with
+    // the bot's systemPrompt and per-message context
+    sendUserMessage(trimmedInput)
     setInput('')
     setReplyTo(null)
   }
+
+  // Stop the run; remember the interrupted user message for "Continue"
+  const handleStop = useCallback(() => {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+    if (lastUser) {
+      setStoppedUserMessageId(lastUser.id)
+    }
+    handleCancel()
+  }, [messages, handleCancel])
+
+  // Continue a stopped turn by resending the interrupted message
+  const handleContinueStopped = useCallback(() => {
+    const stopped = messages.find((m) => m.id === stoppedUserMessageId)
+    if (stopped) {
+      sendUserMessage(stopped.content)
+    }
+    setStoppedUserMessageId(null)
+  }, [messages, stoppedUserMessageId, sendUserMessage])
+
+  // Regenerate: resend the user message that led to this bot reply
+  const regenerateFrom = useCallback((index: number) => {
+    for (let j = index - 1; j >= 0; j--) {
+      if (messages[j].role === 'user') {
+        sendUserMessage(messages[j].content)
+        return
+      }
+    }
+  }, [messages, sendUserMessage])
+
+  // Edit-and-resend: update the bubble in place, resend without adding a new
+  // bubble (skipLocalUserMessage), and swallow the server's echo of the resend.
+  const handleEditSend = useCallback((messageId: string, newContent: string) => {
+    if (!activeChatId) return
+    updateMessage(activeChatId, messageId, newContent)
+    sendUserMessage(newContent, { skipLocalUserMessage: true })
+  }, [activeChatId, updateMessage, sendUserMessage])
+
+  // More › "Do this on the side" (design 11c): prefill the start dialog
+  // with the message's text and remember the message (the reply quotes it).
+  // Operator+ only (the start API requires it).
+  const [sideTaskSource, setSideTaskSource] = useState<string | null>(null)
+  const handleDoOnSide = useCallback((content: string, messageId: string) => {
+    setSideTaskPrefill(content)
+    setSideTaskSource(messageId)
+  }, [])
+
+  // Failed-turn card actions
+  const handleTryAgain = useCallback(() => {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user')
+    if (lastUser) {
+      sendUserMessage(lastUser.content)
+    }
+  }, [messages, sendUserMessage])
+
+  const handleChangeModel = useCallback(() => {
+    modelPillOpenRef.current?.()
+  }, [])
+
+  // Answer an inline approval — same path as the dialog: real WS approve,
+  // clear the pending dialog state and the Workspace "Needs you" entry.
+  const answerApproval = useCallback((id: string, approved: boolean) => {
+    wsClient.sendApproval(id, approved)
+    setPendingApproval(null)
+    useApprovalsStore.getState().resolveApproval(id)
+  }, [])
+
+  // Attach a file to the chat via the real chat-assets API
+  const handleFilePicked = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !activeBotId) return
+    const chatId = ensureChatId()
+    if (!chatId) return
+    setAttachStatus(`Uploading ${file.name}…`)
+    try {
+      await uploadChatAsset(activeBotId, chatId, file)
+      setAttachStatus(`Uploaded ${file.name}`)
+    } catch {
+      setAttachStatus(`Failed to upload ${file.name}`)
+    }
+    window.setTimeout(() => setAttachStatus(null), 4000)
+  }, [activeBotId, ensureChatId])
 
   // Select a command from the autocomplete menu
   const selectCommand = (commandName: string) => {
@@ -1027,6 +1435,128 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
     )
   }
 
+  // Shared composer renderer (hero omnibox and docked bar)
+  const renderComposer = (placeholder: string) => (
+    <>
+      <div className="chat-input-container chat-input-container--island v2-composer">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="v2-composer__file"
+          onChange={handleFilePicked}
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+        {renderCommandMenu()}
+        {renderAgentMentionPopup()}
+        <button
+          type="button"
+          className={cn('v2-composer__plus', plusMenuOpen && 'v2-composer__plus--menu-open')}
+          title="Attach or add"
+          aria-label="Attach or add"
+          aria-haspopup="menu"
+          aria-expanded={plusMenuOpen}
+          disabled={!canOperate}
+          onClick={() => setPlusMenuOpen((o) => !o)}
+        >
+          <Plus size={17} strokeWidth={1.8} />
+        </button>
+        {plusMenuOpen && (
+          <V2Menu className="v2-composer-menu" onClose={() => setPlusMenuOpen(false)}>
+            <V2MenuItem
+              icon={<Paperclip size={16} strokeWidth={1.8} />}
+              onClick={() => {
+                setPlusMenuOpen(false)
+                fileInputRef.current?.click()
+              }}
+            >
+              Attach file
+            </V2MenuItem>
+            {canOperate && (
+              <V2MenuItem
+                icon={<GitBranch size={16} strokeWidth={1.8} />}
+                onClick={() => {
+                  setPlusMenuOpen(false)
+                  // Prefill from what was typed in the composer (if anything)
+                  // and hand it to the side task instead of the main chat.
+                  // No source message: the backend quotes the latest user
+                  // message of the chat (documented fallback).
+                  setSideTaskPrefill(input)
+                  setSideTaskSource(null)
+                  setInput('')
+                }}
+              >
+                Side task
+              </V2MenuItem>
+            )}
+          </V2Menu>
+        )}
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={!isConnected || creationFlow.isLoadingNames || !canOperate}
+          rows={1}
+          className="v2-composer__input"
+        />
+        {canOperate && !isInCreationFlow && (
+          <button
+            type="button"
+            className="v2-composer__talk"
+            title="Talk"
+            aria-label="Talk"
+            onClick={() => setVoiceMode(true)}
+          >
+            <Mic size={18} strokeWidth={1.8} />
+          </button>
+        )}
+        {isLoading ? (
+          <button
+            type="button"
+            onClick={handleStop}
+            className="v2-composer__send v2-composer__send--stop"
+            title="Stop"
+            aria-label="Stop"
+          >
+            <Square size={15} strokeWidth={1.8} />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!input.trim() || !isConnected || !canOperate}
+            className="v2-composer__send"
+            title="Send message"
+            aria-label="Send message"
+          >
+            <Send size={17} strokeWidth={1.8} />
+          </button>
+        )}
+      </div>
+      {/* Island footer — model pill + status + hint */}
+      <div className="chat-island__footer">
+        <ModelPill
+          value={selectedModel}
+          onChange={setSelectedModel}
+          placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
+          openRef={modelPillOpenRef}
+        />
+        <span className="chat-island__status">
+          <span
+            className={cn(
+              'chat-status-bar__dot',
+              isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
+            )}
+          />
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </span>
+        <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
+      </div>
+      {attachStatus && <div className="v2-attach-status">{attachStatus}</div>}
+    </>
+  )
+
   // Artifact panel state (must be before any early returns)
   const activeArtifactId = useArtifactsStore((s) => s.activeArtifactId)
   const panelOpen = useArtifactsStore((s) => s.panelOpen)
@@ -1066,10 +1596,141 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
   const showPanel = panelOpen && activeArtifact
 
+  // Chat header — just the bot (design views 02/14): the bot name opens Bot
+  // settings, Files opens the Files sheet (design 10), the history icon keeps
+  // "Earlier chats", and the "..." menu holds Runs / Routines / Knowledge /
+  // plugin pages / Export / Clear. Rendered in every chat state, including
+  // the empty hero. Below 1024px the whole row is hidden (mobile top bar
+  // carries avatar/name/history; Files lives in its More menu).
+  const chatHeader = (
+    <>
+      <div className="chat-header">
+        <div className="chat-header__bot-info">
+          {activeBot && (
+            <>
+              <BotAvatar color={activeBot.color} name={activeBot.name} size={30} />
+              {canEditBot ? (
+                <button
+                  type="button"
+                  className="chat-header__name chat-header__name--link"
+                  title="Bot settings"
+                  onClick={() => {
+                    useUIStore.getState().setSettingsSection('general')
+                    navigate(`/${activeBot.id}/settings`)
+                  }}
+                >
+                  {activeBot.name}
+                </button>
+              ) : (
+                <h2 className="chat-header__name">{activeBot.name}</h2>
+              )}
+            </>
+          )}
+        </div>
+        {activeBot && (
+          <div className="chat-header__actions">
+            <button
+              type="button"
+              className="v2-files-btn"
+              aria-label="Files"
+              title="Files"
+              onClick={() => setShowFiles(true)}
+            >
+              <FolderOpen size={15} strokeWidth={1.8} />
+              Files
+            </button>
+            <button
+              type="button"
+              className="v2-icon-btn"
+              aria-label="Earlier chats"
+              title="Earlier chats"
+              onClick={() => setShowChats(true)}
+            >
+              <History size={18} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              className="v2-icon-btn"
+              aria-label="More"
+              title="More"
+              aria-haspopup="menu"
+              aria-expanded={showMoreMenu}
+              onClick={(e) => { e.stopPropagation(); setShowMoreMenu((o) => !o) }}
+            >
+              <MoreHorizontal size={18} strokeWidth={1.8} />
+            </button>
+            {showMoreMenu && (
+              <ChatMoreMenu
+                bot={activeBot}
+                chat={activeChatId ? chats.find((c) => c.id === activeChatId) ?? null : null}
+                onClose={() => setShowMoreMenu(false)}
+              />
+            )}
+          </div>
+        )}
+      </div>
+      {showChats && activeBot && (
+        <ChatsSheet bot={activeBot} onClose={() => setShowChats(false)} />
+      )}
+      {showFiles && activeBot && (
+        <FilesSheet bot={activeBot} onClose={() => setShowFiles(false)} />
+      )}
+    </>
+  )
+
+  const composerPlaceholder = !canOperate
+    ? 'View-only access'
+    : creationFlow.step === 'name'
+      ? 'Type a number (1-4), your own name, or "more"...'
+      : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
+
+  // Start-a-side-task dialog (message More / composer +), rendered over both
+  // the hero and the docked chat so the flow works from either composer.
+  const sideTaskDialog =
+    sideTaskPrefill !== null && activeBotId && activeChatId ? (
+      <StartSideTaskDialog
+        botId={activeBotId}
+        chatId={activeChatId}
+        initialPrompt={sideTaskPrefill}
+        sourceMessageId={sideTaskSource}
+        onClose={() => {
+          setSideTaskPrefill(null)
+          setSideTaskSource(null)
+        }}
+      />
+    ) : null
+
+  // The open chat is a side task's own chat (design 11b): child header,
+  // backend history, state card. No composer — there is no backend path to
+  // resume a needs-you side task from a reply (documented in UI_V2_PLAN).
+  if (sideTaskForChat && activeBot) {
+    return (
+      <div className="chat-view">
+        {sideTaskDialog}
+        <SideTaskChatView task={sideTaskForChat} bot={activeBot} canOperate={canOperate} />
+      </div>
+    )
+  }
+
+  // Voice mode (design 15): the same chat switches to voice — big avatar,
+  // live transcript lines, bottom bar with mic/waveform/Interrupt/Back.
+  // Transcripts are saved into this chat by the voice pipeline.
+  if (voiceMode && activeBot && canOperate) {
+    return (
+      <div className="chat-view">
+        {chatHeader}
+        <VoiceMode bot={activeBot} ensureChat={ensureChatId} onExit={() => setVoiceMode(false)} />
+      </div>
+    )
+  }
+
   // Empty state — hero omnibox start state (no chat or chat with no messages)
   if (messages.length === 0) {
     return (
       <div className="chat-view chat-view--hero">
+        {chatHeader}
+        {sideTaskDialog}
+        <div className="chat-view--hero__body">
         {/* Hero title */}
         <div className="chat-hero">
           <h2 className="chat-hero__title">
@@ -1083,55 +1744,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
         {/* Omnibox island */}
         <div className="chat-island">
           <form onSubmit={handleSubmit} className="chat-island__form">
-            <div className="chat-input-container chat-input-container--island">
-              {renderCommandMenu()}
-              {renderAgentMentionPopup()}
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={`Message ${activeBot?.name || 'CachiBot'} or type / for commands...`}
-                disabled={!isConnected || isLoading || !canOperate}
-                rows={1}
-                className="chat-textarea"
-              />
-              <div className="chat-input-btns">
-                <button
-                  type="button"
-                  className="chat-input-btn chat-input-btn--attach"
-                  title="Attach file"
-                  disabled={!canOperate}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </button>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || !isConnected || !canOperate}
-                  className="chat-input-btn chat-input-btn--send"
-                  title="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <div className="chat-island__footer">
-              <ModelPill
-                value={selectedModel}
-                onChange={setSelectedModel}
-                placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
-              />
-              <span className="chat-island__status">
-                <span
-                  className={cn(
-                    'chat-status-bar__dot',
-                    isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
-                  )}
-                />
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
-            </div>
+            {renderComposer(composerPlaceholder)}
           </form>
 
           {availableWorkspaces.length > 0 && (
@@ -1142,6 +1755,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             />
           )}
         </div>
+        </div>
       </div>
     )
   }
@@ -1149,63 +1763,124 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
   return (
     <div ref={wrapperRef} className={cn('chat-view-wrapper', showPanel && 'chat-view-wrapper--split')}>
     <div className={cn('chat-view', showPanel && 'chat-view--with-panel')} style={showPanel ? { flex: `0 0 ${(1 - panelWidthRatio) * 100}%` } : undefined}>
-      {/* Chat header with bot info and settings */}
-      <div className="chat-header">
-        <div className="chat-header__bot-info">
-          <div
-            className="chat-header__avatar"
-            style={{ backgroundColor: (activeBot?.color || '#22c55e') + '30' }}
-          >
-            <BotIconRenderer
-              icon={activeBot?.icon || 'shield'}
-              size={18}
-              className="text-[var(--color-text-primary)]"
-            />
-          </div>
-          <div>
-            <h2 className="chat-header__name">
-              {activeBot?.name || 'CachiBot'}
-            </h2>
-            <p className="chat-header__model">{activeBot?.model || useModelsStore.getState().defaultModel || 'No model set'}</p>
-          </div>
-        </div>
-      </div>
+      {chatHeader}
+      {sideTaskDialog}
 
       {/* Messages area */}
-      <div className="chat-messages">
+      <div className="chat-messages" ref={scrollContainerRef} onScroll={handleScroll}>
         <div className="chat-messages__inner">
-          {messages.length === 0 ? (
-            <div className="py-12 text-center">
-              <Sparkles className="mx-auto mb-4 h-8 w-8 text-cachi-500" />
-              <p className="text-[var(--color-text-secondary)]">Start the conversation...</p>
-            </div>
-          ) : (
-            <div className="chat-messages__list">
-              {messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={{
-                    id: msg.id,
-                    content: msg.content,
-                    timestamp: msg.timestamp,
-                    isUser: msg.role === 'user',
-                    isSystem: msg.role === 'system',
-                    toolCalls: msg.toolCalls,
-                    metadata: msg.metadata,
-                    replyToId: msg.replyToId,
-                    thinking: msg.thinking,
-                  }}
-                  botIcon={activeBot?.icon}
-                  botColor={activeBot?.color}
-                  chatId={activeChatId || ''}
-                  onReply={() => setReplyTo(msg)}
-                />
-              ))}
-            </div>
+          {findOpen && (
+            <FindInChatBar
+              query={findQuery}
+              onQueryChange={setFindQuery}
+              current={findCurrent}
+              total={findTotal}
+              onPrev={handleFindPrev}
+              onNext={handleFindNext}
+              onClose={() => setFindOpen(false)}
+            />
+          )}
+
+          <div className="chat-messages__list" ref={listRef}>
+            {(() => {
+              const out: React.ReactNode[] = []
+              let lastDayKey: string | null = null
+              messages.forEach((msg, index) => {
+                const key = dayKeyOf(msg.timestamp)
+                if (key !== lastDayKey) {
+                  lastDayKey = key
+                  out.push(
+                    <p key={`sep-${key}-${out.length}`} className="v2-day-sep">
+                      {dayLabel(msg.timestamp)}
+                    </p>
+                  )
+                }
+                const singleReply = sideTaskReplyMetadata(msg.metadata)
+                const groupReply = singleReply ? null : sideTaskGroupReplyMetadata(msg.metadata)
+                if (singleReply && activeBotId) {
+                  // A settled side task: the thread reply persisted by the
+                  // backend (quotes this message, opens the child chat).
+                  out.push(
+                    <SideTaskReplyView
+                      key={msg.id}
+                      metadata={singleReply}
+                      content={msg.content}
+                      chatId={activeChatId || ''}
+                      replyToId={msg.replyToId ?? null}
+                      botId={activeBotId}
+                      canOperate={canOperate}
+                    />
+                  )
+                } else if (groupReply && activeBotId) {
+                  out.push(
+                    <SideTaskGroupReplyView
+                      key={msg.id}
+                      metadata={groupReply}
+                      content={msg.content}
+                      chatId={activeChatId || ''}
+                      replyToId={msg.replyToId ?? null}
+                      botId={activeBotId}
+                    />
+                  )
+                } else {
+                  out.push(
+                    <MessageBubbleV2
+                      key={msg.id}
+                      message={{
+                        id: msg.id,
+                        content: msg.content,
+                        timestamp: msg.timestamp,
+                        isUser: msg.role === 'user',
+                        isSystem: msg.role === 'system',
+                        toolCalls: msg.toolCalls,
+                        metadata: msg.metadata,
+                        replyToId: msg.replyToId,
+                        thinking: msg.thinking,
+                      }}
+                      botName={activeBot?.name || 'CachiBot'}
+                      botColor={activeBot?.color}
+                      chatId={activeChatId || ''}
+                      isStreaming={isLoading && runVisibleHere && index === messages.length - 1 && msg.role === 'assistant'}
+                      onReply={() => setReplyTo(msg)}
+                      onRegenerate={msg.role === 'assistant' ? () => regenerateFrom(index) : undefined}
+                      onEditSend={(text) => handleEditSend(msg.id, text)}
+                      onDoOnSide={canOperate ? () => handleDoOnSide(msg.content, msg.id) : undefined}
+                    />
+                  )
+                }
+                // Quiet one-line indicator while side tasks from this message
+                // wait or run (design 11a "Side-task replies").
+                const activeHere = activeSinglesBySource[msg.id]
+                if (activeHere && activeHere.length > 0) {
+                  out.push(<SideTaskIndicator key={`st-${msg.id}`} tasks={activeHere} />)
+                }
+              })
+              return out
+            })()}
+          </div>
+
+          {/* Inline approval cards for this chat (design 03 — never block) */}
+          {chatApprovals.map((approval) => (
+            <ApprovalCard key={approval.id} approval={approval} onAnswer={answerApproval} />
+          ))}
+
+          {/* Failed-turn card from the real WS error event */}
+          {showErrorCard && (
+            <ErrorCard
+              message={runError!.message}
+              code={runError!.code}
+              onTryAgain={handleTryAgain}
+              onChangeModel={handleChangeModel}
+            />
+          )}
+
+          {/* Stopped line — you pressed stop, not an error (design 03) */}
+          {!isLoading && !runError && stoppedUserMessageId && (
+            <StoppedLine onContinue={handleContinueStopped} />
           )}
 
           {/* Tool calls in progress */}
-          {toolCalls.length > 0 && (
+          {toolCalls.length > 0 && runVisibleHere && (
             <div className="mt-6 space-y-2">
               {toolCalls.map((call) => (
                 <ToolCallDisplay key={call.id} call={call} />
@@ -1214,14 +1889,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
           )}
 
           {/* Typing indicator (when loading but no thinking content) */}
-          {isLoading && !thinking && toolCalls.length === 0 && (
+          {isLoading && !thinking && toolCalls.length === 0 && runVisibleHere && (
             <div className="mt-6">
-              <TypingIndicator botColor={activeBot?.color} />
+              <TypingIndicator botColor={activeBot?.color} botName={activeBot?.name} />
             </div>
           )}
 
           {/* Thinking indicator */}
-          {thinking && showThinking && (
+          {thinking && showThinking && runVisibleHere && (
             <div className="mt-6">
               <ThinkingIndicator content={thinking} />
             </div>
@@ -1236,6 +1911,14 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Jump to latest (design 03) */}
+        {scrolledUp && (newCount > 0 || isLoading) && (
+          <button type="button" className="v2-jump-pill" onClick={jumpToLatest}>
+            <ArrowDown size={14} strokeWidth={1.8} />
+            {newCount > 0 ? `${newCount} new message${newCount === 1 ? '' : 's'}` : 'Jump to latest'}
+          </button>
+        )}
       </div>
 
       {/* Input island — docked at bottom */}
@@ -1292,76 +1975,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected: isConnectedProp
             />
           )}
 
-          <div className="chat-input-container chat-input-container--island">
-            {renderCommandMenu()}
-            {renderAgentMentionPopup()}
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                !canOperate
-                  ? 'View-only access'
-                  : creationFlow.step === 'name'
-                    ? 'Type a number (1-4), your own name, or "more"...'
-                    : `Message ${activeBot?.name || 'CachiBot'} or type / for commands...`
-              }
-              disabled={!isConnected || isLoading || creationFlow.isLoadingNames || !canOperate}
-              rows={1}
-              className="chat-textarea"
-            />
-
-            <div className="chat-input-btns">
-              <button
-                type="button"
-                className="chat-input-btn chat-input-btn--attach"
-                title="Attach file"
-                disabled={!canOperate}
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
-
-              {isLoading ? (
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="chat-input-btn chat-input-btn--stop"
-                  title="Stop"
-                >
-                  <Square className="h-4 w-4" />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim() || !isConnected || !canOperate}
-                  className="chat-input-btn chat-input-btn--send"
-                  title="Send message"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Island footer — model pill + status + hint */}
-          <div className="chat-island__footer">
-            <ModelPill
-              value={selectedModel}
-              onChange={setSelectedModel}
-              placeholder={getBotDefaultModel(activeBot!) || 'System Default'}
-            />
-            <span className="chat-island__status">
-              <span
-                className={cn(
-                  'chat-status-bar__dot',
-                  isConnected ? 'chat-status-bar__dot--connected' : 'chat-status-bar__dot--disconnected'
-                )}
-              />
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-            <span className="chat-island__hint">Press Enter to send, Shift+Enter for new line</span>
-          </div>
+          {renderComposer(composerPlaceholder)}
 
           {/* Creation flow indicator */}
           {isInCreationFlow && (
@@ -1516,7 +2130,7 @@ function ThinkingIndicator({ content }: { content: string }) {
 // TYPING INDICATOR (Clean loading state)
 // =============================================================================
 
-function TypingIndicator({ botColor }: { botColor?: string }) {
+function TypingIndicator({ botColor, botName }: { botColor?: string; botName?: string }) {
   return (
     <div className="chat-typing">
       <div
@@ -1527,7 +2141,7 @@ function TypingIndicator({ botColor }: { botColor?: string }) {
       </div>
       <div className="chat-typing__body">
         <div className="chat-typing__text">
-          <span>Generating response</span>
+          <span>{botName ? `${botName} is working` : 'Generating response'}</span>
           <span className="chat-typing__dots">
             <span className="animate-pulse" style={{ animationDelay: '0ms' }}>.</span>
             <span className="animate-pulse" style={{ animationDelay: '200ms' }}>.</span>

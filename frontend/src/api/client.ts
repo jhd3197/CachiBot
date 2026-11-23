@@ -709,6 +709,14 @@ export interface PlatformChat {
   updatedAt: string
 }
 
+/** A bot chat as listed by the backend (includes platform chats). */
+export type BotChatEntry = PlatformChat
+
+/** List all chats of a bot known to the backend (platform conversations). */
+export async function getBotChats(botId: string, includeArchived = false): Promise<BotChatEntry[]> {
+  return request(`/bots/${botId}/chats?include_archived=${includeArchived}`)
+}
+
 export async function deletePlatformChat(botId: string, chatId: string): Promise<void> {
   return request(`/bots/${botId}/chats/${chatId}`, { method: 'DELETE' })
 }
@@ -795,6 +803,7 @@ export interface UpdateScheduleRequest {
   description?: string
   functionId?: string
   functionParams?: Record<string, unknown>
+  scheduleType?: ScheduleType
   cronExpression?: string
   intervalSeconds?: number
   runAt?: string
@@ -964,6 +973,10 @@ export async function updateSchedule(
 
 export async function toggleSchedule(botId: string, scheduleId: string): Promise<Schedule> {
   return request(`/bots/${botId}/schedules/${scheduleId}/toggle`, { method: 'POST' })
+}
+
+export async function runSchedule(botId: string, scheduleId: string): Promise<Schedule> {
+  return request(`/bots/${botId}/schedules/${scheduleId}/run`, { method: 'POST' })
 }
 
 export async function deleteSchedule(botId: string, scheduleId: string): Promise<void> {

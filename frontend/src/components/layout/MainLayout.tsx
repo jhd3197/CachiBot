@@ -1,18 +1,22 @@
-import { useEffect } from 'react'
-import { useLocation, useParams, useNavigate } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
-import { BotRail } from './BotRail'
-import { BotSidebar } from './BotSidebar'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useParams, useNavigate, Navigate } from 'react-router-dom'
+import { Menu, X, LayoutGrid, Settings as SettingsIcon, Activity, History, MoreHorizontal } from 'lucide-react'
+import { BotListSidebar } from './BotListSidebar'
+import { ChatMoreMenu } from '../chat/ChatMoreMenu'
 import {
   ChatView,
   RoomsView,
   ToolsView,
   SettingsView,
+  BotSettingsView,
   DashboardView,
+  WorkspaceView,
+  RunsView,
   AppSettingsView,
   WorkView,
   VoiceView,
-  AutomationsView,
+  RoutinesView,
+  RoutineEditorView,
   ScriptEditorView,
   GlobalLogView,
   PluginsView,
@@ -23,6 +27,10 @@ import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
 import { UpdateDialog } from '../dialogs/UpdateDialog'
 import { UpdateBanner } from '../common/UpdateBanner'
+import { BotAvatar } from '../common/Avatar'
+import { ChatsSheet } from '../chat/ChatsSheet'
+import { FilesSheet } from '../chat/FilesSheet'
+import { GlobalSearchDialog } from '../common/GlobalSearchDialog'
 import { useUpdateStore } from '../../stores/update'
 import { useBotStore, useChatStore, useTaskStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
@@ -31,12 +39,18 @@ import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
+import { useApprovalsStore } from '../../stores/approvals'
+import { useWebSocket, setPendingApproval } from '../../hooks/useWebSocket'
+import { wsClient } from '../../api/websocket'
+import { getChat } from '../../api/side-tasks'
 import { cn } from '../../lib/utils'
 import type { AppView, BotView } from '../../types'
 
 // Map URL paths to app views
 const pathToAppView: Record<string, AppView> = {
   '/dashboard': 'dashboard',
+  '/dashboard/usage': 'dashboard-usage',
+  '/runs': 'runs',
   '/settings': 'settings',
   '/admin/logs': 'admin-logs',
 }
@@ -74,6 +88,18 @@ export function MainLayout() {
   const { refresh: refreshModels } = useModelsStore()
   const { providers, refresh: refreshProviders } = useProvidersStore()
   const { hasCompletedOnboarding } = useOnboardingStore()
+  // App-level agent connection: one WebSocket for the whole shell, so agent
+  // runs (and their approvals) stay alive while navigating to Workspace etc.
+  const { sendMessage, cancel, isConnected, runContext } = useWebSocket()
+  // Guards the async side-task-chat URL check below (see the sync effect).
+  const sideChatCheckRef = useRef(0)
+
+  // Answer approval requests from the global dialog (any view)
+  const handleApprove = (id: string, approved: boolean) => {
+    wsClient.sendApproval(id, approved)
+    setPendingApproval(null)
+    useApprovalsStore.getState().resolveApproval(id)
+  }
 
   // Derive appView from URL path
   const appView = getAppViewFromPath(location.pathname)
@@ -87,6 +113,7 @@ export function MainLayout() {
     rooms: 'rooms',
     work: 'work',
     automations: 'automations',
+    routines: 'routines',
     voice: 'voice',
     tools: 'tools',
     plugins: 'plugins',
@@ -98,12 +125,19 @@ export function MainLayout() {
   // Redirect legacy URLs
   useEffect(() => {
     if (viewSegment === 'schedules' && urlBotId) {
-      navigate(`/${urlBotId}/automations`, { replace: true })
+      const legacyScheduleId = pathParts[2]
+      navigate(
+        legacyScheduleId
+          ? `/${urlBotId}/routines/${legacyScheduleId}`
+          : `/${urlBotId}/routines`,
+        { replace: true }
+      )
     }
     if (viewSegment === 'tasks' && urlBotId) {
       useUIStore.getState().setWorkSection('quick-tasks')
       navigate(`/${urlBotId}/work`, { replace: true })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pathParts is derived from the URL above
   }, [viewSegment, urlBotId, navigate])
 
   // Sync URL to store state (runs only when URL-derived values change)
@@ -137,6 +171,19 @@ export function MainLayout() {
 
       if (chat && chat.botId === urlBotId) {
         setActiveChat(chat.id)
+      } else if (!chat && urlBotId) {
+        // Not a local chat: a side task's chat exists only on the server
+        // (chats.parent_chat_id set). Open it so the chat view renders the
+        // side-task branch; unknown ids are ignored. The generation guard
+        // discards stale answers when the URL changes before the fetch ends.
+        const check = ++sideChatCheckRef.current
+        void getChat(urlBotId, urlChatId)
+          .then((backendChat) => {
+            if (check === sideChatCheckRef.current && backendChat.parentChatId) {
+              setActiveChat(backendChat.id)
+            }
+          })
+          .catch(() => { /* not a backend chat — leave the active chat as-is */ })
       }
     }
 
@@ -223,12 +270,42 @@ export function MainLayout() {
     }
   }, [])
 
+  // Mobile drawer: Escape closes it, focus moves into the drawer when opened
+  const navRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    document.addEventListener('keydown', handler)
+    navRef.current?.focus()
+    return () => document.removeEventListener('keydown', handler)
+  }, [mobileMenuOpen, setMobileMenuOpen])
+
+  // Global search (design 12): Ctrl/Cmd+K anywhere opens the search dialog
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setShowGlobalSearch(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+  const searchBotId = urlBotId ?? activeBotId ?? bots[0]?.id ?? null
+
   const renderActiveView = () => {
     // App-level views take precedence (determined by URL)
     if (appView) {
       switch (appView) {
         case 'dashboard':
+          return <WorkspaceView activeRun={runContext} />
+        case 'dashboard-usage':
           return <DashboardView />
+        case 'runs':
+          return <RunsView />
         case 'settings':
           return <AppSettingsView />
         case 'admin-logs':
@@ -236,22 +313,39 @@ export function MainLayout() {
       }
     }
 
+    const renderChatView = () => (
+      <ChatView
+        onSendMessage={sendMessage}
+        onCancel={cancel}
+        isConnected={isConnected}
+        runChatId={runContext?.chatId ?? null}
+      />
+    )
+
     // Bot-specific views (from URL or store)
     const viewToRender = botView || activeView
     switch (viewToRender) {
       case 'chats':
-        return <ChatView />
+        return renderChatView()
       case 'rooms':
         return <RoomsView />
       case 'work':
         return <WorkView />
       case 'automations': {
-        // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView
+        // Sub-route: /:botId/automations/:id/edit -> ScriptEditorView (scripts
+        // are an advanced building block; the base page moved to /routines)
         const automationSubPath = pathParts[2]
         if (automationSubPath && pathParts[3] === 'edit') {
           return <ScriptEditorView />
         }
-        return <AutomationsView />
+        return <Navigate to={`/${urlBotId}/routines`} replace />
+      }
+      case 'routines': {
+        // /:botId/routines -> list; /new or /:routineId -> editor
+        if (pathParts[2]) {
+          return <RoutineEditorView />
+        }
+        return <RoutinesView />
       }
       case 'voice':
         return <VoiceView />
@@ -268,14 +362,29 @@ export function MainLayout() {
       case 'developer':
         return <SettingsView />
       case 'settings':
-        return <SettingsView />
+        return <BotSettingsView />
       default:
-        return <ChatView />
+        return renderChatView()
     }
   }
 
+  // Mobile top bar context: the bot when a bot route is active, otherwise
+  // the app view name. Replaces the old letter avatar (design uses BotAvatar).
+  const headerBot =
+    (urlBotId ? bots.find((b) => b.id === urlBotId) : undefined) ??
+    (appView ? undefined : bots.find((b) => b.id === activeBotId))
+  const mobileTitle =
+    appView === 'settings' ? 'Settings' : appView === 'admin-logs' ? 'Activity log' : appView === 'runs' ? 'Runs' : 'Workspace'
+
+  // Chat routes mount the chat header inline; the mobile top bar folds the
+  // bot title + "Earlier chats" into one row (design 02, <1024px).
+  const chatRouteActive = !appView && (!botView || botView === 'chats')
+  const [showMobileChats, setShowMobileChats] = useState(false)
+  const [showMobileMore, setShowMobileMore] = useState(false)
+  const [showMobileFiles, setShowMobileFiles] = useState(false)
+
   return (
-    <div className="app-shell">
+    <div className="app-shell ui-v2">
       <div className="app-shell__body">
       {/* Mobile overlay backdrop */}
       {mobileMenuOpen && (
@@ -285,27 +394,17 @@ export function MainLayout() {
         />
       )}
 
-      {/* Bot Rail - leftmost sidebar (hidden on mobile unless menu open) */}
+      {/* Bot-first sidebar (UI v2): single 300px nav, mobile slide-in drawer */}
       <div
+        ref={navRef}
+        tabIndex={-1}
         className={cn(
-          'app-shell__rail',
-          mobileMenuOpen && 'app-shell__rail--open'
+          'app-shell__nav',
+          mobileMenuOpen && 'app-shell__nav--open'
         )}
       >
-        <BotRail onNavigate={() => setMobileMenuOpen(false)} />
+        <BotListSidebar onNavigate={() => setMobileMenuOpen(false)} onOpenSearch={() => setShowGlobalSearch(true)} />
       </div>
-
-      {/* Bot Sidebar - secondary navigation (hide on app-level views, hidden on mobile unless menu open) */}
-      {!appView && (
-        <div
-          className={cn(
-            'app-shell__sidebar',
-            mobileMenuOpen && 'app-shell__sidebar--open'
-          )}
-        >
-          <BotSidebar onNavigate={() => setMobileMenuOpen(false)} />
-        </div>
-      )}
 
       {/* Main content area */}
       <main className="app-shell__main">
@@ -315,15 +414,63 @@ export function MainLayout() {
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="btn btn--ghost btn--icon btn--sm"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600">
-              <span className="text-sm font-bold text-white">C</span>
+          {headerBot ? (
+            <button
+              type="button"
+              className="app-shell__mobile-title"
+              onClick={() => navigate(`/${headerBot.id}/chats`)}
+            >
+              <BotAvatar color={headerBot.color} name={headerBot.name} size={26} />
+              <span className="app-shell__mobile-title-text">{headerBot.name}</span>
+            </button>
+          ) : (
+            <div className="app-shell__mobile-title">
+              {appView === 'settings' ? (
+                <SettingsIcon size={16} strokeWidth={1.8} />
+              ) : appView === 'admin-logs' ? (
+                <Activity size={16} strokeWidth={1.8} />
+              ) : (
+                <LayoutGrid size={16} strokeWidth={1.8} />
+              )}
+              <span className="app-shell__mobile-title-text">{mobileTitle}</span>
             </div>
-            <span className="font-semibold text-zinc-900 dark:text-[var(--color-text-primary)]">CachiBot</span>
-          </div>
+          )}
+          {chatRouteActive && headerBot && (
+            <div className="app-shell__mobile-actions">
+              <button
+                type="button"
+                className="v2-icon-btn"
+                aria-label="Earlier chats"
+                title="Earlier chats"
+                onClick={() => setShowMobileChats(true)}
+              >
+                <History size={18} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                className="v2-icon-btn"
+                aria-label="More"
+                title="More"
+                aria-haspopup="menu"
+                aria-expanded={showMobileMore}
+                onClick={(e) => { e.stopPropagation(); setShowMobileMore((o) => !o) }}
+              >
+                <MoreHorizontal size={18} strokeWidth={1.8} />
+              </button>
+              {showMobileMore && (
+                <ChatMoreMenu
+                  bot={headerBot}
+                  chat={chats.find((c) => c.id === activeChatId) ?? null}
+                  onClose={() => setShowMobileMore(false)}
+                  onOpenFiles={() => { setShowMobileMore(false); setShowMobileFiles(true) }}
+                />
+              )}
+            </div>
+          )}
         </div>
         <UpdateBanner />
         {renderActiveView()}
@@ -334,8 +481,30 @@ export function MainLayout() {
       {/* Dialogs */}
       <CreateBotDialog />
       <SettingsDialog />
-      <ApprovalDialog onApprove={() => {}} />
+      <ApprovalDialog
+        onApprove={handleApprove}
+        // The inline chat ApprovalCard answers approvals for the visible
+        // chat; the dialog remains the fallback for other/background chats.
+        suppressChatId={chatRouteActive ? activeChatId : null}
+      />
       <UpdateDialog />
+
+      {/* "Earlier chats" + Files from the mobile top bar (chat header is folded away) */}
+      {showMobileChats && headerBot && (
+        <ChatsSheet bot={headerBot} onClose={() => setShowMobileChats(false)} />
+      )}
+      {showMobileFiles && headerBot && (
+        <FilesSheet bot={headerBot} onClose={() => setShowMobileFiles(false)} />
+      )}
+
+      {/* Global search (sidebar search icon + Ctrl/Cmd K, design 12/13) */}
+      {showGlobalSearch && (
+        <GlobalSearchDialog
+          botId={searchBotId}
+          onNavigate={(path) => { setShowGlobalSearch(false); navigate(path) }}
+          onClose={() => setShowGlobalSearch(false)}
+        />
+      )}
     </div>
   )
 }
