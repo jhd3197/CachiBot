@@ -30,8 +30,8 @@ card (Phase C "not backed yet") and Files sheet "Open on computer".
   it: "the bot can't change its own computer").
 - Voice, rooms and side-task UI changes. Side tasks may later *use* the
   computer (11c's window labels), but that is a consumer of this backend.
-- Windows/macOS host support beyond "Docker Desktop if present" (open
-  question §6).
+- Windows/macOS without Docker Desktop, and a cloud computer backend (both
+  later options, see §5).
 
 ## 2. Approach
 
@@ -120,10 +120,10 @@ is global per server today, so a per-bot workspace is genuinely new work.**
 Latest published migration is `015_side_task_source_message.py`, so this is
 **migration 016**: a `bot_computers` table —
 
-- `bot_id` (PK, FK to bots), `state` (`off | starting | awake | asleep |
+- `bot_id` (PK, FK to bots), `state` (`unavailable | off | building | starting | awake | asleep |
   needs_you`), `driver` (`bot | user:<user_id> | NULL`), `activity` (one
   line, NULL when idle), `open_windows` (JSON: `[{app, title, focused}]`),
-  `needs_you_reason` (nullable), `volume` (name/host path), `container_id`
+  `needs_you_reason` (nullable), `build_progress` (nullable line/percent while the image builds), `last_watched_at`, `volume` (name/host path), `container_id`
   (nullable), `enabled` + `sleep_after_minutes` (bot settings), `asleep_at`,
   `last_active_at`, `updated_at`.
 - No history table: history is the existing execution logs (every computer
@@ -182,36 +182,59 @@ Latest published migration is `015_side_task_source_message.py`, so this is
   tool run write execution logs (Runs page + admin Activity log), reusing
   `ExecutionLogRepository` exactly as the job runner does.
 
-## 5. Phases (each a PR into dev, tests green without Docker)
+## 5. Decisions (Juan, Nov 23, 2026)
+
+| # | Question | Decision | What it changes |
+|---|---|---|---|
+| 1 | Docker required? | **Docker optional; a cloud computer is a later option.** | Without Docker the server reports `available: false` and every computer surface stays hidden. The `ComputerBackend` interface keeps room for a cloud backend; it is not in V1–V6. |
+| 2 | Workspace | **Each bot gets its own workspace.** | A per-bot workspace dir under the data dir backs the bot's `/workspace` volume; computer tools and file tools resolve against it via the per-run config pattern. Bots never see each other's files or the global workspace. |
+| 3 | Image delivery | **Build the image locally on first use**, no registry pull and no prebuilt download. | V1 ships the Dockerfile in the package and builds it through the Docker API on first wake. The build is cached (image tag carries a hash of the Dockerfile; rebuilt only when it changes). Build progress streams to the UI (`computer_update` with `state: building` and a progress line/percent), and a failed build is shown with its last log lines and a Retry. |
+| 4 | Windows/macOS | **Support Windows and macOS through Docker Desktop in the first version.** | Docker detection covers `DOCKER_HOST`, the Docker context, the Unix socket (`/var/run/docker.sock`, `~/.docker/run/docker.sock` on macOS) and the Windows named pipe (`npipe:////./pipe/docker_engine`). Volumes are Docker named volumes (not host bind mounts), which avoids Windows path translation and macOS file-sharing settings; the host-side workspace view goes through the container where needed. CI runs the detection logic on Linux, Windows and macOS runners with mocks. |
+| 5 | Idle sleep | **Watching keeps it awake.** | An open live view (preview or full window, any user) counts as activity, tracked by stream/preview heartbeats; sleep only after 10 minutes with no agent tool activity, no driver and no watcher. |
+| 6 | Mobile | **Full desktop on mobile**, including take over. | The stream viewer must work in the mobile app and mobile web: scaled view with pinch-zoom/pan, touch mapped to pointer events (tap = click, long-press = right click, two-finger drag = scroll) and an on-screen keyboard toggle for typing while driving. |
+| 7 | Dev tools | **No toolchains in the image; the bot installs what it needs into `/workspace`.** | The image stays lean (desktop stack, Chromium, terminal, basic shell tools). The terminal's environment points installs at the persistent volume (e.g. `PREFIX`/`PATH` under `/workspace/.local`, npm prefix and pip user base there) so what the bot installs survives sleep. |
+
+## 6. Phases (each a PR into dev, tests green without Docker)
 
 Tests follow the side-task pattern: a `ComputerBackend` interface with a fake
 in tests (SQLite in a tmp dir, no Docker, no real repo/HOME touches; Docker
 integration tests are marked and skip when Docker is absent). Python 3.10 is
 supported (e.g. catch `asyncio.TimeoutError`, not the builtin).
 
-- **V1 — Lifecycle + image (≈3–4 days).** `mini-vela` image (Xvfb, Openbox,
-  Chromium, terminal server, screenshot endpoint); Docker availability probe;
-  `ComputerService` (wake/sleep/stop, volume per bot, restart-safe states);
-  migration 016; `GET /computer`; `computer_update` WS. Fake backend + tests.
+- **V1 — Lifecycle + image (≈4–6 days).** Lean `mini-vela` Dockerfile
+  (Xvfb, Openbox, Chromium, terminal server, screenshot endpoint) shipped in
+  the package; **local build on first use** with cached, hash-tagged image and
+  build progress/failure in the state record; Docker availability probe for
+  Linux, macOS and Windows (socket, context, named pipe); `ComputerService`
+  (wake/sleep/stop, restart-safe states, per-bot named volume and per-bot
+  workspace dir); migration 016; `GET /computer` + control endpoints;
+  `computer_update` WS. Fake backend + tests; no image is built in CI.
 - **V2 — Live preview (≈2–3 days).** Screenshot pipeline → `preview.png`;
   activity line + open-windows feed (from window manager/CDP); stream ticket
-  + proxied noVNC for the full window; Docker-marked integration test.
+  + proxied noVNC for the full window; **viewer heartbeats keep the computer
+  awake**; Docker-marked integration test.
 - **V3 — Computer tools (≈4–5 days).** `computer` capability plugin: browser
   tools over CDP, terminal exec over the PTY, files via the bot volume;
   coding-agent tool relocated into the computer terminal (view 07); dev
-  servers reachable on the computer (view 06); execution-log + audit writes.
+  servers reachable on the computer (view 06); **install prefixes under
+  `/workspace` so bot-installed tools persist**; execution-log + audit writes.
 - **V4 — Take-over / needs-you (≈2–3 days).** Driver lock, input routing,
   hand back, needs-you state + Skip; chat card; yellow-ring broadcast.
-- **V5 — UI (≈3–4 days).** Views 04–09 + 11, Bot settings › Computer
-  section, Files sheet "Open on computer", all fed by the real API — hidden
-  when `available` is false.
-- **V6 — Hardening (≈2–3 days).** Network policy, resource caps, stream rate
+- **V5 — UI (≈4–6 days).** Views 04–09 + 11 (including the build-progress
+  state on first wake), Bot settings › Computer section, Files sheet "Open on
+  computer", all fed by the real API — hidden when `available` is false;
+  **full desktop on mobile with touch take-over** (pinch/pan, tap/long-press,
+  scroll, on-screen keyboard).
+- **V6 — Hardening (≈3–4 days).** Network policy, resource caps, stream rate
   limits, audit completeness, failure recovery (container dies mid-run),
-  docs.
+  **Docker Desktop checks on Windows/macOS** (named pipe, volumes, resource
+  limits), docs.
 
-**Total: ≈16–22 working days (~3.5–4.5 weeks), 6 PRs.**
+**Total: ≈19–27 working days (~4–5.5 weeks), 6 PRs.** The decisions add about
+3–5 days over the first estimate: the local build with progress (V1), Docker
+Desktop support (V1, V6) and the full mobile desktop with touch (V5).
 
-## 6. Open questions for Juan
+## 7. Open questions for Juan (answered — see §5)
 
 1. **Is Docker a hard requirement for the feature?** Proposal: optional —
   without Docker the server reports `unavailable` and all computer UI stays
