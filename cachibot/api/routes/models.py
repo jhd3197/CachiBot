@@ -164,7 +164,7 @@ async def get_models(user: User = Depends(get_current_user)) -> ModelsResponse:
     # --- Pricing helper (optional) ---
     get_model_rates = None
     try:
-        from prompture.model_rates import get_model_rates as _get_rates
+        from prompture.infra.model_rates import get_model_rates as _get_rates
 
         get_model_rates = _get_rates
     except ImportError:
