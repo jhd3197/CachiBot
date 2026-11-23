@@ -91,6 +91,36 @@
 }
 
 // -----------------------------------------------------------------------------
+// Pending — spinner overlays the label; the label stays in flow, hidden, so
+// the button width does not change when pending toggles.
+// -----------------------------------------------------------------------------
+.btn--pending {
+  position: relative;
+}
+
+.btn__spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // The ring follows the button text color, not the ambient v2 default
+  .spinner {
+    color: inherit;
+  }
+}
+
+.btn__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  // Mirror .btn's gap so multi-part labels keep their width
+  gap: @sp-2;
+  visibility: hidden;
+}
+
+// -----------------------------------------------------------------------------
 // Close button (dialog/panel top-right X)
 // -----------------------------------------------------------------------------
 .btn-close {

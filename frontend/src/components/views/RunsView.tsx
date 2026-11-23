@@ -41,6 +41,7 @@ import {
 } from '../../api/client'
 import { botAccessRank } from '../../hooks/useBotAccess'
 import { BotAvatar } from '../common/Avatar'
+import { Spinner } from '../common/Spinner'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { Todo } from '../../types'
 
@@ -617,7 +618,7 @@ export function RunsView() {
         {/* Day-grouped run list */}
         {!loaded ? (
           <div className="runs__empty">
-            <Loader2 className="runs__spinner" size={18} strokeWidth={1.8} />
+            <Spinner size="lg" />
           </div>
         ) : !anyReachable ? (
           <div className="runs__empty">
@@ -844,7 +845,7 @@ function RunRow({
       {isOpen && (
         <div className={cn('runs__detail', side && 'runs__detail--side')}>
           {lines === undefined ? (
-            <Loader2 className="runs__spinner" size={16} strokeWidth={1.8} />
+            <Spinner size="md" />
           ) : (
             <>
               {(lines ?? []).map((line) => (
