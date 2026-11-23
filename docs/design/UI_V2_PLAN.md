@@ -1136,13 +1136,55 @@ sites only — no mass migration.
 
 ### Deferred
 
-- L2: boot screens (`AppLoader`, desktop splash, `index.html`) restyle; they
-  already inherit the motion kill-switch.
+- L2 done below: boot screens (`AppLoader`, desktop splash, `index.html`)
+  restyled; they still inherit the motion kill-switch.
 - L3: chat `TypingIndicator` / `ThinkingIndicator` / `ToolCallDisplay`
   migration onto `StatusLine` (the pending spinner and `markColor` dot are
   already in place).
 - L5: legacy pages (Users, Plugins, Marketplace, auth) keep their own
   patterns for now.
+
+## L2: v2 boot screens
+
+The three boot surfaces now share the v2 palette (dark bg `#0b0c0e`, panel
+`#131417`, green `#4ade80`; light bg `#f4f4f5`, green `#16a34a`; Inter with
+system-ui fallback) and dropped the old `#00E676` / Segoe UI lockup, CRT
+scanlines and neon glow.
+
+- `desktop/splash.html` — compact branded card for the 420×340 frameless,
+  transparent Electron window ("the desktop app is starting the server and
+  may be installing an update"): an opaque v2 card at a 16px radius with the
+  wordmark, a quiet two-ring mark on a well disc, and version + progress
+  pinned at the bottom. Light/dark via `prefers-color-scheme`, overridable
+  with a `?theme=dark|light` query param. The `window.updateStatus` /
+  `showDeterminateProgress` / `showIndeterminateProgress` / `updateProgress`
+  API used by `main.js` is unchanged, so auto-update determinate progress
+  still works. The file carries its own `prefers-reduced-motion` rule that
+  turns the animation into a static mark and a still bar.
+- `AppLoader` (`components/common/AppLoader.tsx` +
+  `styles/components/app-loader.less`) — full-viewport in-app boot after
+  React mounts ("the UI is checking the server, session, and config"), a
+  deliberately different composition from the splash: mark, wordmark, status
+  and progress stacked and centered on the full canvas — no card chrome, no
+  version/progress bottom bar. Same palette, themed by the app's `.dark`
+  class; the init sequence and status strings are unchanged;
+  `styles/v2/motion.less` still kills the animations under reduced motion
+  (same class names).
+- Warm start: when the first health check succeeds immediately, the loader
+  swaps to the app as soon as init finishes — the old forced
+  `setTimeout(…, 400)` hold and its mandatory fade are gone. When the server
+  had to be waited on, a short fade-out still eases the swap.
+- `frontend/index.html` — inline first-paint styles plus a quiet
+  AppLoader-like stand-in inside `#root` (dark `#0b0c0e` / light `#f4f4f5`,
+  wordmark + ring), so there is no blank flash before React mounts; React
+  replaces the stand-in with AppLoader on mount and both use the same hex
+  values, so there is no color jump. The Google Fonts stylesheet no longer
+  blocks first paint (`media="print"` swap + noscript fallback).
+
+The Electron splash and the in-app AppLoader intentionally stay two
+different screens — the splash is a compact card about the desktop app
+starting the server / installing an update, AppLoader is the full-canvas
+boot checking server, session and config.
 
 ## Known limitations / decisions
 

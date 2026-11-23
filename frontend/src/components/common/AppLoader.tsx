@@ -16,17 +16,18 @@ async function waitForBackend(
   onStatus: (msg: string) => void,
   maxAttempts = 30,
   interval = 1000,
-): Promise<void> {
+): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
       await checkHealth()
-      return
+      return i > 0
     } catch {
       onStatus(i === 0 ? 'Waiting for server...' : `Waiting for server... (${i + 1}s)`)
       await new Promise((r) => setTimeout(r, interval))
     }
   }
   // Give up waiting — proceed anyway and let individual calls handle errors
+  return true
 }
 
 export function AppLoader({ children }: AppLoaderProps) {
@@ -34,6 +35,7 @@ export function AppLoader({ children }: AppLoaderProps) {
   const [visible, setVisible] = useState(true)
   const [status, setStatus] = useState('Initializing...')
   const ran = useRef(false)
+  const waitedRef = useRef(false)
 
   useEffect(() => {
     if (ran.current) return
@@ -43,7 +45,8 @@ export function AppLoader({ children }: AppLoaderProps) {
       const auth = useAuthStore.getState()
 
       // Phase 0: Wait for backend to be ready
-      await waitForBackend(setStatus)
+      const waited = await waitForBackend(setStatus)
+      if (waited) waitedRef.current = true
 
       // Phase 1: Check setup status
       setStatus('Checking system status...')
@@ -140,8 +143,13 @@ export function AppLoader({ children }: AppLoaderProps) {
 
     const finish = () => {
       setReady(true)
-      // Fade out after a brief moment
-      setTimeout(() => setVisible(false), 400)
+      if (waitedRef.current) {
+        // The server had to be waited on — ease the swap with a short fade
+        setTimeout(() => setVisible(false), 400)
+      } else {
+        // Warm start: show the app as soon as init finishes
+        setVisible(false)
+      }
     }
 
     run()
@@ -153,24 +161,22 @@ export function AppLoader({ children }: AppLoaderProps) {
     <>
       <div className={`app-loader ${ready ? 'app-loader--fade' : ''}`}>
         <div className="app-loader__content">
+          <div className="app-loader__rings">
+            <div className="app-loader__ring app-loader__ring--1" />
+            <div className="app-loader__ring app-loader__ring--2" />
+            <div className="app-loader__core-dot" />
+          </div>
+
           <div className="app-loader__logo">
             Cachi<span className="app-loader__accent">Bot</span>
           </div>
 
-          <div className="app-loader__rings">
-            <div className="app-loader__ring app-loader__ring--1" />
-            <div className="app-loader__ring app-loader__ring--2" />
-            <div className="app-loader__ring app-loader__ring--3" />
-            <div className="app-loader__core-dot" />
-          </div>
-        </div>
-
-        <div className="app-loader__bottom">
-          <div className="app-loader__track">
-            <div className="app-loader__bar" />
-          </div>
           <div className="app-loader__status-container">
             <p className="app-loader__status">{status}</p>
+          </div>
+
+          <div className="app-loader__track">
+            <div className="app-loader__bar" />
           </div>
         </div>
       </div>

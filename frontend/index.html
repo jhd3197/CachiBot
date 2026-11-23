@@ -5,9 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CachiBot</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
       // Apply theme immediately to prevent flash of wrong theme
       (function() {
@@ -20,9 +17,78 @@
         } catch (e) {}
       })();
     </script>
+    <style>
+      /* First paint: v2 boot background + a quiet AppLoader stand-in so there is
+         no blank flash before React mounts. React replaces #root's contents on
+         mount, and AppLoader uses the same colors — no visible color jump. */
+      .boot-first-paint {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: #f4f4f5;
+        color: #1a1a1a;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+      }
+
+      html.dark .boot-first-paint {
+        background: #0b0c0e;
+        color: #ececec;
+      }
+
+      .boot-first-paint__mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid rgba(22, 163, 74, 0.18);
+        border-top-color: #16a34a;
+        animation: boot-first-paint-spin 1.6s linear infinite;
+      }
+
+      html.dark .boot-first-paint__mark {
+        border-color: rgba(74, 222, 128, 0.18);
+        border-top-color: #4ade80;
+      }
+
+      .boot-first-paint__word {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .boot-first-paint__word span {
+        color: #16a34a;
+      }
+
+      html.dark .boot-first-paint__word span {
+        color: #4ade80;
+      }
+
+      @keyframes boot-first-paint-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .boot-first-paint__mark {
+          animation: none;
+        }
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
   </head>
   <body class="antialiased">
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-first-paint" aria-hidden="true">
+        <div class="boot-first-paint__mark"></div>
+        <div class="boot-first-paint__word">Cachi<span>Bot</span></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
