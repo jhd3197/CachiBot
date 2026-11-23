@@ -29,6 +29,8 @@ wheels/
 *.manifest
 *.spec
 !cachibot-server.spec
+!cachibot-server-mini.spec
+!cachibot-cli.spec
 
 # Installer logs
 pip-log.txt
