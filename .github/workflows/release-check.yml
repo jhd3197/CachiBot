@@ -279,8 +279,16 @@ jobs:
       - name: Make backend executable
         run: chmod +x build/backend/cachibot-server
 
-      - name: Install RPM tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm
+      - name: Install RPM and system FPM
+        run: |
+          sudo apt-get update
+          # electron-builder 25 bundles fpm 1.9.3, whose spec output is
+          # incompatible with rpmbuild >= 4.20 (hundreds of "File not found:
+          # .../BUILDROOT/..." errors). Install a current system fpm via gem
+          # and select it with USE_SYSTEM_FPM below.
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+          fpm --version
 
       - name: Enable electron-builder debug logging
         run: echo "DEBUG=electron-builder" >> "$GITHUB_ENV"
@@ -288,3 +296,5 @@ jobs:
       - name: Build Electron app
         working-directory: desktop
         run: npx electron-builder --linux --publish never
+        env:
+          USE_SYSTEM_FPM: 'true'
