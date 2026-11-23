@@ -595,6 +595,14 @@ class TestParentChatNote:
         )
         await wait_for(lambda: reply_has_status(bot_id, parent.id, "settled"))
 
+        # The group reply id is stamped on the record right after the reply
+        # message is published — wait for the stamp before reading it.
+        async def reply_stamped() -> bool:
+            latest = await SideTaskRepository().get(helpers[0].id)
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_stamped)
+
         replies = await parent_replies(bot_id, parent.id)
         assert len(replies) == 1
         reply = replies[0]
@@ -679,6 +687,14 @@ class TestParentChatNote:
         assert len(replies) == 1
         assert replies[0].metadata["status"] == "needs_you"
         assert replies[0].metadata["needsYou"] == 1
+
+        # The reply id lands on the record right after the reply message;
+        # wait for it before comparing against the record below.
+        async def reply_stamped() -> bool:
+            latest = await SideTaskRepository().get(st.id)
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_stamped)
 
         # Resolve in the worktree and retry: same message updated, still one
         latest = await SideTaskRepository().get(st.id)
