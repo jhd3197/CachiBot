@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   CircleDot,
   Clock,
+  GitBranch,
   GitCommit,
   Loader2,
   Pencil,
@@ -30,6 +31,7 @@ import {
   type LogLine,
 } from '../../api/execution-log'
 import { getBotTimeline, runScript, type TimelineEvent } from '../../api/automations'
+import { getChat } from '../../api/side-tasks'
 import {
   dismissTodo,
   getSchedule,
@@ -65,6 +67,11 @@ import type { Todo } from '../../types'
  * - Step/output lines: GET /api/bots/{id}/executions/{execId}/lines, falling
  *   back to the log's error/output (see UI_V2_PLAN.md — lines aren't written
  *   by the backend yet).
+ * - Side tasks: runs with executionType "side_task" (written by the side
+ *   task service, trigger "side_task", chatId = the parent chat). They are
+ *   grouped under their parent chat — helpers under their group — with a
+ *   link into the side chat (sideTaskChatId). The parent chat's title is
+ *   fetched once per chat.
  * - Open in chat: only shown when the execution links a chatId.
  * - Run again: only for script (POST /scripts/{id}/run), function
  *   (POST /functions/{id}/run) and schedule (its function with the schedule's
@@ -116,6 +123,8 @@ export function RunsView() {
   const [linesById, setLinesById] = useState<Record<string, LogLine[] | null>>({})
   const [clearing, setClearing] = useState(false)
   const [rerunningId, setRerunningId] = useState<string | null>(null)
+  // Side-task sections render under their parent chat's real title
+  const [parentTitles, setParentTitles] = useState<Record<string, string>>({})
 
   const botById = useMemo(() => new Map(bots.map((b) => [b.id, b])), [bots])
   const isAdmin = user?.role === 'admin'
@@ -163,6 +172,28 @@ export function RunsView() {
       for (const event of events ?? []) eventById.set(event.id, event)
     }
     setRuns([...byId.values()])
+    // Parent-chat titles for side-task grouping (one fetch per chat, best effort)
+    const sideTaskParents = new Map<string, string>()
+    for (const run of byId.values()) {
+      if (run.executionType === 'side_task' && run.chatId) {
+        sideTaskParents.set(run.chatId, run.botId)
+      }
+    }
+    if (sideTaskParents.size > 0) {
+      const titles: Record<string, string> = {}
+      await Promise.all(
+        [...sideTaskParents.entries()].map(async ([chatId, ownerBotId]) => {
+          try {
+            titles[chatId] = (await getChat(ownerBotId, chatId)).title
+          } catch {
+            // title stays unknown — the section header falls back gracefully
+          }
+        })
+      )
+      setParentTitles(titles)
+    } else {
+      setParentTitles({})
+    }
     setTodos(
       [...todoById.values()].sort(
         (a, b) => parseApiDate(b.createdAt).getTime() - parseApiDate(a.createdAt).getTime()
@@ -270,21 +301,82 @@ export function RunsView() {
     return [...map.values()].sort((a, b) => b.dayStart - a.dayStart)
   }, [filteredEvents])
 
-  // Day groups, most recent day first. Key and label come from the same
-  // local-date computation, so one group per day with a consistent label.
+  // Day groups, most recent day first. Regular runs stay in the flat list;
+  // side-task runs are grouped under their parent chat (helpers under their
+  // helper group) so a main task's background work reads as one block.
+  interface SideTaskCluster {
+    groupId: string
+    title: string | null
+    runs: ExecutionLog[]
+  }
+  interface SideTaskSection {
+    parentChatId: string
+    parentTitle: string | null
+    singles: ExecutionLog[]
+    clusters: SideTaskCluster[]
+  }
+  interface DayGroup {
+    label: string
+    dayStart: number
+    runs: ExecutionLog[]
+    sideSections: SideTaskSection[]
+  }
   const groups = useMemo(() => {
-    const map = new Map<string, { label: string; dayStart: number; runs: ExecutionLog[] }>()
+    const map = new Map<string, DayGroup>()
     for (const run of filtered) {
-      const group = dayGroup(parseApiDate(run.startedAt))
-      let entry = map.get(group.key)
+      const groupInfo = dayGroup(parseApiDate(run.startedAt))
+      let entry = map.get(groupInfo.key)
       if (!entry) {
-        entry = { label: group.label, dayStart: group.dayStart, runs: [] }
-        map.set(group.key, entry)
+        entry = { label: groupInfo.label, dayStart: groupInfo.dayStart, runs: [], sideSections: [] }
+        map.set(groupInfo.key, entry)
       }
-      entry.runs.push(run)
+      if (run.executionType === 'side_task' && run.chatId) {
+        let section = entry.sideSections.find((s) => s.parentChatId === run.chatId)
+        if (!section) {
+          section = {
+            parentChatId: run.chatId,
+            parentTitle: parentTitles[run.chatId] ?? null,
+            singles: [],
+            clusters: [],
+          }
+          entry.sideSections.push(section)
+        }
+        if (run.sideTaskGroupId) {
+          let cluster = section.clusters.find((c) => c.groupId === run.sideTaskGroupId)
+          if (!cluster) {
+            cluster = {
+              groupId: run.sideTaskGroupId,
+              title: run.sideTaskGroupTitle ?? null,
+              runs: [],
+            }
+            section.clusters.push(cluster)
+          }
+          cluster.runs.push(run)
+        } else {
+          section.singles.push(run)
+        }
+      } else {
+        entry.runs.push(run)
+      }
+    }
+    const started = (r: ExecutionLog) => parseApiDate(r.startedAt).getTime()
+    for (const entry of map.values()) {
+      entry.runs.sort((a, b) => started(b) - started(a))
+      for (const section of entry.sideSections) {
+        section.singles.sort((a, b) => started(b) - started(a))
+        for (const cluster of section.clusters) {
+          cluster.runs.sort((a, b) => started(b) - started(a))
+        }
+      }
+      // Sections most recent first, by their latest run
+      entry.sideSections.sort((a, b) => {
+        const latest = (s: SideTaskSection) =>
+          Math.max(...s.singles.map(started), ...s.clusters.flatMap((c) => c.runs.map(started)))
+        return latest(b) - latest(a)
+      })
     }
     return [...map.values()].sort((a, b) => b.dayStart - a.dayStart)
-  }, [filtered])
+  }, [filtered, parentTitles])
 
   // Stuck runs for the banner (all bots, before filters)
   const stuckRuns = useMemo(
@@ -377,7 +469,9 @@ export function RunsView() {
   }
 
   const openInChat = (run: ExecutionLog) => {
-    if (run.chatId) navigate(`/${run.botId}/chats/${run.chatId}`)
+    // Side-task runs open their own chat; everything else opens its chat
+    const target = run.executionType === 'side_task' ? run.sideTaskChatId : run.chatId
+    if (target) navigate(`/${run.botId}/chats/${target}`)
   }
 
   const exportCsv = () => {
@@ -547,99 +641,69 @@ export function RunsView() {
             {groups.map((group) => (
               <div key={group.dayStart}>
                 <h2 className="runs__day">{group.label}</h2>
-                {group.runs.map((run) => {
-                  const bot = botById.get(run.botId)
-                  const status = statusOf(run)
-                  const duration = formatDuration(run.durationMs)
-                  const isOpen = openId === run.id
-                  return (
-                    <div key={run.id}>
-                      <button
-                        type="button"
-                        className={cn('runs__row', isOpen && 'runs__row--open')}
-                        aria-expanded={isOpen}
-                        onClick={() => toggleOpen(run)}
-                      >
-                        <BotAvatar
-                          color={bot?.color}
-                          name={bot?.name ?? 'Unknown bot'}
-                          size={32}
-                        />
-                        <span className="runs__row-main">
-                          <span className="runs__row-name">{run.sourceName}</span>
-                          <span className="runs__row-meta">
-                            {bot?.name ?? 'Unknown bot'} · {triggerLabel(run)} ·{' '}
-                            {formatRunTime(parseApiDate(run.startedAt))}
-                            {duration && ` · ${duration}`}
-                          </span>
-                        </span>
-                        <span className={cn('runs__status', STATUS_META[status].className)}>
-                          <StatusIcon status={status} />
-                          {STATUS_META[status].label}
-                        </span>
-                      </button>
-                      {isOpen && (
-                        <div className="runs__detail">
-                          {linesById[run.id] === undefined ? (
-                            <Loader2 className="runs__spinner" size={16} strokeWidth={1.8} />
-                          ) : (
-                            <>
-                              {(linesById[run.id] ?? []).map((line) => (
-                                <p
-                                  key={line.id}
-                                  className={cn(
-                                    'runs__line',
-                                    (line.level === 'error' || line.level === 'stderr') &&
-                                      'runs__line--error'
-                                  )}
-                                >
-                                  {line.level === 'error' || line.level === 'stderr' ? (
-                                    <X size={14} strokeWidth={1.8} aria-hidden="true" />
-                                  ) : (
-                                    <Check size={14} strokeWidth={1.8} aria-hidden="true" />
-                                  )}
-                                  {line.content}
-                                </p>
-                              ))}
-                              {(linesById[run.id] ?? []).length === 0 &&
-                                (run.error ? (
-                                  <p className="runs__line runs__line--error">
-                                    <X size={14} strokeWidth={1.8} aria-hidden="true" />
-                                    {run.error}
-                                  </p>
-                                ) : run.output ? (
-                                  <pre className="runs__output">{run.output}</pre>
-                                ) : null)}
-                              {(run.chatId || rerunTarget(run)) && (
-                                <div className="runs__actions">
-                                  {run.chatId && (
-                                    <button
-                                      type="button"
-                                      className="v2-btn v2-btn--primary"
-                                      onClick={() => openInChat(run)}
-                                    >
-                                      Open in chat
-                                    </button>
-                                  )}
-                                  {rerunTarget(run) && (
-                                    <button
-                                      type="button"
-                                      className="v2-btn v2-btn--secondary"
-                                      disabled={rerunningId === run.id}
-                                      onClick={() => void rerun(run)}
-                                    >
-                                      {rerunningId === run.id ? 'Starting…' : 'Run again'}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                {group.runs.map((run) => (
+                  <RunRow
+                    key={run.id}
+                    run={run}
+                    bot={botById.get(run.botId)}
+                    status={statusOf(run)}
+                    isOpen={openId === run.id}
+                    lines={linesById[run.id]}
+                    onToggle={() => toggleOpen(run)}
+                    onOpenChat={() => openInChat(run)}
+                    canRerun={rerunTarget(run)}
+                    rerunning={rerunningId === run.id}
+                    onRerun={() => void rerun(run)}
+                  />
+                ))}
+                {group.sideSections.map((section) => (
+                  <div key={section.parentChatId} className="runs__side-section">
+                    <h3 className="runs__side-heading">
+                      <GitBranch size={13} strokeWidth={1.8} aria-hidden="true" />
+                      Side tasks of {section.parentTitle ?? 'the main chat'}
+                    </h3>
+                    {section.singles.map((run) => (
+                      <RunRow
+                        key={run.id}
+                        run={run}
+                        bot={botById.get(run.botId)}
+                        status={statusOf(run)}
+                        isOpen={openId === run.id}
+                        lines={linesById[run.id]}
+                        onToggle={() => toggleOpen(run)}
+                        onOpenChat={() => openInChat(run)}
+                        canRerun={rerunTarget(run)}
+                        rerunning={rerunningId === run.id}
+                        onRerun={() => void rerun(run)}
+                        side
+                      />
+                    ))}
+                    {section.clusters.map((cluster) => (
+                      <div key={cluster.groupId} className="runs__side-cluster">
+                        <h4 className="runs__side-subheading">
+                          {cluster.title ?? 'Helpers'} · {cluster.runs.length}{' '}
+                          {cluster.runs.length === 1 ? 'helper' : 'helpers'}
+                        </h4>
+                        {cluster.runs.map((run) => (
+                          <RunRow
+                            key={run.id}
+                            run={run}
+                            bot={botById.get(run.botId)}
+                            status={statusOf(run)}
+                            isOpen={openId === run.id}
+                            lines={linesById[run.id]}
+                            onToggle={() => toggleOpen(run)}
+                            onOpenChat={() => openInChat(run)}
+                            canRerun={rerunTarget(run)}
+                            rerunning={rerunningId === run.id}
+                            onRerun={() => void rerun(run)}
+                            side
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             ))}
           </section>
@@ -724,6 +788,117 @@ function EventIcon({ eventType }: { eventType: string }) {
   }
 }
 
+interface RunRowProps {
+  run: ExecutionLog
+  bot: { name?: string; color?: string } | undefined
+  status: RunStatus
+  isOpen: boolean
+  lines: LogLine[] | null | undefined
+  onToggle: () => void
+  onOpenChat: () => void
+  canRerun: boolean
+  rerunning: boolean
+  onRerun: () => void
+  /** Side-task rows render indented under their parent-chat section. */
+  side?: boolean
+}
+
+function RunRow({
+  run,
+  bot,
+  status,
+  isOpen,
+  lines,
+  onToggle,
+  onOpenChat,
+  canRerun,
+  rerunning,
+  onRerun,
+  side,
+}: RunRowProps) {
+  const duration = formatDuration(run.durationMs)
+  const openLabel = run.executionType === 'side_task' ? 'Open side chat' : 'Open in chat'
+  const openTarget = run.executionType === 'side_task' ? run.sideTaskChatId : run.chatId
+  return (
+    <div>
+      <button
+        type="button"
+        className={cn('runs__row', isOpen && 'runs__row--open', side && 'runs__row--side')}
+        aria-expanded={isOpen}
+        onClick={onToggle}
+      >
+        <BotAvatar color={bot?.color} name={bot?.name ?? 'Unknown bot'} size={32} />
+        <span className="runs__row-main">
+          <span className="runs__row-name">{run.sourceName}</span>
+          <span className="runs__row-meta">
+            {bot?.name ?? 'Unknown bot'} · {triggerLabel(run)} ·{' '}
+            {formatRunTime(parseApiDate(run.startedAt))}
+            {duration && ` · ${duration}`}
+          </span>
+        </span>
+        <span className={cn('runs__status', STATUS_META[status].className)}>
+          <StatusIcon status={status} />
+          {STATUS_META[status].label}
+        </span>
+      </button>
+      {isOpen && (
+        <div className={cn('runs__detail', side && 'runs__detail--side')}>
+          {lines === undefined ? (
+            <Loader2 className="runs__spinner" size={16} strokeWidth={1.8} />
+          ) : (
+            <>
+              {(lines ?? []).map((line) => (
+                <p
+                  key={line.id}
+                  className={cn(
+                    'runs__line',
+                    (line.level === 'error' || line.level === 'stderr') && 'runs__line--error'
+                  )}
+                >
+                  {line.level === 'error' || line.level === 'stderr' ? (
+                    <X size={14} strokeWidth={1.8} aria-hidden="true" />
+                  ) : (
+                    <Check size={14} strokeWidth={1.8} aria-hidden="true" />
+                  )}
+                  {line.content}
+                </p>
+              ))}
+              {(lines ?? []).length === 0 &&
+                (run.error ? (
+                  <p className="runs__line runs__line--error">
+                    <X size={14} strokeWidth={1.8} aria-hidden="true" />
+                    {run.error}
+                  </p>
+                ) : run.output ? (
+                  <pre className="runs__output">{run.output}</pre>
+                ) : null)}
+              {(openTarget || canRerun) && (
+                <div className="runs__actions">
+                  {openTarget && (
+                    <button type="button" className="v2-btn v2-btn--primary" onClick={onOpenChat}>
+                      {openLabel}
+                    </button>
+                  )}
+                  {canRerun && (
+                    <button
+                      type="button"
+                      className="v2-btn v2-btn--secondary"
+                      disabled={rerunning}
+                      onClick={onRerun}
+                    >
+                      {rerunning ? 'Starting…' : 'Run again'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function StatusIcon({ status }: { status: RunStatus }) {
   switch (status) {
     case 'running':
@@ -749,6 +924,8 @@ function triggerLabel(run: ExecutionLog): string {
       return 'script'
     case 'function':
       return 'function'
+    case 'side_task':
+      return 'side task'
     case 'work':
     case 'job':
       return 'work'

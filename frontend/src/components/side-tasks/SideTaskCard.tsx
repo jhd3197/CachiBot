@@ -11,13 +11,15 @@ import { toast } from 'sonner'
 import {
   Check,
   Clock,
+  FileDiff,
   GitBranch,
   Hand,
   Loader2,
   Square,
   XCircle,
 } from 'lucide-react'
-import { useSideTasksStore } from '../../stores/side-tasks'
+import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
+import { SideTaskDiffDialog } from './SideTaskDiffDialog'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { SideTask, SideTaskStatus } from '../../types'
 
@@ -138,6 +140,7 @@ export function SideTaskCard({ task, canOperate, hideOpen }: SideTaskCardProps) 
   const retryMerge = useSideTasksStore((s) => s.retryMerge)
   const discard = useSideTasksStore((s) => s.discard)
   const [busy, setBusy] = useState(false)
+  const [diffOpen, setDiffOpen] = useState(false)
   const now = useNow()
 
   const line = sideTaskStatusLine(task, now)
@@ -188,9 +191,19 @@ export function SideTaskCard({ task, canOperate, hideOpen }: SideTaskCardProps) 
           <span>{line.text}</span>
         </span>
         {line.detail && <pre className="side-task-card__detail">{line.detail}</pre>}
-        {canOperate && (isMergeConflict || canDiscard) && (
+        {((hideOpen && sideTaskMayHaveDiff(task)) ||
+          (canOperate && (isMergeConflict || canDiscard))) && (
+          // One actions row: "View changes" (also the mobile home for the
+          // diff, since the side-chat header is hidden there) next to
+          // Retry merge / Discard.
           <span className="side-task-card__actions" onClick={(e) => e.stopPropagation()}>
-            {isMergeConflict && (
+            {hideOpen && sideTaskMayHaveDiff(task) && (
+              <button type="button" className="v2-mini-btn" onClick={() => setDiffOpen(true)}>
+                <FileDiff size={13} strokeWidth={1.8} />
+                View changes
+              </button>
+            )}
+            {canOperate && isMergeConflict && (
               <button
                 type="button"
                 className="v2-mini-btn v2-mini-btn--primary"
@@ -200,7 +213,7 @@ export function SideTaskCard({ task, canOperate, hideOpen }: SideTaskCardProps) 
                 Retry merge
               </button>
             )}
-            {canDiscard && (
+            {canOperate && canDiscard && (
               <button
                 type="button"
                 className="v2-mini-btn"
@@ -214,6 +227,14 @@ export function SideTaskCard({ task, canOperate, hideOpen }: SideTaskCardProps) 
         )}
       </span>
       {!hideOpen && <span className="side-task-card__open">Open</span>}
+      {diffOpen && (
+        <SideTaskDiffDialog
+          botId={task.botId}
+          sideTaskId={task.id}
+          title={task.title}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
     </div>
   )
 }

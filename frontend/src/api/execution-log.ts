@@ -95,6 +95,11 @@ export interface ExecutionLog {
   llmCalls: number
   workId: string | null
   workJobId: string | null
+  /** Side-task runs (executionType "side_task"): grouping + deep links. */
+  sideTaskId: string | null
+  sideTaskChatId: string | null
+  sideTaskGroupId: string | null
+  sideTaskGroupTitle: string | null
 }
 
 export interface LogLine {

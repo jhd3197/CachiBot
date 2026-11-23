@@ -329,6 +329,10 @@ class ExecutionLogRepository(BaseRepository[ExecutionLogORM, ExecutionLogModel])
             started_at = result.scalar_one_or_none()
             duration_ms = None
             if started_at:
+                # SQLite reads back naive datetimes; the app writes tz-aware
+                # UTC everywhere, so treat a naive value as UTC.
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
                 duration_ms = int((now - started_at).total_seconds() * 1000)
 
             await session.execute(

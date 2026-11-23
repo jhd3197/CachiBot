@@ -13,6 +13,7 @@ import type {
   BackendChat,
   BackendMessage,
   SideTask,
+  SideTaskDiff,
   SideTaskGroupSummary,
 } from '../types'
 
@@ -97,6 +98,27 @@ export async function stopSideTask(
   sideTaskId: string
 ): Promise<{ id: string; status: string }> {
   return request(`/bots/${botId}/side-tasks/${sideTaskId}/stop`, { method: 'POST' })
+}
+
+/**
+ * Reply inside a side task's own chat: the message is persisted there and
+ * the side task continues its turn in its worktree (operator+; 409 while it
+ * works or waits on a merge conflict).
+ */
+export async function replyToSideTask(
+  botId: string,
+  sideTaskId: string,
+  content: string
+): Promise<SideTask> {
+  return request<SideTask>(`/bots/${botId}/side-tasks/${sideTaskId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+}
+
+/** The unified diff + per-file stats behind "View changes" (read-only). */
+export async function getSideTaskDiff(botId: string, sideTaskId: string): Promise<SideTaskDiff> {
+  return request<SideTaskDiff>(`/bots/${botId}/side-tasks/${sideTaskId}/diff`)
 }
 
 export async function retryMergeSideTask(botId: string, sideTaskId: string): Promise<SideTask> {

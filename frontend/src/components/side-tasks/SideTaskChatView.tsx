@@ -1,24 +1,26 @@
 /**
  * Side-task chat (design 11b): the child chat opened from a side-task card.
- * Header "Bot / task" with Stop (operator+, only while it can be stopped),
- * the sub-line ("Side task of <parent> · its files on branch side/… · reports
- * back when done") and the chat history rendered with the normal v2 message
- * rendering, loaded from the backend chat.
+ * Header "Bot / task" with Stop and "View changes" (operator+, only while a
+ * diff can exist), the sub-line ("Side task of <parent> · its files on
+ * branch side/… · reports back when done") and the chat history rendered
+ * with the normal v2 message rendering, loaded from the backend chat.
  *
- * There is deliberately NO composer: the backend has no path to resume a
- * needs-you side task from a user reply (a normal WS message would run in
- * the shared workspace, not the side task's worktree), so nothing is faked.
+ * The composer (E6) is real: an operator's message is persisted into this
+ * chat and continues the side task's turn in its own worktree (the server
+ * enforces the same rules the UI shows: nothing while it works or waits on
+ * a merge conflict). Viewers get no composer at all.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GitBranch, Loader2 } from 'lucide-react'
+import { FileDiff, GitBranch, Loader2, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { getChat, getChatMessages } from '../../api/side-tasks'
-import { useSideTasksStore } from '../../stores/side-tasks'
+import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
 import { BotAvatar } from '../common/Avatar'
 import { MessageBubbleV2 } from '../chat/MessageBubble'
 import { SideTaskCard } from './SideTaskCard'
+import { SideTaskDiffDialog } from './SideTaskDiffDialog'
 import { parseApiDate } from '../../lib/utils'
 import type { BackendChat, BackendMessage, Bot, SideTask } from '../../types'
 
@@ -46,16 +48,20 @@ function dayLabel(timestamp: string): string {
 interface SideTaskChatViewProps {
   task: SideTask
   bot: Bot
-  /** Operator+ sees Stop / Retry merge / Discard (the APIs require it) */
+  /** Operator+ sees Stop / Retry merge / Discard and the composer */
   canOperate: boolean
 }
 
 export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProps) {
   const stop = useSideTasksStore((s) => s.stop)
+  const reply = useSideTasksStore((s) => s.reply)
   const [messages, setMessages] = useState<BackendMessage[] | null>(null)
   const [messagesFailed, setMessagesFailed] = useState(false)
   const [parent, setParent] = useState<BackendChat | null>(null)
   const [stopping, setStopping] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [diffOpen, setDiffOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const messagesRef = useRef<BackendMessage[] | null>(null)
   messagesRef.current = messages
@@ -64,9 +70,15 @@ export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProp
   useEffect(() => {
     let cancelled = false
     getChat(task.botId, task.parentChatId)
-      .then((chat) => { if (!cancelled) setParent(chat) })
-      .catch(() => { if (!cancelled) setParent(null) })
-    return () => { cancelled = true }
+      .then((chat) => {
+        if (!cancelled) setParent(chat)
+      })
+      .catch(() => {
+        if (!cancelled) setParent(null)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [task.botId, task.parentChatId])
 
   // Load history; while the side task runs, poll so its chat streams in.
@@ -116,6 +128,32 @@ export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProp
 
   const stoppable = canOperate && (task.status === 'running' || task.status === 'waiting_for_slot')
 
+  // Composer availability, mirroring the server's rules (E6). Viewers get
+  // no composer at all; a settled task always accepts a reply (the server
+  // recreates the worktree when the old one was cleaned up).
+  const mergeConflict = task.status === 'needs_you' && task.needsYouReason === 'merge_conflict'
+  const busy = task.status === 'running' || task.status === 'waiting_for_slot'
+  const composerDisabledReason = busy
+    ? `${bot.name} is working on this — you can reply once it settles.`
+    : mergeConflict
+      ? 'Resolve the merge conflict first (Retry merge or Discard).'
+      : null
+
+  const handleSend = async () => {
+    const content = draft.trim()
+    if (!content || sending || composerDisabledReason) return
+    setSending(true)
+    try {
+      await reply(task.botId, task.id, content)
+      setDraft('')
+      await loadMessages()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send the reply')
+    } finally {
+      setSending(false)
+    }
+  }
+
   const startedAt = useMemo(
     () =>
       parseApiDate(task.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
@@ -135,8 +173,23 @@ export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProp
           <GitBranch size={16} strokeWidth={1.8} />
           <span>{task.title}</span>
         </span>
+        {sideTaskMayHaveDiff(task) && (
+          <button
+            type="button"
+            className="side-chat__diff"
+            onClick={() => setDiffOpen(true)}
+          >
+            <FileDiff size={15} strokeWidth={1.8} />
+            View changes
+          </button>
+        )}
         {stoppable && (
-          <button type="button" className="side-chat__stop" disabled={stopping} onClick={() => void handleStop()}>
+          <button
+            type="button"
+            className="side-chat__stop"
+            disabled={stopping}
+            onClick={() => void handleStop()}
+          >
             {stopping ? 'Stopping…' : 'Stop'}
           </button>
         )}
@@ -212,6 +265,52 @@ export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProp
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {/* Composer (E6): operator+ only; disabled with the reason when the
+          server would reject the reply (working / merge conflict). */}
+      {canOperate && (
+        <div className="side-chat__composer">
+          {composerDisabledReason && <p className="side-chat__composer-note">{composerDisabledReason}</p>}
+          <div
+            className={
+              composerDisabledReason ? 'side-chat__pill side-chat__pill--disabled' : 'side-chat__pill'
+            }
+          >
+            <input
+              type="text"
+              value={draft}
+              placeholder={`Message this side task`}
+              aria-label={`Message this side task`}
+              disabled={composerDisabledReason !== null || sending}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleSend()
+                }
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Send"
+              className="side-chat__send"
+              disabled={!draft.trim() || sending || composerDisabledReason !== null}
+              onClick={() => void handleSend()}
+            >
+              <Send size={16} strokeWidth={1.8} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {diffOpen && (
+        <SideTaskDiffDialog
+          botId={task.botId}
+          sideTaskId={task.id}
+          title={task.title}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
     </div>
   )
 }
