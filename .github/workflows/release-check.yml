@@ -2,9 +2,15 @@ name: Release Build Check
 
 # Proves the release build steps from publish.yml work on a PR before merging
 # to main. Mirrors the build-cli (3 OS), build-backend + build-server-mini
-# (Linux) and build-desktop (Linux) jobs — including their smoke tests — but
-# never creates tags or releases, never uploads assets, and never publishes
-# to PyPI (electron-builder runs with --publish never).
+# (Linux) and build-desktop (Linux) jobs — including their smoke tests and
+# CLI archive step — but never creates tags or releases, never uploads
+# assets, and never publishes to PyPI (electron-builder runs with
+# --publish never).
+#
+# Manual dispatch with `attach_to_tag` set (e.g. "v0.4.0") additionally
+# attaches the built CLI archives to the existing GitHub release for that
+# tag and refreshes the asset sizes in its body. It still never creates
+# tags or releases and never publishes to PyPI.
 
 on:
   pull_request:
@@ -15,9 +21,14 @@ on:
       - 'desktop/package.json'
       - 'pyproject.toml'
   workflow_dispatch:
+    inputs:
+      attach_to_tag:
+        description: 'Existing release tag to attach CLI archives to (e.g. v0.4.0). Empty = dry run, nothing is uploaded.'
+        type: string
+        default: ''
 
 concurrency:
-  group: release-check-${{ github.ref }}
+  group: release-check-${{ github.ref }}${{ inputs.attach_to_tag }}
   cancel-in-progress: true
 
 permissions:
@@ -40,6 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Attach mode: build the frontend from the tag too, so the CLI
+          # archive matches the release it is attached to.
+          ref: ${{ inputs.attach_to_tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -61,22 +76,40 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # CLI-only binary (3 platforms) — same steps as publish.yml build-cli
+  # CLI-only binary (3 platforms) — same steps as publish.yml build-cli,
+  # including the archive step. With attach_to_tag set, the archives are
+  # additionally uploaded to that existing release.
   # =========================================================================
   build-cli:
     needs: frontend-dist
+    permissions:
+      # Write is only exercised in attach mode (gh release upload); dry runs
+      # on pull_request never reach the upload step.
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
+            archive_name: cachi-linux-x64.tar.gz
+            archive_cmd: tar -czf
           - os: macos-latest
+            archive_name: cachi-mac-arm64.tar.gz
+            archive_cmd: tar -czf
           - os: windows-latest
+            # Git Bash on windows-latest has no zip; 7-Zip is preinstalled
+            # and on PATH.
+            archive_name: cachi-win-x64.zip
+            archive_cmd: 7z a -tzip
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Dry run: the event's ref (PR merge commit or dispatched branch).
+          # Attach mode: the tag the archives will be uploaded to.
+          ref: ${{ inputs.attach_to_tag || github.ref }}
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
@@ -92,7 +125,11 @@ jobs:
       - name: Install CachiBot (core only) + PyInstaller
         shell: bash
         run: |
-          echo "$CHECK_VERSION" > VERSION
+          # Keep the real VERSION from the checked-out tag in attach mode so
+          # the uploaded binary reports the release version.
+          if [[ -z "${{ inputs.attach_to_tag }}" ]]; then
+            echo "$CHECK_VERSION" > VERSION
+          fi
           pip install -e .
           pip install pyinstaller
 
@@ -113,11 +150,29 @@ jobs:
           "$BINARY" --help
           echo "CLI smoke test passed"
 
+      - name: Archive CLI binary
+        shell: bash
+        run: |
+          cd dist
+          ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
+
+      - name: Upload CLI archive to GitHub Release
+        if: inputs.attach_to_tag != ''
+        shell: bash
+        # Fails if the tag/release does not exist — never creates either.
+        run: |
+          gh release upload "${{ inputs.attach_to_tag }}" \
+            "dist/${{ matrix.archive_name }}" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # =========================================================================
   # Backend binary (Linux) — needed as the desktop app's bundled backend
   # =========================================================================
   build-backend:
     needs: frontend-dist
+    if: inputs.attach_to_tag == ''
     runs-on: ubuntu-latest
 
     steps:
@@ -194,6 +249,7 @@ jobs:
   # =========================================================================
   build-server-mini:
     needs: frontend-dist
+    if: inputs.attach_to_tag == ''
     runs-on: ubuntu-latest
 
     steps:
@@ -254,6 +310,7 @@ jobs:
   # =========================================================================
   build-desktop:
     needs: build-backend
+    if: inputs.attach_to_tag == ''
     runs-on: ubuntu-latest
 
     steps:
@@ -298,3 +355,66 @@ jobs:
         run: npx electron-builder --linux --publish never
         env:
           USE_SYSTEM_FPM: 'true'
+
+  # =========================================================================
+  # Attach mode only: refresh asset sizes in the target release body.
+  # Same script as publish.yml's update-release, with the release looked up
+  # by tag instead of by the id of a release this workflow created.
+  # =========================================================================
+  update-release:
+    needs: build-cli
+    # Run even if a build leg failed, so sizes are still refreshed for
+    # whatever archives were uploaded.
+    if: always() && inputs.attach_to_tag != ''
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Update release body with asset sizes
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Fetch release to get assets and current body
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: '${{ inputs.attach_to_tag }}',
+            });
+            const releaseId = release.data.id;
+
+            // Build a map of asset name -> human-readable size
+            const sizeMap = {};
+            for (const asset of release.data.assets) {
+              const bytes = asset.size;
+              let size;
+              if (bytes >= 1024 * 1024 * 1024) {
+                size = (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+              } else if (bytes >= 1024 * 1024) {
+                size = (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+              } else if (bytes >= 1024) {
+                size = (bytes / 1024).toFixed(1) + ' KB';
+              } else {
+                size = bytes + ' B';
+              }
+              sizeMap[asset.name] = size;
+            }
+
+            // Replace "— |" placeholders in the table with actual sizes
+            let body = release.data.body;
+            for (const [name, size] of Object.entries(sizeMap)) {
+              // Match the table row containing this filename and replace the trailing "— |"
+              const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const pattern = new RegExp(`(\\[` + '`' + escaped + '`' + `\\][^|]+\\|)\\s*—\\s*\\|`);
+              body = body.replace(pattern, `$1 ${size} |`);
+            }
+
+            // Remove the "downloads become available" note since they're ready now
+            body = body.replace(/\n> Downloads become available[^\n]*\n?/, '\n');
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              body: body,
+            });
