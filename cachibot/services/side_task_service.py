@@ -17,7 +17,11 @@ be a git repo or start fails with a clear error.
 
 Bring-back: when the turn finishes successfully the side task's changes are
 committed in the worktree and merged back into the parent workspace's
-current branch automatically (``git merge --no-ff``, serialized per repo).
+current branch automatically (``git merge --no-ff``). All git operations
+that mutate a repository (worktree creation/removal, branch deletion,
+merges) are serialized per repo — concurrent side tasks share one parent
+workspace, and parallel ``git worktree add``/``remove`` on the same repo
+can otherwise fail transiently.
 A clean merge records ``merged_commit`` / ``merged_files`` and removes the
 worktree and branch. No changes -> ``done`` with nothing to merge. A merge
 conflict (or git refusing because the parent tree has local changes in the
@@ -80,20 +84,25 @@ _APPROVAL_TIMEOUT_SECONDS = 300
 # Reason recorded on needs_you when an automatic merge back fails
 NEEDS_YOU_MERGE_CONFLICT = "merge_conflict"
 
-# Serializes merges into the same repository (side tasks of one parent run
-# concurrently, and retry-merge can arrive while another merge is running)
-_merge_locks: dict[Path, asyncio.Lock] = {}
-_merge_locks_guard = asyncio.Lock()
+# Serializes git operations that mutate one repository (side tasks of one
+# parent run concurrently, and retry-merge can arrive while another merge is
+# running). Concurrent `git worktree add`/`worktree remove`/`branch -d` on
+# the same repository transiently fail with errors like "failed to read
+# .git/worktrees/<id>/commondir", which would surface as spurious side-task
+# failures; every mutating git call runs under this per-repository lock.
+# Read-only helpers (rev-parse, diff, merge-base, status) never take it.
+_repo_git_locks: dict[Path, asyncio.Lock] = {}
+_repo_git_locks_guard = asyncio.Lock()
 
 
-async def _merge_lock_for(workspace: Path) -> asyncio.Lock:
-    """Return the per-repository merge lock for a workspace."""
+async def _repo_git_lock_for(workspace: Path) -> asyncio.Lock:
+    """Return the per-repository git-mutation lock for a workspace."""
     key = await asyncio.to_thread(worktrees.repo_toplevel, workspace)
-    async with _merge_locks_guard:
-        lock = _merge_locks.get(key)
+    async with _repo_git_locks_guard:
+        lock = _repo_git_locks.get(key)
         if lock is None:
             lock = asyncio.Lock()
-            _merge_locks[key] = lock
+            _repo_git_locks[key] = lock
     return lock
 
 
@@ -503,7 +512,7 @@ class SideTaskService:
             f"Side task: {side_task.title}",
         )
 
-        async with await _merge_lock_for(workspace):
+        async with await _repo_git_lock_for(workspace):
             outcome = await asyncio.to_thread(worktrees.merge_side_branch, workspace, side_task)
 
         if outcome.merged:
@@ -511,7 +520,7 @@ class SideTaskService:
             side_task.merged_files = outcome.merged_files
             side_task.conflict_files = []
             side_task.needs_you_reason = None
-            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            await self._cleanup_after_merge(workspace, side_task)
             await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
             await self._sync_work_status(side_task)
             return await self._repo.get(side_task_id)
@@ -525,7 +534,7 @@ class SideTaskService:
         if outcome.error and "no longer exists" in outcome.error:
             # The branch was merged or deleted by hand while it waited:
             # nothing left to bring back.
-            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            await self._cleanup_after_merge(workspace, side_task)
             side_task.needs_you_reason = None
             await self._transition(side_task, SideTaskStatus.DONE, finished=True)
             await self._sync_work_status(side_task)
@@ -557,31 +566,33 @@ class SideTaskService:
         workspace = Path(config.workspace_path)
 
         # The user explicitly threw the work away; tolerate pieces that are
-        # already gone (cleaned up by hand) and keep going.
-        if side_task.worktree_path:
-            wt_path = Path(side_task.worktree_path)
-            if worktrees.worktree_exists(wt_path):
+        # already gone (cleaned up by hand) and keep going. Both removals
+        # mutate the repo: serialized with worktree creation and merges.
+        async with await _repo_git_lock_for(workspace):
+            if side_task.worktree_path:
+                wt_path = Path(side_task.worktree_path)
+                if worktrees.worktree_exists(wt_path):
+                    try:
+                        await asyncio.to_thread(
+                            worktrees.remove_worktree, workspace, wt_path, force=True
+                        )
+                    except worktrees.WorktreeError:
+                        logger.warning(
+                            "Could not remove worktree %s while discarding",
+                            wt_path,
+                            exc_info=True,
+                        )
+            if side_task.branch:
                 try:
                     await asyncio.to_thread(
-                        worktrees.remove_worktree, workspace, wt_path, force=True
+                        worktrees.delete_branch, workspace, side_task.branch, force=True
                     )
                 except worktrees.WorktreeError:
                     logger.warning(
-                        "Could not remove worktree %s while discarding",
-                        wt_path,
+                        "Could not delete branch %s while discarding",
+                        side_task.branch,
                         exc_info=True,
                     )
-        if side_task.branch:
-            try:
-                await asyncio.to_thread(
-                    worktrees.delete_branch, workspace, side_task.branch, force=True
-                )
-            except worktrees.WorktreeError:
-                logger.warning(
-                    "Could not delete branch %s while discarding",
-                    side_task.branch,
-                    exc_info=True,
-                )
 
         side_task.needs_you_reason = None
         await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
@@ -692,7 +703,10 @@ class SideTaskService:
             return worktrees.create_worktree(workspace, side_task)
 
         try:
-            path, branch, base_commit = await asyncio.to_thread(_prepare)
+            # Serialized with every other git mutation on this repo: side
+            # tasks of one parent create/remove worktrees concurrently.
+            async with await _repo_git_lock_for(workspace):
+                path, branch, base_commit = await asyncio.to_thread(_prepare)
         except worktrees.WorktreeError as exc:
             raise SideTaskStartError(str(exc)) from exc
 
@@ -705,6 +719,16 @@ class SideTaskService:
             side_task.branch = branch
             side_task.base_commit = base_commit
             await self._repo.update(side_task)
+
+    async def _cleanup_after_merge(self, workspace: Path, side_task: SideTask) -> None:
+        """Remove the worktree and delete the merged branch.
+
+        Mutates the repository, so it runs under the same per-repo lock as
+        worktree creation and merges (a promoted side task may be creating
+        its worktree while this one is being cleaned up).
+        """
+        async with await _repo_git_lock_for(workspace):
+            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
 
     async def _finish_and_merge(self, side_task: SideTask) -> None:
         """Commit the side task's work and merge it back automatically.
@@ -752,23 +776,23 @@ class SideTaskService:
                     side_task.branch,
                 )
                 side_task.conflict_files = []
-                await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+                await self._cleanup_after_merge(workspace, side_task)
                 await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
             else:
-                await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+                await self._cleanup_after_merge(workspace, side_task)
                 side_task.merged_files = []
                 await self._transition(side_task, SideTaskStatus.DONE, finished=True)
             await self._sync_work_status(side_task)
             return
 
-        async with await _merge_lock_for(workspace):
+        async with await _repo_git_lock_for(workspace):
             outcome = await asyncio.to_thread(worktrees.merge_side_branch, workspace, side_task)
 
         if outcome.merged:
             side_task.merged_commit = outcome.merged_commit
             side_task.merged_files = outcome.merged_files
             side_task.conflict_files = []
-            await asyncio.to_thread(worktrees.cleanup_after_merge, workspace, side_task)
+            await self._cleanup_after_merge(workspace, side_task)
             await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
             await self._sync_work_status(side_task)
             logger.info(
@@ -1045,8 +1069,12 @@ class SideTaskService:
         )
         if message_id is None and message.id != side_task.reply_message_id:
             # We created the reply: stamp the record so later syncs update it.
+            # Targeted write only — this copy is stale by now (the transition
+            # that published the reply may be superseded by a newer one, e.g.
+            # a needs_you -> running resume, and a full-row update here would
+            # clobber it).
             side_task.reply_message_id = message.id
-            await self._repo.update(side_task)
+            await self._repo.set_reply_message_id(side_task.id, message.id)
 
     async def _sync_group_reply(self, group_id: str) -> None:
         """Create or update the ONE parent-chat reply for a helper group.

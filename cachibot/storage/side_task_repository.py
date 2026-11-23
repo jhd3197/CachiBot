@@ -162,6 +162,20 @@ class SideTaskRepository(BaseRepository[SideTaskModel, SideTask]):
             .limit(1)
         )
 
+    async def set_reply_message_id(self, side_task_id: str, message_id: str) -> None:
+        """Stamp the parent-chat reply message id on one side task.
+
+        Targeted on purpose: the stamp runs after the transition that
+        published the reply, and the caller's copy is stale by then — a
+        full-row update from it could clobber a newer status (a needs_you ->
+        running resume can commit in between). See ``set_reply_message_for_group``.
+        """
+        await self._update(
+            update(SideTaskModel)
+            .where(SideTaskModel.id == side_task_id)
+            .values(reply_message_id=message_id)
+        )
+
     async def set_reply_message_for_group(self, group_id: str, message_id: str) -> None:
         """Stamp the shared parent-chat reply message on every helper of a group.
 

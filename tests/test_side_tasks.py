@@ -147,8 +147,12 @@ async def service(sqlite_db, monkeypatch, tmp_path):
     await svc.shutdown()
 
 
-async def wait_for(predicate, timeout: float = 5.0) -> None:
-    """Poll (awaiting async predicates) until true or time out."""
+async def wait_for(predicate, timeout: float = 30.0) -> None:
+    """Poll (awaiting async predicates) until true or time out.
+
+    The default is generous for slow, contended CI runners: happy paths
+    return on the first poll, so a large timeout costs nothing there.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         result = predicate()
@@ -395,14 +399,20 @@ class TestStopAndNeedsYou:
 
         # Free the running ones — the stopped one must not be promoted
         service.fake.gate.set()
-        await wait_for(lambda: len(service.fake.calls) == MAX_RUNNING_PER_PARENT)
-        await asyncio.sleep(0.1)
-        latest = await SideTaskRepository().get(waiting.id)
-        assert latest.status == SideTaskStatus.STOPPED
-
-        # Let the running ones settle, so nothing is left in flight
         for st in tasks[:MAX_RUNNING_PER_PARENT]:
             await wait_for(lambda sid=st.id: status_is(sid, SideTaskStatus.DONE))
+
+        # Everything settled: no running, none waiting for a slot — and the
+        # stopped one never got a turn (a promotion would have run one).
+        async def all_settled() -> bool:
+            running = await service.svc._repo.get_running_for_parent(parent.id)
+            queued = await service.svc._repo.get_oldest_waiting_for_parent(parent.id)
+            return not running and queued is None
+
+        await wait_for(all_settled)
+        assert len(service.fake.calls) == MAX_RUNNING_PER_PARENT
+        latest = await SideTaskRepository().get(waiting.id)
+        assert latest.status == SideTaskStatus.STOPPED
 
     async def test_stop_all_for_parent_cascades(self, service):
         bot_id = await make_bot()
@@ -472,13 +482,20 @@ class TestStopAndNeedsYou:
         parent = await make_chat(bot_id)
 
         st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Task")
-        await wait_for(lambda: status_is(st.id, SideTaskStatus.DONE))
+
+        # The broadcast follows the persisted status inside the same
+        # transition, so waiting on the status can win the race — wait for
+        # the DONE broadcast itself.
+        async def done_broadcast_sent() -> bool:
+            return any(b["id"] == st.id and b["status"] == "done" for b in service.broadcasts)
+
+        await wait_for(done_broadcast_sent)
 
         statuses = [b["status"] for b in service.broadcasts if b["id"] == st.id]
-        assert "running" in statuses
+        assert "running" in statuses  # sent by start() before it returned
         assert "done" in statuses
         # Payloads are camelCase with the full record
-        payload = service.broadcasts[-1]
+        payload = next(b for b in reversed(service.broadcasts) if b["id"] == st.id)
         assert payload["parentChatId"] == parent.id
         assert payload["chatId"] == st.chat_id
 
@@ -953,12 +970,16 @@ class TestScopedBroadcast:
         result = await handler("file_write", "Write a file", {"path": "x.py"})
         assert result is True
 
-        assert len(stub.scoped) == 1
+        # The request goes out scoped to the bot; the pending-request cleanup
+        # settles after the awaited timeout, so poll it rather than assuming
+        # it landed synchronously with the handler's return.
+        async def approval_settled() -> bool:
+            return len(stub.scoped) == 1 and not stub.pending_approvals
+
+        await wait_for(approval_settled)
         message, bot_id = stub.scoped[0]
         assert bot_id == "bot-9"
         assert message.type.value == "approval_needed"
-        # Pending request is cleaned up after the timeout
-        assert stub.pending_approvals == {}
         assert stub.approval_results == {}
 
 
@@ -1122,6 +1143,46 @@ async def _conflicted_side_task(
 
 
 class TestWorktrees:
+    async def test_concurrent_starts_serialize_worktree_creation(self, service, monkeypatch):
+        """Regression: parallel ``git worktree add`` on one repo transiently
+        fails ("failed to read .git/worktrees/<id>/commondir"), so the
+        service must never run mutating git ops on the same repo twice at
+        once — even while several side tasks start together.
+        """
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+        service.fake.gate = asyncio.Event()  # keep the turns blocked
+
+        import cachibot.services.side_task_worktrees as wt
+
+        in_flight = 0
+        max_seen = 0
+        real_create = wt.create_worktree
+
+        def tracking_create_worktree(workspace, side_task, base_dir=None):
+            nonlocal in_flight, max_seen
+            in_flight += 1
+            max_seen = max(max_seen, in_flight)
+            time.sleep(0.05)  # widen the window so overlap would show
+            try:
+                return real_create(workspace, side_task, base_dir)
+            finally:
+                in_flight -= 1
+
+        monkeypatch.setattr(wt, "create_worktree", tracking_create_worktree)
+
+        started = [
+            await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt=f"T{i}")
+            for i in range(MAX_RUNNING_PER_PARENT)
+        ]
+        await wait_for(lambda: len(service.fake.calls) == MAX_RUNNING_PER_PARENT)
+
+        assert max_seen == 1  # worktree creations ran one at a time
+
+        service.fake.gate.set()
+        for st in started:
+            await wait_for(lambda sid=st.id: status_is(sid, SideTaskStatus.DONE))
+
     async def test_worktree_created_on_start_outside_repo(self, service):
         bot_id = await make_bot()
         parent = await make_chat(bot_id)

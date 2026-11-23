@@ -25,8 +25,10 @@ changes is never removed.
 
 All functions are synchronous (subprocess-based); the service runs every
 git-invoking one with ``asyncio.to_thread`` (subprocesses have a timeout, so
-a blocked git can never stall the event loop). Merges are serialized per
-repo by the service.
+a blocked git can never stall the event loop). Merges and the mutating
+worktree/branch operations (add/remove, delete) are serialized per repo by
+the service: run in parallel on the same repository, ``git worktree``
+commands fail transiently.
 
 Service-created commits and merges (the worktree commit and the
 ``--no-ff`` merge back) run with ``--no-verify``: user git hooks must never

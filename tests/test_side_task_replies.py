@@ -147,8 +147,12 @@ async def service(sqlite_db, monkeypatch, tmp_path):
     await svc.shutdown()
 
 
-async def wait_for(predicate, timeout: float = 5.0) -> None:
-    """Poll (awaiting async predicates) until true or time out."""
+async def wait_for(predicate, timeout: float = 30.0) -> None:
+    """Poll (awaiting async predicates) until true or time out.
+
+    The default is generous for slow, contended CI runners: happy paths
+    return on the first poll, so a large timeout costs nothing there.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         result = predicate()
@@ -392,6 +396,14 @@ class TestSingleReply:
         )
         await wait_for(lambda: reply_has_status(bot_id, parent.id, "merged"))
 
+        # The reply id is stamped on the record right after the reply message
+        # is published — wait for the stamp before reading the record.
+        async def reply_stamped() -> bool:
+            latest = await SideTaskRepository().get(st.id)
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_stamped)
+
         replies = await parent_replies(bot_id, parent.id)
         assert len(replies) == 1
         reply = replies[0]
@@ -445,6 +457,60 @@ class TestSingleReply:
         assert len(replies) == 1
         latest = await SideTaskRepository().get(st.id)
         assert latest.reply_message_id == replies[0].id
+
+    async def test_reply_id_stamp_does_not_clobber_newer_status(self, service, monkeypatch):
+        """The reply-id stamp runs after the transition that published the
+        reply, so its caller's copy is stale by then. A needs_you -> running
+        resume can commit in between: the stamp must update only the reply id
+        and never rewrite status/reason from the stale copy.
+        """
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+
+        gate = asyncio.Event()
+        entered = asyncio.Event()
+
+        async def turn(st: SideTask) -> None:
+            entered.set()
+            await gate.wait()
+
+        service.svc._execute_turn = turn
+        st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Task")
+        await wait_for(lambda: entered.is_set())
+
+        # During the needs_you reply's first publish, a resume's RUNNING write
+        # lands before the stamp (both happen inside the cancelled turn's
+        # settle path) — reproduce that interleaving deterministically.
+        real_publish = service.svc._publish_reply
+        raced = False
+
+        async def publish_with_resume_in_between(**kwargs):
+            nonlocal raced
+            message = await real_publish(**kwargs)
+            if not raced:
+                raced = True
+                resumed = await SideTaskRepository().get(st.id)
+                resumed.status = SideTaskStatus.RUNNING
+                resumed.needs_you_reason = None
+                await SideTaskRepository().update(resumed)
+            return message
+
+        monkeypatch.setattr(service.svc, "_publish_reply", publish_with_resume_in_between)
+
+        await service.svc.mark_needs_you(st.id, "Which version?")
+
+        async def reply_stamped() -> bool:
+            latest = await SideTaskRepository().get(st.id)
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_stamped)
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.status == SideTaskStatus.RUNNING
+        assert latest.needs_you_reason is None
+
+        # No turn is actually in flight; settle the record for teardown
+        await service.svc.stop(st.id)
+        await wait_for(lambda: status_is(st.id, SideTaskStatus.STOPPED))
 
     async def test_failed_side_task_reply_carries_error(self, service):
         bot_id = await make_bot()
@@ -656,6 +722,17 @@ class TestGroupReply:
         # Second helper settles: same message, counts refresh
         gate.set()
         await wait_for(lambda: reply_has_status(bot_id, parent.id, "settled"))
+
+        # The group reply id is stamped on every helper record right after
+        # the reply message is published — wait for it before reading them.
+        async def group_reply_stamped() -> bool:
+            stamped = True
+            for h in helpers:
+                latest = await SideTaskRepository().get(h.id)
+                stamped = stamped and latest is not None and latest.reply_message_id
+            return stamped
+
+        await wait_for(group_reply_stamped)
 
         replies = await parent_replies(bot_id, parent.id)
         assert len(replies) == 1
@@ -923,7 +1000,13 @@ class TestSourceMessageApi:
         assert data["sourceMessageId"] == source.id
         assert data["replyMessageId"] is None
 
-        await wait_for(lambda: status_is(data["id"], SideTaskStatus.DONE))
+        # The reply id is stamped on the record after the status update (same
+        # transition), so waiting on the status alone can win the race.
+        async def reply_id_stamped() -> bool:
+            latest = await SideTaskRepository().get(data["id"])
+            return latest is not None and latest.reply_message_id is not None
+
+        await wait_for(reply_id_stamped)
 
         # The reply exists and is exposed on the record
         resp = await st_client.get(f"/api/bots/{bot_id}/side-tasks/{data['id']}", headers=headers)
