@@ -25,20 +25,47 @@ jobs:
           git fetch --tags --prune
           git tag --list | sort -V
 
-      - name: Compute next dev version (next patch base)
+      - name: Compute next dev version
         id: ver
         shell: bash
         run: |
           set -euo pipefail
           # latest release tag (no pre-release), e.g. v1.0.1
           last_release="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
-          if [[ -z "${last_release}" ]]; then
-            base="0.1.0"  # bootstrap if no tags yet
-          else
-            v="${last_release#v}"                      # 1.0.0
-            IFS=. read -r MA MI PA <<< "${v}"
-            PA=$((PA+1))                               # next patch
-            base="${MA}.${MI}.${PA}"                   # 1.0.1
+
+          # Committed VERSION (e.g. 0.4.0) — may carry a .devN suffix; strip it
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          file_base="${file_version%%.dev*}"
+
+          # Version rule: if the committed VERSION is a valid stable semver
+          # strictly greater than the latest release tag, publish pre-releases
+          # of THAT version (0.4.0.dev1, 0.4.0.dev2, ...). Per PEP 440,
+          # X.Y.Z.devN sorts BEFORE X.Y.Z, so these builds never collide with
+          # or exceed the eventual release, and installers always prefer the
+          # final release over its dev builds. Once vX.Y.Z is tagged, VERSION
+          # is no longer strictly greater, and the base falls back to the next
+          # patch: X.Y.(Z+1).devN.
+          base=""
+          if [[ "${file_base}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ -n "${last_release}" ]]; then
+              last_version="${last_release#v}"
+            else
+              last_version="0.0.0"
+            fi
+            highest="$(printf '%s\n%s\n' "${last_version}" "${file_base}" | sort -V | tail -1)"
+            if [[ "${file_base}" != "${last_version}" && "${highest}" == "${file_base}" ]]; then
+              base="${file_base}"
+            fi
+          fi
+          if [[ -z "${base}" ]]; then
+            if [[ -z "${last_release}" ]]; then
+              base="0.1.0"  # bootstrap if no tags yet
+            else
+              v="${last_release#v}"                    # 1.0.0
+              IFS=. read -r MA MI PA <<< "${v}"
+              PA=$((PA+1))                             # next patch
+              base="${MA}.${MI}.${PA}"                 # 1.0.1
+            fi
           fi
 
           # find last dev tag for this base: v1.0.1.dev*

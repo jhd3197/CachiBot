@@ -19,13 +19,16 @@ from cachibot.storage.repository import SkillsRepository
 
 # Import Prompture's skills system
 try:
-    from prompture import discover_skills_async, load_skill_async
-    from prompture.skills import SkillInfo
+    from prompture.agents.skills import (
+        SkillInfo,
+        discover_skills_async,
+        load_skill_async,
+    )
 
     PROMPTURE_SKILLS_AVAILABLE = True
 except ImportError:
     PROMPTURE_SKILLS_AVAILABLE = False
-    SkillInfo = None
+    SkillInfo = None  # type: ignore[assignment, misc]
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +76,18 @@ def _skill_info_to_definition(
     slug = re.sub(r"[^a-z0-9]+", "-", skill_info.name.lower()).strip("-")
     skill_id = f"{slug}-{path_hash}"
 
+    # Prompture 1.19 keeps extra frontmatter fields (version, author, tags,
+    # tools) in SkillInfo.metadata rather than as dedicated attributes.
+    metadata = skill_info.metadata or {}
+
     return SkillDefinition(
         id=skill_id,
         name=skill_info.name,
         description=skill_info.description or "",
-        version=skill_info.version or "1.0.0",
-        author=skill_info.author,
-        tags=list(skill_info.tags) if skill_info.tags else [],
-        requires_tools=list(skill_info.tools) if skill_info.tools else [],
+        version=str(metadata.get("version") or "1.0.0"),
+        author=metadata.get("author"),
+        tags=list(metadata.get("tags") or []),
+        requires_tools=list(metadata.get("tools") or []),
         instructions=skill_info.instructions or "",
         source=source,
         filepath=filepath,

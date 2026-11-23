@@ -1,0 +1,300 @@
+name: Release Build Check
+
+# Proves the release build steps from publish.yml work on a PR before merging
+# to main. Mirrors the build-cli (3 OS), build-backend + build-server-mini
+# (Linux) and build-desktop (Linux) jobs — including their smoke tests — but
+# never creates tags or releases, never uploads assets, and never publishes
+# to PyPI (electron-builder runs with --publish never).
+
+on:
+  pull_request:
+    paths:
+      - '*.spec'
+      - '.github/workflows/publish.yml'
+      - '.github/workflows/release-check.yml'
+      - 'desktop/package.json'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Fixed placeholder version, usable verbatim in both ecosystems: PEP 440
+  # parses it (normalizing to 0.0.0.dev1, which hatchling accepts during
+  # pip install -e .) and it is valid semver for `npm version`. The backend
+  # smoke test only rejects the literal 0.0.0-unknown fallback, so this still
+  # exercises the real VERSION-file bundling path without impersonating a
+  # release version.
+  CHECK_VERSION: '0.0.0-dev1'
+
+jobs:
+  # =========================================================================
+  # Frontend build, reused by the server jobs via artifact
+  # =========================================================================
+  frontend-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
+  # =========================================================================
+  # CLI-only binary (3 platforms) — same steps as publish.yml build-cli
+  # =========================================================================
+  build-cli:
+    needs: frontend-dist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+          - os: windows-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot (core only) + PyInstaller
+        shell: bash
+        run: |
+          echo "$CHECK_VERSION" > VERSION
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Clean __pycache__
+        shell: bash
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build CLI binary
+        run: pyinstaller cachibot-cli.spec --clean
+
+      - name: Smoke test CLI binary
+        shell: bash
+        run: |
+          BINARY="./dist/cachi/cachi"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            BINARY="./dist/cachi/cachi.exe"
+          fi
+          "$BINARY" --help
+          echo "CLI smoke test passed"
+
+  # =========================================================================
+  # Backend binary (Linux) — needed as the desktop app's bundled backend
+  # =========================================================================
+  build-backend:
+    needs: frontend-dist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot + PyInstaller
+        shell: bash
+        run: |
+          echo "$CHECK_VERSION" > VERSION
+          pip install -e ".[full]"
+          pip install pyinstaller
+
+      - name: Clean __pycache__
+        shell: bash
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build backend binary
+        run: pyinstaller cachibot-server.spec --clean
+
+      - name: Smoke test backend binary
+        shell: bash
+        timeout-minutes: 2
+        run: |
+          BINARY="./dist/cachibot-server/cachibot-server"
+
+          PORT=15870
+          "$BINARY" --port $PORT --host 127.0.0.1 &
+          SERVER_PID=$!
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null 2>&1; then
+              echo "Server healthy after ${i}s"
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server exited prematurely"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          HEALTH=$(curl -sf "http://127.0.0.1:$PORT/api/health")
+          echo "Health: $HEALTH"
+
+          if echo "$HEALTH" | grep -q '"version":"0.0.0-unknown"'; then
+            echo "ERROR: Version is 0.0.0-unknown"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+          echo "Smoke test passed"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-linux
+          path: dist/cachibot-server/
+          retention-days: 1
+
+  # =========================================================================
+  # Mini server binary (Linux) — same steps as publish.yml build-server-mini
+  # =========================================================================
+  build-server-mini:
+    needs: frontend-dist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install CachiBot (server extras) + PyInstaller
+        run: |
+          echo "$CHECK_VERSION" > VERSION
+          pip install -e ".[server]"
+          pip install pyinstaller
+
+      - name: Clean __pycache__
+        run: find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+      - name: Build mini server binary
+        run: pyinstaller cachibot-server-mini.spec --clean
+
+      - name: Smoke test mini server binary
+        timeout-minutes: 2
+        run: |
+          PORT=15870
+          ./dist/cachibot-server-mini/cachibot-server-mini --port $PORT --host 127.0.0.1 &
+          SERVER_PID=$!
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$PORT/api/health" > /dev/null 2>&1; then
+              echo "Server healthy after ${i}s"
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "ERROR: Server exited prematurely"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          HEALTH=$(curl -sf "http://127.0.0.1:$PORT/api/health")
+          echo "Health: $HEALTH"
+
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+          echo "Mini server smoke test passed"
+
+  # =========================================================================
+  # Desktop app (Linux only) — same steps as publish.yml build-desktop,
+  # with --publish never so nothing is uploaded anywhere
+  # =========================================================================
+  build-desktop:
+    needs: build-backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Set desktop app version
+        working-directory: desktop
+        run: npm version "$CHECK_VERSION" --no-git-tag-version
+
+      - name: Install Electron dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Download backend binary
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-linux
+          path: build/backend
+
+      - name: Make backend executable
+        run: chmod +x build/backend/cachibot-server
+
+      - name: Install RPM and system FPM
+        run: |
+          sudo apt-get update
+          # electron-builder 25 bundles fpm 1.9.3, whose spec output is
+          # incompatible with rpmbuild >= 4.20 (hundreds of "File not found:
+          # .../BUILDROOT/..." errors). Install a current system fpm via gem
+          # and select it with USE_SYSTEM_FPM below.
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+          fpm --version
+
+      - name: Enable electron-builder debug logging
+        run: echo "DEBUG=electron-builder" >> "$GITHUB_ENV"
+
+      - name: Build Electron app
+        working-directory: desktop
+        run: npx electron-builder --linux --publish never
+        env:
+          USE_SYSTEM_FPM: 'true'
