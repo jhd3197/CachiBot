@@ -745,8 +745,10 @@ top of the chat **More menu** (`ChatMoreMenu` gained an optional
   D5 App settings + Activity log (19, 20).
 - **Phase E** — side tasks (11a–c): backend E1–E3 and UI E4 are in this branch
   (see "Phase E4" above).
-- **The bot's computer** (views 04–09, 11): requires a new backend. Not
-  started; the Computer button and preview pane stay hidden. Plan:
+- **The bot's computer** (views 04–09, 11): requires a new backend, built on
+  Vela (one Vela container per bot, with Vela patches for a controller mode,
+  a driver API and a terminal). Not started; the Computer button and preview
+  pane stay hidden. Plan:
   [`VIRTUAL_COMPUTER_PLAN.md`](./VIRTUAL_COMPUTER_PLAN.md).
 
 ## Phase D2 — Routines + Routine editor (views 12/17)

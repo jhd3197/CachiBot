@@ -1,9 +1,20 @@
-# The bot's computer (Mini Vela): backend review and phase V plan
+# The bot's computer (Mini Vela): built on Vela
 
 Design: `docs/design/cachibot-v2-final-views/` views 04–09 (the computer in the
 chat) and 11 (what Mini Vela is). UI plan: `docs/design/UI_V2_PLAN.md` rows
 04–09/11, the hidden Bot settings › Computer section, the hand-off/take-over
-card (Phase C "not backed yet") and Files sheet "Open on computer".
+card and the Files sheet "Open on computer".
+
+**Direction (Juan, Nov 23, 2026):** the bot's computer is a **Vela** instance,
+not a new desktop stack. CachiBot reuses what Vela already has (desktops,
+windows, an agent browser with site policy and approvals, watching and take
+over, files, containers) and adds only what is missing. Some of the missing
+pieces belong in Vela itself, and each of those is planned as its own PR into
+Vela's `dev` branch.
+
+Reviewed read-only: `jhd3197/Vela` `dev` at `38796d0` (latest release
+v0.1.21), `jhd3197/serverkit-vela` `main` at `5e47800`, plus `vela-contracts`,
+`vela-sdk`, `vela-companion` and `vela-templates`.
 
 ## 1. Scope: what the views need from a backend
 
@@ -21,236 +32,198 @@ card (Phase C "not backed yet") and Files sheet "Open on computer".
 | Bot settings › Computer (view 18) | Section rows: computer on/off, where it runs, what it can reach, sleep delay; "Change in bot settings" from view 09 | Per-bot enable/disable and sleep-delay setting |
 | Files sheet "Open on computer" (view 10) | A file on the bot's /workspace openable in its desktop (Editor) | Open-in-editor request routed to the computer |
 
-### What is out of scope (for this plan)
+Out of scope: fake frames or placeholder windows (without a real computer
+every view stays hidden, as today); an app store or OS settings on the bot's
+desktop; a cloud computer (later, see §4).
 
-- Anything the bot "runs" that has no real source: no fake preview frames, no
-  placeholder windows. If the computer backend is absent, every view stays
-  hidden, exactly as today (UI_V2_PLAN rows 04–09/11).
-- Installing apps / a store / OS settings on the desktop (the design forbids
-  it: "the bot can't change its own computer").
-- Voice, rooms and side-task UI changes. Side tasks may later *use* the
-  computer (11c's window labels), but that is a consumer of this backend.
-- Windows/macOS without Docker Desktop, and a cloud computer backend (both
-  later options, see §5).
+## 2. What Vela already provides
 
-## 2. Approach
-
-### What the backend already has
-
-| Piece | Where | Reusable for the computer? |
-|---|---|---|
-| **Config / workspace** | `config.workspace_path`: **one global folder for all bots** (`config.py`, confirmed by SIDE_TASKS_PLAN) | **Missing.** Mini Vela says each bot has its own `/workspace` that persists between runs. A per-bot workspace is new. |
-| **Path isolation pattern** | Side tasks build a per-run copy of the config with `workspace_path` pointed at the worktree; every tool resolves against it (`services/side_task_worktrees.py`, `_execute_turn`) | **Yes — the template.** Computer file tools point at the bot's volume path the same way; the global config is never mutated. |
-| **File tools** | `plugins/file_ops.py` (read/write/list/edit/info), `config.is_path_allowed` | **Yes**, once `workspace_path` is the bot's volume. |
-| **Code execution** | `plugins/python_sandbox.py` (tukuy sandbox, AST risk analysis, `ApprovalRequired`), `services/script_sandbox.py` (automation limits) | **Partly.** In-computer execution replaces the need for the in-process sandbox for bot turns that use the computer. |
-| **Coding agents** | `plugins/coding_agent.py` spawns coding-agent CLI subprocesses in `workspace_path`, streams lines via `on_tool_output` | **Yes, relocated.** View 07 wants the CLI *in the computer's terminal*: run it in a container PTY instead of a host subprocess. |
-| **Chat WebSocket + access scoping** | `api/websocket.py`: token auth, `broadcast_to_bot` (same rule as REST bot access), `approval_needed` request/response | **Yes.** `computer_update` events broadcast with the same scoping; take-over requests can reuse the approval flow's shape. |
-| **Job runner** | `services/job_runner.py`: background execution, execution logs, timeline, `job_update` | **Yes.** Computer-tool runs write execution logs (Runs + admin Activity log) exactly like jobs do. |
-| **Bot access levels** | `api/auth.py`: `require_bot_access_level`, viewer/operator/editor/owner/admin | **Yes.** Viewing the computer/stream = bot access; controlling it (wake/stop/take-over) = operator+, matching Runs. |
-| **Docker** | `docker-compose.yml`, root `Dockerfile` ship already | Host needs a Docker socket only; the image itself is new. |
-
-### Recommended approach
-
-**One Docker container per bot ("Mini Vela"), driven by a `ComputerService`.**
-
-- **Image** (`mini-vela`, built once, e.g. from Debian slim): Xvfb (headless
-  X server at 1440×900, the design's desktop size) + a minimal window manager
-  (Openbox) + Chromium driven over CDP/Playwright + a PTY terminal server
-  (tmux or node-pty) + x11vnc/noVNC/websockify for the live stream. Four apps
-  only: Browser, Terminal, Files, Editor — no store, no settings app. Nothing
-  bot-specific is baked in.
-- **Per bot**: a named volume mounted at `/workspace` (persists across sleep —
-  "files in /workspace stay") and a per-bot workspace dir on the host that is
-  the volume's backing store, so the existing file tools work against it via
-  the side-task per-run-config pattern.
-- **Live view**: noVNC/websockify inside the container, proxied through the
-  CachiBot server behind the same token auth and bot-access scoping as the
-  REST/WS APIs (short-lived stream tickets, not raw container ports). **Cheap
-  first step for view 04**: periodic screenshots (CDP `Page.captureScreenshot`
-  or X framebuffer grab) served from a preview endpoint — the preview column
-  needs only ~1 fps; full noVNC lands with the open view (V2).
-- **Agent computer tools** (new plugin, `computer` capability): browser
-  actions (navigate/click/type/read via CDP), terminal exec (via the PTY),
-  files (existing tools re-pointed at the bot volume). They execute **inside
-  the container** (browser/terminal through the container's control socket;
-  files via the mounted volume path on the host). Tool runs write execution
-  logs and feed the activity line + open-windows list.
-- **Driver lock**: the `ComputerService` holds one driver per bot — `bot`,
-  `user:<id>`, or `none`. Take over acquires the lock, pauses the agent's
-  in-flight computer tools (they wait or error with "user is driving"), and
-  routes input to the desktop; Hand back releases it. Needs-you is a state +
-  reason set by the agent (e.g. sign-in wall), broadcast like
-  `side_task_update`, cleared by take-over or Skip.
-- **Sleep**: after 10 min with no agent tool activity and no user driving or
-  watching, stop the container, keep the volume. Wake restarts it. A
-  server-restart-safe record distinguishes off / asleep.
-- **Docker optional**: on boot the server probes the Docker socket; if Docker
-  is absent the feature reports `unavailable` and every computer surface
-  stays hidden — never faked.
-
-### Alternatives considered
-
-1. **Host-process sandbox (no containers).** Xvfb + Chromium + PTY on the
-   host under a restricted user. Cheapest to build, but the isolation story
-   is weak: the file tools already run on the host, a bot prompt could steer
-   the browser at host-internal addresses, and "the internet, not your
-   network" (view 09) is hard to guarantee. The design's own copy commits to
-   Docker ("Runs on: This PC · Docker"). **Rejected as the default**; the
-   backend is shaped behind a `ComputerBackend` interface so a host backend
-   could be added, but it is not planned.
-2. **Remote/cloud desktop provider** (view 09's "Use a cloud computer
-   instead"): no host Docker requirement, but per-bot cost, an external
-   dependency, bot files/secrets leave the machine, and added latency.
-   **Rejected for V1**; the provider idea survives as a possible second
-   backend behind the same interface, behind an explicit per-bot choice.
-3. **Opt-in host control.** The agent drives the user's real browser/terminal
-   with approvals. Simplest of all and worst aligned with the design: "a
-   private sandbox that only I use" — and approvals already exist for that
-   shape without a computer backend. **Rejected.**
-
-**Recommendation: alternative 0 — per-bot Docker containers — matching the
-expected direction; the code supports it** (path-isolation pattern, access
-scoping, execution logs all reuse cleanly) **with one real gap: the workspace
-is global per server today, so a per-bot workspace is genuinely new work.**
-
-## 3. Data model, API, WS events (sketch)
-
-### Migration
-
-Latest published migration is `015_side_task_source_message.py`, so this is
-**migration 016**: a `bot_computers` table —
-
-- `bot_id` (PK, FK to bots), `state` (`unavailable | off | building | starting | awake | asleep |
-  needs_you`), `driver` (`bot | user:<user_id> | NULL`), `activity` (one
-  line, NULL when idle), `open_windows` (JSON: `[{app, title, focused}]`),
-  `needs_you_reason` (nullable), `build_progress` (nullable line/percent while the image builds), `last_watched_at`, `volume` (name/host path), `container_id`
-  (nullable), `enabled` + `sleep_after_minutes` (bot settings), `asleep_at`,
-  `last_active_at`, `updated_at`.
-- No history table: history is the existing execution logs (every computer
-  tool run and control action logs there).
-
-### REST (all under `/api/bots/{bot_id}/computer…`, token auth)
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /computer` | bot viewer+ | State record (state, driver, activity, windows, needs_you_reason, enabled, `available` when Docker missing) |
-| `POST /computer/wake` | operator+ | Off/asleep → awake |
-| `POST /computer/sleep` | operator+ | Awake → asleep (container stopped, volume kept) |
-| `POST /computer/stop` | operator+ | → off (container removed; /workspace kept unless delete is requested) |
-| `POST /computer/take-over` | operator+ | Acquire driver lock; agent computer tools pause |
-| `POST /computer/release` | operator+ | Hand back → driver `bot` (or `none` if no run) |
-| `POST /computer/needs-you/respond` | operator+ | Answer a needs-you request: `{take_over: true}` or `{skip: true}` (view 08's Skip this step) |
-| `GET /computer/preview.png` | bot viewer+ | Latest screenshot (cheap preview path, ~1 fps) |
-| `GET /computer/stream-ticket` | bot viewer+ | Short-lived one-time ticket for the WS stream below |
-| `WS /computer/stream?ticket=…` | ticket | Proxied noVNC/websockify RFB stream (full window, view 05) |
-
-### WS events
-
-- `computer_update {botId, computer}` — full record on every change, sent
-  with the same `broadcast_to_bot` scoping as `side_task_update`. The chat
-  preview (04), open view top bar (05), sidebar and Workspace needs-you all
-  consume this one event.
-- Needs-you surfaces in chat as a card through the existing
-  `approval_needed`-style flow (or a dedicated payload); settled by take-over
-  / skip / run end.
-
-## 4. Security & resources
-
-- **Isolation**: container is the trust boundary. Non-root user in the image;
-  the Docker socket is never mounted into anything the bot touches; no host
-  mounts except the bot's own workspace volume (one volume per bot, owned by
-  that bot — bots never see each other's files or the global workspace).
-- **Network**: outbound-only, and "the internet, not your network" (view 09):
-  drop RFC1918/link-local destinations so the bot's browser/terminal cannot
-  reach the host's LAN or the CachiBot server itself. No published ports; the
-  only entry point is the server's proxied stream.
-- **Resources**: `--memory 2g --cpus 1.5 --pids-limit 256`, disk quota on the
-  volume, hard kill on stop; sleep-after-10-minutes bounds total runtime.
-  Preview frames capped (e.g. 1 fps, ≤ 960px wide) so a room of watchers
-  cannot melt the host.
-- **Secrets**: never in the image; nothing bot-specific is baked in. Provider
-  keys stay on the host in the existing config; computer tools receive only
-  what `PluginContext` already carries. The design's sign-in flow exists so
-  credentials are typed by the human during take-over — the bot's browser
-  must never see a password manager.
-- **Authorization**: viewing state/preview/stream requires bot access
-  (viewer+); wake/sleep/stop/take-over/release require operator+, matching
-  Runs. Admins see everything, per existing rules. The driver lock is
-  per-bot; a second take-over while a user drives is rejected with the
-  current driver's name.
-- **Audit**: wake/sleep/stop/take-over/release/skip and every agent computer
-  tool run write execution logs (Runs page + admin Activity log), reusing
-  `ExecutionLogRepository` exactly as the job runner does.
-
-## 5. Decisions (Juan, Nov 23, 2026)
-
-| # | Question | Decision | What it changes |
+| Need | What Vela has today | Where | Reuse |
 |---|---|---|---|
-| 1 | Docker required? | **Docker optional; a cloud computer is a later option.** | Without Docker the server reports `available: false` and every computer surface stays hidden. The `ComputerBackend` interface keeps room for a cloud backend; it is not in V1–V6. |
-| 2 | Workspace | **Each bot gets its own workspace.** | A per-bot workspace dir under the data dir backs the bot's `/workspace` volume; computer tools and file tools resolve against it via the per-run config pattern. Bots never see each other's files or the global workspace. |
-| 3 | Image delivery | **Build the image locally on first use**, no registry pull and no prebuilt download. | V1 ships the Dockerfile in the package and builds it through the Docker API on first wake. The build is cached (image tag carries a hash of the Dockerfile; rebuilt only when it changes). Build progress streams to the UI (`computer_update` with `state: building` and a progress line/percent), and a failed build is shown with its last log lines and a Retry. |
-| 4 | Windows/macOS | **Support Windows and macOS through Docker Desktop in the first version.** | Docker detection covers `DOCKER_HOST`, the Docker context, the Unix socket (`/var/run/docker.sock`, `~/.docker/run/docker.sock` on macOS) and the Windows named pipe (`npipe:////./pipe/docker_engine`). Volumes are Docker named volumes (not host bind mounts), which avoids Windows path translation and macOS file-sharing settings; the host-side workspace view goes through the container where needed. CI runs the detection logic on Linux, Windows and macOS runners with mocks. |
-| 5 | Idle sleep | **Watching keeps it awake.** | An open live view (preview or full window, any user) counts as activity, tracked by stream/preview heartbeats; sleep only after 10 minutes with no agent tool activity, no driver and no watcher. |
-| 6 | Mobile | **Full desktop on mobile**, including take over. | The stream viewer must work in the mobile app and mobile web: scaled view with pinch-zoom/pan, touch mapped to pointer events (tap = click, long-press = right click, two-finger drag = scroll) and an on-screen keyboard toggle for typing while driving. |
-| 7 | Dev tools | **No toolchains in the image; the bot installs what it needs into `/workspace`.** | The image stays lean (desktop stack, Chromium, terminal, basic shell tools). The terminal's environment points installs at the persistent volume (e.g. `PREFIX`/`PATH` under `/workspace/.local`, npm prefix and pip user base there) so what the bot installs survives sleep. |
+| A desktop with windows | Desktops with views (app windows and site windows), layouts, split panes, a selected view, a rail | `vela/desktops/` (`service.py`, `store.py`, `models.py`), `web/src/desktops/` | **Yes.** The bot's computer is one Vela desktop. The "open windows" list in view 04 is the desktop's views. |
+| A browser the agent drives | Agent desktops: a supervised Node worker running Playwright Chromium, one browser context per desktop, typed tools (observe, open site, open app, click, type, key, scroll, wait, attach file, needs person, finish) | `vela/desktops/runtime.py`, `vela/agent_runs/tools.py`, `scripts/browser-worker/` | **Yes.** This is the Browser app of Mini Vela. |
+| Safety around the browser | Per-desktop site policy (read only, or ask before sending), held requests shown for approval, "outcome unknown" handling, network policy in the worker, sign-in never automated | `vela/desktops/site_policy.py`, `vela/agent_runs/approvals.py`, `browser-worker/src/network-policy.mjs` | **Yes.** Covers view 08's sign-in wall and "stops to ask you". |
+| Watching | Per-window frames served through the authenticated API (`/views/{id}/frame`, ~1 fps watching, ~3 fps controlling); several watchers share one capture | `vela/agent_runs/viewer.py`, `web/src/desktops/RemoteView.jsx` | **Yes**, proxied through CachiBot. Vela deliberately never captures the whole desktop (it would include the owner's approval prompt); see §6 Q4. |
+| Take over / hand back | Control leases: taking over stops the agent's dispatch, bumps the control epoch, then grants a lease; input (click, type, allowed keys, scroll) is checked against the lease, view, epoch and frame age; "Carry on" | `vela/agent_runs/control.py`, `viewer.py`, `POST /api/desktops/{id}/takeover` and `/takeover/{lease}/input` | **Yes.** This is view 08. |
+| Needs you | `task_needs_person`, held approvals, queue holds after a failed or unknown run, `GET /api/desktops/attention` | `vela/agent_runs/`, `vela/desktops/api.py` | **Yes**, mapped to CachiBot's needs-you card. |
+| Files | Shares with strict path resolution, trash, upload caps and audit; agent files staged per desktop with size limits and expiry | `vela/files.py`, `vela/agent_runs/artifacts.py` | **Partly.** A share pointed at `/workspace` gives the Files app; the bot's own file access still goes through CachiBot's file tools on the same volume. |
+| A container | `Dockerfile` (Python server and dashboard), `python -m vela.container` (password + HTTPS proxy mode), `serverkit.yaml` with a `/data` disk | repo root, `vela/container.py` | **Partly.** The image has no Node runtime or browser worker, so agent desktops cannot run in it yet, and container mode requires an HTTPS origin and a password. |
+| Named instances on servers | serverkit-vela creates Vela instances (own container, data disk, domain, login) through ServerKit's manifest apply; API under `/api/v1/vela` | `serverkit-vela/backend/` | **Later**, for the cloud computer option. |
+| Native Windows/macOS/Linux | Vela Server ships for all three with per-platform runners | `vela/runners/` | Not used for the bot's computer (that runs in Docker), but the Vela code paths are already cross-platform. |
 
-## 6. Phases (each a PR into dev, tests green without Docker)
+What Vela does **not** have: a terminal or any shell (agent desktops forbid
+one by design), an editor, a way for an outside agent to drive a desktop step
+by step (runs are driven by Vela's own model loop), a non-HTTPS controller
+access mode for a container that only a local process talks to, an image with
+the browser runtime in it, touch input in take-over, and a count of who is
+watching.
 
-Tests follow the side-task pattern: a `ComputerBackend` interface with a fake
-in tests (SQLite in a tmp dir, no Docker, no real repo/HOME touches; Docker
-integration tests are marked and skip when Docker is absent). Python 3.10 is
-supported (e.g. catch `asyncio.TimeoutError`, not the builtin).
+## 3. Architecture
 
-- **V1 — Lifecycle + image (≈4–6 days).** Lean `mini-vela` Dockerfile
-  (Xvfb, Openbox, Chromium, terminal server, screenshot endpoint) shipped in
-  the package; **local build on first use** with cached, hash-tagged image and
-  build progress/failure in the state record; Docker availability probe for
-  Linux, macOS and Windows (socket, context, named pipe); `ComputerService`
-  (wake/sleep/stop, restart-safe states, per-bot named volume and per-bot
-  workspace dir); migration 016; `GET /computer` + control endpoints;
-  `computer_update` WS. Fake backend + tests; no image is built in CI.
-- **V2 — Live preview (≈2–3 days).** Screenshot pipeline → `preview.png`;
-  activity line + open-windows feed (from window manager/CDP); stream ticket
-  + proxied noVNC for the full window; **viewer heartbeats keep the computer
-  awake**; Docker-marked integration test.
-- **V3 — Computer tools (≈4–5 days).** `computer` capability plugin: browser
-  tools over CDP, terminal exec over the PTY, files via the bot volume;
-  coding-agent tool relocated into the computer terminal (view 07); dev
-  servers reachable on the computer (view 06); **install prefixes under
-  `/workspace` so bot-installed tools persist**; execution-log + audit writes.
-- **V4 — Take-over / needs-you (≈2–3 days).** Driver lock, input routing,
-  hand back, needs-you state + Skip; chat card; yellow-ring broadcast.
-- **V5 — UI (≈4–6 days).** Views 04–09 + 11 (including the build-progress
-  state on first wake), Bot settings › Computer section, Files sheet "Open on
-  computer", all fed by the real API — hidden when `available` is false;
-  **full desktop on mobile with touch take-over** (pinch/pan, tap/long-press,
-  scroll, on-screen keyboard).
-- **V6 — Hardening (≈3–4 days).** Network policy, resource caps, stream rate
-  limits, audit completeness, failure recovery (container dies mid-run),
-  **Docker Desktop checks on Windows/macOS** (named pipe, volumes, resource
-  limits), docs.
+**One Vela container per bot, managed by CachiBot, with CachiBot as the
+brain.**
 
-**Total: ≈19–27 working days (~4–5.5 weeks), 6 PRs.** The decisions add about
-3–5 days over the first estimate: the local build with progress (V1), Docker
-Desktop support (V1, V6) and the full mobile desktop with touch (V5).
+```
+CachiBot server ──(Docker CLI: build, run, stop)──▶ vela-computer image
+      │                                              one container per bot
+      │  loopback port + controller token              ├─ Vela server (desktop, views, policy)
+      ├──────────────────────────────────────────────▶ ├─ browser worker (Chromium)
+      │  drive tools, frames, take-over, events         ├─ terminal (new, Vela PR)
+      │                                                 └─ volumes: /data (Vela), /workspace (bot)
+      ▼
+CachiBot UI (web, desktop, mobile): views 04–09, 11 — frames and input are proxied
+through CachiBot with its own auth and bot-access rules; the Vela port is never
+exposed to users.
+```
 
-## 7. Open questions for Juan (answered — see §5)
+- **Image:** built locally on first use from a pinned Vela release (a new
+  `computer` target in Vela's Dockerfile). CachiBot runs the build through the
+  Docker CLI and streams progress.
+- **Per bot:** a container `cachibot-computer-<bot>` with two named volumes:
+  `/data` (Vela's own state: the desktop, policy, kept sign-ins) and
+  `/workspace` (the bot's files and anything it installs). The port is
+  published on `127.0.0.1` only.
+- **Access:** CachiBot generates a controller token per bot, passes it to the
+  container as a secret, and calls the Vela API with it. Users never talk to
+  Vela directly; CachiBot proxies frames and input and checks bot access first.
+- **Brain:** CachiBot's agent calls Vela's tools one step at a time through a
+  new driver API (Vela PR VP3). Vela still enforces its site policy, approvals,
+  effects and leases on every step, so a CachiBot bot gets the same safety
+  Vela's own agent has.
+- **Sleep:** CachiBot stops the container (volumes kept) after 10 minutes with
+  no tool activity, no one driving and no one watching. A browser session does
+  not survive a stop; Vela already reports the run as interrupted, and the
+  kept-sign-ins setting covers re-login.
+- **Docker absent:** CachiBot reports `available: false` and every computer
+  surface stays hidden.
 
-1. **Is Docker a hard requirement for the feature?** Proposal: optional —
-  without Docker the server reports `unavailable` and all computer UI stays
-  hidden (never faked). Confirm the cloud-computer alternative stays a
-  later choice, not V1 scope.
-2. **The workspace is global per server today; Mini Vela is per bot.** Move
-  to a per-bot workspace dir on the host (e.g. under the data dir), or keep
-  mounting the shared workspace into every bot's computer? The design says
-  "a private sandbox that only I use" — that points to per-bot.
-3. **Image size/hosting**: the image (Chromium + desktop stack) is ~1–2 GB.
-  Build locally on first use, ship a prebuilt image, or pull from a registry?
-4. **Windows/macOS hosts**: Docker Desktop requirement is acceptable for V1,
-  or Linux-only until the cloud backend exists?
-5. **Idle definition for sleep**: no agent tool activity and no user driving —
-  does an open full-window viewer count as "watching" and keep it awake?
-6. **Mobile app**: preview-only, or the full desktop too (stream bandwidth)?
-7. **Node/toolchains in the image**: view 06 runs `npm run dev` — include
-  node/npm/python in the image, or let the bot install what it needs into
-  `/workspace`?
+Alternatives considered:
+
+1. **One shared Vela with an agent desktop per bot.** Cheaper (one process),
+   but Vela caps agent desktops at two per server, all bots would share one
+   data dir and one browser process, and per-bot workspaces would be folders
+   inside one container. It doesn't match "each bot gets its own workspace" as
+   cleanly. Kept as a fallback for small machines (§6 Q1).
+2. **Delegate whole tasks to Vela's own agent loop** (`POST /tasks` with Vela's
+   model). No driver API needed, but the bot would hand its work to a second
+   agent with a different model, and CachiBot's chat, tools, budget and Runs
+   would see only the outcome. Rejected as the default (§6 Q3).
+3. **The from-scratch Docker stack** (Xvfb + noVNC) in the previous version of
+   this plan. It duplicates what Vela already does well, and has none of Vela's
+   approval and sign-in safety. Dropped.
+
+## 4. Juan's decisions, mapped onto Vela
+
+| # | Decision | How it lands |
+|---|---|---|
+| 1 | Docker optional; cloud later | CachiBot probes Docker; absent means `available: false`, UI hidden. The cloud option later uses serverkit-vela instances on a ServerKit server with the same controller API (VP7, later). |
+| 2 | Each bot gets its own workspace | One container per bot with its own `/workspace` and `/data` volumes. CachiBot's file tools for that bot point at the same volume (per-run config pattern from side tasks). Vela's Files share in that container is `/workspace` only. |
+| 3 | Build the image locally on first use | CachiBot builds `vela-computer:<vela-version>-<hash>` from a pinned Vela release on the first wake, caches it, and rebuilds only when the pin changes. Progress and failure (with log tail and Retry) show in the computer state. Nothing is pulled from a registry. |
+| 4 | Windows/macOS via Docker Desktop | CachiBot uses the Docker CLI, so Docker Desktop contexts, the macOS socket and the Windows named pipe work without CachiBot code per platform. A probe explains what's missing. Named volumes avoid Windows path and macOS file-sharing issues. The image is Linux (amd64 and arm64 for Apple Silicon). |
+| 5 | Watching keeps it awake | Frames go through CachiBot's proxy, so CachiBot counts watchers itself. Vela PR VP6 also reports watchers in `GET /viewer` so the count is right even for a direct viewer. |
+| 6 | Mobile: full desktop | CachiBot's mobile viewer shows the selected window full screen with a window switcher, pinch-zoom and pan, and take-over with touch: tap = click, long-press = right click, drag = scroll, keyboard toggle = type. VP6 adds right click and touch-scroll to Vela's input. |
+| 7 | Bot installs tools into /workspace | The image stays lean (no node/npm/python toolchains for the bot). The terminal (VP4) starts with `HOME`, `PREFIX`, `PATH`, the npm prefix and the pip user base under `/workspace/.local`, so what the bot installs survives sleep. |
+
+## 5. Gap list
+
+### Vela already provides (reuse as is)
+
+- Desktops, views, layouts and the window list.
+- The agent browser (Playwright Chromium worker) and its typed tools.
+- Site policy, request approvals, sign-in walls, outcome-unknown handling and
+  the network policy.
+- Per-window frames, shared captures, control leases, take-over input and
+  Carry on.
+- Agent files (staging, downloads, limits, expiry) and the Files shares.
+- Run records, attention and queue holds.
+- The Dockerfile base and the `/data` layout; serverkit-vela for later remote
+  instances.
+
+### Vela patches (each its own PR into Vela `dev`)
+
+| PR | What | Why CachiBot needs it | Estimate |
+|---|---|---|---|
+| **VP1 Controller access mode** | `python -m vela.computer` entry: listens on the container port with a single controller bearer token (from a mounted secret file), no password, no HTTPS origin requirement, owner-equivalent API access, refuses everything else. Docs and tests. | Container mode today needs an HTTPS public origin and a password; a local controller needs neither, and the port is only on host loopback. | 1–2 days |
+| **VP2 `computer` image target** | Dockerfile target adding the pinned Node runtime, the browser worker and Playwright Chromium, a non-root user, `/workspace` volume, healthcheck; amd64 + arm64; build args for the Vela version. | Agent desktops can't run in the current image (no Node or browser). Built locally by CachiBot, so it must build reliably with only Docker. | 1–2 days |
+| **VP3 Driver API** | Let a controller drive an agent desktop step by step: open a driven run (no Vela model), `POST …/runs/{id}/steps` with one tool call, get the observation back, and `finish` or `needs_person`. Every step goes through the same validation, policy, approvals, effects and leases as Vela's own loop. Events stream for activity. | CachiBot's agent is the brain; Vela only runs its own model loop today. | 3–4 days |
+| **VP4 Terminal** | A terminal view kind backed by a PTY, available **only** in computer mode (inside the container, which is the sandbox); frames for watching, input under the same lease rules, agent tools `terminal_run` / `terminal_read` with output caps and timeouts; environment rooted at `/workspace`. | Views 06 and 07 (dev server, coding agent in the terminal). Vela forbids a shell in agent desktops on the host, which stays true outside computer mode (§6 Q2). | 4–5 days |
+| **VP5 Workspace files + editor** | In computer mode, a built-in `/workspace` share and a plain-text editor view (open, edit, save, through the same path rules); "open file in editor" API. | Mini Vela's Files and Editor apps, and "Open on computer" from the Files sheet. | 2–3 days |
+| **VP6 Viewer additions** | Watcher reporting in `GET /viewer` (viewer heartbeats), right click and drag-scroll in take-over input, a lightweight "activity" field per desktop. | Decisions 5 and 6; the activity line in view 04. | 1–2 days |
+| VP7 (later) | serverkit-vela: create instances from the `computer` target with the controller mode and an API-key write scope for a CachiBot controller. | The cloud computer option. Not in this plan's estimate. | later |
+
+Vela total for VP1–VP6: about **12–18 working days**, 6 PRs.
+
+### CachiBot adds
+
+- **Docker probe and image build:** detect Docker (CLI, context, Desktop),
+  build the pinned Vela `computer` image on first use with progress and
+  caching.
+- **`ComputerService`:** one container and two volumes per bot; wake, sleep,
+  stop; restart-safe states (`unavailable | off | building | starting | awake
+  | asleep | needs_you`); idle sleep counting tool activity, drivers and
+  watchers; migration 016 (`bot_computers`).
+- **Vela client:** a controller-token HTTP client for the driver API, frames,
+  take-over, events and the terminal.
+- **API and WS:** `GET /api/bots/{id}/computer`, wake, sleep, stop, take-over,
+  release, needs-you respond, a frame proxy and an input proxy, all under bot
+  access rules (viewer to watch, operator+ to control); `computer_update` WS
+  events.
+- **`computer` plugin for the bot:** browser, terminal and file tools mapped
+  onto VP3/VP4/VP5. The coding-agent tool runs in the computer's terminal when
+  the computer is on. Every step writes execution logs (Runs, Activity log).
+- **Per-bot workspace:** CachiBot's file tools for a bot with a computer point
+  at the bot's `/workspace` volume.
+- **UI:** views 04–09 and 11, Bot settings › Computer, the first-wake build
+  progress, "Open on computer", the mobile full desktop with touch take-over.
+  All hidden while `available` is false.
+
+## 6. Open questions for Juan
+
+1. **One container per bot** (recommended, matches "each bot gets its own
+   workspace"), or one shared Vela with an agent desktop per bot on small
+   machines? Each container costs roughly 0.6–1 GB of RAM while awake.
+2. **A terminal inside Vela.** Vela's agent desktops forbid a shell by design.
+   OK to add one only in computer mode (inside the container), keeping the
+   rule unchanged everywhere else?
+3. **CachiBot drives, Vela enforces** (recommended: a new driver API so
+   CachiBot's own agent and model make each step), or hand whole tasks to
+   Vela's own agent loop and model?
+4. **The preview shows one window, not the whole desktop.** Vela never
+   captures the whole desktop, on purpose. View 04's preview would show the
+   focused window plus the open-windows list. OK?
+5. **Vela releases.** CachiBot pins a Vela release to build from, so the Vela
+   PRs need a Vela release before CachiBot can ship the feature. Should I
+   release Vela (dev → main) when VP1–VP3 land, or wait for all six?
+
+## 7. Phases and estimates
+
+Vela PRs go into Vela `dev`; CachiBot PRs go into CachiBot `dev`. CachiBot
+tests use a fake Vela client and a fake Docker runner (no image builds and no
+containers in tests or CI). Docker integration tests are marked and skip
+without Docker.
+
+| Phase | Repo | What | Depends on | Estimate |
+|---|---|---|---|---|
+| VP1 | Vela | Controller access mode | — | 1–2 days |
+| VP2 | Vela | `computer` image target | VP1 | 1–2 days |
+| **C1** | CachiBot | Docker probe, local image build with progress, `ComputerService`, per-bot volumes and workspace, migration 016, `GET /computer` + wake/sleep/stop, `computer_update` | VP1, VP2 | 3–4 days |
+| VP3 | Vela | Driver API | VP1 | 3–4 days |
+| VP6 | Vela | Viewer additions (watchers, right click, drag-scroll, activity) | — | 1–2 days |
+| **C2** | CachiBot | Frame and input proxy, watchers keep it awake, needs-you mapping, take-over and hand back | VP3, VP6 | 2–3 days |
+| VP4 | Vela | Terminal (computer mode only) | VP1 | 4–5 days |
+| VP5 | Vela | Workspace share + editor | VP1 | 2–3 days |
+| **C3** | CachiBot | `computer` plugin (browser, terminal, files), coding agent in the terminal, dev servers, execution logs | VP3, VP4, VP5 | 3–4 days |
+| **C4** | CachiBot | UI: views 04–09 and 11, Bot settings › Computer, build progress, Open on computer, mobile full desktop with touch | C2, C3 | 4–6 days |
+| **C5** | CachiBot | Hardening: Docker Desktop on Windows/macOS, resource caps (`--memory`, `--cpus`, `--pids-limit`), container egress rules, recovery when a container dies, docs | C4 | 2–3 days |
+
+**Total: about 27–38 working days (roughly 5.5–7.5 weeks): 6 Vela PRs and 5
+CachiBot PRs.** Vela work and CachiBot work overlap after VP1/VP2, so the
+calendar time is shorter than the sum.
+
+Compared with the from-scratch plan (19–27 days), this is larger because it
+adds things that plan didn't have: Vela's approval, sign-in and site-policy
+safety now covers the bot's browser, and the terminal, editor and driver API
+become part of Vela that its own users get too. Reuse saves the browser
+control, viewer and take-over work. Deferring the terminal (VP4 and the
+terminal part of C3) would cut about a week, but views 06 and 07 would stay
+hidden.
