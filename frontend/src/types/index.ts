@@ -407,6 +407,32 @@ export interface SideTaskGroupSummary {
   items: SideTask[]
 }
 
+/** One changed file in a side-task diff (GET /side-tasks/{id}/diff). */
+export interface SideTaskDiffFile {
+  path: string
+  /** added | modified | deleted */
+  status: string
+  /** null when the file is binary */
+  additions: number | null
+  deletions: number | null
+  binary: boolean
+}
+
+/**
+ * Unified diff + per-file stats behind "View changes". Unmerged: the
+ * worktree against its base (incl. uncommitted). Merged: the merged commit
+ * range. `truncated` flags a diff cut at the size cap.
+ */
+export interface SideTaskDiff {
+  sideTaskId: string
+  status: string
+  base: string | null
+  head: string | null
+  truncated: boolean
+  files: SideTaskDiffFile[]
+  diff: string
+}
+
 /** Chat row as returned by GET /api/bots/{id}/chats (includes side-task chats). */
 export interface BackendChat {
   id: string

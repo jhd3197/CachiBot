@@ -907,6 +907,8 @@ New pieces:
 | Side-task chat history | `GET /api/bots/{id}/chats/{chatId}/messages` | Loaded on open, refreshed when the record's `updatedAt` changes and polled every 4s while running. |
 | Sub-line parent title | `GET /api/bots/{id}/chats/{parentChatId}` | Falls back to plain "the main chat" when the fetch fails. |
 | Stop / Retry merge / Discard | `POST .../side-tasks/{id}/stop|retry-merge|discard` | Hidden below operator (the APIs require operator+); errors toast. |
+| Side-task chat composer (E6) | `POST .../side-tasks/{id}/messages` | Operator+ only; mirrors the server rules — disabled with the reason while the task works or waits on a merge conflict. The reply continues the turn in the side task's worktree. |
+| "View changes" (E6) | `GET .../side-tasks/{id}/diff` | In the side-task chat header and on settled thread replies; diff dialog with file list + hunks. Hidden when the record points at no work. |
 | Sidebar tree | side-tasks store via `chats` (bot row = latest chat) | One nested level under the bot's latest-chat row; helpers collapse to one "X of N" row. Clicking opens the side task's chat. |
 | Workspace › Needs you | side-tasks store | One item per `needs_you` record ("Side task \"…\" needs you — merge conflict"), opening the side task's chat. |
 | Start points | `POST .../chats/{chatId}/side-tasks` | Message hover **More › Do this on the side** prefills the dialog from that message; composer **+ › Side task** prefills from the composer text. Both operator+ only. |
@@ -924,22 +926,11 @@ New pieces:
 
 ### Phase E4 - not backed yet (hidden from the design, no fake data)
 
-- **Replies in a side-task chat** (design 11b's composer) — hidden on purpose:
-  the backend has no path to resume a `needs_you` side task from a user reply
-  (`SideTaskService.resume` exists but is exposed on no API/WS route, and a
-  normal WS message would run in the shared workspace, not the side task's
-  worktree). When a resume endpoint exists, the composer can be enabled.
 - **Question card with option buttons** (design 11b) — no `ask_user` WS payload
   or structured question/options exists; `needs_you` carries only a free-text
   reason, which the card shows instead.
-- **"Bring into main task" / "View changes" buttons** (design 11c) — the merge
-  is automatic in this build (Juan's decision #2), so `merged` shows what came
-  back (files + commit). No diff endpoint exists for "View changes".
 - **Computer column on side tasks** (11a right pane: labeled windows, "N things
   running", preview counts) — no computer backend; the pane is not rendered.
-- **Runs grouping under the parent** — RunsView lists execution logs, and side
-  tasks never write execution-log rows (they run through `SideTaskService`, not
-  the job runner), so there is nothing real to group.
 - **Interleaving into message history** — done in E5: replies are persisted
   messages (quoted, next to the source via `reply_to_id`); live waiting /
   running states show as the small indicator under the source message.
@@ -1026,6 +1017,65 @@ fixture roots worktrees in the system temp dir and makes every side-task git
 helper refuse to run against a repository outside it. The migration test
 runs alembic against a tmp SQLite only (`CACHIBOT_DATABASE_URL` env; the
 alembic env prefers it over the developer's real config).
+
+## Side-task follow-ups (phase E6)
+
+The opened side task became a real conversation, its changes became
+inspectable, and its turns show up in Runs (see SIDE_TASKS_PLAN.md "E6" for
+the full backend notes).
+
+Backend:
+
+- `POST /api/bots/{id}/side-tasks/{sideTaskId}/messages` (operator+) replies
+  inside the side task's own chat: the message is persisted there and the
+  task continues its turn in its own worktree — reusing the worktree,
+  recreating it from the surviving branch, or starting a fresh branch from
+  the parent's current HEAD when the previous work was already brought back
+  (then only new changes merge). The 4-per-parent limit applies (queue when
+  full); running/waiting tasks and merge conflicts get a 409 with a clear
+  reason. When the continued turn settles, the SAME parent-chat thread reply
+  is updated in place.
+- `GET /api/bots/{id}/side-tasks/{sideTaskId}/diff` (viewers allowed,
+  read-only): unified diff + per-file stats — worktree vs base (incl.
+  uncommitted and untracked) while unmerged, the merged commit range after;
+  512 KB cap with a `truncated` flag; binary files listed without stats.
+- Every side-task turn writes one execution-log row (trigger `side_task`,
+  parent chat as `chatId`, side-task/side-chat ids in the metadata) with
+  output lines for the key steps, so the existing executions APIs return
+  them.
+- Fix from the last review: the `_running` done-callback only pops the
+  handle when it is still the same task object (a resume/reply landing
+  before the cancelled turn exited could evict the fresh handle and lose
+  the running turn).
+
+Frontend (`SideTaskChatView` + `SideTaskDiffDialog` + `SideTaskReply` +
+`RunsView`):
+
+- The side-task chat has a real composer (design 11b): operator+ only,
+  disabled with the reason while the task works or waits on a merge
+  conflict; viewers see no composer. Sending persists the reply and the
+  chat streams the continued turn (the existing running-poll picks it up).
+- "View changes" opens the diff dialog (file list with +/− stats and
+  A/M/D badges, per-file hunks with add/del coloring, truncated/binary
+  notes, mobile layout with a horizontal file strip). The action lives in
+  the side-task chat header and on settled thread replies, and is hidden
+  whenever the record points at no work.
+- RunsView groups side-task rows under a "Side tasks of \<parent title\>"
+  section per parent chat (title fetched once per chat), helpers under a
+  "\<group title\> · N helpers" cluster, each with an "Open side chat" link
+  into the side chat. Trigger column labels them "side task".
+
+### Behavior changes
+
+- Resumed/continued side tasks answer the newest user message of their chat
+  (the reply) instead of a generic "continue" prompt; the prompt is still
+  persisted exactly once.
+- A merge after a continuation reports only the changes that were not in the
+  parent yet; the diff of a merged task shows exactly what the latest
+  bring-in added.
+- A turn cancelled at any point (even before its first database read)
+  settles the record; a finish with unmerged commits on the branch merges
+  them back instead of reporting "done" with the work left behind.
 
 ## Known limitations / decisions
 
