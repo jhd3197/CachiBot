@@ -56,6 +56,7 @@ class TriggerType(str, Enum):
     API = "api"
     SCHEDULE = "schedule"
     RETRY = "retry"
+    SIDE_TASK = "side_task"
 
 
 class LogLevel(str, Enum):

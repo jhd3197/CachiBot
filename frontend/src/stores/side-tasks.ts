@@ -12,6 +12,7 @@ import { create } from 'zustand'
 import {
   discardSideTask,
   listSideTasks,
+  replyToSideTask,
   retryMergeSideTask,
   startSideTask,
   stopSideTask,
@@ -43,6 +44,8 @@ interface SideTasksState {
   stop: (botId: string, sideTaskId: string) => Promise<void>
   retryMerge: (botId: string, sideTaskId: string) => Promise<void>
   discard: (botId: string, sideTaskId: string) => Promise<void>
+  /** Reply inside a side task's chat; the record comes back running/queued. */
+  reply: (botId: string, sideTaskId: string, content: string) => Promise<SideTask>
 }
 
 export const useSideTasksStore = create<SideTasksState>()((set, get) => ({
@@ -102,6 +105,12 @@ export const useSideTasksStore = create<SideTasksState>()((set, get) => ({
     const task = await discardSideTask(botId, sideTaskId)
     get().upsert(task)
   },
+
+  reply: async (botId, sideTaskId, content) => {
+    const task = await replyToSideTask(botId, sideTaskId, content)
+    get().upsert(task)
+    return task
+  },
 }))
 
 /** All side tasks of one parent chat, oldest first (stable card order). */
@@ -149,4 +158,11 @@ export function partitionSideTasks(tasks: SideTask[]): {
 /** "done" for group counts covers done + merged (matches the group endpoint). */
 export function sideTaskDone(tasks: SideTask[]): number {
   return tasks.filter((t) => t.status === 'done' || t.status === 'merged').length
+}
+
+/** A diff can only exist when the record points at work somewhere. */
+export function sideTaskMayHaveDiff(task: SideTask): boolean {
+  return Boolean(
+    task.worktreePath || task.branch || task.mergedCommit || task.mergedFiles.length > 0
+  )
 }

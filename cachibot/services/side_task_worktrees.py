@@ -399,6 +399,175 @@ def is_branch_merged(workspace: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
+# ---------------------------------------------------------------------------
+# Diff for "View changes"
+# ---------------------------------------------------------------------------
+
+# Cap for the unified diff text returned by the API; beyond this the text is
+# cut and the response flags ``truncated`` so the UI can say so.
+DIFF_MAX_BYTES = 512 * 1024
+
+
+@dataclass
+class DiffFile:
+    """One changed file: status, line stats (None when binary)."""
+
+    path: str
+    status: str  # "added" | "modified" | "deleted"
+    additions: int | None
+    deletions: int | None
+    binary: bool = False
+
+
+@dataclass
+class SideTaskDiff:
+    """Unified diff + per-file stats for one side task."""
+
+    files: list[DiffFile]
+    diff: str
+    truncated: bool = False
+    base: str | None = None
+    head: str | None = None
+
+
+def _parse_numstat(out: str, status_by_path: dict[str, str]) -> list[DiffFile]:
+    """Parse ``git diff --numstat`` output into per-file stats."""
+    files: list[DiffFile] = []
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 3:
+            continue
+        raw_path = parts[-1]
+        # --no-index against /dev/null renders "/dev/null => path"
+        if " => " in raw_path:
+            raw_path = raw_path.split(" => ")[-1]
+        binary = parts[0] == "-" or parts[1] == "-"
+        files.append(
+            DiffFile(
+                path=raw_path,
+                status=status_by_path.get(raw_path, "modified"),
+                additions=None if binary else int(parts[0]),
+                deletions=None if binary else int(parts[1]),
+                binary=binary,
+            )
+        )
+    return files
+
+
+def _diff_status_by_path(cwd: Path, *range_args: str) -> dict[str, str]:
+    """Map path -> added/modified/deleted for a diff range."""
+    out = _git(cwd, "diff", "--name-status", *range_args).stdout
+    statuses: dict[str, str] = {}
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        statuses[parts[-1]] = _DIFF_STATUS_MAP.get(parts[0][:1], "modified")
+    return statuses
+
+
+def _untracked_paths(worktree: Path) -> list[str]:
+    """Untracked (never staged) files in a worktree, sorted."""
+    out = _git(worktree, "status", "--porcelain").stdout
+    paths = []
+    for line in out.splitlines():
+        if line.startswith("?? "):
+            paths.append(line[3:].strip().strip('"'))
+    return sorted(paths)
+
+
+def _cap_diff(text: str) -> tuple[str, bool]:
+    """Cut the diff at DIFF_MAX_BYTES; report whether it was cut."""
+    encoded = text.encode("utf-8", errors="replace")
+    if len(encoded) <= DIFF_MAX_BYTES:
+        return text, False
+    cut = encoded[:DIFF_MAX_BYTES].decode("utf-8", errors="ignore")
+    # End on a whole line so the last hunk stays readable
+    cut = cut[: cut.rfind("\n")]
+    return cut + "\n", True
+
+
+def compute_diff(workspace: Path, side_task: SideTask) -> SideTaskDiff:
+    """The unified diff a side task is about to bring back (or brought back).
+
+    - Merged: the merged commit range (``base_commit..merged_commit``) in the
+      parent repo — ``base_commit`` is the mainline commit the side branch
+      started from, so for a continuation that began on a fresh branch (after
+      the previous work was brought back) the range is exactly what the
+      latest bring-in added.
+    - Otherwise: the worktree against its base commit, including uncommitted
+      changes (untracked files are rendered individually, since plain
+      ``git diff`` cannot see them). When the worktree directory is gone but
+      the branch lives, the committed ``base..branch`` range is used.
+    - Nothing to diff (no changes, workspace gone): empty result.
+    """
+    base = side_task.base_commit
+    if side_task.merged_commit and base:
+        files = _parse_numstat(
+            _git(workspace, "diff", "--numstat", f"{base}..{side_task.merged_commit}").stdout,
+            _diff_status_by_path(workspace, f"{base}..{side_task.merged_commit}"),
+        )
+        text = _git(workspace, "diff", f"{base}..{side_task.merged_commit}").stdout
+        text, truncated = _cap_diff(text)
+        return SideTaskDiff(
+            files=files,
+            diff=text,
+            truncated=truncated,
+            base=base,
+            head=side_task.merged_commit,
+        )
+
+    if side_task.worktree_path and base:
+        worktree = Path(side_task.worktree_path)
+        if worktree_exists(worktree):
+            status_by_path = _diff_status_by_path(worktree, base)
+            text = _git(worktree, "diff", base).stdout
+            files = _parse_numstat(_git(worktree, "diff", "--numstat", base).stdout, status_by_path)
+            # Files the turn created but never staged are invisible to
+            # ``git diff``; render each one with ``--no-index`` instead.
+            for path in _untracked_paths(worktree):
+                chunk = _git(
+                    worktree,
+                    "diff",
+                    "--no-index",
+                    "--numstat",
+                    "--",
+                    "/dev/null",
+                    path,
+                    check=False,
+                ).stdout
+                parsed = _parse_numstat(chunk, {})
+                file_stat = (
+                    parsed[0]
+                    if parsed
+                    else DiffFile(path=path, status="added", additions=None, deletions=None)
+                )
+                file_stat.path = path
+                file_stat.status = "added"
+                files.append(file_stat)
+                text += _git(
+                    worktree, "diff", "--no-index", "--", "/dev/null", path, check=False
+                ).stdout
+            files.sort(key=lambda f: f.path)
+            text, truncated = _cap_diff(text)
+            return SideTaskDiff(files=files, diff=text, truncated=truncated, base=base, head=None)
+
+    if side_task.branch and base:
+        if branch_sha(workspace, side_task.branch):
+            range_spec = f"{base}..{side_task.branch}"
+            files = _parse_numstat(
+                _git(workspace, "diff", "--numstat", range_spec).stdout,
+                _diff_status_by_path(workspace, range_spec),
+            )
+            text = _git(workspace, "diff", range_spec).stdout
+            text, truncated = _cap_diff(text)
+            return SideTaskDiff(
+                files=files, diff=text, truncated=truncated, base=base, head=side_task.branch
+            )
+
+    return SideTaskDiff(files=[], diff="", truncated=False, base=base, head=None)
+
+
 def branch_sha(workspace: Path, branch: str) -> str | None:
     """The branch tip sha, or None when the branch no longer exists."""
     out = _git(workspace, "rev-parse", "--verify", "--quiet", branch, check=False).stdout.strip()
@@ -420,12 +589,16 @@ def cleanup_after_merge(workspace: Path, side_task: SideTask) -> None:
 
 
 __all__ = [
+    "DIFF_MAX_BYTES",
+    "DiffFile",
     "MergeOutcome",
+    "SideTaskDiff",
     "WorktreeError",
     "branch_sha",
     "changed_files_vs_base",
     "cleanup_after_merge",
     "commit_all_changes",
+    "compute_diff",
     "create_worktree",
     "current_branch",
     "delete_branch",
