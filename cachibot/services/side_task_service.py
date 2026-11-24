@@ -437,19 +437,35 @@ class SideTaskService:
             SideTaskStatus.STOPPED,
         ):
             return  # already terminal
-        if side_task.status == SideTaskStatus.RUNNING:
-            task = self._running.get(side_task.id)
-            if task is not None:
-                # The cancelled turn settles the record in _run()
-                task.cancel()
-            else:
-                # Running in the DB but not in memory (e.g. lost handle) —
-                # mark it stopped directly so it isn't resumed on restart.
-                await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
-                await self._promote(side_task.parent_chat_id)
-        else:
-            await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
-            await self._promote(side_task.parent_chat_id)
+        task = (
+            self._running.get(side_task.id) if side_task.status == SideTaskStatus.RUNNING else None
+        )
+        if task is not None:
+            # The cancelled turn settles the record in _run() — but only when
+            # it lives to run that path: a turn already settling from an
+            # earlier cancel (needs_you, or a finish mid-merge) is aborted by
+            # this second cancel, and a handle whose done-callback has not
+            # fired yet makes cancel() a no-op. Wait for the turn to end,
+            # then settle whatever is still active so the stop is never lost.
+            task.cancel()
+            if task is not asyncio.current_task():
+                await asyncio.gather(task, return_exceptions=True)
+            latest = await self._repo.get(side_task.id)
+            if latest is None:
+                return
+            side_task = latest
+            if side_task.status in (
+                SideTaskStatus.DONE,
+                SideTaskStatus.MERGED,
+                SideTaskStatus.FAILED,
+                SideTaskStatus.STOPPED,
+            ):
+                return  # the turn's own settle path got there first
+        # No live turn settled the record (no handle, or the handle's turn
+        # was already gone) — mark it stopped directly so it isn't resumed
+        # on restart.
+        await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
+        await self._promote(side_task.parent_chat_id)
 
     # ------------------------------------------------------------------
     # Needs you / resume
