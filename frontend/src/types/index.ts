@@ -481,6 +481,21 @@ export interface ComputerViewsResponse {
   activity: ComputerActivity | null
 }
 
+/** One entry in the bot's /workspace (GET .../computer/workspace). */
+export interface ComputerWorkspaceEntry {
+  name: string
+  path: string
+  kind: string
+  size: number | null
+  modified: string | null
+}
+
+/** GET /api/bots/{id}/computer/workspace — one folder of the workspace. */
+export interface ComputerWorkspaceResponse {
+  path: string
+  entries: ComputerWorkspaceEntry[]
+}
+
 /** POST /api/bots/{id}/computer/watch — the watcher is counted. */
 export interface ComputerWatchResponse {
   watching: boolean
@@ -938,7 +953,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings' | 'computer'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
 export type AutomationSection = 'routines' | 'advanced'
 export type AppView = 'dashboard' | 'dashboard-usage' | 'runs' | 'admin-logs' | 'settings'

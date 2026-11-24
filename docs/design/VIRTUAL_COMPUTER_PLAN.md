@@ -400,3 +400,92 @@ hidden.
     Computer, the build-progress UI, "Open on computer", mobile touch
     take-over, approving sites beyond the starter origin, and the Vela
     image pin bump that turns the terminal/workspace/editor surface on.
+- **C4 (this repo, branch `feat/computer-ui`): implemented.** The computer
+  UI for desktop and web — views 04–09 and 11 as the real states of one
+  surface, plus the right-hand bot inspector. Frontend only, plus two small
+  file routes under bot access rules:
+  - **Where it lives.** The v2 shell (`MainLayout`) gains one right-hand
+    column: the collapsible **`BotInspectorPanel`** (persisted toggle in the
+    ui store; hidden below 1200 px and on routes without a selected bot).
+    Its **Computer block** is design 04's aside: the 16:10 state card
+    (`ComputerStateCard` — the real states of view 11: off with Turn on,
+    asleep with Wake, building/starting with the C1 build progress, awake
+    with the live preview, needs_you with the amber ring + tag), the
+    one-line activity from the C2 store, the open-windows list (app +
+    title) and the take-over row. The chat header gains the design's
+    **Computer toggle** (`aria-pressed`, only while the Docker probe is
+    available). "Open" goes to the full-window surface.
+  - **Full-window surface (`/:botId/computer`, view 05).** The desktop
+    preview large, or the **selected window's frame** full size — the
+    browser/terminal presentations of views 06/07 are the real per-window
+    frames; when the selected window is gone the view falls back to the
+    desktop preview. The top bar mirrors Vela's with real C2 state: who is
+    driving, **Take over / Hand back** (operator+; hidden for viewers) and
+    **Stop**. **Take-over (view 08):** while the caller holds the lease, a
+    selected window's frame forwards click / right click / scroll / typed
+    text / named keys through the C2 input API (bounds-validated on the
+    server, `frameAt` staleness attached); the desktop preview without a
+    picked window is honestly watch-only ("Pick a window below to click,
+    scroll and type"). The needs-you reason is a banner with **Take over**
+    and **Skip this step** (`needs-you/respond {action: skip}`). The chat
+    itself renders the same needs-you as an inline card (design 03 style)
+    plus the "You took over at …" line with Hand back — only while this
+    user is the driver.
+  - **Preview plumbing** stays the C2 hook: `useComputerPreview` gained an
+    optional `viewId` (per-window frames poll ~1 fps with ETag/304; the
+    desktop preview still refetches by `previewRevision` and sends watch
+    heartbeats — watching keeps the computer awake; a preview never wakes
+    it).
+  - **First-wake build progress** shows while state is `building`: the
+    real step/total (when the build line carries it) and the last build
+    line; a failed build surfaces `lastError`.
+  - **Bot settings › Computer** (`#computer`, deep-linkable) is a real
+    section: status (+ activity/error, Vela version), the four true facts
+    (This PC · Docker / the internet, not your network / keeps /workspace /
+    sleeps after 10 min idle — the configured value is not exposed to the
+    UI, so the shipped default is the copy), and Wake/Sleep/Stop
+    (operator+; read-only for viewers). Section and nav chip are hidden
+    while the probe is unavailable.
+  - **Files sheet "Open on computer" (view 10).** New routes:
+    `GET .../computer/workspace?path=` (viewer+; lists one /workspace
+    folder through a real `workspace_list` driven step; **browsing never
+    boots the computer** — asleep is a 409 and the UI hides the section)
+    and `POST .../computer/editor/open` (operator+; validates the path to
+    workspace-relative and runs the `editor_open` driven step; refusals
+    surface as the computer's plain 409). The sheet shows an "On its
+    computer" section (folder navigation, real sizes) only while the
+    computer is awake; "Open on computer" is operator-only. Tested in
+    `tests/test_computer_workspace_api.py` (fake Vela + fake Docker, no
+    containers): access rules, path-escape 422s, the asleep-409s with no
+    container started, step payload normalization, refusal passthrough.
+  - **Right-hand inspector** (Juan's sidebar): bot avatar + name;
+    **Activity** (the live computer activity line + the recent runs from
+    the executions API) and **Library** tabs (the bot's knowledge
+    documents — the tab appears only when there are any); **Suggested**
+    only from real prompts (a computer that needs you, open quick tasks)
+    and hidden entirely when empty; the Computer card above; **Voice /
+    Language** rows read from the app's real voice-mode settings (a
+    preference the voice pipeline uses; per-bot voice settings do not
+    exist) and hidden when absent.
+  - **Gates.** Every computer surface checks the Docker probe
+    (`status.available`, fetched at shell mount; a failed probe reads as
+    unavailable) — no dead Computer buttons when Docker is off. The
+    design's "Use a cloud computer instead" CTA does not exist anywhere
+    (no cloud backend); view 09's generated explainer sentence is omitted
+    for the same reason; the view-06/07 chat-page cards ("Running on its
+    computer · localhost:5173") have no real chat-content source and are
+    not rendered — the full-window surface covers those presentations.
+  - **Tests.** `tests/test_computer_ui_source.py` — hermetic source
+    assertions over the frontend: availability gates, the conditional
+    inspector Computer card, no cloud CTA (UI + backend), the conditional
+    Open-on-computer, the true explainer facts, operator-only take-over
+    controls, and the no-AI-tools rule on the new files. Backend: the new
+    routes' pytest above; the `run_tool_step` pipeline gained
+    `allow_wake=False` (person-initiated reads that must never boot the
+    computer). `ruff`/`ruff format`/`mypy`/`pytest` all pass; the frontend
+    lint/build run in CI (no local node_modules).
+  - **Waits for C5/the next Vela pin:** the terminal/editor surfaces
+    light up with the VP4/VP5 pin bump (the UI already lists terminal and
+    editor windows and opens their frames); approving sites beyond the
+    starter origin is a C5 UI concern; mobile full-desktop touch take-over
+    stays out of this pass (desktop/web only).

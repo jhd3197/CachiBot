@@ -8,8 +8,9 @@
  * - StoppedLine: the user pressed stop in this chat; Continue resends
  */
 
-import { Square } from 'lucide-react'
+import { Square, Hand } from 'lucide-react'
 import type { PendingApproval } from '../../stores/approvals'
+import { parseApiDate } from '../../lib/utils'
 
 // -----------------------------------------------------------------------------
 // Error card — failed turn, with the real fix actions
@@ -92,6 +93,62 @@ export function StoppedLine({ onContinue }: StoppedLineProps) {
       <span className="v2-status-line__actions">
         <button type="button" className="v2-text-btn" onClick={onContinue}>
           Continue
+        </button>
+      </span>
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Computer needs-you card (design 08) — the real C2 needs-you state.
+// Take over hands the desktop to the person; "Skip this step" answers with
+// the documented closest refusal (an approval is denied, a needs-person
+// pause stops the run). Viewers see the reason without control buttons.
+// -----------------------------------------------------------------------------
+
+interface ComputerNeedsYouCardProps {
+  reason: string
+  /** Operator+ affordances; hidden for viewers (the API requires it). */
+  onTakeOver?: () => void
+  onSkip?: () => void
+}
+
+export function ComputerNeedsYouCard({ reason, onTakeOver, onSkip }: ComputerNeedsYouCardProps) {
+  return (
+    <div className="v2-card v2-card--needs-you" role="alert">
+      <p className="v2-card__text">{reason}</p>
+      {onTakeOver && (
+        <div className="v2-card__actions">
+          <button type="button" className="v2-card__btn v2-card__btn--primary" onClick={onTakeOver}>
+            Take over
+          </button>
+          <button type="button" className="v2-card__btn" onClick={onSkip}>
+            Skip this step
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// "You took over" line — shown only while this user holds the lease (design 08)
+// -----------------------------------------------------------------------------
+
+interface ComputerDrivingLineProps {
+  since: string
+  onHandBack: () => void
+}
+
+export function ComputerDrivingLine({ since, onHandBack }: ComputerDrivingLineProps) {
+  const at = parseApiDate(since)
+  return (
+    <div className="v2-status-line v2-status-line--needs-you">
+      <Hand className="v2-status-line__icon" />
+      <span>You took over at {at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+      <span className="v2-status-line__actions">
+        <button type="button" className="v2-text-btn" onClick={onHandBack}>
+          Hand back
         </button>
       </span>
     </div>
