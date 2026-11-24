@@ -311,3 +311,92 @@ hidden.
     and the terminal/editor surface. Take-over on a fresh desktop also still
     needs C3's agent setup (policy + enable-agent) before Vela will issue a
     lease; C2 surfaces Vela's plain refusal until then.
+- **C3 (this repo, branch `feat/computer-bot-tools`): implemented.** The
+  bot-facing computer tools — the `computer` plugin, the service's driven-step
+  pipeline, and the file/coding-agent routing — backend only (no computer UI;
+  that is C4/C5):
+  - **Vela client** (`services/computer/vela_client.py`): the driven-run
+    surface — the tool catalogue, create/step/read/finish/cancel for driven
+    runs (a step waits up to 60 s because a `terminal_run` can hold one for
+    30), the task list (to adopt the active run after a controller restart),
+    and the desktop policy read/save + `enable-agent` the one-time agent
+    setup needs. Timeouts on every call; the token still only travels in the
+    `Authorization` header.
+  - **Tool gate:** the `computer` plugin's tools are registered only when
+    `computer.enabled` is on **and** the last Docker probe found a daemon
+    (`ComputerService.computer_tools_available`, warmed at startup reconcile
+    and every status poll); when the feature is off the model never sees
+    them. Every call re-checks with a fresh probe and refuses with a plain
+    sentence. No new bot-settings capability toggle was added.
+  - **Driven steps** (`ComputerService.run_tool_step`): a tool call may wake
+    the computer and wait for it (a preview still never wakes); before every
+    step the service waits while a person holds the take-over
+    (`driver_for`, injected clock in tests) and answers "a person is
+    driving" rather than barging in — Vela's retryable `person_driving`
+    refusal is handled the same way; `touch(bot_id, "tool")` keeps idle
+    sleep and the activity line truthful. One driven run per bot is opened
+    on demand (idempotent `clientRequestId`), reused across steps, adopted
+    after a controller restart, and finished by the `computer_finish` tool
+    or when a coding-agent session ends (an ordinary finish leaves the run's
+    terminals — dev servers keep running; cancel kills them, per Vela's
+    rule). Result / refusal / approval / needsPerson are surfaced honestly;
+    approvals and needs-person trip the same needs-you mapping C2 built,
+    and a pending approval is settled by the step read before the next step.
+  - **Agent setup:** a fresh container's desktop is personal, and Vela only
+    drives an agent desktop — so at wake (and lazily on first use) the
+    service saves a starter policy and calls `enable-agent`. Vela's policy
+    model has no "whole internet" rule and requires at least one approved
+    app or site, so the starter policy approves exactly one origin —
+    `https://example.com` (the RFC 2606 reserved name), effects "ask" — and
+    nothing else. Browser steps to other origins refuse with Vela's own
+    `not_allowed` until sites are approved (a C4/C5 UI concern).
+  - **The plugin** (`plugins/computer.py`, registered in
+    `plugins/__init__.py` and the plugin manager's always-on set): stable,
+    hand-written tools for the terminal five, the workspace three,
+    `editor_open` and `computer_finish` (their names are documented and do
+    not drift, so they are listed even while the computer sleeps), plus the
+    browser/desktop tools registered from Vela's live catalogue once the
+    computer is awake (names mapped `desktop.observe` →
+    `computer_desktop_observe`, schemas passed through) so they never drift
+    from what Vela accepts. Dev servers are plain `computer_terminal_run`
+    with `waitFor: "output"`/`"none"` — no fake dev-server tool. The plugin
+    talks only to `get_computer_service()`.
+  - **File tools:** with the computer usable, `FileOpsPlugin` operates on
+    the bot's `/workspace` volume through the `workspace_*` driven tools
+    (read/write/list/edit/info; edits write with the read's
+    `expectedRevision`, so a concurrent save is a conflict, not an
+    overwrite). With the computer off, the host `workspace_path` behavior
+    is unchanged.
+  - **Coding agent:** with the computer usable, `CodingAgentPlugin` and the
+    platform `@mention` dispatcher run the CLI inside the computer's
+    terminal: the task goes into a workspace file (short, quote-free
+    command line), the CLI runs in `/workspace` (PATH already includes
+    `/workspace/.local`), output streams back via `terminal_read` polls,
+    the exit code comes back on a sentinel, and the session's terminal is
+    closed at the end. A CLI missing in the computer returns the shell's
+    own error (the bot can install into `/workspace/.local`) — nothing
+    pretends it ran. With the computer off, the host subprocess path is
+    unchanged.
+  - **Execution logs:** every computer step writes an `ExecutionLog`
+    (`execution_type="computer"`, tool name, duration, success/error, short
+    result/refusal summary — never arguments or tokens), fire-and-forget
+    like the instruction logs; a coding-agent session writes one log with
+    lines for the key moments. They show up in Runs / the Activity log.
+  - **Feature detection and degradation:** everything is gated on the
+    cached `/api/controller` `features` — the pinned Vela 0.2.0 (protocol
+    2) offers `driver` only, so terminal/workspace/editor tools refuse with
+    a plain "this computer's Vela does not offer the … surface" until the
+    pin bump (the image tag stays `0.2.0`; the separate PR pins 0.3.0).
+    Nothing is faked.
+  - **Tests:** fake Vela client + fake Docker runner throughout (no
+    network, no containers): the gate, wake-on-demand vs no-wake preview,
+    touch, the person-driving wait (injected clock), all four step answers,
+    the documented payloads, file-ops and coding-agent routing both ways,
+    feature-gap refusals, run adopt/finish/cancel, and the execution logs.
+    `tests/test_computer_plugin_integration.py` adds real-Docker coverage
+    behind the same `CACHIBOT_DOCKER_TESTS=1` gate as C1, cleaning up its
+    container and volumes in `finally`.
+  - **Waits for C4/C5:** the computer views (04–09, 11), Bot settings ›
+    Computer, the build-progress UI, "Open on computer", mobile touch
+    take-over, approving sites beyond the starter origin, and the Vela
+    image pin bump that turns the terminal/workspace/editor surface on.

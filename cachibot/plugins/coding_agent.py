@@ -3,6 +3,10 @@ Coding agent plugin — spawn external AI coding CLIs as autonomous tools.
 
 Supports Claude Code, OpenAI Codex, and Gemini CLI. Each runs as a subprocess
 in the bot's workspace directory with configurable timeout and turn limits.
+
+When the bot's computer is usable, the CLI runs inside the computer's
+terminal instead (in its /workspace, where PATH includes /workspace/.local);
+the host subprocess path is kept for when the computer feature is off.
 """
 
 import asyncio
@@ -19,6 +23,11 @@ from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
+from cachibot.services.computer.service import (
+    ComputerCodingResult,
+    ComputerService,
+    get_computer_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -200,11 +209,27 @@ async def _run_coding_cli(
     return output or f"{binary} completed successfully (no output)."
 
 
+def _format_computer_result(cli: CodingCLI, result: ComputerCodingResult, timeout: int) -> str:
+    """Format a computer-terminal coding session like the host path formats
+    its subprocess result."""
+    binary = str(_CLI_SPECS[cli]["binary"])
+    if result.error:
+        return f"Error: {result.error}"
+    if result.cancelled:
+        return f"Error: {binary} was cancelled before it finished.\n\n{result.output}".strip()
+    if result.timed_out:
+        return f"Error: {binary} timed out after {timeout}s.\n\n{result.output}".strip()
+    if result.exit_code not in (0, None):
+        return f"{binary} exited with code {result.exit_code}:\n{result.output}"
+    return result.output or f"{binary} completed successfully (no output)."
+
+
 class CodingAgentPlugin(CachibotPlugin):
     """Provides the coding_agent tool for spawning external AI coding CLIs."""
 
-    def __init__(self, ctx: PluginContext) -> None:
+    def __init__(self, ctx: PluginContext, computer_service: ComputerService | None = None) -> None:
         super().__init__("coding_agent", ctx)
+        self._computer = computer_service
         self._skills_map = self._build_skills()
 
     @property
@@ -217,6 +242,11 @@ class CodingAgentPlugin(CachibotPlugin):
             requires=PluginRequirements(filesystem=True, network=True),
         )
 
+    def _service(self) -> ComputerService:
+        if self._computer is None:
+            self._computer = get_computer_service()
+        return self._computer
+
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
 
@@ -225,7 +255,9 @@ class CodingAgentPlugin(CachibotPlugin):
             description=(
                 "Spawn an external AI coding agent to autonomously complete a "
                 "development task. The agent runs in the workspace directory and "
-                "can read, write, and execute code. "
+                "can read, write, and execute code. When the bot's computer is "
+                "on, the agent runs inside the computer's terminal (in its "
+                "/workspace) instead of on this machine. "
                 "Supported agents: claude (Claude Code), codex (OpenAI Codex), "
                 "gemini (Gemini CLI). Defaults to claude."
             ),
@@ -330,6 +362,27 @@ class CodingAgentPlugin(CachibotPlugin):
                             asyncio.ensure_future,
                             _ctx_on_tool_output(tool_id, text),
                         )
+
+            # With the bot's computer on, the CLI runs inside the computer's
+            # terminal (in its /workspace); the host subprocess is not used.
+            service = self._service()
+            if ctx.bot_id and service.computer_tools_available():
+                spec = _CLI_SPECS[cli]
+                # The container resolves the binary on its own PATH (which
+                # starts with /workspace/.local/bin); host path overrides
+                # are meaningless inside the computer and are not used.
+                build_args: Callable[..., list[str]] = spec["build_args"]  # type: ignore[assignment]
+                argv = [str(spec["binary"]), *build_args(task, max_turns)]
+                result = await service.run_coding_agent(
+                    ctx.bot_id,
+                    argv=argv,
+                    task=task,
+                    timeout_seconds=timeout,
+                    max_output=max_output,
+                    chat_id=ctx.chat_id,
+                    on_output=_on_output,
+                )
+                return _format_computer_result(cli, result, timeout)
 
             try:
                 return await _run_coding_cli(

@@ -1348,13 +1348,13 @@ class TestPathIsolation:
         plugin = FileOpsPlugin(PluginContext(config=config, sandbox=sandbox))
         write = plugin._skills_map["file_write"].fn
 
-        result = write("notes.txt", "side notes\n")
+        result = await write("notes.txt", "side notes\n")
         assert result == "Successfully wrote to notes.txt"
         assert (wt / "notes.txt").read_text() == "side notes\n"
         assert not (service.workspace / "notes.txt").exists()
 
         # The parent workspace is outside the side task's workspace: refused
-        denied = write(str(service.workspace / "evil.txt"), "nope")
+        denied = await write(str(service.workspace / "evil.txt"), "nope")
         assert "outside the workspace" in denied
         assert not (service.workspace / "evil.txt").exists()
 
