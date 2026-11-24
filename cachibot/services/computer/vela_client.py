@@ -12,6 +12,15 @@ surface, all under the controller token and all with timeouts:
 - the events stream, polled with a numbered cursor (bounded pages),
 - approval answers and task control (the needs-you responses).
 
+C3 adds the driven-run surface the bot's own tools use, plus the one-time
+agent setup a fresh desktop needs before Vela accepts driven runs:
+
+- the driven tool catalogue (the same names/schemas Vela's own loop offers),
+- create/step/read/finish/cancel for driven runs (steps wait up to
+  ``DRIVEN_STEP_TIMEOUT`` — a terminal command can hold one for 30s),
+- the task list (to adopt the active run after a controller restart),
+- the desktop policy read/save and ``enable-agent``.
+
 The token only ever travels in the ``Authorization`` header; errors carry
 status codes and Vela's own detail sentences, never request internals.
 """
@@ -28,6 +37,9 @@ DEFAULT_TIMEOUT = 5.0
 #: (Vela's own command timeout is 20s, so the client waits a little longer).
 FRAME_TIMEOUT = 15.0
 INPUT_TIMEOUT = 25.0
+#: A driven step can wait on a terminal command (Vela caps a terminal_run
+#: wait at 30s), so the step call waits well past the default timeout.
+DRIVEN_STEP_TIMEOUT = 60.0
 
 
 class VelaClientError(Exception):
@@ -150,6 +162,73 @@ class VelaComputerClient(Protocol):
 
     async def control_task(self, desktop_id: str, run_id: str, action: str) -> dict[str, Any]:
         """POST /api/desktops/{id}/tasks/{runId}/control {"action": ...}."""
+        ...
+
+    # -- C3: driven runs (the bot drives the desktop one tool call at a time) --
+
+    async def list_driven_tools(self, desktop_id: str) -> dict[str, Any]:
+        """GET /api/desktops/{id}/driven-runs/tools → {"tools": [...]}."""
+        ...
+
+    async def create_driven_run(
+        self,
+        desktop_id: str,
+        *,
+        title: str,
+        instruction: str | None = None,
+        client_request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """POST /api/desktops/{id}/driven-runs → the run {id, kind, state}."""
+        ...
+
+    async def driven_step(
+        self,
+        desktop_id: str,
+        run_id: str,
+        *,
+        tool: str,
+        arguments: dict[str, Any],
+        client_step_id: str,
+    ) -> dict[str, Any]:
+        """POST .../driven-runs/{runId}/steps → result | refusal | approval |
+        needsPerson, plus the run's budget."""
+        ...
+
+    async def get_driven_step(
+        self, desktop_id: str, run_id: str, client_step_id: str
+    ) -> dict[str, Any]:
+        """GET .../driven-runs/{runId}/steps/{clientStepId} — the settling read
+        after an approval is answered."""
+        ...
+
+    async def finish_driven_run(
+        self, desktop_id: str, run_id: str, *, outcome: str, summary: str
+    ) -> dict[str, Any]:
+        """POST .../driven-runs/{runId}/finish {"outcome", "summary"}."""
+        ...
+
+    async def cancel_driven_run(self, desktop_id: str, run_id: str) -> dict[str, Any]:
+        """POST .../driven-runs/{runId}/cancel (kills the terminals the run
+        started; an ordinary finish leaves them)."""
+        ...
+
+    async def list_tasks(self, desktop_id: str) -> dict[str, Any]:
+        """GET /api/desktops/{id}/tasks → the run records (used to adopt the
+        active driven run after a controller restart)."""
+        ...
+
+    async def get_policy(self, desktop_id: str) -> dict[str, Any]:
+        """GET /api/desktops/{id}/policy → the desktop's policy document."""
+        ...
+
+    async def put_policy(
+        self, desktop_id: str, document: dict[str, Any], revision: int
+    ) -> dict[str, Any]:
+        """PUT /api/desktops/{id}/policy {"revision", ...document}."""
+        ...
+
+    async def enable_agent(self, desktop_id: str) -> dict[str, Any]:
+        """POST /api/desktops/{id}/enable-agent (needs a non-empty policy)."""
         ...
 
 
@@ -407,6 +486,102 @@ class VelaClient:
             f"/api/desktops/{desktop_id}/tasks/{run_id}/control",
             what="control task",
             payload={"action": action},
+        )
+
+    # ------------------------------------------------------------------
+    # C3: driven runs, agent setup
+    # ------------------------------------------------------------------
+
+    async def list_driven_tools(self, desktop_id: str) -> dict[str, Any]:
+        return await self._get(
+            f"/api/desktops/{desktop_id}/driven-runs/tools", what="list driven tools"
+        )
+
+    async def create_driven_run(
+        self,
+        desktop_id: str,
+        *,
+        title: str,
+        instruction: str | None = None,
+        client_request_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"title": title}
+        if instruction is not None:
+            payload["instruction"] = instruction
+        if client_request_id is not None:
+            payload["clientRequestId"] = client_request_id
+        return await self._send(
+            "POST",
+            f"/api/desktops/{desktop_id}/driven-runs",
+            what="create driven run",
+            payload=payload,
+            ok_statuses=(200, 201),
+        )
+
+    async def driven_step(
+        self,
+        desktop_id: str,
+        run_id: str,
+        *,
+        tool: str,
+        arguments: dict[str, Any],
+        client_step_id: str,
+    ) -> dict[str, Any]:
+        return await self._send(
+            "POST",
+            f"/api/desktops/{desktop_id}/driven-runs/{run_id}/steps",
+            what="driven step",
+            payload={"tool": tool, "arguments": arguments, "clientStepId": client_step_id},
+            timeout=DRIVEN_STEP_TIMEOUT,
+        )
+
+    async def get_driven_step(
+        self, desktop_id: str, run_id: str, client_step_id: str
+    ) -> dict[str, Any]:
+        return await self._get(
+            f"/api/desktops/{desktop_id}/driven-runs/{run_id}/steps/{client_step_id}",
+            what="read driven step",
+        )
+
+    async def finish_driven_run(
+        self, desktop_id: str, run_id: str, *, outcome: str, summary: str
+    ) -> dict[str, Any]:
+        return await self._send(
+            "POST",
+            f"/api/desktops/{desktop_id}/driven-runs/{run_id}/finish",
+            what="finish driven run",
+            payload={"outcome": outcome, "summary": summary},
+        )
+
+    async def cancel_driven_run(self, desktop_id: str, run_id: str) -> dict[str, Any]:
+        return await self._send(
+            "POST",
+            f"/api/desktops/{desktop_id}/driven-runs/{run_id}/cancel",
+            what="cancel driven run",
+        )
+
+    async def list_tasks(self, desktop_id: str) -> dict[str, Any]:
+        return await self._get(f"/api/desktops/{desktop_id}/tasks", what="list tasks")
+
+    async def get_policy(self, desktop_id: str) -> dict[str, Any]:
+        return await self._get(f"/api/desktops/{desktop_id}/policy", what="get policy")
+
+    async def put_policy(
+        self, desktop_id: str, document: dict[str, Any], revision: int
+    ) -> dict[str, Any]:
+        return await self._send(
+            "PUT",
+            f"/api/desktops/{desktop_id}/policy",
+            what="save policy",
+            payload={"revision": revision, **document},
+        )
+
+    async def enable_agent(self, desktop_id: str) -> dict[str, Any]:
+        return await self._send(
+            "POST",
+            f"/api/desktops/{desktop_id}/enable-agent",
+            what="enable agent",
+            timeout=INPUT_TIMEOUT,
         )
 
     async def aclose(self) -> None:
