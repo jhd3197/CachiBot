@@ -1228,6 +1228,7 @@ class ComputerService:
         arguments: dict[str, Any],
         chat_id: str | None = None,
         run_title: str | None = None,
+        allow_wake: bool = True,
     ) -> ComputerStepOutcome:
         """One driven step on the bot's desktop, logged as an execution.
 
@@ -1236,10 +1237,16 @@ class ComputerService:
         agent-ready desktop → the shared driven run → the step. Every
         outcome is written to the execution log; a logging failure never
         fails the tool.
+
+        ``allow_wake=False`` is for person-initiated reads that must never
+        boot the computer (the Files sheet browsing /workspace): an asleep
+        computer is a plain 409 instead.
         """
         started = self._monotonic()
         try:
-            outcome = await self._step(bot_id, tool=tool, arguments=arguments, run_title=run_title)
+            outcome = await self._step(
+                bot_id, tool=tool, arguments=arguments, run_title=run_title, allow_wake=allow_wake
+            )
         except ComputerRequestError as exc:
             outcome = ComputerStepOutcome(status="error", message=exc.detail)
         except Exception as exc:
@@ -1252,6 +1259,67 @@ class ComputerService:
         )
         return outcome
 
+    # ------------------------------------------------------------------
+    # C4: person-initiated workspace browsing / editor open (UI routes)
+    # ------------------------------------------------------------------
+
+    async def list_workspace(self, bot_id: str, path: str) -> dict[str, Any]:
+        """List one folder of the bot's /workspace for the Files sheet.
+
+        Browsing never boots the computer: an asleep/off computer is a plain
+        409 and the UI hides the section. The listing is a real driven step,
+        so it is logged like the bot's own tool calls.
+        """
+        record = await self._get_or_create_record(bot_id)
+        self._require_awake(record)
+        outcome = await self.run_tool_step(
+            bot_id,
+            tool="workspace_list",
+            arguments={"path": path} if path else {},
+            run_title="Browsing files",
+            allow_wake=False,
+        )
+        if outcome.status != "result":
+            raise ComputerRequestError(409, outcome.message)
+        entries = (outcome.result or {}).get("entries") or []
+        return {
+            "path": path,
+            "entries": [
+                {
+                    "name": str(entry.get("name") or ""),
+                    "path": str(entry.get("path") or entry.get("name") or ""),
+                    "kind": str(entry.get("kind") or "file"),
+                    "size": entry.get("size") if isinstance(entry.get("size"), int) else None,
+                    "modified": (
+                        entry.get("modified") if isinstance(entry.get("modified"), str) else None
+                    ),
+                }
+                for entry in entries
+            ],
+        }
+
+    async def open_in_editor(self, bot_id: str, path: str, chat_id: str | None = None) -> None:
+        """Open a workspace file in the computer's editor (design 10).
+
+        The UI only offers the action while the computer is awake; a stale
+        call gets a plain 409 instead of a surprise boot. A refusal — feature
+        missing, a person driving — is surfaced as the route's 409.
+        """
+        if not path:
+            raise ComputerRequestError(422, "a file path is required")
+        record = await self._get_or_create_record(bot_id)
+        if record.state not in (ComputerState.AWAKE, ComputerState.NEEDS_YOU):
+            raise ComputerRequestError(409, "the computer is not awake — wake it first")
+        outcome = await self.run_tool_step(
+            bot_id,
+            tool="editor_open",
+            arguments={"path": path},
+            chat_id=chat_id,
+            run_title="Open on computer",
+        )
+        if outcome.status != "result":
+            raise ComputerRequestError(409, outcome.message)
+
     async def _step(
         self,
         bot_id: str,
@@ -1259,9 +1327,13 @@ class ComputerService:
         tool: str,
         arguments: dict[str, Any],
         run_title: str | None = None,
+        allow_wake: bool = True,
     ) -> ComputerStepOutcome:
         await self.ensure_computer_usable()
-        await self._wake_and_wait(bot_id)
+        if allow_wake:
+            await self._wake_and_wait(bot_id)
+        else:
+            self._require_awake(await self._get_or_create_record(bot_id))
         await self.touch(bot_id, reason="tool")
         driver = await self._wait_for_person(bot_id)
         if driver is not None:

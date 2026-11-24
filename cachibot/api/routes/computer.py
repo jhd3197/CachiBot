@@ -13,6 +13,10 @@ over / hand back / person input under the driver's lease, and the needs-you
 answer. All of it is proxied through CachiBot with its own bot-access rules;
 the Vela port and controller token are never exposed.
 
+C4 adds the Files-sheet surface: listing one folder of the bot's /workspace
+(viewer+; browsing never boots the computer) and opening a workspace file
+in the computer's editor (operator+).
+
 Access: viewers can watch (status, preview, views, frames, heartbeats);
 operators and above can control (wake/sleep/stop, take over, hand back,
 input, needs-you answers).
@@ -24,11 +28,15 @@ from cachibot.api.auth import get_current_user, require_bot_access, require_bot_
 from cachibot.models.auth import User
 from cachibot.models.computer import (
     BotComputerStatus,
+    ComputerEditorOpenRequest,
+    ComputerEditorOpenResponse,
     ComputerInputRequest,
     ComputerNeedsYouRespond,
     ComputerViewsResponse,
     ComputerWatchResponse,
+    ComputerWorkspaceResponse,
     DockerProbeResult,
+    workspace_relative_path,
 )
 from cachibot.models.group import BotAccessLevel
 from cachibot.services.computer.service import (
@@ -222,3 +230,47 @@ async def respond_computer_needs_you(
     except ComputerRequestError as exc:
         raise _http_error(exc) from exc
     return BotComputerStatus(**payload)
+
+
+# ---------------------------------------------------------------------------
+# C4: workspace files and "Open on computer" (Files sheet, design 10)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/bots/{bot_id}/computer/workspace")
+async def list_computer_workspace(
+    bot_id: str,
+    path: str = "",
+    user: User = Depends(require_bot_access),
+) -> ComputerWorkspaceResponse:
+    """List one folder of the bot's /workspace (viewer+).
+
+    Browsing never boots the computer: while it is asleep/off this is a 409
+    and the Files sheet hides the section. Entries come straight from the
+    computer's own listing — nothing is invented."""
+    try:
+        relative = workspace_relative_path(path)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        payload = await get_computer_service().list_workspace(bot_id, relative)
+    except ComputerRequestError as exc:
+        raise _http_error(exc) from exc
+    return ComputerWorkspaceResponse(**payload)
+
+
+@router.post("/api/bots/{bot_id}/computer/editor/open")
+async def open_computer_editor(
+    bot_id: str,
+    data: ComputerEditorOpenRequest,
+    user: User = Depends(require_bot_access_level(BotAccessLevel.OPERATOR)),
+) -> ComputerEditorOpenResponse:
+    """Open a workspace file in the computer's editor (operator+, design 10).
+
+    The UI offers the action only while the computer is awake; a stale call
+    gets the computer's own plain reason (409)."""
+    try:
+        await get_computer_service().open_in_editor(bot_id, data.path)
+    except ComputerRequestError as exc:
+        raise _http_error(exc) from exc
+    return ComputerEditorOpenResponse()

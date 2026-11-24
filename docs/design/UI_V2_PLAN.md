@@ -60,14 +60,14 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 01 | Workspace: your bots | `/dashboard` (`WorkspaceView`) | **Done (Phase B)**. "Needs you / Bots / This week" + quick links, all from real data — source table below. Old dashboard kept at `/dashboard/usage`. |
 | 02 | Chat, bot-first | `/:botId/chats/:chatId` (`ChatView`) | **Done (Phase C)**. Centered 820px column, day separators from real timestamps, #1a1b1e bubbles, bot turns with 22px BotAvatar + name label, collapsed tool-activity line, v2 composer (26px pill, 36px round +/send, model pill in footer). |
 | 03 | Chat cards (turn endings, ask/secret/approval cards, message actions, queued messages, run summaries, artifacts) | `ChatView` + `MessageBubbleV2` + `ChatCards.tsx` | **Done (Phase C, backed subset)** — see "Phase C" below for exactly which cards shipped and which have no real source yet. |
-| 04 | Chat + computer preview | `/:botId/chats/:chatId` | **Backend not built** (no Mini Vela/computer API). Phase D; defer. |
-| 05 | Computer full window | — | **Backend not built.** Phase D. |
-| 06 | Bot-built web page on its computer | Artifacts (`ArtifactsView`/`ArtifactPanel`, `/api/assets`) | Partial analog today: artifacts render in a side panel. Full "runs on its computer" needs the computer backend. Phase D. |
-| 07 | Computer terminal / coding agent diff | coding agent tools (`coding_agent` capability, `getCodingAgents`) | CLI runs exist; streamed terminal/diff view on a computer needs backend. Phase D. |
-| 08 | Take-over (yellow ring) | — | Needs computer backend. Phase D. |
-| 09 | Computer off / turn on | — | Needs computer backend. Phase D. |
-| 10 | Files sheet | `FilesSheet`, chat assets + artifacts stores | **Done (Phase D4)**. Modal sheet from a Files pill in the chat header (Files in the More menu on mobile); room header Files icon opens the same sheet in room mode. |
-| 11 | Mini Vela spec (states) | — | Reference-only; needs the computer backend. |
+| 04 | Chat + computer preview | `/:botId/chats/:chatId` + `BotInspectorPanel` › Computer | **Done (C4)**. The inspector's Computer block is the design's aside: 16:10 live state card, one real activity line, open windows (app + title); all gated on the Docker probe. |
+| 05 | Computer full window | `/:botId/computer` (`ComputerOpenView`) | **Done (C4)**. Desktop preview or the selected window's frame full size; top bar with real driver state, Take over / Hand back (operator+), Stop; chat keeps working on the existing WS. |
+| 06 | Bot-built web page on its computer | `/:botId/computer?view=<id>` | **Done (C4, presentation)**. A browser window's real frame shown full size; hidden when there is no such window (never a faked page). The chat-page card ("Running on its computer · localhost:5173") has no real chat-content source — not rendered. |
+| 07 | Computer terminal / coding agent | `/:botId/computer?view=<id>` | **Done (C4, presentation)**. A terminal window's real frame full size when one exists. Run meta (duration, files changed) stays in chat/tool output; nothing is invented. |
+| 08 | Take-over (yellow ring) | `ComputerOpenView` + `ChatCards` (`ComputerNeedsYouCard` / `ComputerDrivingLine`) | **Done (C4)**. Amber ring + Needs you tag on the real needs-you state with its reason; Take over / Hand back (operator+; hidden for viewers); Skip this step via `needs-you/respond {action: skip}`; input (click/right click/scroll/type/key) on a selected window's frame only while this user holds the lease. |
+| 09 | Computer off / turn on | `BotInspectorPanel` › Computer + `BotSettingsComputerSection` | **Done (C4)**. Off/asleep cards with Turn on / Wake (a stray watch never wakes it); the true facts (This PC · Docker · internet-not-your-network · keeps /workspace · sleeps after 10 min idle). "Use a cloud computer instead" does not exist — no cloud backend. |
+| 10 | Files sheet | `FilesSheet`, chat assets + artifacts stores | **Done (Phase D4)**. Modal sheet from a Files pill in the chat header (Files in the More menu on mobile); room header Files icon opens the same sheet in room mode. C4 adds the "On its computer" /workspace section with Open on computer (operator+, awake-only). |
+| 11 | Mini Vela spec (states) | the computer UI itself | **Done (C4)**. Closed/Open/Needs you/Asleep are the real states of the Computer card — no marketing spec screen. |
 | 11a–c | Side tasks | `ChatView` + `SideTaskReply` + `SideTaskChatView` + `stores/side-tasks` | **Done (Phases E4 + E5 "Side-task replies")**. Backend E1–E5 (`/side-tasks` REST, `side_task_update` + `message_update` WS, `chats.parent_chat_id`, thread replies); see "Side-task replies" below. |
 | 12 | Where the old icons went | sidebar icon row → homes | **Done (Phase C2)**. Icon row removed; each entry moved per view 12 (see Phase C2 below). |
 | 13 | Rooms + account menu | `RoomsView`, `/settings`, `/admin/logs`, `/users` | **Done (Phase C2)**. Rooms group in the sidebar; account menu at the bottom; room header/composer restyled. |
@@ -75,7 +75,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
 | 17 | Routine editor | `/:botId/automations` | **Done (Phase D2)**. Routines list (plain-words rows) + `RoutineEditorView` over the Schedule API; scripts/functions under Advanced; `/automations` redirects. |
-| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Advanced, all from real APIs; Computer section hidden (no backend). |
+| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Computer (C4, probe-gated) / Advanced, all from real APIs. |
 | 19 | App settings | `/settings` | **Done (Phase D5)**. General, Appearance, Models, Data, People, Advanced, About in one 640px column. |
 | 20 | Activity log | `/admin/logs` | **Done (Phase D5)**. Admins only; grid of every run with filters and expandable real error/output. |
 
@@ -308,9 +308,6 @@ sections (`#general` `#knowledge` `#skills` `#what-it-can-use` `#connections`
 
 ### Phase D3 - not backed yet (hidden from the design)
 
-- **Computer section** — the computer backend (Mini Vela) does not exist; the
-  section and its nav chip are omitted entirely, and the "Computer" capability
-  switch is not listed under What it can use.
 - **Notifications toggle** — no per-bot notification setting exists anywhere in the
   backend or stores; the row is omitted (same decision as the Phase A sidebar
   notifications icon).
@@ -395,7 +392,9 @@ token equivalents). Rooms and other legacy panels still use the original
   no setup-required payload from the backend.
 - **Connection card** — `connection_status` events exist but carry no
   reconnect action/skip flow.
-- **Hand-off card / take-over** — needs the computer backend (Phase D).
+- **Hand-off card / take-over** — built in C4 from the real `needs_you` state
+  (`ComputerNeedsYouCard` in the chat, the banner in the full-window surface);
+  it never invents a reason — no reason, no card.
 - **Voice note card** — voice messages are not part of the chat message model.
 - **Check back later** line — no follow-up/deferred-run payload.
 - **Run summary card** — `job_update` exists but carries no per-step tool
@@ -539,8 +538,9 @@ into the chat More menu under "From plugins" (hidden when none).
 
 - **Notifications bell** (views 13/14) — no notifications backend exists.
 - **Files button** in the chat header (view 14) — built in phase D4.
-- **Computer button / preview pane** (view 14) — needs the computer backend
-  (phase D); deliberately not built.
+- **Computer button / preview pane** (view 14) — built in C4: the chat-header
+  Computer toggle shows only while the Docker probe is available and drives
+  the right-hand inspector's Computer block (see "Phase C4" below).
 - **"Needs you" on Runs beyond live approvals** — stuck/failed runs
   aggregation is a D1 Runs-page concern; the menu suffix uses only the live
   per-tab approvals count.
@@ -724,8 +724,9 @@ top of the chat **More menu** (`ChatMoreMenu` gained an optional
 
 ### Phase D4 — not backed yet (hidden, no fake data)
 
-- **"Open on computer"** row action (design 10) — no computer backend;
-  artifacts open in the app's artifact panel instead.
+- **"Open on computer"** row action (design 10) — built in C4 as the "On its
+  computer" /workspace section (operator+, awake-only); the artifact rows keep
+  opening the app's artifact panel.
 - **Date on artifact rows** — the artifact model has no timestamp, so those
   rows show no date (size only when the emitter provided
   `metadata.fileSize`, which document artifacts do).
@@ -739,16 +740,120 @@ top of the chat **More menu** (`ChatMoreMenu` gained an optional
   (pre-existing layout branch, not introduced here); normal artifact chats
   have messages and work.
 
+## Phase C4 — the bot's computer UI (views 04–09, 11) + the right-hand inspector
+
+The C1–C3 backend (Docker probe, `ComputerService`, frame/input proxy, the
+`computer` plugin) meets the v2 shell. Desktop and web only; mobile is
+untouched. Full backend notes:
+[`VIRTUAL_COMPUTER_PLAN.md`](./VIRTUAL_COMPUTER_PLAN.md) "C4".
+
+### Built
+
+- **One right-hand column** in the shell (`BotInspectorPanel`, toggled from
+  the chat-header **Computer** button per design 04 and its own collapse
+  button; state persisted in the ui store; hidden below 1200 px and on
+  routes without a selected bot — it never covers the left bot list).
+- **The Computer block** (design 04's aside) with the real states of view 11:
+  off (greyed face + Turn on), asleep (+ Wake), building/starting (the C1
+  build progress, real step/total + last line), awake (live preview from
+  the C2 hook: refetch by `previewRevision`, watch heartbeats), needs_you
+  (amber ring + tag). Under it the one real activity line (with Stop,
+  operator+) and the open-windows list (app + title → opens that window).
+- **`/:botId/computer`** (view 05): the desktop preview or a selected
+  window's frame full size (views 06/07 are the real window frames — never a
+  faked page; a gone window falls back to the desktop preview). Top bar:
+  who is driving, Take over / Hand back (operator+; hidden for viewers),
+  Stop. **Take-over (view 08):** click / right click / scroll / type / named
+  keys on a selected window's frame while this user holds the lease (C2
+  input API, bounds-validated server-side, `frameAt` attached); the desktop
+  preview alone is watch-only with a "pick a window" hint. The needs-you
+  reason is a banner with Take over / Skip this step
+  (`needs-you/respond {action: skip}`).
+- **Chat cards (design 03/08):** the real `needs_you` state renders an
+  inline card (reason + Take over / Skip, operator+ only) and, only while
+  this user drives, the "You took over at …" line with Hand back.
+- **Bot settings › Computer** (`/:botId/settings#computer`): status
+  (+ activity / last error / Vela version), the four true facts, and
+  Wake/Sleep/Stop (operator+; read-only for viewers). Section + nav chip
+  hidden while the probe is unavailable.
+- **Files sheet "Open on computer" (view 10):** an "On its computer"
+  /workspace section (real `workspace_list` driven listing, folder
+  navigation) with per-file Open on computer (operator+, awake-only). New
+  backend routes: `GET .../computer/workspace` (viewer+; **browsing never
+  boots the computer** — `run_tool_step(..., allow_wake=False)`) and
+  `POST .../computer/editor/open` (operator+; path validated to
+  workspace-relative, runs the `editor_open` driven step, plain 409s).
+- **The right-hand inspector** (Juan's sidebar): bot avatar + name; Activity
+  (live computer activity line + recent runs from the executions API) and
+  Library (knowledge documents; the tab appears only when there are any);
+  Suggested only from real prompts (needs-you, open quick tasks) and hidden
+  when empty; the Computer card; Voice/Language from the app's real
+  voice-mode settings (read-only; hidden when absent).
+- **First-wake build progress** while state is `building` (real step/total
+  when known + the last build line; `lastError` on failure).
+
+### Behavior changes
+
+- `MainLayout` fetches the Docker probe at mount; every computer surface
+  gates on `status.available` (a failed probe reads as unavailable), so
+  there are no dead Computer buttons when Docker is off.
+- The chat header gains the Computer toggle (next to Files), visible only
+  while the probe is available; it drives the inspector (the design's
+  `aria-pressed` state).
+- `useComputerPreview(botId, viewId?)` follows one window's frame when a
+  viewId is passed (~1 fps ETag poll); the desktop behavior is unchanged.
+- The Files sheet gains the workspace section, visible only while the bot's
+  computer is awake; the room mode is unchanged.
+- `/:botId/computer` is a new bot route; it hides the inspector (it is the
+  surface).
+
+### C4 — not backed (hidden, no fake data)
+
+- **"Use a cloud computer instead"** (view 09) — no cloud backend exists;
+  the CTA does not appear anywhere (asserted in
+  `tests/test_computer_ui_source.py`).
+- **View 09's generated explainer sentence** ("I need my own computer to
+  open the booking site…") — that text is written per situation by the bot;
+  the UI shows the facts + Turn on instead (the real per-chat copy is the
+  bot's own message).
+- **The view-06/07 chat-page cards** ("Running on its computer ·
+  localhost:5173", the diff card with +6 −3) — no chat-content source
+  carries those; run meta stays in chat/tool output. The full-window
+  surface covers the browser/terminal presentations with real frames.
+- **The floating chat box in view 05** — the design's mini composer inside
+  the computer window has no send path of its own; the chat keeps working
+  in the chat view (existing WS), and the computer view is a surface, not a
+  second chat.
+- **Per-bot voice settings** — voice/Language rows show the app's real
+  voice-mode preference (what the voice pipeline uses); there is no
+  per-bot voice setting to edit, so the rows are read-only.
+- **Terminal/editor run meta and richer window frames** — arrive with the
+  VP4/VP5 Vela pin bump (the UI already lists those windows and opens their
+  frames); approving sites beyond the starter origin is C5.
+- **Mobile full-desktop touch take-over** — desktop/web only in this pass
+  (per the task rules).
+
+### Tests
+
+- `tests/test_computer_workspace_api.py` — the two new backend routes
+  (access levels, path-escape 422, asleep-409-with-no-container, step
+  payload normalization, refusal passthrough), fake Vela + fake Docker.
+- `tests/test_computer_ui_source.py` — hermetic source assertions over the
+  frontend (availability gates everywhere, conditional inspector Computer
+  card, no cloud CTA, conditional Open-on-computer, the true facts, the
+  no-AI-tools rule on the new files).
+- Backend `ruff`/`ruff format`/`mypy`/`pytest` pass; the frontend lint/build
+  run in CI (no local `node_modules`).
+
 ## Later phases
 
 - **Phase D** — D2 Routine editor (17), D3 Bot settings (18),
   D5 App settings + Activity log (19, 20).
 - **Phase E** — side tasks (11a–c): backend E1–E3 and UI E4 are in this branch
   (see "Phase E4" above).
-- **The bot's computer** (views 04–09, 11): requires a new backend, built on
-  Vela (one Vela container per bot, with Vela patches for a controller mode,
-  a driver API and a terminal). Not started; the Computer button and preview
-  pane stay hidden. Plan:
+- **The bot's computer** (views 04–09, 11): backend C1–C3 merged (Docker probe,
+  ComputerService, frame/input proxy, the `computer` plugin); UI shipped in C4 —
+  see "Phase C4" below and
   [`VIRTUAL_COMPUTER_PLAN.md`](./VIRTUAL_COMPUTER_PLAN.md).
 
 ## Phase D2 — Routines + Routine editor (views 12/17)
@@ -1409,8 +1514,10 @@ everywhere, reduced-motion coverage re-verified, leftovers cleaned up.
 
 ## Known limitations / decisions
 
-- Views 04–09 and 11 need backend infrastructure that does not exist; Phase A/B
-  ship no computer UI at all (no dead buttons).
+- Views 04–09 and 11 shipped in C4 on the C1–C3 backend (see
+  "Phase C4" below); the chat-page cards of views 06/07 (a dev-server card
+  inside the message stream) have no real chat-content source and are not
+  rendered — the full-window computer surface covers those presentations.
 - The usage store is per-browser (localStorage), so "This week" tokens/cost
   reflect activity seen by this client; messages come from the same local chat
   history the UI renders. Server-side per-bot aggregates can replace this in a
