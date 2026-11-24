@@ -30,6 +30,7 @@ class WSEvent {
   static const String done = 'done';
   static const String approvalNeeded = 'approval_needed';
   static const String modelFallback = 'model_fallback';
+  static const String computerUpdate = 'computer_update';
 
   // Client → Server event types
   static const String chat = 'chat';

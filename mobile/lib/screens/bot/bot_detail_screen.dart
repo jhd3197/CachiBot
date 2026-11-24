@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/bot.dart';
 import '../../providers/bots_provider.dart';
+import '../../providers/computer_provider.dart';
 import '../chat/chat_list_screen.dart';
 import '../knowledge/knowledge_list_screen.dart';
 import '../work/work_list_screen.dart';
@@ -25,6 +26,8 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // The Docker probe decides whether the Computer entry may appear at all.
+    Future.microtask(() => ref.read(computerProvider.notifier).fetchStatus());
   }
 
   @override
@@ -42,6 +45,8 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
     final theme = Theme.of(context);
     final botsState = ref.watch(botsProvider);
     final bot = _findBot(botsState);
+    final computerAvailable =
+        ref.watch(computerProvider).status?.available == true;
 
     Color? botColor;
     if (bot?.color != null && bot!.color!.isNotEmpty) {
@@ -88,6 +93,16 @@ class _BotDetailScreenState extends ConsumerState<BotDetailScreen>
             ),
           ],
         ),
+        actions: [
+          // The bot's computer — only while the Docker probe says available;
+          // no dead button when Docker is off.
+          if (computerAvailable)
+            IconButton(
+              icon: const Icon(Icons.desktop_windows_outlined),
+              tooltip: 'Computer',
+              onPressed: () => context.push('/bot/${widget.botId}/computer'),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
