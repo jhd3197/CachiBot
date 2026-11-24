@@ -11,12 +11,10 @@
   .v2-skeleton,
   .v2-status-line__mark,
 
-  // Existing animations: pulse, spin-slow, typing-bounce, runs spinner,
+  // Existing animations: pulse, spin-slow, runs spinner,
   // and the app-loader set (restyled in L2, same class names — the motion
   // kill-switch still applies)
   .reply-highlight,
-  .chat-typing__icon,
-  .chat-typing-dots__dot,
   .runs__spin,
   .app-loader__ring,
   .app-loader__core-dot,
@@ -24,8 +22,7 @@
 
   // Tailwind-driven animation utilities (Loader2 spinners etc.)
   [class*='animate-spin'],
-  [class*='animate-pulse'],
-  [class*='animate-thinking'] {
+  [class*='animate-pulse'] {
     animation: none !important;
   }
 }

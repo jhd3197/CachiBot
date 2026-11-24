@@ -10,8 +10,9 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { FileDiff, Loader2, X } from 'lucide-react'
+import { FileDiff, X } from 'lucide-react'
 import { getSideTaskDiff } from '../../api/side-tasks'
+import { StatusLine } from '../common/StatusLine'
 import { cn } from '../../lib/utils'
 import type { SideTaskDiff } from '../../types'
 
@@ -102,10 +103,7 @@ export function SideTaskDiffDialog({ botId, sideTaskId, title, onClose }: SideTa
         </div>
 
         {!data && !failed && (
-          <p className="v2-status-line">
-            <Loader2 className="v2-status-line__icon animate-spin" />
-            <span>Loading the changes…</span>
-          </p>
+          <StatusLine pending>Loading the changes…</StatusLine>
         )}
         {failed && <p className="v2-status-line">Couldn&apos;t load the changes.</p>}
 

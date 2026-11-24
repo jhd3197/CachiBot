@@ -17,7 +17,6 @@ import {
   FileDiff,
   GitBranch,
   Hand,
-  Loader2,
   Reply,
   Square,
   XCircle,
@@ -26,6 +25,7 @@ import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
 import { useChatStore } from '../../stores/bots'
 import { scrollToMessage } from '../chat/MessageBubble'
 import { SideTaskDiffDialog } from './SideTaskDiffDialog'
+import { Spinner } from '../common/Spinner'
 import { cn } from '../../lib/utils'
 import { sideTaskStatusLine } from './SideTaskCard'
 import type {
@@ -64,7 +64,7 @@ function ReplyStatusIcon({ status }: { status: SideTaskStatus | 'settled' }) {
   const cls = 'side-reply__icon'
   switch (status) {
     case 'running':
-      return <Loader2 className={cn(cls, 'animate-spin')} strokeWidth={1.8} />
+      return <Spinner size="sm" label="" aria-hidden="true" className={cls} />
     case 'needs_you':
       return <Hand className={cn(cls, 'side-reply__icon--amber')} strokeWidth={1.8} />
     case 'failed':
@@ -396,7 +396,7 @@ function IndicatorRow({ task }: { task: SideTask }) {
       onClick={() => navigate(`/${task.botId}/chats/${task.chatId}`)}
     >
       {task.status === 'running' ? (
-        <Loader2 className="side-indicator__icon animate-spin" strokeWidth={1.8} />
+        <Spinner size="sm" label="" aria-hidden="true" className="side-indicator__icon" />
       ) : (
         <Clock className="side-indicator__icon" strokeWidth={1.8} />
       )}

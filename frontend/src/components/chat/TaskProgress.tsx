@@ -3,8 +3,9 @@
  * Shows numbered steps with status icons, a progress bar, and a counter.
  */
 
-import { Circle, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Circle, CheckCircle, XCircle } from 'lucide-react'
 import type { TaskProgress as TaskProgressType } from '../../stores/workspace'
+import { Spinner } from '../common/Spinner'
 
 interface TaskProgressProps {
   progress: TaskProgressType
@@ -12,7 +13,6 @@ interface TaskProgressProps {
 
 const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   pending: Circle,
-  in_progress: Loader2,
   done: CheckCircle,
   failed: XCircle,
 }
@@ -48,9 +48,11 @@ export function TaskProgress({ progress }: TaskProgressProps) {
           const cls = STATUS_CLASS[task.status] || ''
           return (
             <li key={idx} className={`task-item ${cls}`}>
-              <Icon
-                className={`task-item__icon ${task.status === 'in_progress' ? 'animate-spin' : ''}`}
-              />
+              {task.status === 'in_progress' ? (
+                <Spinner size="md" label="" aria-hidden="true" />
+              ) : (
+                <Icon className="task-item__icon" />
+              )}
               <span className="task-item__desc">{task.description}</span>
             </li>
           )

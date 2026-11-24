@@ -14,12 +14,12 @@ import {
   FileDiff,
   GitBranch,
   Hand,
-  Loader2,
   Square,
   XCircle,
 } from 'lucide-react'
 import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
 import { SideTaskDiffDialog } from './SideTaskDiffDialog'
+import { Spinner } from '../common/Spinner'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { SideTask, SideTaskStatus } from '../../types'
 
@@ -61,7 +61,7 @@ function StatusIcon({ status }: { status: SideTaskStatus }) {
   const cls = 'side-task-card__status-icon'
   switch (status) {
     case 'running':
-      return <Loader2 className={cn(cls, 'animate-spin')} strokeWidth={1.8} />
+      return <Spinner size="sm" label="" aria-hidden="true" className={cls} />
     case 'needs_you':
       return <Hand className={cls} strokeWidth={1.8} />
     case 'failed':
@@ -296,7 +296,6 @@ export function SideTaskGroupCard({ title, items, botName }: SideTaskGroupCardPr
             <span
               className={cn(
                 'side-task-group__item-icon',
-                task.status === 'running' && 'side-task-group__item-icon--running',
                 task.status === 'needs_you' && 'side-task-group__item-icon--needs-you',
                 task.status === 'failed' && 'side-task-group__item-icon--failed'
               )}

@@ -27,6 +27,7 @@ import { useUIStore, accentColors, generatePalette } from '../../stores/ui'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { BotAvatar } from '../common/Avatar'
+import { StatusLine } from '../common/StatusLine'
 import { V2Menu, V2MenuItem } from '../common/V2Menu'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
 import { ArtifactCard } from '../artifacts/ArtifactCard'
@@ -249,13 +250,13 @@ export function MessageToolCallItem({ call }: { call: ToolCall }) {
       <button
         onClick={() => setExpanded(!expanded)}
         className="chat-msg-tool-call__header"
+        aria-expanded={expanded}
       >
         {isSuccess ? (
-          <CheckCircle className="h-3 w-3 flex-shrink-0 text-green-400" />
+          <Check className="chat-msg-tool-call__status chat-msg-tool-call__status--success" />
         ) : (
-          <XCircle className="h-3 w-3 flex-shrink-0 text-red-400" />
+          <XCircle className="chat-msg-tool-call__status chat-msg-tool-call__status--error" />
         )}
-        <Code className="h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)]" />
         <span className="chat-msg-tool-call__name">{call.tool}</span>
         {toolModel && (
           <span className="chat-msg-tool-call__model">
@@ -264,8 +265,8 @@ export function MessageToolCallItem({ call }: { call: ToolCall }) {
         )}
         <ChevronDown
           className={cn(
-            'h-3 w-3 flex-shrink-0 text-[var(--color-text-secondary)] transition-transform',
-            expanded && 'rotate-180'
+            'chat-msg-tool-call__chevron',
+            expanded && 'chat-msg-tool-call__chevron--open'
           )}
         />
       </button>
@@ -495,11 +496,9 @@ export function MessageBubble({
           {isUser ? (
             <div className="whitespace-pre-wrap">{displayContent}</div>
           ) : !displayContent && isStreaming ? (
-            <div className="chat-typing-dots">
-              <span className="chat-typing-dots__dot" />
-              <span className="chat-typing-dots__dot" />
-              <span className="chat-typing-dots__dot" />
-            </div>
+            <StatusLine pending markColor={botColor}>
+              <span className="sr-only">{message.senderName || 'Assistant'} is working</span>
+            </StatusLine>
           ) : (
             <MarkdownRenderer content={displayContent} />
           )}
@@ -1001,17 +1000,16 @@ export function MessageBubbleV2({
         )
       })}
 
-      <div className="v2-msg__bubble v2-msg__bubble--bot">
-        {!displayContent && isStreaming ? (
-          <div className="chat-typing-dots">
-            <span className="chat-typing-dots__dot" />
-            <span className="chat-typing-dots__dot" />
-            <span className="chat-typing-dots__dot" />
-          </div>
-        ) : (
+      {!displayContent && isStreaming ? (
+        // Streaming wait: a quiet status line instead of an empty bubble
+        <StatusLine pending markColor={botColor}>
+          <span className="sr-only">{botName} is working</span>
+        </StatusLine>
+      ) : (
+        <div className="v2-msg__bubble v2-msg__bubble--bot">
           <MarkdownRenderer content={displayContent} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Media previews from tool results — always visible */}
       {hasToolCalls && (
