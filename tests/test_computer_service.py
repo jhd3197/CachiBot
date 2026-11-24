@@ -579,6 +579,46 @@ class TestWake:
         token = (env.token_dir / bot_id / "controller-token").read_text(encoding="utf-8").strip()
         assert token not in " ".join(argv)
 
+    async def test_wake_does_not_clobber_a_needs_you(self, computer_env) -> None:
+        """Regression: waking a needs-you computer must not lose the needs-you.
+
+        A needs-you computer is awake, but wake() used to start a wake for it:
+        the STARTING and AWAKE writes replaced the NEEDS_YOU row while Vela's
+        approval was still pending — and the events cursor had already passed
+        the triggering event, so the needs-you never came back.
+        """
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
+
+        # The live loop mapped a needs-you: the row and the flag both say so.
+        repo = ComputerRepository()
+        record = await repo.get_for_bot(bot_id)
+        record.state = ComputerState.NEEDS_YOU
+        await repo.upsert(record)
+        env.svc._needs_you[bot_id] = NeedsYouInfo(
+            kind="approval",
+            reason="Post the draft?",
+            desktop_id="desk-1",
+            run_id="run-1",
+            request_id="req-1",
+        )
+        calls_before = len(env.runner.calls)
+
+        status = await env.svc.wake(bot_id)
+
+        # No new wake and no Docker calls: the computer is awake already.
+        assert bot_id not in env.svc._wake_tasks
+        assert len(env.runner.calls) == calls_before
+        assert status["state"] == ComputerState.NEEDS_YOU.value
+        assert status["needsYou"] == "Post the draft?"
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.NEEDS_YOU
+
 
 def _client_with(env, client: FakeVelaClient) -> FakeVelaClient:
     env.vela_clients.append(client)

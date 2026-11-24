@@ -605,7 +605,15 @@ class ComputerService:
         in_flight = self._wake_tasks.get(bot_id)
         if in_flight is not None and not in_flight.done():
             return self._status_payload(record, probe)
-        if record.state in (ComputerState.AWAKE, ComputerState.STARTING):
+        # A needs-you computer is awake. Waking it again would rewrite
+        # STARTING and then AWAKE over the NEEDS_YOU row while Vela's
+        # approval/attention is still pending — and the events cursor has
+        # already passed the triggering event, so the needs-you would be lost.
+        if record.state in (
+            ComputerState.AWAKE,
+            ComputerState.STARTING,
+            ComputerState.NEEDS_YOU,
+        ):
             return self._status_payload(record, probe)
 
         self._wake_tasks[bot_id] = asyncio.create_task(self._wake_async(bot_id))
