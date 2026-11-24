@@ -793,7 +793,7 @@ class TestReconcile:
                 state=ComputerState.AWAKE,
                 container_name=name,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         env.runner.when(
@@ -927,7 +927,7 @@ class TestDeadContainerRecovery:
                 bot_id=bot_id,
                 state=ComputerState.STARTING,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         gate = asyncio.Event()
