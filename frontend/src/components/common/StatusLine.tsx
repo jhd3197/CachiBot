@@ -18,8 +18,8 @@ interface StatusLineProps {
 
 /**
  * Grey v2 status line (styles/v2/chat.less .v2-status-line): 13px tertiary
- * text with an optional leading mark, icon, or pending spinner. Ready for
- * the L3 chat work indicators, usable anywhere a quiet status line fits.
+ * text with an optional leading mark, icon, or pending spinner. Used by the
+ * L3 chat work indicators; usable anywhere a quiet status line fits.
  */
 export function StatusLine({ pending, icon, markColor, className, children }: StatusLineProps) {
   return (

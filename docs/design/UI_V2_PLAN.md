@@ -1138,9 +1138,9 @@ sites only — no mass migration.
 
 - L2 done below: boot screens (`AppLoader`, desktop splash, `index.html`)
   restyled; they still inherit the motion kill-switch.
-- L3: chat `TypingIndicator` / `ThinkingIndicator` / `ToolCallDisplay`
-  migration onto `StatusLine` (the pending spinner and `markColor` dot are
-  already in place).
+- L3 done below: chat `TypingIndicator` / `ThinkingIndicator` /
+  `ToolCallDisplay` migrated onto `StatusLine`/`Spinner` (see "L3: chat
+  status lines").
 - L5: legacy pages (Users, Plugins, Marketplace, auth) keep their own
   patterns for now.
 
@@ -1185,6 +1185,84 @@ The Electron splash and the in-app AppLoader intentionally stay two
 different screens — the splash is a compact card about the desktop app
 starting the server / installing an update, AppLoader is the full-canvas
 boot checking server, session and config.
+
+## L3: chat status lines
+
+Chat working indicators are now the design's quiet grey status line
+(design 03 "Work line") plus a small bot-colored mark — the L1 `StatusLine`
+(`pending` spinner + `markColor` dot) — instead of the purple thinking
+icon, blue tool spinners and pulsing dots. Desktop and web only; mobile/
+untouched, legacy pages untouched.
+
+### What changed
+
+- **Typing / streaming wait** (`ChatView`): the old `TypingIndicator`
+  (pulsing bot-colored icon + animated dots, with an invented `#22c55e`
+  fallback color) is gone. While a run is loading with no thinking content
+  and no tool calls, the chat shows `<StatusLine pending
+  markColor={bot.color}>` with the same real text as before
+  ("\<Bot\> is working" / "Generating response").
+- **Thinking** (`components/chat/ThinkingIndicator.tsx`, shared by
+  `ChatView` and rooms): rewritten over `StatusLine` — "\<Bot\> is thinking"
+  with the mark in the bot's real color; the streaming thought text renders
+  below in `.v2-thinking__content` (13px tertiary italic, still gated by the
+  show-thinking preference). ChatView's parallel local copy was deleted.
+- **Tool calls in flight** (`ToolCallDisplay` in `ChatView`): the running
+  header is now the v2 `Spinner` (sm) + "Running \<tool\> · 0:42" — the
+  elapsed time is measured from the call's real `startTime` (stamped by the
+  chat store on the WS `tool_start` event) and ticks once per second while
+  the call runs. Finished/error states use `Check`/`XCircle` in
+  `--v2-green`/`--v2-red` via new `.chat-tool-call__status` classes; the
+  expand toggle, args/result body, media auto-expand and model chip are
+  unchanged. `aria-expanded` added.
+- **Tool calls in history** (`MessageToolCallItem`): same treatment for the
+  completed states (`--v2-green`/`--v2-red` status classes replace the
+  `text-green-400`/`text-red-400` literals); expand and details unchanged.
+- **Streaming wait inside a bubble** (`MessageBubble` + `MessageBubbleV2`):
+  the three bouncing dots (`chat-typing-dots`) are replaced by a `StatusLine`
+  (pending spinner + bot-colored mark, sr-only text) — in the v2 bubble it
+  replaces the empty bubble entirely.
+- **Rooms** (still on the legacy bubble, inside the `.ui-v2` shell):
+  per-bot thinking uses the shared `ThinkingIndicator` with the bot's real
+  color; the bot-status bar, consensus line, active tool calls
+  (`ToolCallList`) and the cards-view working badge now use the v2 `Spinner`
+  instead of `Loader2`. The workspace task checklist (`TaskProgress`) uses
+  the `Spinner` for in-progress steps (its `@blue-500` icon rule is gone).
+- **Side tasks**: the running icons in the sidebar tree, the
+  under-message indicator, the side-task card/group rows and the
+  chat/diff loading lines use the v2 `Spinner` / `StatusLine`; the
+  `#60a5fa` running-blue modifiers are gone (needs-you amber and failed
+  red stay — they are the design's state colors, not working spinners).
+- **Approvals / needs-you**: already the inline `ApprovalCard` (design 03,
+  Phase C) — a card, not a spinner line, so nothing was added there.
+
+### Rules kept
+
+- Every line's text comes from real state (chat store `isLoading` /
+  `thinking` / `toolCalls`, room `botStates`/`thinkingContent`, side-task
+  records). The only durations shown are measured from real start
+  timestamps (`ToolCall.startTime`, side-task `startedAt`). The typing and
+  thinking lines show no elapsed time — the client store keeps no real
+  run-start timestamp for them, and none is faked.
+- The mark color is always the bot record's `color`; when no bot is known
+  the mark is omitted (the old invented `#22c55e` fallback is gone).
+- Accessibility: `StatusLine` carries `role="status"` (polite); its text is
+  static per state, and the streaming thinking text sits outside the live
+  region, so screen readers are not re-announced per token. Spinners inside
+  labelled lines are decorative (`label=""` + `aria-hidden`).
+- Reduced motion: no new animations were introduced — the `Spinner` ring is
+  already covered by `motion.less`, and the status mark stays static.
+
+### Removed (grep-verified unused first)
+
+- Legacy `.chat-typing`, `.chat-typing-dots` (+ `typing-bounce` keyframes),
+  `.chat-thinking` blocks and their v2 overrides; `@keyframes thinking`
+  (base.less); the dead `.chat-tool-call--running/success/error` border
+  variants; the blue `.task-item--in-progress .task-item__icon` rule; the
+  matching dead selectors in `motion.less`.
+- `.chat-msg-thinking` (persisted thinking panel) keeps its markup and v2
+  override; its legacy purple literals were removed so the v2 token colors
+  actually win in dark mode (the `.dark` variants used to tie and win).
 
 ## Known limitations / decisions
 

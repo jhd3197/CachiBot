@@ -1,25 +1,24 @@
-import { Brain } from 'lucide-react'
+import { StatusLine } from '../common/StatusLine'
 
 interface ThinkingIndicatorProps {
   content: string
   label?: string
+  /** The bot's real color for the small status mark (omit for no mark). */
+  markColor?: string
 }
 
-export function ThinkingIndicator({ content, label = 'Thinking...' }: ThinkingIndicatorProps) {
+/**
+ * Live thinking state (L3): a quiet v2 status line ("<Bot> is thinking")
+ * with the streaming thought text below it. The text sits outside the
+ * role="status" line so screen readers are not re-announced on every token.
+ */
+export function ThinkingIndicator({ content, label = 'Thinking', markColor }: ThinkingIndicatorProps) {
   return (
-    <div className="chat-thinking">
-      <div className="chat-thinking__icon">
-        <Brain className="h-4 w-4" />
-      </div>
-
-      <div className="chat-thinking__body">
-        <p className="chat-thinking__label">
-          {label}
-        </p>
-        <p className="chat-thinking__content">
-          {content}
-        </p>
-      </div>
+    <div className="v2-thinking">
+      <StatusLine pending markColor={markColor}>
+        {label}
+      </StatusLine>
+      <p className="v2-thinking__content">{content}</p>
     </div>
   )
 }

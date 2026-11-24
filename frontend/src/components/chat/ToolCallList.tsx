@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Wrench, Check, X, Loader2 } from 'lucide-react'
+import { Wrench, Check, X } from 'lucide-react'
 import type { ToolCall } from '../../types'
 import { cn } from '../../lib/utils'
+import { Spinner } from '../common/Spinner'
 
 /** Extract the first markdown image data URI from a string, if any. */
 function extractImageDataUri(text: string): string | null {
@@ -91,7 +92,7 @@ function ToolCallItem({ call, instructionText }: ToolCallItemProps) {
               <X className="h-3 w-3" />
             )
           ) : (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Spinner size="sm" label="" aria-hidden="true" />
           )}
         </div>
 

@@ -13,11 +13,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileDiff, GitBranch, Loader2, Send } from 'lucide-react'
+import { FileDiff, GitBranch, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { getChat, getChatMessages } from '../../api/side-tasks'
 import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
 import { BotAvatar } from '../common/Avatar'
+import { StatusLine } from '../common/StatusLine'
 import { MessageBubbleV2 } from '../chat/MessageBubble'
 import { SideTaskCard } from './SideTaskCard'
 import { SideTaskDiffDialog } from './SideTaskDiffDialog'
@@ -221,10 +222,7 @@ export function SideTaskChatView({ task, bot, canOperate }: SideTaskChatViewProp
           <p className="v2-day-sep">Started from the main chat at {startedAt}</p>
 
           {messages === null && !messagesFailed && (
-            <p className="v2-status-line">
-              <Loader2 className="v2-status-line__icon animate-spin" />
-              <span>Loading messages…</span>
-            </p>
+            <StatusLine pending>Loading messages…</StatusLine>
           )}
           {messagesFailed && messages === null && (
             <p className="v2-status-line">Couldn&apos;t load the messages for this side task.</p>
