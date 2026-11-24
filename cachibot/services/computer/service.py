@@ -695,8 +695,10 @@ class ComputerService:
             since=self._clock(),
             expires_at=self._monotonic() + DRIVER_LEASE_SECONDS,
         )
-        await self._clear_needs_you(bot_id)  # a person took over: they have it
+        # Stamp the activity before the needs-you flag can clear to AWAKE, so
+        # the state flip never lands with a stale last_active_at (idle race).
         await self.touch(bot_id, reason="takeover")
+        await self._clear_needs_you(bot_id)  # a person took over: they have it
         await self._broadcast(await self._get_or_create_record(bot_id))
         return await self.get_status(bot_id)
 
@@ -1297,8 +1299,14 @@ class ComputerService:
                 except Exception:
                     pass
 
+        # AWAKE and the wake-time activity stamp land in the same write: a
+        # reader that sees AWAKE must already see the fresh last_active_at,
+        # or the idle loop can treat a just-woken computer as long-idle.
+        # Reload the row first so this upsert cannot roll back a newer stamp
+        # a concurrent touch() wrote while the build/start was in flight.
+        record = await self._get_or_create_record(bot_id)
+        record.last_active_at = self._clock()
         await self._set_state(record, ComputerState.AWAKE, last_error=None)
-        await self.touch(bot_id, reason="wake")
 
     def _run_argv(self, cli: str, bot_id: str, name: str, token: str) -> list[str]:
         """Exact ``docker run`` invocation for a bot's computer.

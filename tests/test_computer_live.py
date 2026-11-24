@@ -35,7 +35,7 @@ from tests.computer_fakes import (
     events_page,
     make_event,
 )
-from tests.test_computer_service import script_container_lifecycle, wait_for
+from tests.test_computer_service import script_container_lifecycle, wait_for, wait_for_wake
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -141,6 +141,7 @@ async def wake_bot(env, bot_id: str) -> None:
     script_container_lifecycle(env.runner, bot_id)
     await env.svc.wake(bot_id)
     await wait_for(lambda: _state_is(bot_id, ComputerState.AWAKE))
+    await wait_for_wake(env, bot_id)
 
 
 async def _state_is(bot_id: str, state: ComputerState) -> bool:
