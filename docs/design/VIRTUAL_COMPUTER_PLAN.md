@@ -219,3 +219,18 @@ become part of Vela that its own users get too. Reuse saves the browser
 control, viewer and take-over work. Deferring the terminal (VP4 and the
 terminal part of C3) would cut about a week, but views 06 and 07 would stay
 hidden.
+
+### Status
+
+- **C1 (this repo, branch `feat/virtual-computer-c1`): implemented.** Docker
+  probe (CLI discovery + daemon check, cached), pinned local image build
+  (`cachibot-vela-computer:0.2.0`, single-flight, plain progress), the
+  `ComputerService` (per-bot container `cachibot-computer-<id>` with named
+  `/data` + `/workspace` volumes, 127.0.0.1-only port, per-bot controller
+  token file mounted read-only, wake/sleep/stop, 10-minute idle sleep via
+  `touch`, restart-safe startup reconcile), migration 016 (`bot_computers`),
+  `GET /api/bots/{id}/computer` + wake/sleep/stop, `GET /api/computer/status`
+  and `computer_update` WS events. Tests use a fake Docker runner and a fake
+  Vela client (no Docker/network/containers; the one integration test skips
+  without Docker). Left for C2+: frame/input proxy and watchers-keep-awake
+  wiring onto the `touch` hook, driver client, computer plugin, UI views.

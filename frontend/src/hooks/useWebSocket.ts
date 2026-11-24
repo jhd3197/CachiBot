@@ -11,6 +11,7 @@ import { useKnowledgeStore } from '../stores/knowledge'
 import { useArtifactsStore } from '../stores/artifacts'
 import { useWorkspaceStore } from '../stores/workspace'
 import { useSideTasksStore } from '../stores/side-tasks'
+import { useComputerStore } from '../stores/computer'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -28,6 +29,7 @@ import type {
   Artifact,
   ArtifactUpdatePayload,
   SideTask,
+  ComputerUpdatePayload,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -424,6 +426,16 @@ export function useWebSocket() {
           // read from the side-tasks store.
           const payload = msg.payload as SideTask
           useSideTasksStore.getState().upsert(payload)
+          break
+        }
+
+        case 'computer_update': {
+          // Bot computer state/build change (C1): status payload + botId,
+          // delivered only to sockets that can see the bot. The store is the
+          // source of truth for the C4 computer views, which stay hidden
+          // while the Docker probe says unavailable.
+          const payload = msg.payload as ComputerUpdatePayload
+          useComputerStore.getState().applyUpdate(payload)
           break
         }
 

@@ -27,6 +27,7 @@ from cachibot.api.routes import (
     chats,
     coding_agents,
     commands,
+    computer,
     config,
     connections,
     contacts,
@@ -207,6 +208,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log_retention = get_log_retention_service()
     await log_retention.start()
 
+    # Start the computer service (restart-safe reconcile + idle sleep loop).
+    # No containers are started here; it only reconciles rows with reality.
+    try:
+        from cachibot.services.computer.service import get_computer_service
+
+        await get_computer_service().start()
+    except Exception as exc:
+        startup_logger.warning("Computer service start skipped: %s", exc)
+
     # Start telemetry scheduler (opt-in, non-blocking, silent on failure)
     try:
         from cachibot.telemetry.scheduler import start_telemetry_scheduler
@@ -239,6 +249,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception:
         pass
     await log_retention.stop()
+    # Stop the computer service's loops (containers keep running; the idle
+    # loop re-evaluates them on the next start).
+    try:
+        from cachibot.services.computer.service import get_computer_service
+
+        await get_computer_service().stop()
+    except Exception:
+        pass
     await job_runner.stop()
     await scheduler.stop()
     await platform_manager.stop_health_monitor()
@@ -326,6 +344,7 @@ def create_app(
     app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(side_tasks.router, tags=["side-tasks"])
+    app.include_router(computer.router, tags=["computer"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])
     app.include_router(admin_executions.router, tags=["admin-executions"])

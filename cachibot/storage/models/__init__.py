@@ -35,6 +35,7 @@ from cachibot.storage.models.automations import (
 )
 from cachibot.storage.models.bot import Bot, BotOwnership
 from cachibot.storage.models.chat import Chat
+from cachibot.storage.models.computer import BotComputer
 from cachibot.storage.models.connection import BotConnection
 from cachibot.storage.models.contact import BotContact
 from cachibot.storage.models.developer import BotApiKey, BotWebhook
@@ -103,6 +104,8 @@ __all__ = [
     "Todo",
     # Side tasks
     "SideTask",
+    # Bot computers
+    "BotComputer",
     # Groups & access
     "Group",
     "GroupMember",
