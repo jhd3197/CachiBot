@@ -155,6 +155,16 @@ async def wait_for(predicate, timeout: float = 5.0) -> None:
     raise AssertionError("timed out waiting for condition")
 
 
+async def wait_for_wake(env, bot_id: str) -> None:
+    """Wait until the bot's background wake task has fully finished.
+
+    Waiting for the AWAKE row alone is not enough: the wake task may still
+    have trailing work, and a test that advances the clock right after must
+    not race it.
+    """
+    await wait_for(lambda: bot_id not in env.svc._wake_tasks)
+
+
 async def record_state(bot_id: str) -> ComputerState:
     record = await ComputerRepository().get_for_bot(bot_id)
     assert record is not None
@@ -439,6 +449,7 @@ class TestSleepStopIdle:
         script_container_lifecycle(env.runner, bot_id)
         await env.svc.wake(bot_id)
         await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
 
     async def test_sleep_stops_container_and_keeps_volumes(self, computer_env) -> None:
         env = computer_env
@@ -490,6 +501,43 @@ class TestSleepStopIdle:
         await env.svc._idle_tick()
         assert (await ComputerRepository().get_for_bot(bot_id)).state == ComputerState.ASLEEP
         assert len(env.runner.calls_for("stop")) == 1
+
+    async def test_awake_lands_with_the_wake_time_activity_stamp(self, computer_env) -> None:
+        """Regression: the AWAKE write must already carry the fresh last_active_at.
+
+        With the old ordering (AWAKE committed, then touch()), a clock advance
+        landing between the two moved last_active_at past the wake time, and
+        the idle tick then treated a just-woken computer as long-idle.
+        """
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        woke_at = env.clock.now()
+
+        # Advance the clock the moment AWAKE is broadcast: any activity stamp
+        # written after the state flip would land at the advanced time.
+        original_broadcast = env.svc._broadcast_fn
+
+        async def advance_on_awake(payload: dict[str, Any], target_bot_id: str) -> None:
+            await original_broadcast(payload, target_bot_id)
+            if payload.get("botId") == bot_id and payload.get("state") == ComputerState.AWAKE.value:
+                env.clock.advance(minutes=9)
+
+        env.svc._broadcast_fn = advance_on_awake
+
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
+
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.last_active_at == woke_at
+
+        # The original failure, driven deterministically: 11 idle minutes
+        # after the wake must sleep the computer.
+        env.clock.advance(minutes=2)
+        await env.svc._idle_tick()
+        assert (await ComputerRepository().get_for_bot(bot_id)).state == ComputerState.ASLEEP
 
     async def test_touch_resets_the_idle_clock(self, computer_env) -> None:
         env = computer_env
