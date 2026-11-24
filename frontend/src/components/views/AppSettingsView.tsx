@@ -676,7 +676,7 @@ function QrCodeDisplay({ value, size }: { value: string; size: number }) {
   if (!dataUrl) {
     return (
       <div style={{ width: size, height: size }} className="flex items-center justify-center">
-        <Spinner size="lg" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }
