@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ComputerState(str, Enum):
@@ -18,7 +18,9 @@ class ComputerState(str, Enum):
 
     ``needs_you`` is set while Vela reports a needs-person pause or a waiting
     approval (C2); it clears when the person answers, takes over or hands
-    back.
+    back. ``asleep`` also covers the C5 recovery: a computer whose container
+    died or was removed while it should be awake goes to asleep with a real
+    lastError — volumes kept, never auto-woken, woken again by the user.
     """
 
     UNAVAILABLE = "unavailable"
@@ -35,6 +37,16 @@ INACTIVE_STATES = (
     ComputerState.UNAVAILABLE,
     ComputerState.OFF,
     ComputerState.ASLEEP,
+)
+
+#: States that mean "a container should exist and be running right now" — the
+#: states the dead-container sweep checks (C5). A computer found in one of
+#: these states without a running container is not pretended awake: it goes to
+#: asleep with a real lastError and the user wakes it again.
+ACTIVE_STATES = (
+    ComputerState.AWAKE,
+    ComputerState.STARTING,
+    ComputerState.NEEDS_YOU,
 )
 
 
@@ -245,3 +257,72 @@ class ComputerNeedsYouRespond(BaseModel):
     """
 
     action: Literal["takeover", "skip"]
+
+
+# ---------------------------------------------------------------------------
+# C4: workspace files on the computer (Files sheet "Open on computer")
+# ---------------------------------------------------------------------------
+
+
+def workspace_relative_path(path: str) -> str:
+    """Normalize a UI-supplied path to a workspace-relative one.
+
+    Accepts ``bakery/index.html``, ``/workspace/bakery/index.html`` and
+    ``./bakery/index.html``; rejects anything that escapes the workspace
+    (``..`` segments or a naked ``..``) with a ValueError the route maps to
+    a 422, mirroring the bot-side file tools.
+    """
+    p = path.strip()
+    if p.startswith("/workspace/"):
+        p = p[len("/workspace/") :]
+    elif p.startswith("/"):
+        p = p[1:]
+    if p.startswith("./"):
+        p = p[2:]
+    if p in ("", "."):
+        return ""
+    if ".." in p.split("/"):
+        raise ValueError("the path is outside the workspace")
+    return p
+
+
+class ComputerWorkspaceEntry(BaseModel):
+    """One entry (file or folder) in the bot's /workspace, as Vela lists it."""
+
+    name: str
+    path: str = Field(description="Workspace-relative path")
+    kind: str = Field(description='"file" or "folder"')
+    size: int | None = None
+    modified: str | None = None
+
+
+class ComputerWorkspaceResponse(BaseModel):
+    """GET .../computer/workspace: the entries at one workspace folder."""
+
+    path: str = Field(description="The folder that was listed (workspace-relative)")
+    entries: list[ComputerWorkspaceEntry]
+
+
+class ComputerEditorOpenRequest(BaseModel):
+    """POST .../computer/editor/open: open a workspace file in the computer's
+    editor so a person can watch or edit along (design 10 "Open on computer").
+
+    The path is stored normalized to a workspace-relative one; anything that
+    escapes the workspace is a 422, mirroring the bot-side file tools.
+    """
+
+    path: str = Field(min_length=1, max_length=512)
+
+    @field_validator("path")
+    @classmethod
+    def _workspace_only(cls, value: str) -> str:
+        try:
+            return workspace_relative_path(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+
+class ComputerEditorOpenResponse(BaseModel):
+    """The editor window was opened on the computer's desktop."""
+
+    ok: bool = True

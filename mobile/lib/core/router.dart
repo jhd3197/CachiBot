@@ -7,6 +7,7 @@ import '../screens/auth/biometric_lock_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/qr_pair_screen.dart';
 import '../screens/bot/bot_detail_screen.dart';
+import '../screens/bot/computer_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/chat/recent_chats_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -112,6 +113,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'todos',
                 parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => TodosScreen(
+                  botId: state.pathParameters['botId']!,
+                ),
+              ),
+              // The bot's computer, full screen (gated on the Docker probe)
+              GoRoute(
+                path: 'computer',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => ComputerScreen(
                   botId: state.pathParameters['botId']!,
                 ),
               ),

@@ -19,6 +19,7 @@ import {
   getComputerStatus,
   getComputerViews,
   handbackComputer,
+  openComputerEditor,
   respondComputerNeedsYou,
   sleepComputer,
   stopComputer,
@@ -59,6 +60,8 @@ interface ComputerStoreState {
   takeover: (botId: string) => Promise<BotComputer>
   handback: (botId: string) => Promise<BotComputer>
   respondNeedsYou: (botId: string, action: 'takeover' | 'skip') => Promise<BotComputer>
+  /** Open a workspace file in the computer's editor (design 10). */
+  openEditor: (botId: string, path: string) => Promise<void>
 }
 
 export const useComputerStore = create<ComputerStoreState>()((set, get) => ({
@@ -143,5 +146,9 @@ export const useComputerStore = create<ComputerStoreState>()((set, get) => ({
     const computer = await respondComputerNeedsYou(botId, action)
     get().applyUpdate({ botId, ...computer })
     return computer
+  },
+
+  openEditor: async (botId, path) => {
+    await openComputerEditor(botId, path)
   },
 }))

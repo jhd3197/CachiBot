@@ -1,0 +1,327 @@
+// =============================================================================
+// UI v2 bot inspector — styles/v2/inspector.less
+// The collapsible right-hand panel (a desktop assistant's right sidebar):
+// bot header, Activity/Library tabs, real suggested actions, the computer
+// block (design 04) and the voice rows. Values from the reference capture.
+// =============================================================================
+
+.inspector {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  flex: none;
+  min-height: 0;
+  background: var(--v2-bg-sidebar);
+  border-left: 1px solid var(--v2-border);
+  color: var(--v2-text);
+  font-family: @font-sans;
+
+  &__head {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 16px 14px;
+  }
+
+  &__name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  &__collapse {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px 12px;
+    border-bottom: 1px solid var(--v2-border);
+  }
+
+  &__tab {
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 15px;
+    background: transparent;
+    color: var(--v2-text-secondary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+
+    &--active {
+      background: var(--v2-bg-hover);
+      color: var(--v2-text);
+    }
+  }
+
+  &__scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    .scrollbar-thin();
+  }
+
+  &__tabbody {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__activity-line {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: var(--v2-text-secondary);
+    min-width: 0;
+  }
+
+  &__activity-spin {
+    color: var(--v2-blue);
+    flex: none;
+    animation: inspector-spin 1.2s linear infinite;
+  }
+
+  &__empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__runs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__run {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: 8px;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &__run-icon {
+    flex: none;
+    color: var(--v2-text-tertiary);
+
+    &--ok {
+      color: var(--v2-green);
+    }
+
+    &--running {
+      color: var(--v2-blue);
+      animation: inspector-spin 1.2s linear infinite;
+    }
+
+    &--error {
+      color: var(--v2-red);
+    }
+  }
+
+  &__run-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__run-name {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__run-meta {
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__library {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__doc {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 7px 8px;
+    border-radius: 8px;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &__doc-name {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__doc-meta {
+    font-size: 12px;
+    color: var(--v2-text-tertiary);
+  }
+
+  &__link {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--v2-text-secondary);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--v2-text);
+    }
+  }
+
+  &__block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__block-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--v2-text-secondary);
+  }
+
+  &__suggested {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+  }
+
+  &__suggested-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+
+    svg {
+      color: var(--v2-text-secondary);
+      flex: none;
+    }
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+  }
+
+  &__suggested-label {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .computer-facts {
+    margin: 0;
+  }
+
+  &__voice {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: var(--v2-bg-panel);
+    border: 1px solid var(--v2-border);
+  }
+
+  &__voice-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    font-size: 13px;
+
+    & + & {
+      border-top: 1px solid var(--v2-border);
+    }
+  }
+
+  &__voice-value {
+    color: var(--v2-text-secondary);
+  }
+}
+
+// Hide on narrow layouts where the panel would squeeze the chat; the shell
+// also unmounts it there (single source: JS matchMedia + this belt).
+@media (max-width: 1199px) {
+  .inspector {
+    display: none;
+  }
+}
+
+@keyframes inspector-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector__activity-spin,
+  .inspector__run-icon--running {
+    animation: none;
+  }
+}

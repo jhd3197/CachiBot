@@ -18,9 +18,12 @@ import {
   FolderOpen,
   GitBranch,
   Paperclip,
+  Monitor,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
+import { useComputerStore } from '../../stores/computer'
+import { useAuthStore } from '../../stores/auth'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { useApprovalsStore } from '../../stores/approvals'
@@ -51,7 +54,7 @@ import { wsClient } from '../../api/websocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubbleV2, isMediaResult } from '../chat/MessageBubble'
-import { ErrorCard, ApprovalCard, StoppedLine } from '../chat/ChatCards'
+import { ErrorCard, ApprovalCard, StoppedLine, ComputerNeedsYouCard, ComputerDrivingLine } from '../chat/ChatCards'
 import { ThinkingIndicator } from '../chat/ThinkingIndicator'
 import { StatusLine } from '../common/StatusLine'
 import { Spinner } from '../common/Spinner'
@@ -141,6 +144,19 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate, canEdit: canEditBot } = useBotAccess(activeBotId)
   const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
+  // Computer surfaces (C4): the Docker probe decides whether any of it may
+  // appear; the per-bot record is live from GET + `computer_update` WS.
+  const computerAvailable = useComputerStore((s) => s.status?.available === true)
+  const inspectorOpen = useUIStore((s) => s.inspectorOpen)
+  const botComputer = useComputerStore((s) => (activeBotId ? s.byBot[activeBotId] : undefined))
+  const currentUserId = useAuthStore((s) => s.user?.id)
+  const botDriver = botComputer?.driver
+
+  useEffect(() => {
+    if (!computerAvailable || !activeBotId) return
+    void useComputerStore.getState().ensureForBot(activeBotId)
+    void useComputerStore.getState().fetchViews(activeBotId)
+  }, [computerAvailable, activeBotId])
 
   // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
   // owns the in-flight run — the connection lives at the app level now.
@@ -1629,6 +1645,19 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         </div>
         {activeBot && (
           <div className="chat-header__actions">
+            {computerAvailable && (
+              <button
+                type="button"
+                className="v2-files-btn"
+                aria-label="Computer"
+                title="Computer"
+                aria-pressed={inspectorOpen}
+                onClick={() => useUIStore.getState().toggleInspector()}
+              >
+                <Monitor size={15} strokeWidth={1.8} />
+                Computer
+              </button>
+            )}
             <button
               type="button"
               className="v2-files-btn"
@@ -1863,6 +1892,31 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
           {chatApprovals.map((approval) => (
             <ApprovalCard key={approval.id} approval={approval} onAnswer={answerApproval} />
           ))}
+
+          {/* The bot's computer needs a person (design 08) — real C2 state */}
+          {computerAvailable && activeBot && botComputer?.state === 'needs_you' && (
+            <ComputerNeedsYouCard
+              reason={botComputer.needsYou || `${activeBot.name} needs you on its computer.`}
+              onTakeOver={
+                canOperate
+                  ? () => void useComputerStore.getState().respondNeedsYou(activeBot.id, 'takeover')
+                  : undefined
+              }
+              onSkip={
+                canOperate
+                  ? () => void useComputerStore.getState().respondNeedsYou(activeBot.id, 'skip')
+                  : undefined
+              }
+            />
+          )}
+
+          {/* You hold the take-over — the hand-back line (design 08) */}
+          {computerAvailable && activeBot && botDriver && botDriver.userId === currentUserId && (
+            <ComputerDrivingLine
+              since={botDriver.since}
+              onHandBack={() => void useComputerStore.getState().handback(activeBot.id)}
+            />
+          )}
 
           {/* Failed-turn card from the real WS error event */}
           {showErrorCard && (

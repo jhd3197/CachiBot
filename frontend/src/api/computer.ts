@@ -22,6 +22,7 @@ import type {
   ComputerInput,
   ComputerViewsResponse,
   ComputerWatchResponse,
+  ComputerWorkspaceResponse,
   DockerProbeSummary,
 } from '../types'
 
@@ -212,5 +213,25 @@ export async function respondComputerNeedsYou(
   return request(`/bots/${botId}/computer/needs-you/respond`, {
     method: 'POST',
     body: JSON.stringify({ action }),
+  })
+}
+
+/** List one folder of the bot's /workspace (viewer+). Browsing never boots
+ * the computer: while it is asleep this throws (409) and callers hide the
+ * section. Entries come straight from the computer — nothing is invented. */
+export async function getComputerWorkspace(
+  botId: string,
+  path = ''
+): Promise<ComputerWorkspaceResponse> {
+  const query = path ? `?path=${encodeURIComponent(path)}` : ''
+  return request(`/bots/${botId}/computer/workspace${query}`)
+}
+
+/** Open a workspace file in the computer's editor (operator+, design 10).
+ * The UI offers the action only while the computer is awake. */
+export async function openComputerEditor(botId: string, path: string): Promise<{ ok: boolean }> {
+  return request(`/bots/${botId}/computer/editor/open`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
   })
 }

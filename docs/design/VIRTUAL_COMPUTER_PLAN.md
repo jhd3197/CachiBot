@@ -315,3 +315,283 @@ hidden.
     when the desktop-frame opt-in is off). Take-over on a fresh desktop
     still needs C3's agent setup (policy + enable-agent) before Vela will
     issue a lease; C2 surfaces Vela's plain refusal until then.
+- **C3 (this repo, branch `feat/computer-bot-tools`): implemented.** The
+  bot-facing computer tools — the `computer` plugin, the service's driven-step
+  pipeline, and the file/coding-agent routing — backend only (no computer UI;
+  that is C4/C5):
+  - **Vela client** (`services/computer/vela_client.py`): the driven-run
+    surface — the tool catalogue, create/step/read/finish/cancel for driven
+    runs (a step waits up to 60 s because a `terminal_run` can hold one for
+    30), the task list (to adopt the active run after a controller restart),
+    and the desktop policy read/save + `enable-agent` the one-time agent
+    setup needs. Timeouts on every call; the token still only travels in the
+    `Authorization` header.
+  - **Tool gate:** the `computer` plugin's tools are registered only when
+    `computer.enabled` is on **and** the last Docker probe found a daemon
+    (`ComputerService.computer_tools_available`, warmed at startup reconcile
+    and every status poll); when the feature is off the model never sees
+    them. Every call re-checks with a fresh probe and refuses with a plain
+    sentence. No new bot-settings capability toggle was added.
+  - **Driven steps** (`ComputerService.run_tool_step`): a tool call may wake
+    the computer and wait for it (a preview still never wakes); before every
+    step the service waits while a person holds the take-over
+    (`driver_for`, injected clock in tests) and answers "a person is
+    driving" rather than barging in — Vela's retryable `person_driving`
+    refusal is handled the same way; `touch(bot_id, "tool")` keeps idle
+    sleep and the activity line truthful. One driven run per bot is opened
+    on demand (idempotent `clientRequestId`), reused across steps, adopted
+    after a controller restart, and finished by the `computer_finish` tool
+    or when a coding-agent session ends (an ordinary finish leaves the run's
+    terminals — dev servers keep running; cancel kills them, per Vela's
+    rule). Result / refusal / approval / needsPerson are surfaced honestly;
+    approvals and needs-person trip the same needs-you mapping C2 built,
+    and a pending approval is settled by the step read before the next step.
+  - **Agent setup:** a fresh container's desktop is personal, and Vela only
+    drives an agent desktop — so at wake (and lazily on first use) the
+    service saves a starter policy and calls `enable-agent`. Vela's policy
+    model has no "whole internet" rule and requires at least one approved
+    app or site, so the starter policy approves exactly one origin —
+    `https://example.com` (the RFC 2606 reserved name), effects "ask" — and
+    nothing else. Browser steps to other origins refuse with Vela's own
+    `not_allowed` until sites are approved (a C4/C5 UI concern).
+  - **The plugin** (`plugins/computer.py`, registered in
+    `plugins/__init__.py` and the plugin manager's always-on set): stable,
+    hand-written tools for the terminal five, the workspace three,
+    `editor_open` and `computer_finish` (their names are documented and do
+    not drift, so they are listed even while the computer sleeps), plus the
+    browser/desktop tools registered from Vela's live catalogue once the
+    computer is awake (names mapped `desktop.observe` →
+    `computer_desktop_observe`, schemas passed through) so they never drift
+    from what Vela accepts. Dev servers are plain `computer_terminal_run`
+    with `waitFor: "output"`/`"none"` — no fake dev-server tool. The plugin
+    talks only to `get_computer_service()`.
+  - **File tools:** with the computer usable, `FileOpsPlugin` operates on
+    the bot's `/workspace` volume through the `workspace_*` driven tools
+    (read/write/list/edit/info; edits write with the read's
+    `expectedRevision`, so a concurrent save is a conflict, not an
+    overwrite). With the computer off, the host `workspace_path` behavior
+    is unchanged.
+  - **Coding agent:** with the computer usable, `CodingAgentPlugin` and the
+    platform `@mention` dispatcher run the CLI inside the computer's
+    terminal: the task goes into a workspace file (short, quote-free
+    command line), the CLI runs in `/workspace` (PATH already includes
+    `/workspace/.local`), output streams back via `terminal_read` polls,
+    the exit code comes back on a sentinel, and the session's terminal is
+    closed at the end. A CLI missing in the computer returns the shell's
+    own error (the bot can install into `/workspace/.local`) — nothing
+    pretends it ran. With the computer off, the host subprocess path is
+    unchanged.
+  - **Execution logs:** every computer step writes an `ExecutionLog`
+    (`execution_type="computer"`, tool name, duration, success/error, short
+    result/refusal summary — never arguments or tokens), fire-and-forget
+    like the instruction logs; a coding-agent session writes one log with
+    lines for the key moments. They show up in Runs / the Activity log.
+  - **Feature detection and degradation:** everything is gated on the
+    cached `/api/controller` `features` — the pinned Vela 0.3.0 (protocol
+    5) offers the terminal, workspace and editor surfaces; a feature the
+    container does not advertise refuses with a plain "this computer's Vela
+    does not offer the … surface".
+    Nothing is faked.
+  - **Tests:** fake Vela client + fake Docker runner throughout (no
+    network, no containers): the gate, wake-on-demand vs no-wake preview,
+    touch, the person-driving wait (injected clock), all four step answers,
+    the documented payloads, file-ops and coding-agent routing both ways,
+    feature-gap refusals, run adopt/finish/cancel, and the execution logs.
+    `tests/test_computer_plugin_integration.py` adds real-Docker coverage
+    behind the same `CACHIBOT_DOCKER_TESTS=1` gate as C1, cleaning up its
+    container and volumes in `finally`.
+  - **Waits for C4/C5:** the computer views (04–09, 11), Bot settings ›
+    Computer, the build-progress UI, "Open on computer", mobile touch
+    take-over, approving sites beyond the starter origin, and the Vela
+    image pin bump that turns the terminal/workspace/editor surface on.
+- **C4 (this repo, branch `feat/computer-ui`): implemented.** The computer
+  UI for desktop and web — views 04–09 and 11 as the real states of one
+  surface, plus the right-hand bot inspector. Frontend only, plus two small
+  file routes under bot access rules:
+  - **Where it lives.** The v2 shell (`MainLayout`) gains one right-hand
+    column: the collapsible **`BotInspectorPanel`** (persisted toggle in the
+    ui store; hidden below 1200 px and on routes without a selected bot).
+    Its **Computer block** is design 04's aside: the 16:10 state card
+    (`ComputerStateCard` — the real states of view 11: off with Turn on,
+    asleep with Wake, building/starting with the C1 build progress, awake
+    with the live preview, needs_you with the amber ring + tag), the
+    one-line activity from the C2 store, the open-windows list (app +
+    title) and the take-over row. The chat header gains the design's
+    **Computer toggle** (`aria-pressed`, only while the Docker probe is
+    available). "Open" goes to the full-window surface.
+  - **Full-window surface (`/:botId/computer`, view 05).** The desktop
+    preview large, or the **selected window's frame** full size — the
+    browser/terminal presentations of views 06/07 are the real per-window
+    frames; when the selected window is gone the view falls back to the
+    desktop preview. The top bar mirrors Vela's with real C2 state: who is
+    driving, **Take over / Hand back** (operator+; hidden for viewers) and
+    **Stop**. **Take-over (view 08):** while the caller holds the lease, a
+    selected window's frame forwards click / right click / scroll / typed
+    text / named keys through the C2 input API (bounds-validated on the
+    server, `frameAt` staleness attached); the desktop preview without a
+    picked window is honestly watch-only ("Pick a window below to click,
+    scroll and type"). The needs-you reason is a banner with **Take over**
+    and **Skip this step** (`needs-you/respond {action: skip}`). The chat
+    itself renders the same needs-you as an inline card (design 03 style)
+    plus the "You took over at …" line with Hand back — only while this
+    user is the driver.
+  - **Preview plumbing** stays the C2 hook: `useComputerPreview` gained an
+    optional `viewId` (per-window frames poll ~1 fps with ETag/304; the
+    desktop preview still refetches by `previewRevision` and sends watch
+    heartbeats — watching keeps the computer awake; a preview never wakes
+    it).
+  - **First-wake build progress** shows while state is `building`: the
+    real step/total (when the build line carries it) and the last build
+    line; a failed build surfaces `lastError`.
+  - **Bot settings › Computer** (`#computer`, deep-linkable) is a real
+    section: status (+ activity/error, Vela version), the four true facts
+    (This PC · Docker / the internet, not your network / keeps /workspace /
+    sleeps after 10 min idle — the configured value is not exposed to the
+    UI, so the shipped default is the copy), and Wake/Sleep/Stop
+    (operator+; read-only for viewers). Section and nav chip are hidden
+    while the probe is unavailable.
+  - **Files sheet "Open on computer" (view 10).** New routes:
+    `GET .../computer/workspace?path=` (viewer+; lists one /workspace
+    folder through a real `workspace_list` driven step; **browsing never
+    boots the computer** — asleep is a 409 and the UI hides the section)
+    and `POST .../computer/editor/open` (operator+; validates the path to
+    workspace-relative and runs the `editor_open` driven step; refusals
+    surface as the computer's plain 409). The sheet shows an "On its
+    computer" section (folder navigation, real sizes) only while the
+    computer is awake; "Open on computer" is operator-only. Tested in
+    `tests/test_computer_workspace_api.py` (fake Vela + fake Docker, no
+    containers): access rules, path-escape 422s, the asleep-409s with no
+    container started, step payload normalization, refusal passthrough.
+  - **Right-hand inspector** (Juan's sidebar): bot avatar + name;
+    **Activity** (the live computer activity line + the recent runs from
+    the executions API) and **Library** tabs (the bot's knowledge
+    documents — the tab appears only when there are any); **Suggested**
+    only from real prompts (a computer that needs you, open quick tasks)
+    and hidden entirely when empty; the Computer card above; **Voice /
+    Language** rows read from the app's real voice-mode settings (a
+    preference the voice pipeline uses; per-bot voice settings do not
+    exist) and hidden when absent.
+  - **Gates.** Every computer surface checks the Docker probe
+    (`status.available`, fetched at shell mount; a failed probe reads as
+    unavailable) — no dead Computer buttons when Docker is off. The
+    design's "Use a cloud computer instead" CTA does not exist anywhere
+    (no cloud backend); view 09's generated explainer sentence is omitted
+    for the same reason; the view-06/07 chat-page cards ("Running on its
+    computer · localhost:5173") have no real chat-content source and are
+    not rendered — the full-window surface covers those presentations.
+  - **Tests.** `tests/test_computer_ui_source.py` — hermetic source
+    assertions over the frontend: availability gates, the conditional
+    inspector Computer card, no cloud CTA (UI + backend), the conditional
+    Open-on-computer, the true explainer facts, operator-only take-over
+    controls, and the no-AI-tools rule on the new files. Backend: the new
+    routes' pytest above; the `run_tool_step` pipeline gained
+    `allow_wake=False` (person-initiated reads that must never boot the
+    computer). `ruff`/`ruff format`/`mypy`/`pytest` all pass; the frontend
+    lint/build run in CI (no local node_modules).
+  - **Waits for C5/the next Vela pin:** the terminal/editor surfaces
+    light up with the VP4/VP5 pin bump (the UI already lists terminal and
+    editor windows and opens their frames); approving sites beyond the
+    starter origin is a C5 UI concern; mobile full-desktop touch take-over
+    stays out of this pass (desktop/web only).
+- **C5 (this repo, branch `feat/computer-hardening`): implemented for
+  desktop and web; the mobile surface landed as the follow-up below.**
+  Container hardening, truthful recovery when a container dies, and the
+  Docker Desktop story — backend plus docs:
+  - **Resource caps.** `docker run` now carries `--memory`, `--cpus` and
+    `--pids-limit` from `ComputerConfig` (`_resource_cap_args`). The shipped
+    defaults are conservative for a desktop + Chromium workload: 2 GiB
+    memory, 2 CPUs, 1024 pids (the pids cgroup counts threads, so the limit
+    leaves Chromium's many threads room while still stopping a fork bomb).
+    Configurable via `[computer] memory`/`cpus`/`pids_limit` in
+    cachibot.toml or `CACHIBOT_COMPUTER_MEMORY`/`CACHIBOT_COMPUTER_CPUS`/
+    `CACHIBOT_COMPUTER_PIDS_LIMIT`; `memory = ""` or a numeric 0 runs that
+    cap uncapped (documented in `cachibot.example.toml`). The controller
+    token is still never in argv or env — asserted on every runner call.
+  - **Egress posture.** The only published socket stays bound to 127.0.0.1
+    (an ephemeral host port read back with `docker port`): nothing on the
+    host or LAN can reach Vela directly — users go through CachiBot's proxy
+    — and the tests keep asserting the bind is loopback-only (and that there
+    is no `--network`/`--privileged`). The additional hardening is what the
+    Docker CLI alone can honestly apply: `--security-opt
+    no-new-privileges:true` (no setuid/file-capability escalation inside the
+    container) and `--cap-drop NET_RAW` (no raw sockets). Outbound internet
+    stays open on purpose — the bot's browser needs it — and per-destination
+    egress filtering is not something the Docker CLI can do, so it is not
+    faked: a stricter posture would need a firewall or egress proxy, which
+    this design deliberately does not add.
+  - **Recovery when a container dies.** A computer that should be awake
+    (awake, starting or needs-you) whose container exited or was removed is
+    detected on the existing idle tick (`_sweep_dead_containers`) and at
+    startup reconcile. It is never pretended awake: the volumes are kept,
+    the live state (driver, needs-you, preview, Vela client) is dropped, the
+    row goes to **asleep** — picked over off because it is the truthful
+    "files kept, wake to start again" state — with a real lastError (the
+    exit code from a live inspect, or the container's `docker ps` status
+    line at reconcile) and a `computer_update` broadcast. There is no
+    auto-wake: the user wakes the computer again, which starts the existing
+    container, or creates a fresh one on the same volumes when it was
+    removed. A dead Docker daemon is not treated as a dead container (the
+    sweep skips when the probe fails), and a wake in flight owns its
+    container (the sweep skips it).
+  - **Docker Desktop on Windows/macOS.** The computer needs a working Docker
+    engine — Docker Engine on Linux, or Docker Desktop on Windows/macOS —
+    and nothing else: CachiBot talks to the Docker CLI, so Desktop's
+    contexts, the Windows named pipe and the macOS socket work without
+    per-platform code, and named volumes avoid Windows path and macOS
+    file-sharing issues. The image is Linux (amd64 and arm64 for Apple
+    Silicon). The probe already reports availability with a plain reason,
+    and every computer surface stays hidden while it is unavailable.
+  - **Tests.** Fake Docker runner + fake Vela client + injected clock
+    throughout (no Docker, no network, no containers): the caps in argv from
+    config (and the uncapped escape hatch), the loopback-only publish with
+    the hardening flags and no token anywhere, death detection on the idle
+    tick (exited with the exit code, missing, needs-you, daemon-down
+    skipped, in-flight wake skipped), the truthful asleep + lastError +
+    broadcast, explicit wake-again, and the startup reconcile matching
+    (running → awake, exited/missing → asleep with the real status, asleep
+    rows untouched). `tests/test_computer_config.py` covers the new config
+    keys (defaults, env, toml, the uncapped escape hatch).
+  - **Mobile (this repo, branch `feat/computer-mobile`): implemented.** The
+    full-desktop touch surface of decision 6 landed as the deferred
+    follow-up, on the C2 API unchanged (no new backend routes):
+    - **Client + store** (`mobile/lib/services/api/computer_service.dart`,
+      `mobile/lib/providers/computer_provider.dart`,
+      `mobile/lib/models/computer.dart`): the Docker probe, per-bot status,
+      the preview and per-window frames as raw bytes with the ETag/304
+      contract (`ResponseType.bytes` + `If-None-Match`; a preview never
+      wakes the computer — 409/404 surfaces the real off/asleep state), the
+      views list, watch heartbeats, take over / hand back / input and the
+      needs-you answer, all through the shared dio client and its auth
+      interceptor (tokens are never logged). The `computer_update` WS type
+      constant was added and refreshes the store from the payload.
+    - **Full-screen route** `/bot/:botId/computer` (root navigator, like
+      knowledge/work): the selected window's frame or the desktop preview
+      full screen, a window switcher from the real views list,
+      pinch-zoom/pan via `InteractiveViewer`, the activity line and the real
+      state (Off / Asleep / Building / Starting / Awake / Needs you), and
+      first-wake build progress only when the real build fields are
+      present. The entries on the bot-detail and chat app bars render only
+      while the probe says available — no dead button when Docker is off.
+    - **Touch take-over (operator+ only):** tap = click, long-press = right
+      click, drag = scroll (natural touch direction, throttled), keyboard
+      toggle = type / named keys; coordinates map through the displayed
+      frame's natural size exactly like the web surface (skipped when a
+      size is 0), and input goes out only while the signed-in user holds
+      the take-over. Access comes from the bot list's `access_level`
+      (admins included); a control that still answers 403 hides for the
+      rest of the session. "You're driving · the bot waits" shows only
+      while the driver is the signed-in user.
+    - **Watch to keep awake:** a 15 s heartbeat plus the frame poll run
+      only while the screen is mounted and the app is foregrounded; both
+      stop when the app is backgrounded or the screen unmounts.
+    - **Honest degradation:** off/asleep shows the real state with Turn on
+      / Wake (operator+, the real wake endpoint); needs-you shows the real
+      reason with Take over / Skip; no placeholder frames, invented window
+      titles or cloud-computer CTAs anywhere.
+    - **Tests:** the follow-up was written without a Flutter SDK in the
+      environment, so no `flutter_test` suite was added (CI runs
+      `flutter analyze` on the mobile job);
+      `tests/test_computer_mobile_source.py` asserts the load-bearing
+      rules over the Dart sources — availability gates, the documented
+      computer routes, the gesture-to-input mapping, and the absence of
+      placeholder frames and cloud CTAs.

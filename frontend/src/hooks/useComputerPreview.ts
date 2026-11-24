@@ -4,37 +4,50 @@
  * While mounted and the tab is visible it:
  *  - sends a watch heartbeat every 15 s (watching keeps the computer awake;
  *    the server expires a watcher ~30 s after the beats stop), and
- *  - refetches the preview frame by revision: immediately when the
+ *  - refetches the frame by revision: immediately when the
  *    `computer_update` WS reports a new `previewRevision`, plus a slow poll
  *    with If-None-Match as the fallback (a 304 costs nothing and means the
  *    bytes on screen are current).
+ *
+ * C4: pass `viewId` to follow one window's frame instead of the desktop
+ * preview (the full-window computer surface, design 05–08). Window frames
+ * have no WS revision, so the poll is the refresh path there.
  *
  * Everything stops while the tab is hidden and on unmount; nothing is faked
  * — a computer that is asleep or has nothing to show simply yields no frame.
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { getComputerPreview, watchComputer } from '../api/computer'
+import { getComputerPreview, getComputerViewFrame, watchComputer } from '../api/computer'
 import { useComputerStore } from '../stores/computer'
 
 const WATCH_HEARTBEAT_MS = 15_000
 const PREVIEW_POLL_MS = 3_000
+/** The open computer surface watches the selected window at ~1 fps (Vela's
+ * watching rate); the ETag keeps unchanged frames at a cheap 304. */
+const VIEW_POLL_MS = 1_000
 
 export interface ComputerPreview {
   /** Object URL of the latest frame, or null when there is nothing real to show. */
   previewUrl: string | null
   /** Content revision of that frame (matches `previewRevision` when current). */
   revision: string | null
+  /** When the frame on screen arrived (ms) — the input staleness stamp. */
+  updatedAt: number | null
 }
 
-export function useComputerPreview(botId: string | null): ComputerPreview {
-  const [frame, setFrame] = useState<ComputerPreview>({ previewUrl: null, revision: null })
+export function useComputerPreview(botId: string | null, viewId: string | null = null): ComputerPreview {
+  const [frame, setFrame] = useState<ComputerPreview>({
+    previewUrl: null,
+    revision: null,
+    updatedAt: null,
+  })
   const etagRef = useRef<string | null>(null)
   const urlRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!botId) {
-      setFrame({ previewUrl: null, revision: null })
+      setFrame({ previewUrl: null, revision: null, updatedAt: null })
       return
     }
     let cancelled = false
@@ -51,13 +64,16 @@ export function useComputerPreview(botId: string | null): ComputerPreview {
 
     const poll = async () => {
       try {
-        const next = await getComputerPreview(botId, etagRef.current)
+        const next =
+          viewId && botId
+            ? await getComputerViewFrame(botId, viewId, etagRef.current)
+            : await getComputerPreview(botId, etagRef.current)
         if (cancelled || next === null) return // 304: the frame on screen is current
         etagRef.current = next.etag
         const url = URL.createObjectURL(next.blob)
         if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         urlRef.current = url
-        setFrame({ previewUrl: url, revision: next.revision })
+        setFrame({ previewUrl: url, revision: next.revision, updatedAt: Date.now() })
       } catch {
         // 409 (asleep) / 404 (nothing to show): keep the last real frame.
       }
@@ -75,7 +91,10 @@ export function useComputerPreview(botId: string | null): ComputerPreview {
       void heartbeat()
       void poll()
       heartbeatTimer = window.setInterval(() => void heartbeat(), WATCH_HEARTBEAT_MS)
-      pollTimer = window.setInterval(() => void poll(), PREVIEW_POLL_MS)
+      pollTimer = window.setInterval(
+        () => void poll(),
+        viewId ? VIEW_POLL_MS : PREVIEW_POLL_MS
+      )
     }
 
     const onVisibility = () => {
@@ -87,14 +106,17 @@ export function useComputerPreview(botId: string | null): ComputerPreview {
     }
 
     // Refetch as soon as the WS reports a new preview revision; the slow
-    // poll above is the fallback for a missed event.
-    const unsubscribe = useComputerStore.subscribe((state, previous) => {
-      const revision = state.byBot[botId]?.previewRevision ?? null
-      const before = previous.byBot[botId]?.previewRevision ?? null
-      if (revision !== before && !document.hidden) {
-        void poll()
-      }
-    })
+    // poll above is the fallback for a missed event. (Desktop preview only:
+    // window frames have no pushed revision.)
+    const unsubscribe = viewId
+      ? () => {}
+      : useComputerStore.subscribe((state, previous) => {
+          const revision = state.byBot[botId]?.previewRevision ?? null
+          const before = previous.byBot[botId]?.previewRevision ?? null
+          if (revision !== before && !document.hidden) {
+            void poll()
+          }
+        })
 
     if (!document.hidden) {
       start()
@@ -109,9 +131,9 @@ export function useComputerPreview(botId: string | null): ComputerPreview {
       if (urlRef.current) URL.revokeObjectURL(urlRef.current)
       urlRef.current = null
       etagRef.current = null
-      setFrame({ previewUrl: null, revision: null })
+      setFrame({ previewUrl: null, revision: null, updatedAt: null })
     }
-  }, [botId])
+  }, [botId, viewId])
 
   return frame
 }

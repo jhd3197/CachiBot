@@ -15,6 +15,7 @@ import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { usePluginsStore } from '../../stores/plugins'
+import { useComputerStore } from '../../stores/computer'
 import { useKnowledgeStore, type DocumentResponse } from '../../stores/knowledge'
 import { getCodingAgents, exportBot, clearBotPlatformData } from '../../api/client'
 import { getConnections, getPlatforms, type Connection } from '../../api/connections'
@@ -24,6 +25,7 @@ import { useBotAccess } from '../../hooks/useBotAccess'
 import { BotAvatar } from '../common/Avatar'
 import { ModelSelect } from '../common/ModelSelect'
 import { Spinner } from '../common/Spinner'
+import { BotSettingsComputerSection } from '../computer/BotSettingsComputerSection'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
@@ -49,9 +51,8 @@ import type { Bot as BotType, CodingAgentInfo, SkillDefinition, ExternalPluginIn
 /**
  * Bot settings page (design view 18) — one column of anchored sections:
  * General, Knowledge, Skills, What it can use (capability switches + plugins),
- * Connections, Advanced (models, environment, API & webhooks, danger zone).
- * The design's "Computer" section is omitted entirely: the computer backend
- * does not exist (see UI_V2_PLAN.md "Phase D3 - not backed yet").
+ * Connections, Computer (only while the Docker probe is available), Advanced
+ * (models, environment, API & webhooks, danger zone).
  *
  * Everything is real data:
  * - Knowledge rows: documents/notes from the knowledge API (full management
@@ -101,13 +102,14 @@ const CAPABILITY_ROWS: { key: string; label: string; description: string }[] = [
 ]
 
 // Section anchors — nav chip targets and deep-link hashes.
-// "Computer" is intentionally absent (no computer backend).
+// "Computer" is added only while the computer feature is available (C4).
 const SECTIONS = [
   { id: 'general', label: 'General' },
   { id: 'knowledge', label: 'Knowledge' },
   { id: 'skills', label: 'Skills' },
   { id: 'what-it-can-use', label: 'What it can use' },
   { id: 'connections', label: 'Connections' },
+  { id: 'computer', label: 'Computer' },
   { id: 'advanced', label: 'Advanced' },
 ] as const
 
@@ -295,6 +297,8 @@ export function BotSettingsView() {
   const activeBot = getActiveBot()
   const botId = activeBot?.id ?? null
   const { canEdit } = useBotAccess(botId)
+  // The Docker probe gates the Computer section + nav chip (C4).
+  const computerAvailable = useComputerStore((s) => s.status?.available === true)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -669,9 +673,10 @@ export function BotSettingsView() {
           </button>
         </div>
 
-        {/* Section nav (design chips; Computer omitted — no computer backend) */}
+        {/* Section nav (design chips; Computer appears only when the Docker
+            probe says the computer feature is available) */}
         <nav className="bot-settings__sections-nav" aria-label="Sections">
-          {SECTIONS.map((s) => (
+          {SECTIONS.filter((s) => s.id !== 'computer' || computerAvailable).map((s) => (
             <a key={s.id} href={`#${s.id}`}>
               {s.label}
             </a>
@@ -962,8 +967,13 @@ export function BotSettingsView() {
           </Section>
         )}
 
-        {/* Computer section omitted — the computer backend does not exist
-            (UI_V2_PLAN.md "Phase D3 - not backed yet"). */}
+        {/* Computer (C4): real status, facts and controls — hidden entirely
+            while the Docker probe says the feature is unavailable. */}
+        {computerAvailable && (
+          <Section id="computer" title="Computer">
+            <BotSettingsComputerSection bot={activeBot} />
+          </Section>
+        )}
 
         {/* Advanced */}
         <Section id="advanced" title="Advanced">

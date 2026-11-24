@@ -168,6 +168,8 @@ interface UIState {
   settingsSection: SettingsSection
   workSection: WorkSection
   automationSection: AutomationSection
+  /** Right-hand bot inspector panel (chat/workspace, design 04 sidebar). */
+  inspectorOpen: boolean
 
   // Actions
   setTheme: (theme: Theme) => void
@@ -187,6 +189,8 @@ interface UIState {
   setSettingsSection: (section: SettingsSection) => void
   setWorkSection: (section: WorkSection) => void
   setAutomationSection: (section: AutomationSection) => void
+  setInspectorOpen: (open: boolean) => void
+  toggleInspector: () => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -206,6 +210,7 @@ export const useUIStore = create<UIState>()(
       settingsSection: 'general',
       workSection: 'overview',
       automationSection: 'routines',
+      inspectorOpen: true,
 
       setTheme: (theme) => set({ theme }),
       setAccentColor: (accentColor) => set({ accentColor }),
@@ -229,6 +234,8 @@ export const useUIStore = create<UIState>()(
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setWorkSection: (workSection) => set({ workSection }),
       setAutomationSection: (automationSection) => set({ automationSection }),
+      setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),
+      toggleInspector: () => set((state) => ({ inspectorOpen: !state.inspectorOpen })),
     }),
     {
       name: 'cachibot-ui',
@@ -239,6 +246,7 @@ export const useUIStore = create<UIState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         showThinking: state.showThinking,
         showCost: state.showCost,
+        inspectorOpen: state.inspectorOpen,
       }),
     }
   )
