@@ -181,11 +181,14 @@ async def error_contains(bot_id: str, text: str) -> bool:
     return record is not None and text in (record.last_error or "")
 
 
-def script_container_lifecycle(runner: FakeDockerRunner, bot_id: str, port: int = 49153) -> None:
-    """Container answers for one bot: missing until ``docker run`` creates it,
-    running until ``docker stop`` stops it. Volumes are never removed."""
+def script_container_lifecycle(
+    runner: FakeDockerRunner, bot_id: str, port: int = 49153, *, exists: bool = False
+) -> None:
+    """Container answers for one bot: missing until ``docker run`` creates it
+    (or present-but-stopped from the start with ``exists=True``), running
+    until ``docker stop`` stops it. Volumes are never removed."""
     name = container_name_for(bot_id)
-    box = {"exists": False, "running": False}
+    box = {"exists": exists, "running": False}
 
     def inspect() -> CommandResult:
         if not box["exists"]:
@@ -317,7 +320,7 @@ class TestWake:
         assert record is not None
         assert record.state == ComputerState.AWAKE
         assert record.host_port == 49153
-        assert record.vela_version == "0.2.0"
+        assert record.vela_version == "0.3.0"
         assert record.image_tag == COMPUTER_IMAGE_TAG
 
     async def test_wake_builds_image_first(self, computer_env) -> None:
@@ -334,8 +337,8 @@ class TestWake:
         build_argv = runner.calls_for("build")[0]
         assert build_argv[1:3] == ["build", "--target"]
         assert "computer" in build_argv
-        assert "VELA_VERSION=0.2.0" in build_argv
-        assert "https://github.com/jhd3197/Vela.git#v0.2.0" in build_argv
+        assert "VELA_VERSION=0.3.0" in build_argv
+        assert "https://github.com/jhd3197/Vela.git#v0.3.0" in build_argv
         # Second wake with the image present must not rebuild.
         await env.svc.sleep(bot_id)
         await wait_for(lambda: state_is(bot_id, ComputerState.ASLEEP))
@@ -362,7 +365,7 @@ class TestWake:
         for _, payload in env.broadcasts:
             assert "hostPort" not in payload
             assert "token" not in payload
-            assert payload["velaVersion"] == "0.2.0"
+            assert payload["velaVersion"] == "0.3.0"
 
     async def test_concurrent_wakes_share_one_build_and_one_run(self, computer_env) -> None:
         env = computer_env
@@ -409,20 +412,67 @@ class TestWake:
         await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
         assert attempts["count"] == 2
 
-    async def test_protocol_below_two_fails_wake(self, computer_env) -> None:
+    async def test_protocol_below_five_fails_wake(self, computer_env) -> None:
         env = computer_env
         bot_id = make_bot_id()
         env.runner.when("build", result=["#1 [1/1] DONE"])
         script_container_lifecycle(env.runner, bot_id)
         env.vela_clients.clear()
         env.svc._vela_factory = lambda port, token: _client_with(
-            env, FakeVelaClient(info={"mode": "controller", "version": "0.1.0", "protocol": 1})
+            env, FakeVelaClient(info={"mode": "controller", "version": "0.2.0", "protocol": 4})
         )
 
         await env.svc.wake(bot_id)
-        await wait_for(lambda: error_contains(bot_id, "protocol"))
+        await wait_for(lambda: error_contains(bot_id, "protocol >= 5"))
         # The failed container was stopped, not left running.
         assert len(env.runner.calls_for("stop")) == 1
+
+    async def test_wake_replaces_a_container_from_an_older_image(self, computer_env) -> None:
+        """A container created from the previous pinned image is replaced on
+        wake: the new image is built first, the old container is removed (the
+        volumes never are) and a new one is created from the new image."""
+        env = computer_env
+        bot_id = make_bot_id()
+        runner: FakeDockerRunner = env.runner
+        runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(runner, bot_id, exists=True)
+        repo = ComputerRepository()
+        await repo.upsert(
+            ComputerRecord(
+                bot_id=bot_id,
+                state=ComputerState.ASLEEP,
+                container_name=container_name_for(bot_id),
+                image_tag="cachibot-vela-computer:0.2.0",
+                vela_version="0.2.0",
+            )
+        )
+
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+
+        # The new image was built, the old container removed and recreated —
+        # never started, and the volumes never touched.
+        assert len(runner.calls_for("build")) == 1
+        assert runner.calls_for("volume", "rm") == []
+        name = container_name_for(bot_id)
+        assert runner.calls_for("rm") == [[runner.cli, "rm", "-f", name]]
+        assert runner.calls_for("start") == []
+        runs = runner.calls_for("run")
+        assert len(runs) == 1
+        assert runs[0][-1] == COMPUTER_IMAGE_TAG
+
+        record = await repo.get_for_bot(bot_id)
+        assert record.vela_version == "0.3.0"
+        assert record.image_tag == COMPUTER_IMAGE_TAG
+
+        # The next wake starts the recreated container — no second rebuild.
+        await env.svc.sleep(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.ASLEEP))
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        assert len(runner.calls_for("rm")) == 1
+        assert len(runner.calls_for("run")) == 1
+        assert len(runner.calls_for("start")) == 1
 
     async def test_health_timeout_fails_wake(self, computer_env) -> None:
         env = computer_env
@@ -529,6 +579,46 @@ class TestWake:
         token = (env.token_dir / bot_id / "controller-token").read_text(encoding="utf-8").strip()
         assert token not in " ".join(argv)
 
+    async def test_wake_does_not_clobber_a_needs_you(self, computer_env) -> None:
+        """Regression: waking a needs-you computer must not lose the needs-you.
+
+        A needs-you computer is awake, but wake() used to start a wake for it:
+        the STARTING and AWAKE writes replaced the NEEDS_YOU row while Vela's
+        approval was still pending — and the events cursor had already passed
+        the triggering event, so the needs-you never came back.
+        """
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
+
+        # The live loop mapped a needs-you: the row and the flag both say so.
+        repo = ComputerRepository()
+        record = await repo.get_for_bot(bot_id)
+        record.state = ComputerState.NEEDS_YOU
+        await repo.upsert(record)
+        env.svc._needs_you[bot_id] = NeedsYouInfo(
+            kind="approval",
+            reason="Post the draft?",
+            desktop_id="desk-1",
+            run_id="run-1",
+            request_id="req-1",
+        )
+        calls_before = len(env.runner.calls)
+
+        status = await env.svc.wake(bot_id)
+
+        # No new wake and no Docker calls: the computer is awake already.
+        assert bot_id not in env.svc._wake_tasks
+        assert len(env.runner.calls) == calls_before
+        assert status["state"] == ComputerState.NEEDS_YOU.value
+        assert status["needsYou"] == "Post the draft?"
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.NEEDS_YOU
+
 
 def _client_with(env, client: FakeVelaClient) -> FakeVelaClient:
     env.vela_clients.append(client)
@@ -574,6 +664,7 @@ class TestSleepStopIdle:
         await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
         assert len(env.runner.calls_for("start")) == 1
         assert len(env.runner.calls_for("run")) == 1  # only the original creation
+        assert env.runner.calls_for("rm") == []  # same image: no replacement
 
     async def test_stop_marks_off(self, computer_env) -> None:
         env = computer_env
@@ -663,7 +754,7 @@ class TestReconcile:
 
         base = dict(
             image_tag=COMPUTER_IMAGE_TAG,
-            vela_version="0.2.0",
+            vela_version="0.3.0",
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -722,7 +813,7 @@ class TestReconcile:
                 bot_id=bot_id,
                 state=ComputerState.AWAKE,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         env.runner.when("ps", result=CommandResult([], 0, "", ""))
@@ -742,7 +833,7 @@ class TestReconcile:
                 state=ComputerState.AWAKE,
                 container_name=name,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         env.runner.when(
@@ -876,7 +967,7 @@ class TestDeadContainerRecovery:
                 bot_id=bot_id,
                 state=ComputerState.STARTING,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         gate = asyncio.Event()
@@ -933,7 +1024,7 @@ class TestBuildProgressBroadcast:
                 bot_id=bot_id,
                 state=ComputerState.BUILDING,
                 image_tag=COMPUTER_IMAGE_TAG,
-                vela_version="0.2.0",
+                vela_version="0.3.0",
             )
         )
         env.svc._last_build_broadcast_at = -1.0

@@ -12,7 +12,7 @@ C2 adds the live surface on top of the lifecycle:
 - **Watchers keep it awake.** Watch heartbeats and preview/frame fetches
   call :meth:`touch` and count as live watchers (TTL ~30 s); while anyone
   watches, the idle loop never sleeps the computer. Heartbeats are forwarded
-  to Vela (protocol >= 5) so its own watcher count is right.
+  to Vela so its own watcher count is right.
 - **Preview.** The opt-in full-desktop frame when the container's Vela
   advertises ``features.desktopFrame``; otherwise the focused/top window's
   frame. ETag/If-None-Match → 304 on both paths; a preview request never
@@ -124,11 +124,10 @@ TOKEN_MOUNT_TARGET = "/run/secrets/vela-controller-token"
 
 HEALTH_TIMEOUT_SECONDS = 60.0
 HEALTH_POLL_SECONDS = 1.0
-MIN_VELA_PROTOCOL = 2
-#: Viewer heartbeats, the activity line and watcher counts arrived with Vela
-#: protocol 5; below that the service degrades (no heartbeat forwarding, no
-#: activity line) rather than calling routes that answer 404.
-MIN_VELA_PROTOCOL_WATCHERS = 5
+#: The controller protocol the pinned Vela image speaks. Wake refuses a
+#: container that answers with less, and replaces one created from an older
+#: pinned image before starting it.
+MIN_VELA_PROTOCOL = 5
 IDLE_LOOP_POLL_SECONDS = 30.0
 BUILD_BROADCAST_THROTTLE_SECONDS = 0.5
 LIVE_BROADCAST_THROTTLE_SECONDS = 1.0
@@ -606,7 +605,15 @@ class ComputerService:
         in_flight = self._wake_tasks.get(bot_id)
         if in_flight is not None and not in_flight.done():
             return self._status_payload(record, probe)
-        if record.state in (ComputerState.AWAKE, ComputerState.STARTING):
+        # A needs-you computer is awake. Waking it again would rewrite
+        # STARTING and then AWAKE over the NEEDS_YOU row while Vela's
+        # approval/attention is still pending — and the events cursor has
+        # already passed the triggering event, so the needs-you would be lost.
+        if record.state in (
+            ComputerState.AWAKE,
+            ComputerState.STARTING,
+            ComputerState.NEEDS_YOU,
+        ):
             return self._status_payload(record, probe)
 
         self._wake_tasks[bot_id] = asyncio.create_task(self._wake_async(bot_id))
@@ -844,8 +851,8 @@ class ComputerService:
 
         Called by the watch heartbeat route and by every preview/frame fetch.
         The watcher expires on its own after ``WATCHER_TTL_SECONDS`` without a
-        heartbeat; the heartbeat is forwarded to Vela (throttled, protocol >=
-        5) so Vela's own watcher count is right. Never wakes the computer.
+        heartbeat; the heartbeat is forwarded to Vela (throttled) so Vela's
+        own watcher count is right. Never wakes the computer.
         """
         record = await self._get_or_create_record(bot_id)
         self._require_awake(record)
@@ -1196,8 +1203,9 @@ class ComputerService:
     ) -> PreviewResult:
         """Fallback preview: the focused/top picture window's frame.
 
-        Used when the container's Vela has no full-desktop frame (protocol <
-        5 or the opt-in off). The frame's content digest is the ETag.
+        Used when the container's Vela does not advertise the full-desktop
+        frame (the desktop-frame opt-in is off). The frame's content digest
+        is the ETag.
         """
         try:
             views = await self._load_views(bot_id, client, desktop_id)
@@ -1241,17 +1249,13 @@ class ComputerService:
     ) -> None:
         """Forward one viewer heartbeat to Vela, throttled per viewer.
 
-        Only on protocol >= 5 (the route is a protocol-5 addition); failures
-        never break watching — CachiBot's own count is the one that keeps the
-        computer awake.
+        The wake check guarantees protocol >= 5, so the route always exists;
+        failures never break watching — CachiBot's own count is the one that
+        keeps the computer awake.
         """
         now = self._monotonic()
         last = self._hb_forwarded_at.get((bot_id, viewer_key))
         if last is not None and now - last < VELA_HEARTBEAT_FORWARD_SECONDS:
-            return
-        info = await self._features_for(bot_id, record)
-        protocol = int((info or {}).get("protocol") or 0)
-        if protocol < MIN_VELA_PROTOCOL_WATCHERS:
             return
         try:
             client = await self._client_for(bot_id, record)
@@ -2329,7 +2333,7 @@ class ComputerService:
             page = await client.events(desktop_id, after=cursor or 0, limit=EVENTS_PAGE_LIMIT)
         except VelaClientError as exc:
             if exc.status_code == 404:
-                return False  # no events surface on this Vela; nothing to map
+                return False  # no events surface on this desktop; nothing to map
             raise
         latest = int(page.get("latest") or 0)
         if cursor is not None and latest < cursor:
@@ -2504,11 +2508,19 @@ class ComputerService:
             finally:
                 self._building_bots.discard(bot_id)
 
-        # 2. Container (start the existing one, or create it).
+        # 2. Container: start the existing one, or create it. A container
+        # left over from an older pinned image is replaced instead of
+        # started — ``docker rm`` removes the container only; the named
+        # volumes (/data, /workspace) always survive.
         cli = self._require_cli()
         token = self._tokens.ensure_token(bot_id)
         name = record.container_name or container_name_for(bot_id)
         running = await self._inspect_running(name)
+        if running is not None and (
+            record.vela_version != VELA_VERSION or record.image_tag != COMPUTER_IMAGE_TAG
+        ):
+            await self._runner.run([cli, "rm", "-f", name], timeout=DOCKER_CALL_TIMEOUT)
+            running = None
         if running is True:
             pass  # already up (e.g. woken outside CachiBot) — just re-verify
         elif running is False:
@@ -2516,6 +2528,8 @@ class ComputerService:
         else:
             run = self._run_argv(cli, bot_id, name, token)
             await self._runner.run(run, timeout=DOCKER_CALL_TIMEOUT)
+            record.vela_version = VELA_VERSION
+            record.image_tag = COMPUTER_IMAGE_TAG
         port = await self._read_host_port(name)
         if port is None:
             raise RuntimeError(f"could not read the published port of {name}")
@@ -2527,7 +2541,7 @@ class ComputerService:
             last_error=None,
         )
 
-        # 3. Wait for health, then verify the controller speaks protocol >= 2.
+        # 3. Wait for health, then verify the controller speaks protocol >= 5.
         client = self._vela_factory(port, token)
         try:
             if not await self._wait_healthy(client):
@@ -2549,7 +2563,7 @@ class ComputerService:
                 await self._set_state(
                     record,
                     ComputerState.OFF,
-                    last_error="the container is not a Vela controller (protocol >= 2 required)",
+                    last_error="the container is not a Vela controller (protocol >= 5 required)",
                 )
                 return
             # Cache the discovery document: the C2 surface (desktop frame,

@@ -100,8 +100,9 @@ class FakeVelaClient:
 
     Defaults describe one desktop (``desk-1``) with one web window
     (``view-1``) whose frame digest is ``digest-1``; the full-desktop frame
-    exists only when ``info`` advertises ``features.desktopFrame`` (set a
-    protocol-5 info dict to switch it on). Every call is recorded.
+    exists only when ``info`` advertises ``features.desktopFrame`` (the
+    desktop-frame opt-in; set an info dict that carries it to switch it on).
+    Every call is recorded.
     """
 
     def __init__(
@@ -117,8 +118,8 @@ class FakeVelaClient:
             if info is not None
             else {
                 "mode": "controller",
-                "version": "0.2.0",
-                "protocol": 2,
+                "version": "0.3.0",
+                "protocol": 5,
                 "features": {"controller": True, "driver": True},
             }
         )
@@ -744,7 +745,7 @@ def ps_line(
     names: str,
     state: str,
     status: str | None = None,
-    image: str = "cachibot-vela-computer:0.2.0",
+    image: str = "cachibot-vela-computer:0.3.0",
 ) -> str:
     """One ``docker ps -a --format '{{json .}}'`` line for a managed container."""
     import json

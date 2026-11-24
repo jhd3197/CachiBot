@@ -21,9 +21,10 @@ from cachibot.services.computer.runner import DockerRunner
 
 logger = logging.getLogger(__name__)
 
-#: Pinned Vela release (the first release with the controller mode and the
-#: ``computer`` image target). Bumping this is the only way the image changes.
-VELA_VERSION = "0.2.0"
+#: Pinned Vela release (controller protocol 5: VP4 terminal, VP5
+#: workspace/editor, VP6 watchers/activity/desktop frame). Bumping this is
+#: the only way the image changes.
+VELA_VERSION = "0.3.0"
 COMPUTER_IMAGE_TAG = f"cachibot-vela-computer:{VELA_VERSION}"
 VELA_BUILD_CONTEXT = f"https://github.com/jhd3197/Vela.git#v{VELA_VERSION}"
 

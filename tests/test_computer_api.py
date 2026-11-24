@@ -28,6 +28,7 @@ from cachibot.storage.repository import BotRepository
 from cachibot.storage.user_repository import OwnershipRepository
 from tests.computer_fakes import FakeClock, FakeDockerRunner, FakeVelaClient, docker_version_json
 from tests.conftest import create_test_user  # noqa: F401  (re-exported helper)
+from tests.test_computer_service import script_container_lifecycle, wait_for_wake
 
 
 @pytest.fixture
@@ -94,7 +95,7 @@ async def computer_env(tmp_path, sqlite_db):
     runner.when(
         "image",
         "inspect",
-        "cachibot-vela-computer:0.2.0",
+        "cachibot-vela-computer:0.3.0",
         result=lambda: CommandResult(
             [], 0 if image_built["built"] else 1, "[]" if image_built["built"] else "", ""
         ),
@@ -165,21 +166,6 @@ async def share_bot(bot_id: str, user_id: str, level: BotAccessLevel, owner_id: 
 
 def auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
-
-
-async def wait_for(predicate, timeout: float = 5.0) -> None:
-    import asyncio
-    import time as time_mod
-
-    deadline = time_mod.monotonic() + timeout
-    while time_mod.monotonic() < deadline:
-        result = predicate()
-        if asyncio.iscoroutine(result):
-            result = await result
-        if result:
-            return
-        await asyncio.sleep(0.01)
-    raise AssertionError("timed out waiting for condition")
 
 
 async def port_is(bot_id: str, port: int) -> bool:
@@ -253,10 +239,13 @@ class TestAccess:
         assert "hostPort" not in body
         assert "containerName" not in body
         assert "token" not in body
-        assert body["velaVersion"] == "0.2.0"
+        assert body["velaVersion"] == "0.3.0"
 
-        # Wake runs in the background; wait for the container port to land.
-        await wait_for(lambda: port_is(bot_id, 49153))
+        # Wake runs in the background; wait for it to finish, then check the
+        # port landed (the port alone would only prove the wake reached
+        # STARTING, not that it finished).
+        await wait_for_wake(computer_env, bot_id)
+        assert await port_is(bot_id, 49153)
 
 
 class TestDockerStatus:
@@ -278,13 +267,17 @@ class TestDockerStatus:
 
 
 async def wake_bot(env, bot_id: str) -> None:
-    """Wake a bot's computer directly through the service (scripted Docker)."""
-    from tests.test_computer_service import script_container_lifecycle
+    """Wake a bot's computer directly through the service (scripted Docker).
 
+    Waits for the wake task itself, not just the published port: the port is
+    recorded while the computer is still STARTING, so a test that goes on
+    after only the port would race the rest of the wake (health, controller
+    check, agent setup, the final AWAKE write).
+    """
     env.runner.when("build", result=["#1 [1/1] DONE"])
     script_container_lifecycle(env.runner, bot_id)
     await env.svc.wake(bot_id)
-    await wait_for(lambda: port_is(bot_id, 49153))
+    await wait_for_wake(env, bot_id)
 
 
 async def make_shared_bot(auth_service, *, level: BotAccessLevel) -> tuple[str, str, str]:
@@ -421,7 +414,7 @@ class TestPreviewRoutes:
             f"/api/bots/{bot_id}/computer/preview", headers=auth(token)
         )
         assert resp.status_code == 200
-        assert resp.content == b"png-1"  # protocol-2 fake: the window fallback
+        assert resp.content == b"png-1"  # no desktopFrame advertised: the window fallback
         assert resp.headers["content-type"] == "image/png"
         assert resp.headers["cache-control"] == "no-store"
         etag = resp.headers["etag"]

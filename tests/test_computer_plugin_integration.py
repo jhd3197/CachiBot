@@ -7,12 +7,14 @@ included. Run them explicitly with:
 
     CACHIBOT_DOCKER_TESTS=1 pytest tests/test_computer_plugin_integration.py
 
-The pinned image is still Vela 0.2.0 (protocol 2: controller + driver, no
-terminal/workspace/editor yet), so what is honestly covered here is: the
-wake-time agent setup, the driven tool catalogue, a driven run with a
-browser-surface step (or Vela's own plain refusal, which is surfaced, never
-faked), and the plain feature-gap refusal for the terminal tools. The
-container and both named volumes are always removed in a finally block.
+The pinned image is Vela 0.3.0 (protocol 5: controller + driver, and the
+terminal/workspace/editor surfaces), so what is honestly covered here is:
+the wake-time agent setup, the driven tool catalogue listing that surface,
+a real terminal round-trip (open, run a trivial command, get its exit code
+and output back), a workspace write/read round-trip, and a driven run with
+a browser-surface step (or Vela's own plain refusal, which is surfaced,
+never faked). The container and both named volumes are always removed in a
+finally block.
 """
 
 from __future__ import annotations
@@ -110,10 +112,12 @@ async def _wait_awake(svc: ComputerService, bot_id: str) -> dict:
 async def test_driven_surface_against_real_docker(tmp_path, sqlite_db) -> None:
     """Wake a real computer and exercise the C3 surface it honestly offers.
 
-    With the pinned 0.2.0 image: the terminal tools refuse with the plain
-    feature-gap reason (nothing faked), the driven tool catalogue lists the
-    driver surface, and a driven run can be opened and finished (Vela's own
-    refusal, if a fresh desktop declines, is surfaced as the plain answer).
+    With the pinned 0.3.0 image: the driven tool catalogue lists the
+    terminal/workspace/editor surface next to the driver surface, a trivial
+    command in a real terminal exits 0 with its output, a workspace file
+    round-trips, and a driven run on the desktop can be opened and finished
+    (Vela's own refusal, if a fresh desktop declines, is surfaced as the
+    plain answer).
     """
     bot_id = f"itest-c3-{uuid.uuid4().hex[:12]}"
     name = container_name_for(bot_id)
@@ -133,16 +137,9 @@ async def test_driven_surface_against_real_docker(tmp_path, sqlite_db) -> None:
         await svc.wake(bot_id)
         await _wait_awake(svc, bot_id)
 
-        # Feature detection on the pinned image: terminal/workspace/editor
-        # are absent, and the refusal says so plainly.
-        outcome = await svc.run_tool_step(bot_id, tool="terminal_open", arguments={})
-        assert outcome.status == "refusal"
-        assert outcome.code == "feature_missing"
-        assert "terminal" in outcome.message
-
         # The wake's agent setup made the desktop agent-ready and cached the
-        # driven tool catalogue: the driver surface is listed, the terminal
-        # surface is not (the image predates it).
+        # driven tool catalogue: the pinned 0.3.0 image offers the terminal,
+        # workspace and editor surfaces next to the driver surface.
         catalogue = svc.cached_tool_catalogue(bot_id)
         assert catalogue, "the driven tool catalogue was fetched at wake"
         names = {
@@ -151,7 +148,57 @@ async def test_driven_surface_against_real_docker(tmp_path, sqlite_db) -> None:
             if isinstance(entry, dict)
         }
         assert any(name and name.startswith("desktop.") for name in names)
-        assert not any(name and name.startswith("terminal_") for name in names)
+        assert {
+            "terminal_open",
+            "terminal_run",
+            "terminal_read",
+            "terminal_write",
+            "terminal_close",
+            "workspace_list",
+            "workspace_read",
+            "workspace_write",
+            "editor_open",
+        } <= names
+
+        # A real terminal: a trivial command exits 0 and its output comes
+        # back in the step result (the arithmetic keeps the assertion about
+        # the command's output, not the terminal's echo of the command line).
+        opened = await svc.run_tool_step(
+            bot_id, tool="terminal_open", arguments={"title": "integration check"}
+        )
+        assert opened.status == "result"
+        terminal_id = str((opened.result or {}).get("terminalId") or "")
+        assert terminal_id
+        ran = await svc.run_tool_step(
+            bot_id,
+            tool="terminal_run",
+            arguments={
+                "terminalId": terminal_id,
+                "command": "echo cachibot-$((6 * 7))",
+                "timeoutSeconds": 30,
+                "waitFor": "exit",
+            },
+        )
+        assert ran.status == "result"
+        assert (ran.result or {}).get("exitCode") == 0
+        assert "cachibot-42" in str((ran.result or {}).get("output") or "")
+        closed = await svc.run_tool_step(
+            bot_id, tool="terminal_close", arguments={"terminalId": terminal_id}
+        )
+        assert closed.status == "result"
+
+        # A workspace write/read round-trip on the real volume.
+        written = await svc.run_tool_step(
+            bot_id,
+            tool="workspace_write",
+            arguments={"path": "cachibot-itest.txt", "content": "hello from CachiBot"},
+        )
+        assert written.status == "result"
+        read = await svc.run_tool_step(
+            bot_id, tool="workspace_read", arguments={"path": "cachibot-itest.txt"}
+        )
+        assert read.status == "result"
+        assert (read.result or {}).get("content") == "hello from CachiBot"
 
         # A driven run on the real desktop: a browser-surface step, or Vela's
         # own plain refusal — either is an honest answer, never a fake one.

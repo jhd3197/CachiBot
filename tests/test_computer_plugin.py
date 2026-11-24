@@ -639,12 +639,12 @@ class TestDocumentedPayloads:
 
 
 class TestFeatureDetection:
-    async def test_terminal_workspace_editor_refuse_on_the_pinned_image(
+    async def test_terminal_workspace_editor_refuse_when_not_advertised(
         self, tmp_path, sqlite_db
     ) -> None:
-        """The pinned 0.2.0 image (protocol 2, driver only) has no
-        terminal/workspace/editor: those tools refuse plainly."""
-        vela = FakeVelaClient()  # default info: protocol 2, driver only
+        """A container whose Vela does not advertise the terminal/workspace/
+        editor surfaces (driver only) refuses those tools plainly."""
+        vela = FakeVelaClient()  # default info: protocol 5, driver only
         env = make_service(tmp_path, vela=vela)
         env.bot_id = str(uuid.uuid4())
         await wake_bot(env, env.bot_id)
@@ -657,7 +657,7 @@ class TestFeatureDetection:
         # Nothing was faked: not one driven step went out.
         assert env.vela.step_calls == []
 
-        # The driver surface works on the same image.
+        # The driver surface works on the same container.
         outcome = await env.svc.run_tool_step(env.bot_id, tool="desktop.observe", arguments={})
         assert outcome.status == "result"
 
@@ -681,7 +681,7 @@ class TestFeatureDetection:
     async def test_coding_agent_refuses_plainly_without_the_terminal_surface(
         self, tmp_path, sqlite_db
     ) -> None:
-        vela = FakeVelaClient()  # protocol 2: no terminal/workspace
+        vela = FakeVelaClient()  # driver only: no terminal/workspace
         env = make_service(tmp_path, vela=vela)
         env.bot_id = str(uuid.uuid4())
         await wake_bot(env, env.bot_id)

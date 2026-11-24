@@ -224,7 +224,7 @@ hidden.
 
 - **C1 (this repo, branch `feat/virtual-computer-c1`): implemented.** Docker
   probe (CLI discovery + daemon check, cached), pinned local image build
-  (`cachibot-vela-computer:0.2.0`, single-flight, plain progress), the
+  (`cachibot-vela-computer:0.3.0`, single-flight, plain progress), the
   `ComputerService` (per-bot container `cachibot-computer-<id>` with named
   `/data` + `/workspace` volumes, 127.0.0.1-only port, per-bot controller
   token file mounted read-only, wake/sleep/stop, 10-minute idle sleep via
@@ -246,19 +246,22 @@ hidden.
     (approval resolve, task control). Timeouts on every call; the token only
     travels in the `Authorization` header and is never logged.
   - **Feature detection and degradation:** everything is gated on
-    `GET /api/controller` (protocol + `features`), cached at wake. The pinned
-    Vela 0.2.0 (protocol 2) has no VP4–VP6 surface, so: no desktop frame →
-    the preview falls back to the focused/top window's frame (its content
-    digest is the ETag); no protocol-5 watcher heartbeats → forwarding is
-    skipped (CachiBot's own watcher count still keeps the computer awake);
-    no activity line → the field stays null. Nothing is faked: what Vela
-    does not offer is reported as absent (404/409 with a plain reason).
+    `GET /api/controller` (protocol + `features`), cached at wake. The
+    minimum controller protocol is 5 (`MIN_VELA_PROTOCOL`): wake refuses an
+    older container with a plain reason, and a container left over from an
+    older pinned image is replaced on wake (`docker rm` of the container
+    only — the `/data` and `/workspace` volumes always survive) and
+    recreated from the new image. Optional features stay feature-detected:
+    the desktop frame is advertised only when its opt-in is on, so with it
+    off the preview falls back to the focused/top window's frame (its
+    content digest is the ETag). Nothing is faked: what Vela does not offer
+    is reported as absent (404/409 with a plain reason).
   - **Container env:** `docker run` now passes
     `VELA_CONTROLLER_DESKTOP_FRAME=1` (the documented opt-in for the
     controller-only full-desktop frame; a plain flag, not a secret — the
     token rules are unchanged: mounted file only, never in argv/env). The
-    image pin stays at 0.2.0 (`VELA_VERSION` in `build.py`); the pin bump
-    happens after the Vela release that carries VP4–VP6.
+    image pin is 0.3.0 (`VELA_VERSION` in `build.py`), the Vela release
+    that carries VP4–VP6 (controller protocol 5).
   - **API** (all under bot access rules — viewer to watch, operator+ to
     control): `GET .../computer/preview` (image bytes, ETag/304,
     `Cache-Control: no-store`, 409 with a plain reason when not awake — a
@@ -306,11 +309,12 @@ hidden.
     hand back / TTL expiry, needs-you from fake events + respond, WS payloads,
     and the run argv now carrying `VELA_CONTROLLER_DESKTOP_FRAME=1` with
     still no token anywhere.
-  - **Waits for the next Vela release (VP4–VP6):** the desktop-frame preview
-    (until then: window fallback), watcher heartbeats/activity (protocol 5),
-    and the terminal/editor surface. Take-over on a fresh desktop also still
-    needs C3's agent setup (policy + enable-agent) before Vela will issue a
-    lease; C2 surfaces Vela's plain refusal until then.
+  - **Vela 0.3.0 (VP4–VP6) is released and pinned:** the desktop-frame
+    preview, watcher heartbeats/activity (protocol 5) and the
+    terminal/editor surface are available (the window fallback remains for
+    when the desktop-frame opt-in is off). Take-over on a fresh desktop
+    still needs C3's agent setup (policy + enable-agent) before Vela will
+    issue a lease; C2 surfaces Vela's plain refusal until then.
 - **C3 (this repo, branch `feat/computer-bot-tools`): implemented.** The
   bot-facing computer tools — the `computer` plugin, the service's driven-step
   pipeline, and the file/coding-agent routing — backend only (no computer UI;
@@ -383,10 +387,10 @@ hidden.
     like the instruction logs; a coding-agent session writes one log with
     lines for the key moments. They show up in Runs / the Activity log.
   - **Feature detection and degradation:** everything is gated on the
-    cached `/api/controller` `features` — the pinned Vela 0.2.0 (protocol
-    2) offers `driver` only, so terminal/workspace/editor tools refuse with
-    a plain "this computer's Vela does not offer the … surface" until the
-    pin bump (the image tag stays `0.2.0`; the separate PR pins 0.3.0).
+    cached `/api/controller` `features` — the pinned Vela 0.3.0 (protocol
+    5) offers the terminal, workspace and editor surfaces; a feature the
+    container does not advertise refuses with a plain "this computer's Vela
+    does not offer the … surface".
     Nothing is faked.
   - **Tests:** fake Vela client + fake Docker runner throughout (no
     network, no containers): the gate, wake-on-demand vs no-wake preview,

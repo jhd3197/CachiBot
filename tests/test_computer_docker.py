@@ -373,11 +373,11 @@ class TestVelaClient:
             seen["auth"] = request.headers.get("authorization")
             return httpx.Response(
                 200,
-                json={"mode": "controller", "version": "0.2.0", "protocol": 2},
+                json={"mode": "controller", "version": "0.3.0", "protocol": 5},
             )
 
         info = await self._client(handler).controller_info()
-        assert info["protocol"] == 2
+        assert info["protocol"] == 5
         assert seen == {"path": "/api/controller", "auth": "Bearer " + "t" * 40}
 
     async def test_controller_rejected_token(self) -> None:
