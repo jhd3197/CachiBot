@@ -225,7 +225,8 @@ class TestWake:
         await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
 
         # docker run argv: 127.0.0.1 only, named volumes, labels, read-only
-        # token mount, no env vars, no token value anywhere.
+        # token mount, the desktop-frame opt-in flag, no other env vars, no
+        # token value anywhere.
         runs = runner.calls_for("run")
         assert len(runs) == 1
         argv = runs[0]
@@ -249,10 +250,16 @@ class TestWake:
             f"{token_path}:{TOKEN_MOUNT_TARGET}:ro",
             "-p",
             "127.0.0.1::7700",
+            "-e",
+            "VELA_CONTROLLER_DESKTOP_FRAME=1",
             COMPUTER_IMAGE_TAG,
         ]
         assert argv == expected
-        assert "-e" not in argv and "--env" not in argv
+        # The only env var is the desktop-frame opt-in (a plain flag, not a
+        # secret); the token never appears in argv.
+        env_vars = [argv[i + 1] for i, part in enumerate(argv) if part == "-e"]
+        assert env_vars == ["VELA_CONTROLLER_DESKTOP_FRAME=1"]
+        assert "--env" not in argv
 
         token = token_path.read_text(encoding="utf-8").strip()
         assert len(token) >= 32
