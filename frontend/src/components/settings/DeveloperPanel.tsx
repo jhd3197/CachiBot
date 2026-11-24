@@ -13,7 +13,6 @@ import {
   Check,
   Key,
   Send,
-  Loader2,
   AlertTriangle,
   X,
   Eye,
@@ -24,6 +23,8 @@ import {
 import { toast } from 'sonner'
 import * as devApi from '../../api/developer'
 import { useBotStore } from '../../stores/bots'
+import { PageLoading } from '../common/PageLoading'
+import { Spinner } from '../common/Spinner'
 import type { BotApiKey, BotApiKeyCreated, BotWebhook, WebhookEvent } from '../../types'
 
 const ALL_EVENTS: { value: WebhookEvent; label: string }[] = [
@@ -117,11 +118,7 @@ function ApiKeysPanel({ botId }: { botId: string }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading API keys..." />
   }
 
   return (
@@ -297,7 +294,7 @@ function CreateApiKeyDialog({
             disabled={!name.trim() || creating}
             className="btn btn--primary"
           >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />}
+            {creating ? <Spinner size="md" delayMs={200} /> : <Key className="h-4 w-4" />}
             Create
           </button>
         </div>
@@ -755,11 +752,7 @@ function WebhooksPanel({ botId }: { botId: string }) {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading webhooks..." />
   }
 
   return (
@@ -840,7 +833,7 @@ function WebhooksPanel({ botId }: { botId: string }) {
                     title="Send test"
                   >
                     {testingId === wh.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Spinner size="md" delayMs={200} />
                     ) : (
                       <Send className="h-3.5 w-3.5" />
                     )}
@@ -995,7 +988,7 @@ function CreateWebhookDialog({
             disabled={!name.trim() || !url.trim() || selectedEvents.length === 0 || creating}
             className="btn btn--primary"
           >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {creating ? <Spinner size="md" delayMs={200} /> : <Plus className="h-4 w-4" />}
             Create
           </button>
         </div>

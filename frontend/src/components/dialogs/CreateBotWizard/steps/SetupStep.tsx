@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 import {
-  Loader2,
   Sparkles,
   UserCircle,
   ListChecks,
   CalendarClock,
   Check,
 } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore } from '../../../../stores/creation'
 import type { SuggestedTodoItem, SuggestedScheduleItem } from '../../../../stores/creation'
 import { analyzeCreationContext } from '../../../../api/client'
@@ -97,7 +97,7 @@ export function SetupStep() {
             Extracting what {form.name} should know about you
           </p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }

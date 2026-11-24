@@ -47,6 +47,7 @@ import {
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
+import { Spinner } from '../common/Spinner'
 import { cn } from '../../lib/utils'
 import * as skillsApi from '../../api/skills'
 import type { Bot as BotType, BotModels, SkillDefinition, CodingAgentInfo } from '../../types'
@@ -1030,7 +1031,7 @@ export function SkillsSection({ botId }: { botId: string }) {
             className="settings-skills__refresh-btn flex items-center gap-1.5"
             title="Rescan skill directories"
           >
-            <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+            {refreshing ? <Spinner size="md" delayMs={200} /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
           </button>
           <button
@@ -1309,7 +1310,7 @@ export function SkillInstallDialog({ onClose, onInstalled }: SkillInstallDialogP
           >
             {loading ? (
               <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
+                <Spinner size="md" delayMs={200} />
                 Installing...
               </>
             ) : (

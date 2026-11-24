@@ -5,8 +5,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, FileText, StickyNote, RefreshCw, X } from 'lucide-react'
+import { Search, FileText, StickyNote, X } from 'lucide-react'
 import { useKnowledgeStore, type SearchResult } from '../../stores/knowledge'
+import { Spinner } from '../common/Spinner'
 
 interface KnowledgeSearchProps {
   botId: string
@@ -93,7 +94,7 @@ export function KnowledgeSearch({ botId }: KnowledgeSearchProps) {
           {/* Loading state */}
           {loadingSearch && (
             <div className="flex items-center justify-center gap-2 py-6">
-              <RefreshCw className="h-4 w-4 animate-spin text-cachi-500" />
+              <Spinner size="md" delayMs={200} />
               <span className="text-sm text-[var(--color-text-secondary)]">Searching...</span>
             </div>
           )}

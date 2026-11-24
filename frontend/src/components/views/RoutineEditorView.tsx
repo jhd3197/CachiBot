@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, Clock, Loader2, Plus, X, Zap } from 'lucide-react'
+import { ChevronDown, ChevronLeft, Clock, Plus, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createSchedule,
@@ -14,6 +14,8 @@ import {
 import type { BotFunction, Schedule, ScheduleType } from '../../types'
 import { useBotStore } from '../../stores/bots'
 import { useBotAccess } from '../../hooks/useBotAccess'
+import { PageLoading } from '../common/PageLoading'
+import { Spinner } from '../common/Spinner'
 
 // One trigger card. The schedules API stores a single trigger per schedule
 // (scheduleType + its fields), so the list holds at most one entry.
@@ -402,9 +404,7 @@ export function RoutineEditorView() {
   return (
     <div className="routine">
       {loading ? (
-        <div className="routine__loading">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
+        <PageLoading pending={loading} label="Loading routine..." className="routine__loading" />
       ) : loadError ? (
         <div className="routine__error">
           <p>{loadError}</p>
@@ -451,7 +451,7 @@ export function RoutineEditorView() {
                     onClick={handleTestRun}
                     disabled={running}
                   >
-                    {running ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                    {running ? <Spinner size="md" delayMs={200} /> : <Zap size={14} />}
                     Test run
                   </button>
                 )}

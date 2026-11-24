@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Save, Loader2, Trash2, RefreshCw, ExternalLink, Sparkles, X } from 'lucide-react'
+import { Eye, EyeOff, Save, Trash2, RefreshCw, ExternalLink, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useProvidersStore } from '../../../../stores/providers'
 import { useModelsStore } from '../../../../stores/models'
 import { ModelSelect } from '../../../common/ModelSelect'
+import { Spinner } from '../../../common/Spinner'
 import { cn } from '../../../../lib/utils'
 
 const CACHIBOT_PROVIDER = 'cachibot'
@@ -201,7 +202,7 @@ export function ProviderStep() {
               className="provider-card__save-btn"
             >
               {isSaving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="md" delayMs={200} />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
@@ -260,7 +261,7 @@ export function ProviderStep() {
               className="provider-card__save-btn"
             >
               {isSaving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="md" delayMs={200} />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}

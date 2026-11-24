@@ -17,7 +17,8 @@ import {
 } from '../../api/execution-log'
 import { getConnections, type Connection } from '../../api/connections'
 import { BotAvatar } from '../common/Avatar'
-import { cn, parseApiDate } from '../../lib/utils'
+import { Skeleton } from '../common/Skeleton'
+import { parseApiDate } from '../../lib/utils'
 import { botAccessRank } from '../../hooks/useBotAccess'
 import { useAuthStore } from '../../stores/auth'
 import type { Bot, Schedule } from '../../types'
@@ -408,8 +409,13 @@ export function WorkspaceView({ activeRun }: WorkspaceViewProps) {
           </div>
           {orderedBots.length === 0 ? (
             <p className="workspace__empty">No bots yet — create your first bot to get started.</p>
+          ) : !dataLoaded ? (
+            <div role="status">
+              <span className="sr-only">Loading workspace...</span>
+              <Skeleton variant="list" />
+            </div>
           ) : (
-            <div className={cn('workspace__bots', !dataLoaded && 'workspace__bots--loading')}>
+            <div className="workspace__bots">
               {orderedBots.map((bot) => {
                 const data = botData[bot.id]
                 const waiting = pendingApprovals.some((a) => a.botId === bot.id)

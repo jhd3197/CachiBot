@@ -15,9 +15,9 @@ import {
   Pencil,
   Bot,
   User,
-  RefreshCw,
 } from 'lucide-react'
 import { useKnowledgeStore, type NoteResponse } from '../../stores/knowledge'
+import { Skeleton } from '../common/Skeleton'
 import { cn } from '../../lib/utils'
 
 interface NotesManagerProps {
@@ -151,8 +151,9 @@ export function NotesManager({ botId, onEditNote, onNewNote }: NotesManagerProps
   // Loading state
   if (isLoading && botNotes.length === 0) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+      <div role="status">
+        <span className="sr-only">Loading notes...</span>
+        <Skeleton variant="list" />
       </div>
     )
   }

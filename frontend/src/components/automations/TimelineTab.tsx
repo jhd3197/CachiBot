@@ -6,9 +6,9 @@ import {
   AlertCircle,
   Clock,
   ArrowRight,
-  Loader2,
 } from 'lucide-react'
 import { getTimeline, type TimelineEvent } from '../../api/automations'
+import { PageLoading } from '../common/PageLoading'
 
 interface TimelineTabProps {
   botId: string
@@ -59,11 +59,7 @@ export function TimelineTab({ botId, sourceType, sourceId }: TimelineTabProps) {
   }, [botId, sourceType, sourceId])
 
   if (loading) {
-    return (
-      <div className="timeline__loading">
-        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-tertiary)' }} />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading timeline..." />
   }
 
   if (events.length === 0) {
