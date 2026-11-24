@@ -1334,6 +1334,79 @@ redesign.
   a pending state keep the idle icon and swap to `Spinner` only while
   pending.
 
+## L6: loading hardening
+
+Desktop/web consistency pass over the L1–L4 work: one delay rule applied
+everywhere, reduced-motion coverage re-verified, leftovers cleaned up.
+
+### The delay rule
+
+- **Fast, user-triggered actions** (save, refresh, test, install, create,
+  "Check again", short button clicks): the spinner appears only after 200ms
+  so sub-200ms work does not flash — `Spinner delayMs={200}` or
+  `useDelayedFlag(pending, 200)`.
+- **Ongoing / in-progress states the user is already watching** (chat "is
+  working" / "is thinking", a running tool, a running side-task or log row,
+  an in-flight document upload): shown immediately — a delay would hide a
+  real ongoing state.
+- **List skeletons** (Workspace, Runs, Knowledge): immediate, no delay.
+- **`PageLoading`**: when `pending` is passed the wrapper delays (default
+  200ms via `useDelayedFlag`); the inner `Spinner` never gets its own
+  `delayMs`, so the two delays never stack. Callers that omit `pending`
+  render a dedicated loading panel and show immediately.
+- **`Button pending`**: the button disables immediately (no double-submit)
+  and the overlaid spinner appears only after 200ms. One delay only — the
+  inner `Spinner delayMs={200}`, not a delayed pending flag on top.
+
+### Reduced motion
+
+- `styles/v2/motion.less` (imported last, so it wins the cascade) still
+  kills every loading animation under `prefers-reduced-motion: reduce`:
+  `.spinner` (also the Button pending overlay), `.v2-skeleton`,
+  `.v2-status-line__mark`, `.app-loader__ring` / `__core-dot` / `__bar`,
+  `.reply-highlight`, and the Tailwind `animate-spin` / `animate-pulse`
+  utilities the leave-alone pages still use. No loading animation was found
+  running outside the kill-switch, so no selectors were added.
+- The pre-app boot screens keep their own inline rules because they paint
+  before the app CSS: `desktop/splash.html` stills `.ring1` / `.ring2` /
+  `.dot` / `.bottom` / `.progress-bar` and drops the status-text transform;
+  `frontend/index.html` stills `.boot-first-paint__mark`.
+- No motion library was added — CSS only.
+
+### Changed
+
+- `Button` pending: the overlaid `Spinner sm` now has `delayMs={200}`;
+  `disabled={disabled || pending}` and `aria-busy` stay immediate and the
+  width-lock is unchanged.
+- `DashboardCardsView` active-bot mark: the inline
+  `color: var(--accent-500)` is gone — the ring falls back to the token
+  default (`--v2-text-tertiary` inside `.ui-v2`). It stays immediate: a bot
+  that is thinking/responding is an ongoing state.
+- `QrCodeDisplay` (AppSettingsView pairing): the placeholder spinner gets
+  `delayMs={200}` — `QRCode.toDataURL` resolves in milliseconds, so the
+  immediate ring flashed on every open.
+- Removed the dead `@keyframes pulse-slow` from `base.less` (grep-verified
+  unreferenced: no LESS class animates it, and Tailwind's unused
+  `animate-pulse-slow` utility emits its own `pulse` keyframes).
+
+### Left alone
+
+- `UpdateDialog`'s `<Spinner size="lg" className="text-accent-500" />` —
+  pre-L1 call site; the Spinner API keeps it working and its color is
+  unchanged.
+- Legacy pages (Users, Plugins, Marketplace, auth) keep `Loader2`; their
+  `animate-spin` / `animate-pulse` stay covered by the kill-switch.
+- Ongoing-state spinners stay immediate (chat `StatusLine`, tool-call rows,
+  side-task rows, room status lines, running run/log rows, document upload),
+  as do the list skeletons and the panel-load spinners that only mount while
+  loading.
+- AppSettingsView "Check again" keeps its single `useDelayedFlag` — no
+  second delay on that Spinner.
+- `DocumentList`'s pulsing processing `Clock` is a state icon, not a spinner
+  ring; it stays (kill-switch covers it).
+- mobile/, virtual-computer views, the L2 boot screens' visuals and the L3
+  chat treatment are untouched.
+
 ## Known limitations / decisions
 
 - Views 04–09 and 11 need backend infrastructure that does not exist; Phase A/B
