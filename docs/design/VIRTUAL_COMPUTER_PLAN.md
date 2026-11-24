@@ -234,3 +234,80 @@ hidden.
   Vela client (no Docker/network/containers; the one integration test skips
   without Docker). Left for C2+: frame/input proxy and watchers-keep-awake
   wiring onto the `touch` hook, driver client, computer plugin, UI views.
+- **C2 (this repo, branch `feat/virtual-computer-c2`): implemented.** The
+  live surface, backend plus frontend plumbing (no computer views yet — those
+  are C4/C5):
+  - **Vela client** (`services/computer/vela_client.py`): the controller-token
+    async client for desktops (list/create — the bot's desktop is picked, or
+    created once on a fresh container), viewer read, per-window frames, the
+    full-desktop frame with ETag/If-None-Match passthrough, viewer
+    heartbeats, take-over/input/release, the events stream (polled with a
+    numbered cursor, bounded 200-event pages) and the needs-you answers
+    (approval resolve, task control). Timeouts on every call; the token only
+    travels in the `Authorization` header and is never logged.
+  - **Feature detection and degradation:** everything is gated on
+    `GET /api/controller` (protocol + `features`), cached at wake. The pinned
+    Vela 0.2.0 (protocol 2) has no VP4–VP6 surface, so: no desktop frame →
+    the preview falls back to the focused/top window's frame (its content
+    digest is the ETag); no protocol-5 watcher heartbeats → forwarding is
+    skipped (CachiBot's own watcher count still keeps the computer awake);
+    no activity line → the field stays null. Nothing is faked: what Vela
+    does not offer is reported as absent (404/409 with a plain reason).
+  - **Container env:** `docker run` now passes
+    `VELA_CONTROLLER_DESKTOP_FRAME=1` (the documented opt-in for the
+    controller-only full-desktop frame; a plain flag, not a secret — the
+    token rules are unchanged: mounted file only, never in argv/env). The
+    image pin stays at 0.2.0 (`VELA_VERSION` in `build.py`); the pin bump
+    happens after the Vela release that carries VP4–VP6.
+  - **API** (all under bot access rules — viewer to watch, operator+ to
+    control): `GET .../computer/preview` (image bytes, ETag/304,
+    `Cache-Control: no-store`, 409 with a plain reason when not awake — a
+    preview never wakes), `GET .../computer/views` (windows app+title +
+    activity line) and `GET .../computer/views/{viewId}/frame`,
+    `POST .../computer/watch` (viewer+ heartbeat, ~30 s TTL),
+    `POST .../computer/takeover` / `handback` / `input` (operator+; input
+    only while the caller holds the take-over, bounds-validated and passed
+    through as click/right click/scroll/type/key), and
+    `POST .../computer/needs-you/respond` `{action: takeover|skip}`.
+  - **Watching keeps it awake:** every watch heartbeat and every
+    preview/frame fetch calls `touch(bot_id, "watching")` and counts a live
+    watcher (30 s TTL); heartbeats are forwarded to Vela (throttled 10 s per
+    viewer, protocol ≥ 5 only) so its watcher count is right. The idle loop
+    now also sweeps `needs_you` computers — an unwatched, undriven needs-you
+    is idle like any other, and the paused run survives the sleep.
+  - **Take-over:** the driver (user id/name, since) is mirrored from Vela's
+    control lease with the same 180 s TTL, refreshed by input, so a take-over
+    by a user who disconnects or loses access expires cleanly (swept in the
+    events tick; Vela's own `control.expired` event does the same).
+    `ComputerService.driver_for(bot_id)` is the check C3's bot driving makes
+    before every step — while a person drives, the bot waits. Hand back
+    releases the lease (and, as in Vela, never resumes the run by itself).
+  - **Needs-you mapping:** a per-bot events poller maps `task.attention` →
+    `needs_you` with the detail as the reason, `approval.waiting` →
+    `needs_you` with the approval headline; cleared on `approval.resolved`,
+    run resume/end, take-over and hand back. Respond maps `takeover` to the
+    lease flow; `skip` is the documented closest refusal — **Vela has no
+    "skip this step"**, so an approval is denied
+    (`POST .../approvals/{id} {"decision": "deny"}`) and a needs-person pause
+    stops the run (`POST .../tasks/{id}/control {"action": "stop"}`).
+  - **WS `computer_update`** now carries `activity`, `windowsCount`,
+    `watchers`, `driver`, `needsYou` (reason) and `previewRevision` (clients
+    refetch the preview only when it changes; revisions broadcast
+    unthrottled, other live fields throttled at 1 s as in C1).
+  - **Frontend plumbing (no views):** `api/computer.ts` functions for every
+    new route (raw-bytes frame fetches with ETag/304), store fields for
+    activity/windows/driver/needs-you/preview revision, and
+    `hooks/useComputerPreview.ts` — refetches the preview by revision and
+    sends watch heartbeats while mounted, stopping when hidden/unmounted.
+  - **Tests:** fake Vela client + fake Docker runner throughout (no network,
+    no containers): feature detection and fallback, ETag/304, not-awake
+    refusals, no-wake-on-preview, access levels, input-without-take-over,
+    bounds validation, watcher TTL vs idle sleep (injected clock), take-over /
+    hand back / TTL expiry, needs-you from fake events + respond, WS payloads,
+    and the run argv now carrying `VELA_CONTROLLER_DESKTOP_FRAME=1` with
+    still no token anywhere.
+  - **Waits for the next Vela release (VP4–VP6):** the desktop-frame preview
+    (until then: window fallback), watcher heartbeats/activity (protocol 5),
+    and the terminal/editor surface. Take-over on a fresh desktop also still
+    needs C3's agent setup (policy + enable-agent) before Vela will issue a
+    lease; C2 surfaces Vela's plain refusal until then.

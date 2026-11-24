@@ -395,8 +395,9 @@ export interface SideTask {
 }
 
 // =============================================================================
-// BOT COMPUTER (Mini Vela) — C1: status/state only; the views land in C4 and
-// stay hidden while the Docker probe says the computer is unavailable.
+// BOT COMPUTER (Mini Vela) — status/state (C1) plus the live surface (C2):
+// preview revision, activity, windows, watchers, driver and needs-you. The
+// views land in C4 and stay hidden while the Docker probe says unavailable.
 // =============================================================================
 
 /** Lifecycle of a bot's computer, as reported by the backend. */
@@ -437,6 +438,76 @@ export interface BotComputer {
   velaVersion: string
   lastActiveAt: string | null
   lastError: string | null
+  /** The desktop's one-line "what it is doing" (null when idle). */
+  activity: ComputerActivity | null
+  /** Open windows on the desktop. */
+  windowsCount: number
+  /** Live watchers CachiBot counts (heartbeats + preview fetches). */
+  watchers: number
+  /** Who is driving right now (a person holding the take-over), or null. */
+  driver: ComputerDriver | null
+  /** Why the computer needs a person (state needs_you), or null. */
+  needsYou: string | null
+  /** Content revision of the preview; refetch the preview when it changes. */
+  previewRevision: string | null
+}
+
+/** The desktop's one-line activity, derived by Vela from the running step. */
+export interface ComputerActivity {
+  text: string
+  at: number
+  viewId?: string | null
+}
+
+/** Who is driving the computer right now. */
+export interface ComputerDriver {
+  userId: string
+  name: string
+  since: string
+}
+
+/** One open window on the bot's desktop (a Vela view). */
+export interface ComputerWindow {
+  id: string
+  kind: string
+  title: string
+  app: string
+  url?: string | null
+}
+
+/** GET /api/bots/{id}/computer/views — windows plus the activity line. */
+export interface ComputerViewsResponse {
+  windows: ComputerWindow[]
+  activity: ComputerActivity | null
+}
+
+/** POST /api/bots/{id}/computer/watch — the watcher is counted. */
+export interface ComputerWatchResponse {
+  watching: boolean
+  watchers: number
+  expiresInSeconds: number
+}
+
+/** POST /api/bots/{id}/computer/input — one piece of person input.
+ * click (button left/right/middle), scroll (wheel deltas), type, key. */
+export interface ComputerInput {
+  kind: 'click' | 'scroll' | 'type' | 'key'
+  viewId?: string
+  point?: { x: number; y: number }
+  button?: 'left' | 'right' | 'middle'
+  clickCount?: 1 | 2
+  dx?: number
+  dy?: number
+  key?: string
+  text?: string
+  frameAt?: number
+}
+
+/** A fetched preview/frame: image bytes named by their ETag revision. */
+export interface ComputerFrame {
+  blob: Blob
+  etag: string | null
+  revision: string | null
 }
 
 /** `computer_update` WebSocket payload: the status plus the bot it belongs to. */

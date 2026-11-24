@@ -5,17 +5,20 @@ Domain models shared by the ComputerService, the REST API and the
 the service layer owns all of that.
 """
 
+import math
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ComputerState(str, Enum):
     """Lifecycle of a bot's computer.
 
-    C1 uses everything except ``needs_you`` (that lands with the C2
-    needs-you mapping); the value stays in the enum so the schema is final.
+    ``needs_you`` is set while Vela reports a needs-person pause or a waiting
+    approval (C2); it clears when the person answers, takes over or hands
+    back.
     """
 
     UNAVAILABLE = "unavailable"
@@ -76,11 +79,36 @@ class DockerProbeResult(BaseModel):
     arch: str | None = Field(default=None)
 
 
+# ---------------------------------------------------------------------------
+# C2: live preview, watchers, take-over and needs-you
+# ---------------------------------------------------------------------------
+
+
+class ComputerActivity(BaseModel):
+    """The desktop's one-line "what it is doing", derived by Vela from the
+    step that is actually running (never invented)."""
+
+    text: str
+    at: float = Field(description="When the line was set (unix seconds)")
+    viewId: str | None = None
+
+
+class ComputerDriver(BaseModel):
+    """Who is driving the computer right now (a person holding the take-over)."""
+
+    userId: str
+    name: str
+    since: str = Field(description="ISO timestamp of when the take-over began")
+
+
 class BotComputerStatus(BaseModel):
     """What the UI gets for one bot's computer (camelCase, like other routes).
 
     Never carries the controller token or the host port — users reach the
-    computer only through CachiBot's proxy (C2+).
+    computer only through CachiBot's proxy (C2+). The live fields (activity,
+    windows, watchers, driver, needs-you, preview revision) are filled from
+    the service's runtime state; they are empty while the computer is not
+    awake.
     """
 
     available: bool
@@ -90,3 +118,130 @@ class BotComputerStatus(BaseModel):
     velaVersion: str
     lastActiveAt: str | None
     lastError: str | None
+    activity: ComputerActivity | None = None
+    windowsCount: int = 0
+    watchers: int = 0
+    driver: ComputerDriver | None = None
+    needsYou: str | None = None
+    previewRevision: str | None = None
+
+
+class ComputerWindow(BaseModel):
+    """One open window on the bot's desktop (a Vela view), as the UI lists it."""
+
+    id: str
+    kind: str = Field(description="Vela view kind: app, web, terminal, editor, ...")
+    title: str
+    app: str = Field(description="App id, site host, or the kind when there is nothing truer")
+    url: str | None = None
+
+
+class ComputerViewsResponse(BaseModel):
+    """GET .../computer/views: the open windows plus the activity line."""
+
+    windows: list[ComputerWindow]
+    activity: ComputerActivity | None
+
+
+class ComputerWatchResponse(BaseModel):
+    """POST .../computer/watch: the watcher is counted; heartbeats expire."""
+
+    watching: bool = True
+    watchers: int = Field(description="Live watchers CachiBot counts for this bot")
+    expiresInSeconds: int = Field(description="How long one heartbeat keeps the watcher live")
+
+
+#: Bounds for person input, mirroring Vela's own checks so a bad call is a
+#: 422 here rather than a worker refusal there.
+MAX_POINT_COORDINATE = 10000.0
+MAX_SCROLL_PIXELS = 4000.0
+MAX_INPUT_KEY_LENGTH = 32
+MAX_INPUT_TEXT_LENGTH = 4000
+
+
+class ComputerInputRequest(BaseModel):
+    """One piece of person input, proxied to Vela under the caller's lease.
+
+    Kinds: ``click`` (button left/right/middle — a right click is the
+    long-press), ``scroll`` (wheel deltas, as a touch-drag sends them),
+    ``type`` (text the person chose; Vela's "text" kind) and ``key`` (one
+    named key). ``frameAt`` is when the picture the input was decided from
+    was taken; Vela refuses input aimed at a stale frame.
+    """
+
+    kind: Literal["click", "scroll", "type", "key"]
+    viewId: str | None = Field(default=None, max_length=64)
+    point: dict[str, float] | None = None
+    button: Literal["left", "right", "middle"] | None = None
+    clickCount: int | None = Field(default=None, ge=1, le=2)
+    dx: float | None = None
+    dy: float | None = None
+    key: str | None = Field(default=None, max_length=MAX_INPUT_KEY_LENGTH)
+    text: str | None = Field(default=None, max_length=MAX_INPUT_TEXT_LENGTH)
+    frameAt: float | None = None
+
+    @model_validator(mode="after")
+    def _check_kind_fields(self) -> "ComputerInputRequest":
+        if self.kind == "click":
+            if self.point is None:
+                raise ValueError("a click needs a point")
+            x, y = self.point.get("x"), self.point.get("y")
+            if x is None or y is None:
+                raise ValueError("a click needs a numeric point")
+            for value in (x, y):
+                if not math.isfinite(value) or not 0 <= value <= MAX_POINT_COORDINATE:
+                    raise ValueError("the point is outside the computer's screen")
+        elif self.kind == "scroll":
+            dx, dy = self.dx or 0.0, self.dy or 0.0
+            if not (math.isfinite(dx) and math.isfinite(dy)):
+                raise ValueError("a scroll moves by numbers of pixels")
+            if abs(dx) > MAX_SCROLL_PIXELS or abs(dy) > MAX_SCROLL_PIXELS:
+                raise ValueError(
+                    f"a single scroll may move at most {int(MAX_SCROLL_PIXELS)} pixels"
+                )
+            if dx == 0 and dy == 0:
+                raise ValueError("a scroll needs a direction")
+        elif self.kind == "type":
+            if not self.text:
+                raise ValueError("typing needs text")
+        elif self.kind == "key":
+            if not self.key or not self.key.strip():
+                raise ValueError("a key press needs a key name")
+        return self
+
+    def to_vela_payload(self, view_id: str) -> dict[str, Any]:
+        """Map onto Vela's takeover-input vocabulary ("type" is Vela's "text")."""
+        payload: dict[str, Any] = {"viewId": view_id}
+        if self.kind == "click":
+            payload["kind"] = "click"
+            payload["point"] = {"x": self.point["x"], "y": self.point["y"]} if self.point else {}
+            if self.button:
+                payload["button"] = self.button
+            if self.clickCount:
+                payload["clickCount"] = self.clickCount
+        elif self.kind == "scroll":
+            payload["kind"] = "scroll"
+            payload["dx"] = self.dx or 0.0
+            payload["dy"] = self.dy or 0.0
+        elif self.kind == "type":
+            payload["kind"] = "text"
+            payload["text"] = self.text or ""
+        else:  # key
+            payload["kind"] = "key"
+            payload["key"] = (self.key or "").strip()
+        if self.frameAt is not None:
+            payload["frameAt"] = self.frameAt
+        return payload
+
+
+class ComputerNeedsYouRespond(BaseModel):
+    """POST .../computer/needs-you/respond: answer a needs-you.
+
+    ``takeover`` hands the desktop to the responding person (the run stays
+    paused, as Vela's take-over always leaves it). ``skip`` is the documented
+    closest refusal: denying the approval when an approval is waiting, and —
+    because Vela has no "skip this step" for a needs-person pause — stopping
+    the run.
+    """
+
+    action: Literal["takeover", "skip"]
