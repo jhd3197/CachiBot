@@ -394,6 +394,56 @@ export interface SideTask {
   updatedAt: string
 }
 
+// =============================================================================
+// BOT COMPUTER (Mini Vela) — C1: status/state only; the views land in C4 and
+// stay hidden while the Docker probe says the computer is unavailable.
+// =============================================================================
+
+/** Lifecycle of a bot's computer, as reported by the backend. */
+export type ComputerState =
+  | 'unavailable'
+  | 'off'
+  | 'building'
+  | 'starting'
+  | 'awake'
+  | 'asleep'
+  | 'needs_you'
+
+/** Progress of the first-use Vela image build (global, single-flight). */
+export interface ComputerBuildProgress {
+  status: 'building' | 'idle' | 'failed'
+  step?: number | null
+  total?: number | null
+  line?: string
+  error?: string | null
+}
+
+/** GET /api/computer/status — the Docker probe summary. */
+export interface DockerProbeSummary {
+  available: boolean
+  reason: string | null
+  docker_version: string | null
+  server_os: string | null
+  arch: string | null
+}
+
+/** GET /api/bots/{id}/computer — one bot's computer status. Never carries
+ * the controller token or the container's host port. */
+export interface BotComputer {
+  available: boolean
+  reason: string | null
+  state: ComputerState
+  build: ComputerBuildProgress | null
+  velaVersion: string
+  lastActiveAt: string | null
+  lastError: string | null
+}
+
+/** `computer_update` WebSocket payload: the status plus the bot it belongs to. */
+export interface ComputerUpdatePayload extends BotComputer {
+  botId: string
+}
+
 /** Aggregate view of one helper group (GET /side-task-groups/{groupId}). */
 export interface SideTaskGroupSummary {
   groupId: string
@@ -669,6 +719,7 @@ export type WSMessageType =
   | 'message_update'
   | 'task_update'
   | 'side_task_update'
+  | 'computer_update'
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType

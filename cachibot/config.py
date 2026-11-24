@@ -204,6 +204,14 @@ class SmtpConfig:
 
 
 @dataclass
+class ComputerConfig:
+    """Bot computer (per-bot Vela container) configuration."""
+
+    enabled: bool = True
+    idle_minutes: int = 10  # sleep the computer after this many minutes without activity
+
+
+@dataclass
 class TelemetryConfig:
     """Anonymous telemetry configuration (opt-in, disabled by default)."""
 
@@ -240,6 +248,7 @@ class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
+    computer: ComputerConfig = field(default_factory=ComputerConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     timezone: str = "UTC"
 
@@ -393,6 +402,15 @@ class Config:
         if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
             self.platform.website_url = website_url
 
+        # Computer settings
+        if computer_enabled := os.getenv("CACHIBOT_COMPUTER_ENABLED"):
+            self.computer.enabled = computer_enabled.lower() in ("1", "true", "yes")
+        if idle_minutes := os.getenv("CACHIBOT_COMPUTER_IDLE_MINUTES"):
+            try:
+                self.computer.idle_minutes = int(idle_minutes)
+            except ValueError:
+                pass
+
         # SMTP settings
         if smtp_host := os.getenv("CACHIBOT_SMTP_HOST"):
             self.smtp.host = smtp_host
@@ -519,6 +537,12 @@ class Config:
                 self.platform.website_jwt_secret = platform_data["website_jwt_secret"]
             if "website_url" in platform_data:
                 self.platform.website_url = platform_data["website_url"]
+
+        if computer_data := data.get("computer"):
+            if "enabled" in computer_data:
+                self.computer.enabled = computer_data["enabled"]
+            if "idle_minutes" in computer_data:
+                self.computer.idle_minutes = computer_data["idle_minutes"]
 
         if smtp_data := data.get("smtp"):
             if "host" in smtp_data:
