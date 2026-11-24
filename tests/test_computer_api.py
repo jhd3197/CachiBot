@@ -94,7 +94,7 @@ async def computer_env(tmp_path, sqlite_db):
     runner.when(
         "image",
         "inspect",
-        "cachibot-vela-computer:0.2.0",
+        "cachibot-vela-computer:0.3.0",
         result=lambda: CommandResult(
             [], 0 if image_built["built"] else 1, "[]" if image_built["built"] else "", ""
         ),
@@ -253,7 +253,7 @@ class TestAccess:
         assert "hostPort" not in body
         assert "containerName" not in body
         assert "token" not in body
-        assert body["velaVersion"] == "0.2.0"
+        assert body["velaVersion"] == "0.3.0"
 
         # Wake runs in the background; wait for the container port to land.
         await wait_for(lambda: port_is(bot_id, 49153))
@@ -421,7 +421,7 @@ class TestPreviewRoutes:
             f"/api/bots/{bot_id}/computer/preview", headers=auth(token)
         )
         assert resp.status_code == 200
-        assert resp.content == b"png-1"  # protocol-2 fake: the window fallback
+        assert resp.content == b"png-1"  # no desktopFrame advertised: the window fallback
         assert resp.headers["content-type"] == "image/png"
         assert resp.headers["cache-control"] == "no-store"
         etag = resp.headers["etag"]

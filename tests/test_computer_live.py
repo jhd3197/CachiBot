@@ -208,7 +208,8 @@ class TestPreview:
     async def test_fallback_to_focused_window_frame(self, live_env) -> None:
         env = live_env
         bot_id = make_bot_id()
-        # Default fake info is protocol 2: no desktopFrame feature.
+        # The default fake info does not advertise desktopFrame (the opt-in
+        # is off): the preview falls back to the focused window's frame.
         await wake_bot(env, bot_id)
 
         result = await env.svc.get_preview(bot_id, "user-1")
@@ -321,7 +322,6 @@ class TestWatchers:
     async def test_watch_counts_touches_and_forwards(self, live_env) -> None:
         env = live_env
         bot_id = make_bot_id()
-        env.vela.info = PROTOCOL_5_INFO
         await wake_bot(env, bot_id)
 
         result = await env.svc.note_watching(bot_id, "user-1")
@@ -337,14 +337,6 @@ class TestWatchers:
         assert len(env.vela.heartbeats) == 1  # inside the forward window
         record = await ComputerRepository().get_for_bot(bot_id)
         assert record.last_active_at == env.clock.now()
-
-    async def test_no_forward_below_protocol_5(self, live_env) -> None:
-        env = live_env
-        bot_id = make_bot_id()
-        await wake_bot(env, bot_id)  # default fake info: protocol 2
-        await env.svc.note_watching(bot_id, "user-1")
-        assert env.vela.heartbeats == []
-        assert env.svc.watchers_count(bot_id) == 1  # CachiBot's count still works
 
     async def test_watch_expires(self, live_env) -> None:
         env = live_env
