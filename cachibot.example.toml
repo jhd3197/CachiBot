@@ -112,6 +112,13 @@ max_history_messages = 10
 # Sleep the computer after this many minutes without activity
 # idle_minutes = 10
 
+# Resource caps for the container (docker run --memory/--cpus/--pids-limit).
+# Conservative defaults that fit a desktop + browser workload; set memory to
+# "" or a numeric cap to 0 to run that cap uncapped.
+# memory = "2g"
+# cpus = 2.0
+# pids_limit = 1024
+
 [database]
 # Database connection URL
 # Leave empty for SQLite (default — auto-created at ~/.cachibot/cachibot.db)

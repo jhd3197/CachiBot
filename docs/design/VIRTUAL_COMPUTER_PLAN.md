@@ -489,3 +489,66 @@ hidden.
     editor windows and opens their frames); approving sites beyond the
     starter origin is a C5 UI concern; mobile full-desktop touch take-over
     stays out of this pass (desktop/web only).
+- **C5 (this repo, branch `feat/computer-hardening`): implemented for
+  desktop and web; mobile deferred.** Container hardening, truthful recovery
+  when a container dies, and the Docker Desktop story — backend plus docs:
+  - **Resource caps.** `docker run` now carries `--memory`, `--cpus` and
+    `--pids-limit` from `ComputerConfig` (`_resource_cap_args`). The shipped
+    defaults are conservative for a desktop + Chromium workload: 2 GiB
+    memory, 2 CPUs, 1024 pids (the pids cgroup counts threads, so the limit
+    leaves Chromium's many threads room while still stopping a fork bomb).
+    Configurable via `[computer] memory`/`cpus`/`pids_limit` in
+    cachibot.toml or `CACHIBOT_COMPUTER_MEMORY`/`CACHIBOT_COMPUTER_CPUS`/
+    `CACHIBOT_COMPUTER_PIDS_LIMIT`; `memory = ""` or a numeric 0 runs that
+    cap uncapped (documented in `cachibot.example.toml`). The controller
+    token is still never in argv or env — asserted on every runner call.
+  - **Egress posture.** The only published socket stays bound to 127.0.0.1
+    (an ephemeral host port read back with `docker port`): nothing on the
+    host or LAN can reach Vela directly — users go through CachiBot's proxy
+    — and the tests keep asserting the bind is loopback-only (and that there
+    is no `--network`/`--privileged`). The additional hardening is what the
+    Docker CLI alone can honestly apply: `--security-opt
+    no-new-privileges:true` (no setuid/file-capability escalation inside the
+    container) and `--cap-drop NET_RAW` (no raw sockets). Outbound internet
+    stays open on purpose — the bot's browser needs it — and per-destination
+    egress filtering is not something the Docker CLI can do, so it is not
+    faked: a stricter posture would need a firewall or egress proxy, which
+    this design deliberately does not add.
+  - **Recovery when a container dies.** A computer that should be awake
+    (awake, starting or needs-you) whose container exited or was removed is
+    detected on the existing idle tick (`_sweep_dead_containers`) and at
+    startup reconcile. It is never pretended awake: the volumes are kept,
+    the live state (driver, needs-you, preview, Vela client) is dropped, the
+    row goes to **asleep** — picked over off because it is the truthful
+    "files kept, wake to start again" state — with a real lastError (the
+    exit code from a live inspect, or the container's `docker ps` status
+    line at reconcile) and a `computer_update` broadcast. There is no
+    auto-wake: the user wakes the computer again, which starts the existing
+    container, or creates a fresh one on the same volumes when it was
+    removed. A dead Docker daemon is not treated as a dead container (the
+    sweep skips when the probe fails), and a wake in flight owns its
+    container (the sweep skips it).
+  - **Docker Desktop on Windows/macOS.** The computer needs a working Docker
+    engine — Docker Engine on Linux, or Docker Desktop on Windows/macOS —
+    and nothing else: CachiBot talks to the Docker CLI, so Desktop's
+    contexts, the Windows named pipe and the macOS socket work without
+    per-platform code, and named volumes avoid Windows path and macOS
+    file-sharing issues. The image is Linux (amd64 and arm64 for Apple
+    Silicon). The probe already reports availability with a plain reason,
+    and every computer surface stays hidden while it is unavailable.
+  - **Tests.** Fake Docker runner + fake Vela client + injected clock
+    throughout (no Docker, no network, no containers): the caps in argv from
+    config (and the uncapped escape hatch), the loopback-only publish with
+    the hardening flags and no token anywhere, death detection on the idle
+    tick (exited with the exit code, missing, needs-you, daemon-down
+    skipped, in-flight wake skipped), the truthful asleep + lastError +
+    broadcast, explicit wake-again, and the startup reconcile matching
+    (running → awake, exited/missing → asleep with the real status, asleep
+    rows untouched). `tests/test_computer_config.py` covers the new config
+    keys (defaults, env, toml, the uncapped escape hatch).
+  - **Mobile is deferred to a follow-up.** The full-desktop touch surface
+    (window switcher, pinch-zoom/pan, tap = click, long-press = right click,
+    drag = scroll) is a large new Flutter surface, and this pass had no
+    Flutter SDK to verify it with — shipping an untested screen would be a
+    dead screen, so it stays out. The C2 API it needs (preview/frames,
+    views, watch, take-over, input) already exists and is unchanged.

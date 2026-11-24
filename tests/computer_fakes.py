@@ -743,6 +743,7 @@ def ps_line(
     bot_id: str,
     names: str,
     state: str,
+    status: str | None = None,
     image: str = "cachibot-vela-computer:0.2.0",
 ) -> str:
     """One ``docker ps -a --format '{{json .}}'`` line for a managed container."""
@@ -755,6 +756,6 @@ def ps_line(
             "Image": image,
             "Labels": f"cachibot.bot_id={bot_id},cachibot.managed=1",
             "State": state,
-            "Status": state,
+            "Status": status if status is not None else state,
         }
     )
