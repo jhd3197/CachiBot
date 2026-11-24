@@ -2590,10 +2590,25 @@ class ComputerService:
         # reader that sees AWAKE must already see the fresh last_active_at,
         # or the idle loop can treat a just-woken computer as long-idle.
         # Reload the row first so this upsert cannot roll back a newer stamp
-        # a concurrent touch() wrote while the build/start was in flight.
+        # a concurrent touch() wrote while the build/start was in flight —
+        # and so a row that became NEEDS_YOU after STARTING is not clobbered:
+        # a needs-you computer is awake, so the state stays and only the
+        # activity stamp (and cleared error) is written.
         record = await self._get_or_create_record(bot_id)
         record.last_active_at = self._clock()
+        if record.state == ComputerState.NEEDS_YOU:
+            await self._set_state(record, ComputerState.NEEDS_YOU, last_error=None)
+            return
         await self._set_state(record, ComputerState.AWAKE, last_error=None)
+        # A needs-you already waiting in Vela's event log is mapped now, not
+        # on the next live tick — the live loop only polls AWAKE/NEEDS_YOU
+        # computers, so without this the wake would report plain "awake" over
+        # a pending approval/attention. Best-effort: a failed poll leaves the
+        # computer awake and the live loop retries.
+        try:
+            await self._poll_bot(record)
+        except Exception:
+            logger.debug("post-wake event poll failed for bot %s", bot_id, exc_info=True)
 
     def _run_argv(self, cli: str, bot_id: str, name: str, token: str) -> list[str]:
         """Exact ``docker run`` invocation for a bot's computer.

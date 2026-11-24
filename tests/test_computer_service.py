@@ -34,6 +34,8 @@ from tests.computer_fakes import (
     FakeDockerRunner,
     FakeVelaClient,
     docker_version_json,
+    events_page,
+    make_event,
     ps_line,
 )
 
@@ -618,6 +620,104 @@ class TestWake:
         assert status["needsYou"] == "Post the draft?"
         record = await repo.get_for_bot(bot_id)
         assert record.state == ComputerState.NEEDS_YOU
+
+    async def test_wake_maps_a_needs_you_already_waiting_in_vela(self, computer_env) -> None:
+        """Regression: a needs-you already in Vela's event log when the computer
+        becomes AWAKE is applied before the wake finishes.
+
+        The live loop only polls AWAKE/NEEDS_YOU computers, so with the old
+        wake — an unconditional AWAKE write and no event poll — an
+        approval.waiting that arrived while the computer was starting stayed
+        invisible until the next tick: the wake reported plain "awake" over a
+        pending approval (and a single early tick never recovered it).
+        """
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        # The approval is already waiting in Vela's event log when the wake runs.
+        vela = FakeVelaClient()
+        vela.events_handler = events_page(
+            [
+                make_event(
+                    1,
+                    "approval.waiting",
+                    {
+                        "runId": "run-1",
+                        "requestId": "req-1",
+                        "summary": {"headline": "Post the draft?"},
+                    },
+                    run_id="run-1",
+                )
+            ]
+        )
+        env.svc._vela_factory = lambda port, token: vela
+
+        await env.svc.wake(bot_id)
+        await wait_for_wake(env, bot_id)
+
+        # No _live_tick: the wake itself must have mapped the waiting approval.
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.state == ComputerState.NEEDS_YOU
+        status = await env.svc.get_status(bot_id)
+        assert status["state"] == ComputerState.NEEDS_YOU.value
+        assert status["needsYou"] == "Post the draft?"
+
+    async def test_wake_does_not_clobber_a_needs_you_set_while_starting(self, computer_env) -> None:
+        """Regression: the wake's final write must not overwrite a NEEDS_YOU row.
+
+        The row can become NEEDS_YOU after the STARTING write (a concurrent
+        path that maps a starting computer's events); the wake used to end
+        with an unconditional AWAKE write that erased it. The wake re-reads
+        the row and keeps NEEDS_YOU, still stamping last_active_at so the
+        idle loop does not treat the computer as long-idle.
+        """
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        vela = FakeVelaClient()
+        health_seen = asyncio.Event()
+        release_health = asyncio.Event()
+        real_health = vela.health
+
+        async def gated_health() -> bool:
+            health_seen.set()
+            await release_health.wait()
+            return await real_health()
+
+        vela.health = gated_health  # type: ignore[method-assign]
+        env.svc._vela_factory = lambda port, token: vela
+
+        await env.svc.wake(bot_id)
+        # Hold the wake inside the health wait: the STARTING write has landed.
+        await asyncio.wait_for(health_seen.wait(), timeout=5)
+        assert await state_is(bot_id, ComputerState.STARTING)
+
+        # A needs-you lands while the computer is still starting.
+        repo = ComputerRepository()
+        record = await repo.get_for_bot(bot_id)
+        assert record is not None
+        record.state = ComputerState.NEEDS_YOU
+        await repo.upsert(record)
+        env.svc._needs_you[bot_id] = NeedsYouInfo(
+            kind="approval",
+            reason="Post the draft?",
+            desktop_id="desk-1",
+            run_id="run-1",
+            request_id="req-1",
+        )
+        env.clock.advance(minutes=5)
+        release_health.set()
+        await wait_for_wake(env, bot_id)
+
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.NEEDS_YOU
+        # The final write still stamped the wake-time activity.
+        assert record.last_active_at == env.clock.now()
+        status = await env.svc.get_status(bot_id)
+        assert status["state"] == ComputerState.NEEDS_YOU.value
+        assert status["needsYou"] == "Post the draft?"
 
 
 def _client_with(env, client: FakeVelaClient) -> FakeVelaClient:
