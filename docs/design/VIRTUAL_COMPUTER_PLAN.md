@@ -490,8 +490,9 @@ hidden.
     starter origin is a C5 UI concern; mobile full-desktop touch take-over
     stays out of this pass (desktop/web only).
 - **C5 (this repo, branch `feat/computer-hardening`): implemented for
-  desktop and web; mobile deferred.** Container hardening, truthful recovery
-  when a container dies, and the Docker Desktop story — backend plus docs:
+  desktop and web; the mobile surface landed as the follow-up below.**
+  Container hardening, truthful recovery when a container dies, and the
+  Docker Desktop story — backend plus docs:
   - **Resource caps.** `docker run` now carries `--memory`, `--cpus` and
     `--pids-limit` from `ComputerConfig` (`_resource_cap_args`). The shipped
     defaults are conservative for a desktop + Chromium workload: 2 GiB
@@ -546,9 +547,47 @@ hidden.
     (running → awake, exited/missing → asleep with the real status, asleep
     rows untouched). `tests/test_computer_config.py` covers the new config
     keys (defaults, env, toml, the uncapped escape hatch).
-  - **Mobile is deferred to a follow-up.** The full-desktop touch surface
-    (window switcher, pinch-zoom/pan, tap = click, long-press = right click,
-    drag = scroll) is a large new Flutter surface, and this pass had no
-    Flutter SDK to verify it with — shipping an untested screen would be a
-    dead screen, so it stays out. The C2 API it needs (preview/frames,
-    views, watch, take-over, input) already exists and is unchanged.
+  - **Mobile (this repo, branch `feat/computer-mobile`): implemented.** The
+    full-desktop touch surface of decision 6 landed as the deferred
+    follow-up, on the C2 API unchanged (no new backend routes):
+    - **Client + store** (`mobile/lib/services/api/computer_service.dart`,
+      `mobile/lib/providers/computer_provider.dart`,
+      `mobile/lib/models/computer.dart`): the Docker probe, per-bot status,
+      the preview and per-window frames as raw bytes with the ETag/304
+      contract (`ResponseType.bytes` + `If-None-Match`; a preview never
+      wakes the computer — 409/404 surfaces the real off/asleep state), the
+      views list, watch heartbeats, take over / hand back / input and the
+      needs-you answer, all through the shared dio client and its auth
+      interceptor (tokens are never logged). The `computer_update` WS type
+      constant was added and refreshes the store from the payload.
+    - **Full-screen route** `/bot/:botId/computer` (root navigator, like
+      knowledge/work): the selected window's frame or the desktop preview
+      full screen, a window switcher from the real views list,
+      pinch-zoom/pan via `InteractiveViewer`, the activity line and the real
+      state (Off / Asleep / Building / Starting / Awake / Needs you), and
+      first-wake build progress only when the real build fields are
+      present. The entries on the bot-detail and chat app bars render only
+      while the probe says available — no dead button when Docker is off.
+    - **Touch take-over (operator+ only):** tap = click, long-press = right
+      click, drag = scroll (natural touch direction, throttled), keyboard
+      toggle = type / named keys; coordinates map through the displayed
+      frame's natural size exactly like the web surface (skipped when a
+      size is 0), and input goes out only while the signed-in user holds
+      the take-over. Access comes from the bot list's `access_level`
+      (admins included); a control that still answers 403 hides for the
+      rest of the session. "You're driving · the bot waits" shows only
+      while the driver is the signed-in user.
+    - **Watch to keep awake:** a 15 s heartbeat plus the frame poll run
+      only while the screen is mounted and the app is foregrounded; both
+      stop when the app is backgrounded or the screen unmounts.
+    - **Honest degradation:** off/asleep shows the real state with Turn on
+      / Wake (operator+, the real wake endpoint); needs-you shows the real
+      reason with Take over / Skip; no placeholder frames, invented window
+      titles or cloud-computer CTAs anywhere.
+    - **Tests:** the follow-up was written without a Flutter SDK in the
+      environment, so no `flutter_test` suite was added (CI runs
+      `flutter analyze` on the mobile job);
+      `tests/test_computer_mobile_source.py` asserts the load-bearing
+      rules over the Dart sources — availability gates, the documented
+      computer routes, the gesture-to-input mapping, and the absence of
+      placeholder frames and cloud CTAs.

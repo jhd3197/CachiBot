@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../models/chat.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/computer_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../widgets/chat/approval_dialog.dart';
 import '../../widgets/chat/message_bubble.dart';
@@ -36,6 +38,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     Future.microtask(() {
       ref.read(chatProvider.notifier).openChat(widget.botId, widget.chatId);
+      // The Docker probe decides whether the Computer action may appear.
+      ref.read(computerProvider.notifier).fetchStatus();
     });
     _initSpeech();
 
@@ -146,8 +150,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chat'),
-        actions: const [
-          Padding(
+        actions: [
+          // The bot's computer — only while the Docker probe says available;
+          // no dead button when Docker is off.
+          if (ref.watch(computerProvider).status?.available == true)
+            IconButton(
+              icon: const Icon(Icons.desktop_windows_outlined),
+              tooltip: 'Computer',
+              onPressed: () => context.push('/bot/${widget.botId}/computer'),
+            ),
+          const Padding(
             padding: EdgeInsets.only(right: 12),
             child: ConnectionIndicator(),
           ),

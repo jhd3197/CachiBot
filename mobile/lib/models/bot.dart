@@ -11,6 +11,7 @@ class Bot {
     required this.capabilities,
     required this.createdAt,
     required this.updatedAt,
+    this.accessLevel,
   });
 
   final String id;
@@ -25,6 +26,19 @@ class Bot {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// The caller's access to this bot ("owner", "admin", "editor",
+  /// "operator", "viewer"), present only in the list endpoint's payload.
+  final String? accessLevel;
+
+  /// Effective access rank for gating operator+ controls (0 = no access).
+  /// Mirrors the frontend's `botAccessRank`.
+  int get accessRank {
+    const ranks = {'viewer': 1, 'operator': 2, 'editor': 3, 'owner': 4, 'admin': 4};
+    return ranks[accessLevel] ?? 0;
+  }
+
+  bool get canOperate => accessRank >= 2;
+
   factory Bot.fromJson(Map<String, dynamic> json) {
     return Bot(
       id: json['id'] as String,
@@ -38,6 +52,7 @@ class Bot {
       capabilities: (json['capabilities'] as Map<String, dynamic>?) ?? {},
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      accessLevel: json['access_level'] as String?,
     );
   }
 
@@ -53,5 +68,6 @@ class Bot {
         'capabilities': capabilities,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
+        if (accessLevel != null) 'access_level': accessLevel,
       };
 }
