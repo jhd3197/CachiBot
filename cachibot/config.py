@@ -209,6 +209,12 @@ class ComputerConfig:
 
     enabled: bool = True
     idle_minutes: int = 10  # sleep the computer after this many minutes without activity
+    # Resource caps passed to docker run (--memory/--cpus/--pids-limit). The
+    # shipped defaults are conservative for a desktop + browser workload; set
+    # memory to "" or a numeric cap to 0 to run that cap uncapped.
+    memory: str = "2g"
+    cpus: float = 2.0
+    pids_limit: int = 1024
 
 
 @dataclass
@@ -410,6 +416,18 @@ class Config:
                 self.computer.idle_minutes = int(idle_minutes)
             except ValueError:
                 pass
+        if memory := os.getenv("CACHIBOT_COMPUTER_MEMORY"):
+            self.computer.memory = memory
+        if cpus := os.getenv("CACHIBOT_COMPUTER_CPUS"):
+            try:
+                self.computer.cpus = float(cpus)
+            except ValueError:
+                pass
+        if pids_limit := os.getenv("CACHIBOT_COMPUTER_PIDS_LIMIT"):
+            try:
+                self.computer.pids_limit = int(pids_limit)
+            except ValueError:
+                pass
 
         # SMTP settings
         if smtp_host := os.getenv("CACHIBOT_SMTP_HOST"):
@@ -543,6 +561,12 @@ class Config:
                 self.computer.enabled = computer_data["enabled"]
             if "idle_minutes" in computer_data:
                 self.computer.idle_minutes = computer_data["idle_minutes"]
+            if "memory" in computer_data:
+                self.computer.memory = str(computer_data["memory"])
+            if "cpus" in computer_data:
+                self.computer.cpus = float(computer_data["cpus"])
+            if "pids_limit" in computer_data:
+                self.computer.pids_limit = int(computer_data["pids_limit"])
 
         if smtp_data := data.get("smtp"):
             if "host" in smtp_data:

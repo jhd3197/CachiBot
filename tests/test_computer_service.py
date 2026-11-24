@@ -22,6 +22,7 @@ from cachibot.services.computer.runner import CommandResult
 from cachibot.services.computer.service import (
     TOKEN_MOUNT_TARGET,
     ComputerService,
+    NeedsYouInfo,
     container_name_for,
     data_volume_for,
     workspace_volume_for,
@@ -211,6 +212,29 @@ def script_container_lifecycle(runner: FakeDockerRunner, bot_id: str, port: int 
     runner.when("port", name, "7700/tcp", result=CommandResult([], 0, f"127.0.0.1:{port}\n", ""))
 
 
+def script_container_death(runner: FakeDockerRunner, bot_id: str, *, exit_code: int = 1) -> dict:
+    """Flip the bot's container to exited for both inspect forms.
+
+    Overrides the lifecycle scripts (later ``when`` calls win). Set
+    ``box["dead"] = False`` to bring the container back (e.g. after a wake's
+    ``docker start``).
+    """
+    name = container_name_for(bot_id)
+    box = {"dead": True}
+
+    def inspect_one() -> CommandResult:
+        return CommandResult([], 0, "false" if box["dead"] else "true", "")
+
+    def inspect_two() -> CommandResult:
+        if box["dead"]:
+            return CommandResult([], 0, f"false {exit_code}\n", "")
+        return CommandResult([], 0, "true 0\n", "")
+
+    runner.when("inspect", "-f", "{{.State.Running}}", name, result=inspect_one)
+    runner.when("inspect", "-f", "{{.State.Running}} {{.State.ExitCode}}", name, result=inspect_two)
+    return box
+
+
 def make_bot_id() -> str:
     return str(uuid.uuid4())
 
@@ -235,8 +259,9 @@ class TestWake:
         await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
 
         # docker run argv: 127.0.0.1 only, named volumes, labels, read-only
-        # token mount, the desktop-frame opt-in flag, no other env vars, no
-        # token value anywhere.
+        # token mount, the desktop-frame opt-in flag, the CLI-only hardening
+        # flags, the configured resource caps, no other env vars, no token
+        # value anywhere.
         runs = runner.calls_for("run")
         assert len(runs) == 1
         argv = runs[0]
@@ -262,6 +287,16 @@ class TestWake:
             "127.0.0.1::7700",
             "-e",
             "VELA_CONTROLLER_DESKTOP_FRAME=1",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--cap-drop",
+            "NET_RAW",
+            "--memory",
+            "2g",
+            "--cpus",
+            "2",
+            "--pids-limit",
+            "1024",
             COMPUTER_IMAGE_TAG,
         ]
         assert argv == expected
@@ -431,6 +466,68 @@ class TestWake:
         assert status["available"] is False
         assert "disabled" in (status["reason"] or "")
         assert env.runner.calls == []
+
+    async def test_resource_caps_come_from_config(self, computer_env) -> None:
+        env = computer_env
+        env.svc._config = ComputerConfig(
+            enabled=True, idle_minutes=10, memory="4g", cpus=1.5, pids_limit=256
+        )
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+
+        argv = env.runner.calls_for("run")[0]
+        for flag, value in (("--memory", "4g"), ("--cpus", "1.5"), ("--pids-limit", "256")):
+            assert flag in argv
+            assert argv[argv.index(flag) + 1] == value
+
+    async def test_resource_caps_can_be_disabled(self, computer_env) -> None:
+        env = computer_env
+        env.svc._config = ComputerConfig(
+            enabled=True, idle_minutes=10, memory="", cpus=0, pids_limit=0
+        )
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+
+        argv = env.runner.calls_for("run")[0]
+        assert "--memory" not in argv
+        assert "--cpus" not in argv
+        assert "--pids-limit" not in argv
+        # The hardening flags are not caps and stay.
+        assert "no-new-privileges:true" in argv
+        assert "NET_RAW" in argv
+
+    async def test_publish_is_loopback_only_and_container_hardened(self, computer_env) -> None:
+        """The egress contract: the only published socket is on 127.0.0.1, no
+        host networking, no privileged mode; the CLI-only hardening flags are
+        present and the token is in none of it."""
+        env = computer_env
+        bot_id = make_bot_id()
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+
+        argv = env.runner.calls_for("run")[0]
+        publishes = [argv[i + 1] for i, part in enumerate(argv) if part == "-p"]
+        assert publishes == ["127.0.0.1::7700"]
+        assert "--publish" not in argv
+        assert "--network" not in argv  # default bridge; host networking would bypass the bind
+        assert "--privileged" not in argv
+        assert "--security-opt" in argv
+        assert argv[argv.index("--security-opt") + 1] == "no-new-privileges:true"
+        assert "--cap-drop" in argv
+        assert argv[argv.index("--cap-drop") + 1] == "NET_RAW"
+        token = (env.token_dir / bot_id / "controller-token").read_text(encoding="utf-8").strip()
+        assert token not in " ".join(argv)
 
 
 def _client_with(env, client: FakeVelaClient) -> FakeVelaClient:
@@ -602,14 +699,21 @@ class TestReconcile:
         await env.svc.reconcile_on_startup()
 
         assert (await repo.get_for_bot(stuck_building)).state == ComputerState.OFF
-        assert (await repo.get_for_bot(stuck_starting)).state == ComputerState.OFF
+        # A row stuck in starting had a container once; with the container
+        # gone it goes to asleep with a real error, not silently to off.
+        stuck = await repo.get_for_bot(stuck_starting)
+        assert stuck.state == ComputerState.ASLEEP
+        assert "gone" in (stuck.last_error or "")
         running = await repo.get_for_bot(running_bot)
         assert running.state == ComputerState.AWAKE
         assert running.host_port == 47777
-        # Missing container on an asleep row stays asleep.
-        assert (await repo.get_for_bot(asleep_bot)).state == ComputerState.ASLEEP
+        assert running.last_error is None
+        # Missing container on an asleep row stays asleep, without an error.
+        asleep = await repo.get_for_bot(asleep_bot)
+        assert asleep.state == ComputerState.ASLEEP
+        assert asleep.last_error is None
 
-    async def test_reconcile_marks_awake_without_container_off(self, computer_env) -> None:
+    async def test_reconcile_marks_awake_without_container_asleep(self, computer_env) -> None:
         env = computer_env
         repo = ComputerRepository()
         bot_id = make_bot_id()
@@ -623,7 +727,195 @@ class TestReconcile:
         )
         env.runner.when("ps", result=CommandResult([], 0, "", ""))
         await env.svc.reconcile_on_startup()
-        assert (await repo.get_for_bot(bot_id)).state == ComputerState.OFF
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.ASLEEP
+        assert "gone" in (record.last_error or "")
+
+    async def test_reconcile_marks_exited_container_asleep_with_status(self, computer_env) -> None:
+        env = computer_env
+        repo = ComputerRepository()
+        bot_id = make_bot_id()
+        name = container_name_for(bot_id)
+        await repo.upsert(
+            ComputerRecord(
+                bot_id=bot_id,
+                state=ComputerState.AWAKE,
+                container_name=name,
+                image_tag=COMPUTER_IMAGE_TAG,
+                vela_version="0.2.0",
+            )
+        )
+        env.runner.when(
+            "ps",
+            result=CommandResult(
+                [],
+                0,
+                ps_line(
+                    bot_id=bot_id,
+                    names=name,
+                    state="exited",
+                    status="Exited (1) 5 minutes ago",
+                )
+                + "\n",
+                "",
+            ),
+        )
+        await env.svc.reconcile_on_startup()
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.ASLEEP
+        assert "Exited (1) 5 minutes ago" in (record.last_error or "")
+        # Volumes are never removed and nothing is auto-woken.
+        assert env.runner.calls_for("volume", "rm") == []
+        assert env.runner.calls_for("start") == []
+        assert env.runner.calls_for("run") == []
+
+
+# ---------------------------------------------------------------------------
+# Dead-container recovery (idle tick)
+# ---------------------------------------------------------------------------
+
+
+class TestDeadContainerRecovery:
+    async def _awake(self, env, bot_id: str) -> None:
+        env.runner.when("build", result=["#1 [1/1] DONE"])
+        script_container_lifecycle(env.runner, bot_id)
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
+
+    async def test_idle_tick_marks_exited_container_asleep(self, computer_env) -> None:
+        env = computer_env
+        bot_id = make_bot_id()
+        await self._awake(env, bot_id)
+        script_container_death(env.runner, bot_id, exit_code=1)
+        env.broadcasts.clear()
+
+        await env.svc._idle_tick()
+
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.state == ComputerState.ASLEEP
+        assert "exit code 1" in (record.last_error or "")
+        # The computer_update broadcast carries the truthful state + error.
+        updates = [p for _, p in env.broadcasts if p.get("botId") == bot_id]
+        assert updates[-1]["state"] == ComputerState.ASLEEP.value
+        assert "exit code 1" in updates[-1]["lastError"]
+        # Never auto-wake, never remove volumes: only the original run exists.
+        assert env.runner.calls_for("start") == []
+        assert len(env.runner.calls_for("run")) == 1
+        assert env.runner.calls_for("volume", "rm") == []
+
+    async def test_idle_tick_marks_missing_container_asleep(self, computer_env) -> None:
+        env = computer_env
+        bot_id = make_bot_id()
+        await self._awake(env, bot_id)
+        name = container_name_for(bot_id)
+        env.runner.when(
+            "inspect",
+            "-f",
+            "{{.State.Running}} {{.State.ExitCode}}",
+            name,
+            result=CommandResult(
+                [], 1, "", f"Error response from daemon: No such container: {name}"
+            ),
+        )
+
+        await env.svc._idle_tick()
+
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.state == ComputerState.ASLEEP
+        assert "gone" in (record.last_error or "")
+        assert env.runner.calls_for("start") == []
+
+    async def test_idle_tick_leaves_computers_alone_when_daemon_down(self, computer_env) -> None:
+        """A dead Docker daemon says nothing about the containers: no row may
+        be moved on a failed probe."""
+        env = computer_env
+        bot_id = make_bot_id()
+        await self._awake(env, bot_id)
+        env.runner.when(
+            "version",
+            result=CommandResult(
+                [], 1, "", "Cannot connect to the Docker daemon. Is the docker daemon running?"
+            ),
+        )
+        env.svc._probe.invalidate()
+
+        await env.svc._idle_tick()
+
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.state == ComputerState.AWAKE
+        assert record.last_error is None
+
+    async def test_needs_you_computer_death_is_detected(self, computer_env) -> None:
+        env = computer_env
+        bot_id = make_bot_id()
+        await self._awake(env, bot_id)
+        repo = ComputerRepository()
+        record = await repo.get_for_bot(bot_id)
+        record.state = ComputerState.NEEDS_YOU
+        await repo.upsert(record)
+        env.svc._needs_you[bot_id] = NeedsYouInfo(
+            kind="attention", reason="a sign-in is waiting", desktop_id="desk-1"
+        )
+        script_container_death(env.runner, bot_id, exit_code=137)
+
+        await env.svc._idle_tick()
+
+        record = await repo.get_for_bot(bot_id)
+        assert record.state == ComputerState.ASLEEP
+        assert "exit code 137" in (record.last_error or "")
+        # The live state died with the container.
+        assert env.svc._needs_you.get(bot_id) is None
+
+    async def test_starting_computer_with_in_flight_wake_is_skipped(self, computer_env) -> None:
+        env = computer_env
+        bot_id = make_bot_id()
+        repo = ComputerRepository()
+        await repo.upsert(
+            ComputerRecord(
+                bot_id=bot_id,
+                state=ComputerState.STARTING,
+                image_tag=COMPUTER_IMAGE_TAG,
+                vela_version="0.2.0",
+            )
+        )
+        gate = asyncio.Event()
+        wake_task = asyncio.create_task(gate.wait())
+        env.svc._wake_tasks[bot_id] = wake_task
+        script_container_death(env.runner, bot_id)
+        try:
+            await env.svc._idle_tick()
+        finally:
+            gate.set()
+            await wake_task
+            env.svc._wake_tasks.pop(bot_id, None)
+
+        assert (await repo.get_for_bot(bot_id)).state == ComputerState.STARTING
+        assert env.runner.calls_for("inspect", "-f", "{{.State.Running}} {{.State.ExitCode}}") == []
+
+    async def test_dead_computer_wakes_again_explicitly(self, computer_env) -> None:
+        env = computer_env
+        bot_id = make_bot_id()
+        await self._awake(env, bot_id)
+        box = script_container_death(env.runner, bot_id, exit_code=1)
+        await env.svc._idle_tick()
+        assert (await ComputerRepository().get_for_bot(bot_id)).state == ComputerState.ASLEEP
+
+        # The user wakes it: the existing (stopped) container is started
+        # again — no new container, no rebuild — and the error clears.
+        await env.svc.wake(bot_id)
+        await wait_for(lambda: state_is(bot_id, ComputerState.AWAKE))
+        await wait_for_wake(env, bot_id)
+        assert len(env.runner.calls_for("start")) == 1
+        assert len(env.runner.calls_for("run")) == 1
+        assert len(env.runner.calls_for("build")) == 1
+        record = await ComputerRepository().get_for_bot(bot_id)
+        assert record.last_error is None
+
+        # And it stays awake on the next tick once the container runs again.
+        box["dead"] = False
+        await env.svc._idle_tick()
+        assert (await ComputerRepository().get_for_bot(bot_id)).state == ComputerState.AWAKE
 
 
 # ---------------------------------------------------------------------------

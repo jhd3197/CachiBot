@@ -18,7 +18,9 @@ class ComputerState(str, Enum):
 
     ``needs_you`` is set while Vela reports a needs-person pause or a waiting
     approval (C2); it clears when the person answers, takes over or hands
-    back.
+    back. ``asleep`` also covers the C5 recovery: a computer whose container
+    died or was removed while it should be awake goes to asleep with a real
+    lastError — volumes kept, never auto-woken, woken again by the user.
     """
 
     UNAVAILABLE = "unavailable"
@@ -35,6 +37,16 @@ INACTIVE_STATES = (
     ComputerState.UNAVAILABLE,
     ComputerState.OFF,
     ComputerState.ASLEEP,
+)
+
+#: States that mean "a container should exist and be running right now" — the
+#: states the dead-container sweep checks (C5). A computer found in one of
+#: these states without a running container is not pretended awake: it goes to
+#: asleep with a real lastError and the user wakes it again.
+ACTIVE_STATES = (
+    ComputerState.AWAKE,
+    ComputerState.STARTING,
+    ComputerState.NEEDS_YOU,
 )
 
 

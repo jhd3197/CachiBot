@@ -45,6 +45,25 @@ C3 adds the bot-facing surface the ``computer`` plugin calls:
   (``execution_type="computer"``) fire-and-forget; logging never fails a
   tool, and nothing secret is ever logged.
 
+C5 hardens the container and tells the truth when it dies:
+
+- **Resource caps.** ``docker run`` carries ``--memory``, ``--cpus`` and
+  ``--pids-limit`` from :class:`ComputerConfig` (conservative shipped
+  defaults; empty/zero runs that cap uncapped).
+- **Egress posture.** The only published socket stays bound to 127.0.0.1 —
+  nothing on the host or LAN can reach Vela directly; users go through
+  CachiBot's proxy. The container also runs with ``no-new-privileges`` and
+  without ``NET_RAW`` — hardening the Docker CLI alone can honestly apply.
+  Outbound internet stays open by design (the bot's browser needs it);
+  per-destination egress filtering is not something the Docker CLI can do
+  and is not faked.
+- **Dead-container recovery.** A computer that should be awake (awake,
+  starting or needs-you) whose container exited or was removed is detected
+  on the idle tick and at startup reconcile: the volumes are kept, the row
+  goes to asleep with a real lastError, a ``computer_update`` is broadcast,
+  and the user wakes it again — never auto-wake. A dead Docker daemon is
+  not treated as a dead container.
+
 All Docker access flows through the injected :class:`DockerRunner`, and all
 Vela access through an injected client factory, so tests run with fakes and
 no Docker, network or containers. State changes and (throttled) live updates
@@ -70,6 +89,7 @@ from urllib.parse import urlparse
 
 from cachibot.config import ComputerConfig, Config
 from cachibot.models.computer import (
+    ACTIVE_STATES,
     BuildProgress,
     ComputerInputRequest,
     ComputerRecord,
@@ -354,6 +374,28 @@ def _parse_labels(raw: str | None) -> dict[str, str]:
         if sep and key:
             labels[key] = value
     return labels
+
+
+#: lastError when a computer that should be awake has no container at all
+#: (removed outside CachiBot). The volumes survive, so waking creates a fresh
+#: container on the same files.
+_MISSING_CONTAINER_ERROR = (
+    "the computer's container is gone — it was removed outside CachiBot; "
+    "its files are kept, wake it to create a new one"
+)
+
+
+def _exited_error(detail: str) -> str:
+    """lastError when a computer that should be awake has a stopped container.
+
+    ``detail`` is the truth we have: ``exit code N`` from a live inspect, or
+    the container's ``docker ps`` status line at startup reconcile.
+    """
+    suffix = f" ({detail})" if detail else ""
+    return (
+        f"the computer's container stopped unexpectedly{suffix}; "
+        "its files are kept, wake it to start it again"
+    )
 
 
 def _window_payload(view: dict[str, Any]) -> dict[str, Any]:
@@ -651,14 +693,16 @@ class ComputerService:
     async def reconcile_on_startup(self) -> None:
         """Make rows match containers after a restart. Never auto-starts.
 
-        Rows stuck in building/starting (a restart interrupted a wake) go
-        back to off; containers still running become awake with their port
-        re-read; containers that are gone leave the row off (or asleep).
+        Rows stuck in building (a restart interrupted a build) go back to
+        off. Containers still running become awake with their port re-read.
+        A computer that should be awake (awake, starting or needs-you) whose
+        container is gone or exited is not pretended awake: the row goes to
+        asleep with a real lastError and the user wakes it again — the
+        volumes are kept. Rows already asleep or off stay as they are.
         """
-        for record in await self._repo.list_all():
-            if record.state in (ComputerState.BUILDING, ComputerState.STARTING):
-                record.state = ComputerState.OFF
-                await self._repo.upsert(record)
+        for record in await self._repo.list_with_state(ComputerState.BUILDING):
+            record.state = ComputerState.OFF
+            await self._repo.upsert(record)
 
         if not self._config.enabled:
             return
@@ -694,6 +738,12 @@ class ComputerService:
             if info.get("State") == "running":
                 record.host_port = (await self._read_host_port(name)) or record.host_port
                 record.state = ComputerState.AWAKE
+                record.last_error = None
+            elif record.state in ACTIVE_STATES:
+                # Should be awake, but the container is stopped: the same
+                # recovery as the idle tick's dead-container sweep.
+                record.state = ComputerState.ASLEEP
+                record.last_error = _exited_error((info.get("Status") or "").strip())
             else:
                 record.state = (
                     ComputerState.ASLEEP
@@ -702,13 +752,15 @@ class ComputerService:
                 )
             await self._repo.upsert(record)
 
-        # Awake rows whose container is missing go off (rows already asleep
-        # or off stay as they are).
-        for record in await self._repo.list_with_state(ComputerState.AWAKE):
-            if record.bot_id in seen:
-                continue
-            record.state = ComputerState.OFF
-            await self._repo.upsert(record)
+        # Rows that should be awake whose container is gone entirely (removed
+        # outside CachiBot) get the same truthful recovery — never auto-wake.
+        for state in ACTIVE_STATES:
+            for record in await self._repo.list_with_state(state):
+                if record.bot_id in seen:
+                    continue
+                record.state = ComputerState.ASLEEP
+                record.last_error = _MISSING_CONTAINER_ERROR
+                await self._repo.upsert(record)
 
     async def _idle_loop(self) -> None:
         while True:
@@ -719,13 +771,17 @@ class ComputerService:
                 logger.debug("idle tick failed", exc_info=True)
 
     async def _idle_tick(self) -> None:
-        """Sleep every awake computer that has been idle too long.
+        """Sleep idle computers, and stop pretending dead ones are awake.
 
         A needs-you computer is idle like any other when nobody watches or
-        drives it — the run it was paused for survives the sleep.
+        drives it — the run it was paused for survives the sleep. A computer
+        whose container died or was removed is moved to asleep with a real
+        lastError (volumes kept, computer_update broadcast) and is never
+        auto-woken.
         """
         if not self._config.enabled:
             return
+        await self._sweep_dead_containers()
         idle_for = timedelta(minutes=self._config.idle_minutes)
         candidates = await self._repo.list_with_state(ComputerState.AWAKE)
         candidates += await self._repo.list_with_state(ComputerState.NEEDS_YOU)
@@ -734,6 +790,50 @@ class ComputerService:
             if self._clock() - last_active >= idle_for:
                 logger.info("Computer for bot %s idle for %s; sleeping", record.bot_id, idle_for)
                 await self.sleep(record.bot_id)
+
+    async def _sweep_dead_containers(self) -> None:
+        """Detect computers that should be awake but have no running container.
+
+        Runs on the idle tick (startup reconcile does the same matching in
+        bulk). When the Docker daemon itself is unreachable nothing is
+        touched — a dead daemon says nothing about the containers. A wake in
+        flight owns its container's lifecycle and is skipped.
+        """
+        candidates: list[ComputerRecord] = []
+        for state in ACTIVE_STATES:
+            candidates += await self._repo.list_with_state(state)
+        if not candidates:
+            return
+        probe = await self._effective_probe()
+        if not probe.available:
+            return
+        for record in candidates:
+            wake_task = self._wake_tasks.get(record.bot_id)
+            if wake_task is not None and not wake_task.done():
+                continue
+            name = record.container_name or container_name_for(record.bot_id)
+            try:
+                liveness, exit_code = await self._container_liveness(name)
+            except Exception:
+                logger.debug("liveness check failed for %s", name, exc_info=True)
+                continue
+            if liveness == "exited":
+                detail = f"exit code {exit_code}" if exit_code is not None else ""
+                await self._mark_container_dead(record, _exited_error(detail))
+            elif liveness == "missing":
+                await self._mark_container_dead(record, _MISSING_CONTAINER_ERROR)
+
+    async def _mark_container_dead(self, record: ComputerRecord, error: str) -> None:
+        """Move a computer whose container died to a truthful state.
+
+        The volumes are kept, the live state (driver, needs-you, preview,
+        Vela client) dies with the container, the row goes to asleep with a
+        real lastError, and the computer_update broadcast tells the UI. The
+        user wakes the computer again explicitly — there is no auto-wake.
+        """
+        logger.warning("Computer for bot %s lost its container; marking asleep", record.bot_id)
+        await self._clear_live_state(record.bot_id)
+        await self._set_state(record, ComputerState.ASLEEP, last_error=error)
 
     # ------------------------------------------------------------------
     # Live surface (C2): watchers, preview, take-over, input, needs-you
@@ -2486,11 +2586,16 @@ class ComputerService:
 
         The port is published on 127.0.0.1 with an ephemeral host port
         (``127.0.0.1::7700``) and read back with ``docker port`` — no race
-        with other processes grabbing a "free" port. The controller token
-        appears only as a read-only mount path, never as an argument value
-        or environment variable. ``VELA_CONTROLLER_DESKTOP_FRAME=1`` is the
-        documented opt-in for the controller-only full-desktop frame — a
-        plain feature flag, not a secret.
+        with other processes grabbing a "free" port, and nothing on the host
+        or LAN can reach Vela directly (users go through CachiBot's proxy).
+        The controller token appears only as a read-only mount path, never as
+        an argument value or environment variable.
+        ``VELA_CONTROLLER_DESKTOP_FRAME=1`` is the documented opt-in for the
+        controller-only full-desktop frame — a plain feature flag, not a
+        secret. The container runs with the configured resource caps
+        (--memory/--cpus/--pids-limit) and the CLI-only hardening flags
+        (no-new-privileges, no raw sockets); its outbound internet access is
+        untouched by design — the bot's browser needs it.
         """
         return [
             cli,
@@ -2512,14 +2617,36 @@ class ComputerService:
             f"127.0.0.1::{VELA_CONTAINER_PORT}",
             "-e",
             f"{DESKTOP_FRAME_ENV}=1",
+            *self._security_args(),
             *self._resource_cap_args(),
             COMPUTER_IMAGE_TAG,
         ]
 
+    def _security_args(self) -> list[str]:
+        """Container hardening that needs nothing beyond the Docker CLI.
+
+        ``no-new-privileges`` stops setuid/file-capability escalation inside
+        the container; dropping ``NET_RAW`` removes raw-socket access. Neither
+        touches the bot's outbound internet access, and both work the same on
+        Docker Engine and Docker Desktop. Egress itself is deliberately left
+        open: per-destination filtering is not something the Docker CLI can
+        honestly do, and the bot's browser needs the internet.
+        """
+        return ["--security-opt", "no-new-privileges:true", "--cap-drop", "NET_RAW"]
+
     def _resource_cap_args(self) -> list[str]:
-        """Resource caps for the container. C5 fills this in (--memory,
-        --cpus, --pids-limit) from config; C1 leaves the container uncapped."""
-        return []
+        """Resource caps for the container (C5): ``--memory``, ``--cpus`` and
+        ``--pids-limit`` from :class:`ComputerConfig`. A cap configured as
+        empty/zero is omitted — the documented way to run that cap uncapped."""
+        args: list[str] = []
+        memory = self._config.memory.strip()
+        if memory:
+            args += ["--memory", memory]
+        if self._config.cpus > 0:
+            args += ["--cpus", f"{self._config.cpus:g}"]
+        if self._config.pids_limit > 0:
+            args += ["--pids-limit", str(self._config.pids_limit)]
+        return args
 
     async def _wait_healthy(self, client: VelaComputerClient) -> bool:
         deadline = self._monotonic() + self._health_timeout
@@ -2558,6 +2685,38 @@ class ComputerService:
         if result.returncode != 0:
             return None
         return result.stdout.strip() == "true"
+
+    async def _container_liveness(self, name: str) -> tuple[str, int | None]:
+        """Liveness of a container that should be running: ``(state, exit code)``.
+
+        State is ``running``, ``exited`` or ``missing``; ``unknown`` means the
+        daemon could not answer (or answered something unexpected) and must
+        not be treated as death — a dead daemon says nothing about containers.
+        """
+        result = await self._runner.run(
+            [
+                self._require_cli(),
+                "inspect",
+                "-f",
+                "{{.State.Running}} {{.State.ExitCode}}",
+                name,
+            ],
+            timeout=DOCKER_CALL_TIMEOUT,
+        )
+        if result.returncode != 0:
+            if "no such container" in result.stderr.lower():
+                return "missing", None
+            return "unknown", None
+        fields = result.stdout.strip().split()
+        if not fields:
+            return "unknown", None
+        exit_code: int | None = None
+        if len(fields) > 1:
+            try:
+                exit_code = int(fields[1])
+            except ValueError:
+                exit_code = None
+        return ("running" if fields[0] == "true" else "exited"), exit_code
 
     async def _read_host_port(self, name: str) -> int | None:
         """The host side of the 127.0.0.1::7700 publish, via ``docker port``."""
