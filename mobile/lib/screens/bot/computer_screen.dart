@@ -482,7 +482,7 @@ class _ComputerScreenState extends ConsumerState<ComputerScreen>
     }
     switch (computer?.state) {
       case ComputerStates.building:
-        return _BuildProgress(build: computer?.build, lastError: computer?.lastError);
+        return _BuildProgress(progress: computer?.build, lastError: computer?.lastError);
       case ComputerStates.starting:
         return const _StageMessage(pending: true, message: 'Starting the computer…');
       case ComputerStates.asleep:
@@ -761,17 +761,17 @@ class _StageMessage extends StatelessWidget {
 
 /// First-wake build progress — only the real build fields, when present.
 class _BuildProgress extends StatelessWidget {
-  const _BuildProgress({required this.build, required this.lastError});
+  const _BuildProgress({required this.progress, required this.lastError});
 
-  final ComputerBuild? build;
+  final ComputerBuild? progress;
   final String? lastError;
 
   @override
   Widget build(BuildContext context) {
-    final step = build?.step;
-    final total = build?.total;
-    final line = build?.line ?? '';
-    final error = build?.error ?? lastError;
+    final step = progress?.step;
+    final total = progress?.total;
+    final line = progress?.line ?? '';
+    final error = progress?.error ?? lastError;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),

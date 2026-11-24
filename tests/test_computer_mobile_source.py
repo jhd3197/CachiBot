@@ -191,9 +191,10 @@ class TestWatchAndStates:
 
     def test_build_progress_uses_only_real_build_fields(self) -> None:
         src = read("screens/bot/computer_screen.dart")
-        assert "build?.step" in src
-        assert "build?.total" in src
-        assert "build?.line" in src
+        assert "_BuildProgress(progress: computer?.build" in src
+        assert "progress?.step" in src
+        assert "progress?.total" in src
+        assert "progress?.line" in src
 
     def test_window_switcher_comes_from_the_real_views_list(self) -> None:
         src = read("screens/bot/computer_screen.dart")
