@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, FolderOpen, MoreHorizontal } from 'lucide-react'
+import { Settings, Users, Bot, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, FolderOpen, MoreHorizontal } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -9,6 +9,7 @@ import { RoomMessageList } from '../chat/MessageList'
 import { ToolCallList } from '../chat/ToolCallList'
 import { ThinkingIndicator } from '../chat/ThinkingIndicator'
 import { Spinner } from '../common/Spinner'
+import { PageLoading } from '../common/PageLoading'
 import { InputArea } from '../chat/InputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { PinnedMessagesBar } from './PinnedMessagesBar'
@@ -103,11 +104,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   )
 
   if (loading) {
-    return (
-      <div className="room-panel__loading">
-        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading room..." className="room-panel__loading" />
   }
 
   if (!room) {

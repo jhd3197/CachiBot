@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Cpu, ChevronUp, Search, Check, Pencil } from 'lucide-react'
 import { useModelsStore } from '../../stores/models'
+import { Spinner } from '../common/Spinner'
 import { cn } from '../../lib/utils'
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -228,7 +229,10 @@ export function ModelPill({ value, onChange, placeholder = 'System Default', ope
                 {/* Model list */}
                 <div className="model-select__list">
                   {loading && (
-                    <div className="model-select__loading">Discovering models...</div>
+                    <div className="model-select__loading">
+                      <Spinner size="sm" delayMs={200} />
+                      Discovering models...
+                    </div>
                   )}
 
                   {!search && !loading && (

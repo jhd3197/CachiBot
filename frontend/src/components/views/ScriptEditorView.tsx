@@ -6,13 +6,14 @@ import {
   Save,
   GitBranch,
   CheckCircle2,
-  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
 import { ConsoleOutput } from '../automations/ConsoleOutput'
 import { TimelineTab } from '../automations/TimelineTab'
 import { VersionDiffModal } from '../automations/VersionDiffModal'
+import { PageLoading } from '../common/PageLoading'
+import { Spinner } from '../common/Spinner'
 import {
   getScript,
   updateScript,
@@ -132,7 +133,7 @@ export function ScriptEditorView() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--color-text-secondary)]" />
+        <PageLoading pending={loading} label="Loading script..." />
       </div>
     )
   }
@@ -191,7 +192,7 @@ export function ScriptEditorView() {
               dirty ? 'editor-btn--save' : 'editor-btn--save',
             )}
           >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            {saving ? <Spinner size="md" delayMs={200} /> : <Save className="h-3.5 w-3.5" />}
             Save
           </button>
           <button
@@ -199,7 +200,7 @@ export function ScriptEditorView() {
             disabled={running}
             className="editor-btn editor-btn--run"
           >
-            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            {running ? <Spinner size="md" delayMs={200} /> : <Play className="h-3.5 w-3.5" />}
             Run
           </button>
         </div>

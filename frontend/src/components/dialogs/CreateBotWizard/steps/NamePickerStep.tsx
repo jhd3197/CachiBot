@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, RefreshCw, Sparkles, Check, Settings, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Sparkles, Check, Settings, AlertTriangle } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { useModelsStore } from '../../../../stores/models'
 import { useUIStore } from '../../../../stores/ui'
@@ -136,7 +137,7 @@ export function NamePickerStep() {
           <p className="text-lg font-medium text-[var(--color-text-primary)]">{msg.title}</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{msg.sub}</p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
         {!hasUtilityModel && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--color-text-tertiary)]">
             <Settings className="h-3 w-3" />
@@ -204,7 +205,7 @@ export function NamePickerStep() {
           disabled={isGenerating}
           className="flex items-center gap-1.5 text-xs text-cachi-400 hover:text-cachi-300 disabled:opacity-50"
         >
-          <RefreshCw className={cn('h-3 w-3', isGenerating && 'animate-spin')} />
+          {isGenerating ? <Spinner size="sm" delayMs={200} /> : <RefreshCw className="h-3 w-3" />}
           New suggestions
         </button>
       </div>
@@ -252,7 +253,7 @@ export function NamePickerStep() {
               className="flex items-center justify-center rounded-xl border border-[var(--color-border-primary)] bg-[var(--card-bg)] p-4"
               style={{ minHeight: '100px' }}
             >
-              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]" />
+              <Spinner size="lg" delayMs={200} />
             </div>
           ))
         }

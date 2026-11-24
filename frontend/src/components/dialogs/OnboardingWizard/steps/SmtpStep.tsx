@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Loader2, CheckCircle2, AlertCircle, Send } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '../../../../lib/utils'
+import { Spinner } from '../../../common/Spinner'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import {
   getSmtpStatus,
@@ -224,7 +225,7 @@ export function SmtpStep() {
             className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-secondary)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-hover-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {testing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner size="md" delayMs={200} />
             ) : (
               <Send className="h-4 w-4" />
             )}
@@ -235,7 +236,7 @@ export function SmtpStep() {
             disabled={saving || !host}
             className="flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving && <Spinner size="md" delayMs={200} />}
             Save
           </button>
         </div>

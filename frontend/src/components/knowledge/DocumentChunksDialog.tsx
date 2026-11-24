@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { RefreshCw, FileText } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { Dialog, DialogHeader, DialogContent } from '../common/Dialog'
+import { Spinner } from '../common/Spinner'
 import { useKnowledgeStore } from '../../stores/knowledge'
 
 interface DocumentChunksDialogProps {
@@ -35,7 +36,7 @@ export function DocumentChunksDialog({
       <DialogContent className="max-h-[60vh] overflow-y-auto">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12 text-[var(--color-text-secondary)]">
-            <RefreshCw className="h-6 w-6 animate-spin" />
+            <Spinner size="lg" delayMs={200} />
             <p className="mt-3 text-sm">Loading chunks...</p>
           </div>
         ) : chunks.length === 0 ? (

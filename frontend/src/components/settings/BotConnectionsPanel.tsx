@@ -7,10 +7,11 @@
 
 import { useState, useEffect } from 'react'
 import { copyToClipboard } from '../../lib/utils'
-import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Loader2, Archive, ArchiveRestore, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, MessageCircle, Power, PowerOff, Archive, ArchiveRestore, ChevronDown, ChevronRight, Copy, ExternalLink } from 'lucide-react'
 import * as connectionsApi from '../../api/connections'
 import type { Connection, ConnectionPlatform, PlatformMeta, CustomPlatformSpec } from '../../api/connections'
 import { useBotStore, useChatStore } from '../../stores/bots'
+import { Spinner } from '../common/Spinner'
 import { syncBot, unarchivePlatformChat, deletePlatformChat, type PlatformChat } from '../../api/client'
 
 interface BotConnectionsPanelProps {
@@ -466,7 +467,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                 <div className="flex items-center gap-1">
                   {actionLoading === connection.id ? (
                     <div className="p-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-secondary)]" />
+                      <Spinner size="md" delayMs={200} />
                     </div>
                   ) : connection.status === 'connected' ? (
                     <button
@@ -661,7 +662,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
             <div className="mt-3 space-y-2">
               {loadingArchived ? (
                 <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Spinner size="md" delayMs={200} />
                   Loading archived chats...
                 </div>
               ) : archivedChats.length === 0 ? (
@@ -694,7 +695,7 @@ export function BotConnectionsPanel({ botId }: BotConnectionsPanelProps) {
                       <div className="flex items-center gap-1">
                         {archiveActionLoading === chat.id ? (
                           <div className="p-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-secondary)]" />
+                            <Spinner size="md" delayMs={200} />
                           </div>
                         ) : (
                           <>

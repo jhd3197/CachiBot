@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Users, Loader2, Sparkles, AlertTriangle, Settings } from 'lucide-react'
+import { Bot, Users, Sparkles, AlertTriangle, Settings } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { useUIStore } from '../../../../stores/ui'
 import { classifyPurpose } from '../../../../api/client'
@@ -73,7 +74,7 @@ export function ClassificationStep() {
             Figuring out the best setup for you
           </p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }

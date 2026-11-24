@@ -9,7 +9,6 @@ import {
   Clock,
   GitBranch,
   GitCommit,
-  Loader2,
   Pencil,
   Plus,
   Power,
@@ -42,6 +41,7 @@ import {
 import { botAccessRank } from '../../hooks/useBotAccess'
 import { BotAvatar } from '../common/Avatar'
 import { Spinner } from '../common/Spinner'
+import { Skeleton } from '../common/Skeleton'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { Todo } from '../../types'
 
@@ -617,8 +617,9 @@ export function RunsView() {
 
         {/* Day-grouped run list */}
         {!loaded ? (
-          <div className="runs__empty">
-            <Spinner size="lg" />
+          <div className="runs__loading" role="status">
+            <span className="sr-only">Loading runs...</span>
+            <Skeleton variant="list" rows={4} />
           </div>
         ) : !anyReachable ? (
           <div className="runs__empty">
@@ -903,7 +904,7 @@ function RunRow({
 function StatusIcon({ status }: { status: RunStatus }) {
   switch (status) {
     case 'running':
-      return <Loader2 size={14} strokeWidth={1.8} className="runs__spin" aria-hidden="true" />
+      return <Spinner size="md" label="" aria-hidden="true" />
     case 'failed':
       return <X size={14} strokeWidth={1.8} aria-hidden="true" />
     case 'stuck':

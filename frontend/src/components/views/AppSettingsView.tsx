@@ -18,7 +18,6 @@ import {
   MoreVertical,
   Check,
   X,
-  Loader2,
   ChevronRight,
   ChevronDown,
   Bot,
@@ -472,8 +471,8 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
             <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Change password'}
+            <Button type="submit" className="flex-1" pending={saving}>
+              Change password
             </Button>
           </div>
         </form>
@@ -613,7 +612,7 @@ function MobilePairingSection() {
               disabled={loading}
               onClick={() => void fetchToken()}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Pair'}
+              {loading ? <Spinner size="sm" delayMs={200} /> : 'Pair'}
             </button>
           }
         />
@@ -628,7 +627,7 @@ function MobilePairingSection() {
                 disabled={firewallLoading}
                 onClick={() => void handleEnableFirewall()}
               >
-                {firewallLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Allow'}
+                {firewallLoading ? <Spinner size="sm" delayMs={200} /> : 'Allow'}
               </button>
             }
           />
@@ -677,7 +676,7 @@ function QrCodeDisplay({ value, size }: { value: string; size: number }) {
   if (!dataUrl) {
     return (
       <div style={{ width: size, height: size }} className="flex items-center justify-center">
-        <div className="animate-spin h-6 w-6 border-2 border-current border-t-transparent rounded-full" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -965,7 +964,7 @@ function ModelsSection() {
       </p>
       {loading && (
         <div className="flex items-center justify-center gap-2 py-6 text-[var(--color-text-secondary)]">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" delayMs={200} />
           Discovering models...
         </div>
       )}
@@ -1190,7 +1189,7 @@ function ProvidersList() {
   if (loading && providers.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-accent-500" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -1267,7 +1266,7 @@ function ProvidersList() {
               disabled={!state.value.trim() || state.saving}
               onClick={() => void handleSave(provider.name)}
             >
-              {state.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+              {state.saving ? <Spinner size="sm" delayMs={200} /> : 'Save'}
             </button>
             <button type="button" className="v2-settings__action" onClick={cancelEdit}>
               <X className="h-3.5 w-3.5" />
@@ -1354,7 +1353,7 @@ function ProvidersList() {
                             disabled={!state.extraValue.trim() || state.extraSaving}
                             onClick={() => void handleExtraSave(provider.name, ek)}
                           >
-                            {state.extraSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                            {state.extraSaving ? <Spinner size="sm" delayMs={200} /> : 'Save'}
                           </button>
                           <button type="button" className="v2-settings__action" onClick={cancelExtraEdit}>
                             <X className="h-3.5 w-3.5" />
@@ -2097,7 +2096,7 @@ function BotDataManager() {
               <button onClick={() => void handleClearSelected()} disabled={clearing} className="settings-modal__confirm-btn--danger flex items-center gap-2">
                 {clearing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size="sm" delayMs={200} />
                     Clearing...
                   </>
                 ) : (
@@ -2354,7 +2353,7 @@ function GroupsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -2428,7 +2427,7 @@ function GroupsManager() {
         <div className="border border-[var(--color-border-primary)] rounded-xl p-4">
           {loadingDetail ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+              <Spinner size="lg" />
             </div>
           ) : activeGroup ? (
             <div className="space-y-4">
@@ -2523,8 +2522,8 @@ function GroupsManager() {
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={creating}>
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Group'}
+                <Button type="submit" className="flex-1" pending={creating}>
+                  Create Group
                 </Button>
               </div>
             </form>
@@ -2563,8 +2562,8 @@ function GroupsManager() {
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowAddMemberModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={addingMember}>
-                  {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Member'}
+                <Button type="submit" className="flex-1" pending={addingMember}>
+                  Add Member
                 </Button>
               </div>
             </form>

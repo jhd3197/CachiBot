@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Wand2, RefreshCw, Loader2, AlertCircle, Sparkles } from 'lucide-react'
+import { Wand2, RefreshCw, AlertCircle, Sparkles } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore, PURPOSE_CATEGORIES, COMMUNICATION_STYLES } from '../../../../stores/creation'
 import { generateFullPrompt, refinePrompt } from '../../../../api/client'
 
@@ -91,7 +92,7 @@ export function PromptReviewStep() {
           <p className="text-lg font-medium text-[var(--color-text-primary)]">Creating {form.name}'s personality...</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Crafting a unique system prompt just for you</p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }
@@ -160,7 +161,7 @@ export function PromptReviewStep() {
             className="flex h-9 items-center gap-1.5 rounded-lg bg-cachi-600 px-4 text-sm font-medium text-white hover:bg-cachi-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRefining ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner size="md" delayMs={200} />
             ) : (
               <>
                 <Wand2 className="h-4 w-4" />

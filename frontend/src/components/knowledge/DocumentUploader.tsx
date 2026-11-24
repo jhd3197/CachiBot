@@ -7,6 +7,7 @@
 import { useCallback, useState } from 'react'
 import { Upload, AlertCircle } from 'lucide-react'
 import { useKnowledgeStore } from '../../stores/knowledge'
+import { Spinner } from '../common/Spinner'
 
 interface DocumentUploaderProps {
   botId: string
@@ -97,7 +98,7 @@ export function DocumentUploader({ botId }: DocumentUploaderProps) {
       >
         {isUploading ? (
           <div className="flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent" />
+            <Spinner size="lg" label="" aria-hidden="true" />
             <p className="text-sm text-[var(--color-text-secondary)]">Uploading...</p>
           </div>
         ) : (

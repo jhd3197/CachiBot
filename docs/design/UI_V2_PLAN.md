@@ -1264,6 +1264,76 @@ untouched, legacy pages untouched.
   override; its legacy purple literals were removed so the v2 token colors
   actually win in dark mode (the `.dark` variants used to tie and win).
 
+## L4: migrate v2 loading call sites
+
+The remaining desktop/web loading states now use the L1 primitives instead of
+Lucide `Loader2`/`RefreshCw`/`RotateCcw` spinners and hand-rolled CSS rings.
+Scope is desktop and web; legacy pages keep their own patterns until their v2
+redesign.
+
+### Primitive evolution
+
+- `Spinner` gained `delayMs?: number` (implemented with `useDelayedFlag`,
+  same shape as `PageLoading`'s `pending`/`delayMs`): when set, the ring
+  stays hidden — holding its layout space — until it has been mounted for
+  `delayMs`, so spinners on fast actions do not flash. Omitting it keeps the
+  immediate L1 behavior, so existing call sites (UpdateDialog, Button
+  pending, StatusLine) are unchanged.
+
+### What was migrated
+
+- **Views**: RoutineEditorView (initial load → `PageLoading`, Test run →
+  delayed `Spinner`), RoomsView + RoomPanel (initial loads → `PageLoading`,
+  in-panel, not full-viewport), ToolsView, ScriptEditorView (load →
+  `PageLoading`; Save/Run → delayed `Spinner`), SettingsView (skills refresh,
+  skill install), GlobalLogView (table load + running rows; the
+  `runs__spin` class and its keyframes are gone from `runs.less` and
+  `motion.less`), RunsView (`StatusIcon` running row → `Spinner`), and
+  AppSettingsView (password/group/member submit Buttons → `pending`; Pair,
+  firewall Allow, provider Save rows, QR placeholder, model discovery,
+  provider/group loads, data clear → `Spinner`; no `text-accent-500` rings).
+- **Settings panels**: DeveloperPanel (loads → `PageLoading`; create/test →
+  delayed `Spinner`), BotEnvironmentPanel, BotConnectionsPanel,
+  BotSettingsView (skills refresh keeps `RefreshCw` idle, `Spinner` while
+  pending).
+- **Knowledge**: DocumentUploader's green CSS ring (`border-green-500
+  border-t-transparent`) → `Spinner`; DocumentChunksDialog, KnowledgeSearch
+  (no more `text-cachi-500`), InstructionsEditor (→ `PageLoading`);
+  DocumentList and NotesManager initial loads → `Skeleton variant="list"`;
+  KnowledgeStats' one-off `SkeletonCard` → shared `Skeleton variant="card"`;
+  re-index/refresh/retry icon buttons keep their idle icon and swap to a
+  delayed `Spinner` while pending.
+- **Automations**: ScheduleTimeline, TimelineTab (loads → `PageLoading`).
+- **Dialogs**: SettingsDialog (platform tools, skills), CreateBotWizard steps
+  (NamePicker, Details, Classification, Preview, ProjectDetails,
+  ProjectProposal, PromptReview, Setup — generation screens and inline
+  placeholders → delayed `Spinner`, no `text-cachi-400` rings),
+  OnboardingWizard steps (Database, Smtp, Provider — test/save buttons).
+- **Model pickers**: ModelSelect and ModelPill "Discovering models..." rows
+  show a `Spinner sm` next to the unchanged copy; `.model-select__loading`
+  is now a centered flex row.
+- **Skeletons on list layouts (immediate, no delay)**: the Workspace bot
+  list renders `Skeleton variant="list"` while bot workspace data loads (the
+  `workspace__bots--loading` opacity hook is gone from the TSX and
+  `workspace.less`); the Runs day list renders a skeleton list instead of a
+  centered spinner; Knowledge documents/notes/stats as above. Skeleton
+  shapes are generic — no placeholder counts that look like real data, and
+  each is paired with an sr-only status.
+
+### Deliberately left
+
+- Legacy pages keep `Loader2` until their own v2 redesign: UsersView,
+  PluginsView, `components/marketplace/*`, `components/auth/*` (Login,
+  Setup, Consent, AuthCallback, Upgrade, ProtectedRoute). The
+  `motion.less` reduced-motion kill-switch still covers their
+  `animate-spin`/`animate-pulse` utilities.
+- mobile/, virtual-computer views, chat Typing/Thinking/ToolCallDisplay
+  (done in L3), AppLoader / desktop splash / `index.html` (done in L2).
+- Static `RefreshCw`/`RotateCcw` icons that are not loaders (regenerate,
+  reset, replace, refresh-preview actions) are unchanged; icon buttons with
+  a pending state keep the idle icon and swap to `Spinner` only while
+  pending.
+
 ## Known limitations / decisions
 
 - Views 04–09 and 11 need backend infrastructure that does not exist; Phase A/B

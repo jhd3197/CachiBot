@@ -23,6 +23,7 @@ import * as skillsApi from '../../api/skills'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { BotAvatar } from '../common/Avatar'
 import { ModelSelect } from '../common/ModelSelect'
+import { Spinner } from '../common/Spinner'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
@@ -832,7 +833,7 @@ export function BotSettingsView() {
               disabled={refreshingSkills}
               title="Rescan skill directories"
             >
-              <RefreshCw size={15} strokeWidth={1.8} className={cn(refreshingSkills && 'animate-spin')} />
+              {refreshingSkills ? <Spinner size="md" delayMs={200} /> : <RefreshCw size={15} strokeWidth={1.8} />}
               Refresh
             </button>
           </div>
