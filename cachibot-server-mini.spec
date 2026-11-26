@@ -5,7 +5,9 @@
 # base (fastembed, pymupdf, python-docx) and no platform integrations
 # (aiogram, discord.py, slack, botbuilder). Those modules are excluded so a
 # missing optional dependency can never be picked up or crash startup; the
-# server imports them lazily and degrades gracefully instead.
+# server imports them lazily and degrades gracefully instead. aiohttp IS
+# bundled: it is in the [server] extra because Faro (a server feature) talks
+# to the local Faro bridge over aiohttp.
 # Output: dist/cachibot-server-mini/cachibot-server-mini
 
 import os
@@ -50,6 +52,8 @@ a = Analysis(
         'uvicorn.lifespan.on',
         'asyncpg',
         'aiosqlite',
+        # Faro bridge client (server feature) — bundled, not excluded
+        'aiohttp',
         'cachibot.api.routes',
         'cachibot.plugins',
         'cachibot.services',
@@ -71,7 +75,6 @@ a = Analysis(
         'slack_sdk',
         'slack_bolt',
         'botbuilder',
-        'aiohttp',
         # Heavy/irrelevant packages
         'torch',
         'torchvision',

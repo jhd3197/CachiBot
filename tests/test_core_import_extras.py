@@ -10,6 +10,7 @@ sqlalchemy/aiohttp raise ModuleNotFoundError, simulating the slim install
 without uninstalling anything from the test environment.
 """
 
+import ast
 import os
 import subprocess
 import sys
@@ -66,6 +67,32 @@ assert app is not None
 """
     result = _run_with_blocked_extras(script, tmp_path)
     assert result.returncode == 0, result.stderr
+
+
+def _analysis_keyword_strings(spec_path: Path, keyword: str) -> set[str]:
+    """String constants listed under an ``Analysis(...)`` keyword in a spec."""
+    tree = ast.parse(spec_path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Analysis"):
+            continue
+        for kw in node.keywords:
+            if kw.arg == keyword:
+                return {
+                    elt.value
+                    for elt in ast.walk(kw.value)
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                }
+    raise AssertionError(f"{keyword!r} not found in {spec_path.name}")
+
+
+def test_pyinstaller_specs_bundle_aiohttp_only_for_server() -> None:
+    """Faro is a server feature: the mini server must bundle aiohttp, while
+    the slim CLI keeps excluding it."""
+    mini_spec = REPO_ROOT / "cachibot-server-mini.spec"
+    assert "aiohttp" not in _analysis_keyword_strings(mini_spec, "excludes")
+    assert "aiohttp" in _analysis_keyword_strings(mini_spec, "hiddenimports")
+    cli_excludes = _analysis_keyword_strings(REPO_ROOT / "cachibot-cli.spec", "excludes")
+    assert "aiohttp" in cli_excludes
 
 
 def test_cli_help_without_optional_extras(tmp_path: Path) -> None:
