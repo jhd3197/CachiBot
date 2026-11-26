@@ -43,6 +43,7 @@ import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
 import { useApprovalsStore } from '../../stores/approvals'
 import { useComputerStore } from '../../stores/computer'
+import { useFaroStore } from '../../stores/faro'
 import { useWebSocket, setPendingApproval } from '../../hooks/useWebSocket'
 import { wsClient } from '../../api/websocket'
 import { getChat } from '../../api/side-tasks'
@@ -277,6 +278,11 @@ export function MainLayout() {
   // Docker probe: decides whether any computer surface may appear (C1).
   useEffect(() => {
     void useComputerStore.getState().fetchStatus()
+  }, [])
+
+  // Faro bridge detection: decides whether any Faro surface may appear.
+  useEffect(() => {
+    void useFaroStore.getState().fetchStatus()
   }, [])
 
   // Mobile drawer: Escape closes it, focus moves into the drawer when opened

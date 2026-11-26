@@ -8,7 +8,7 @@
  * - StoppedLine: the user pressed stop in this chat; Continue resends
  */
 
-import { Square, Hand } from 'lucide-react'
+import { Square, Hand, Server } from 'lucide-react'
 import type { PendingApproval } from '../../stores/approvals'
 import { parseApiDate } from '../../lib/utils'
 
@@ -127,6 +127,64 @@ export function ComputerNeedsYouCard({ reason, onTakeOver, onSkip }: ComputerNee
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Faro needs-you — Faro is waiting on the human (real `faro_update` state).
+// Deny only: approving happens in Faro, never here.
+// -----------------------------------------------------------------------------
+
+interface FaroNeedsYouCardProps {
+  botId: string
+  /** One line per pending approval: kind + summary + session. */
+  approvals: { requestId: string; line: string }[]
+  /** Older Faro builds cannot list approvals — say the plain truth instead. */
+  plainWaiting: boolean
+  canOperate: boolean
+  onDeny: (botId: string, requestId: string) => void
+}
+
+export function FaroNeedsYouCard({
+  botId,
+  approvals,
+  plainWaiting,
+  canOperate,
+  onDeny,
+}: FaroNeedsYouCardProps) {
+  return (
+    <div className="v2-card v2-card--needs-you" role="alert">
+      {approvals.length > 0 ? (
+        <>
+          {approvals.map((approval) => (
+            <p key={approval.requestId} className="v2-card__text">
+              <Server size={13} strokeWidth={1.8} aria-hidden="true" /> Faro is waiting for you:{' '}
+              {approval.line} — approve it in Faro
+            </p>
+          ))}
+          <p className="v2-card__meta">Approving happens in Faro — Deny is the only answer here.</p>
+          {canOperate && (
+            <div className="v2-card__actions">
+              {approvals.map((approval) => (
+                <button
+                  key={approval.requestId}
+                  type="button"
+                  className="v2-card__btn"
+                  onClick={() => onDeny(botId, approval.requestId)}
+                >
+                  Deny
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : plainWaiting ? (
+        <p className="v2-card__text">
+          <Server size={13} strokeWidth={1.8} aria-hidden="true" /> Waiting on Faro — it may be
+          asking you to approve in the Faro window.
+        </p>
+      ) : null}
     </div>
   )
 }

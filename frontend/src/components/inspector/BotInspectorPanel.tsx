@@ -7,8 +7,9 @@
  * - Activity / Library tabs: the live computer activity line and the recent
  *   runs (real executions API); Library is the bot's knowledge documents and
  *   only appears when there are any
- * - Suggested: only real prompts — a computer that needs you, open quick
- *   tasks — and hidden entirely when there is nothing to suggest
+ * - Suggested: only real prompts — a computer that needs you, Faro waiting
+ *   on an approval, open quick tasks — and hidden entirely when there is
+ *   nothing to suggest
  * - Computer: the design-04 panel (state card, activity, windows), hidden
  *   when the computer feature is off
  * - Voice/Language: the app's real voice-mode settings (a preference the
@@ -25,10 +26,12 @@ import {
   Hand,
   ListTodo,
   ChevronRight,
+  Server,
 } from 'lucide-react'
 import { useAuthStore } from '../../stores/auth'
 import { useUIStore } from '../../stores/ui'
 import { useComputerStore } from '../../stores/computer'
+import { useFaroStore } from '../../stores/faro'
 import { useKnowledgeStore } from '../../stores/knowledge'
 import { useVoiceStore } from '../../stores/voice'
 import { useBotAccess } from '../../hooks/useBotAccess'
@@ -52,6 +55,12 @@ export function BotInspectorPanel({ bot }: { bot: Bot }) {
   const toggleInspector = useUIStore((s) => s.toggleInspector)
   const computerStatus = useComputerStore((s) => s.status)
   const computer = useComputerStore((s) => s.byBot[bot.id])
+  const faroStatusAvailable = useFaroStore((s) => s.status?.available === true)
+  const faro = useFaroStore((s) => s.byBot[bot.id])
+  useEffect(() => {
+    if (!faroStatusAvailable && !faro?.connected) return
+    void useFaroStore.getState().ensureForBot(bot.id)
+  }, [faroStatusAvailable, faro?.connected, bot.id])
 
   const [tab, setTab] = useState<'activity' | 'library'>('activity')
   const [runs, setRuns] = useState<ExecutionLog[] | null>(null)
@@ -90,6 +99,26 @@ export function BotInspectorPanel({ bot }: { bot: Bot }) {
         access.canOperate
           ? void useComputerStore.getState().respondNeedsYou(bot.id, 'takeover')
           : navigate(`/${bot.id}/chats`),
+    })
+  }
+  // Faro is waiting on the human (real `faro_update` state) — the answer
+  // happens in Faro; the card in the chat offers Deny.
+  const faroWaiting =
+    faro?.connected === true &&
+    faro.callInFlight === true &&
+    ((faro.pendingApprovals?.length ?? 0) > 0 || faro.supportsApprovals === false)
+  if (faroWaiting) {
+    const first = faro?.pendingApprovals?.[0]
+    const label = first
+      ? `Faro is waiting for you: ${first.summary || 'an action'}${
+          first.sessionName ? ` on ${first.sessionName}` : ''
+        }`
+      : 'Faro may be asking you to approve in the Faro window'
+    suggested.push({
+      key: 'faro',
+      icon: Server,
+      label,
+      run: () => navigate(`/${bot.id}/chats`),
     })
   }
   if (access.canOperate && openTodos && openTodos > 0) {

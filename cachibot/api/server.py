@@ -37,6 +37,7 @@ from cachibot.api.routes import (
     documents,
     executions,
     external_plugins,
+    faro,
     groups,
     health,
     instructions,
@@ -218,6 +219,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         startup_logger.warning("Computer service start skipped: %s", exc)
 
+    # Warm the Faro bridge service (connection flags + first detection). No
+    # loops: detection is on demand, approvals only polled during bot calls.
+    try:
+        from cachibot.services.faro.service import get_faro_service
+
+        await get_faro_service().start()
+    except Exception as exc:
+        startup_logger.warning("Faro service start skipped: %s", exc)
+
     # Start telemetry scheduler (opt-in, non-blocking, silent on failure)
     try:
         from cachibot.telemetry.scheduler import start_telemetry_scheduler
@@ -271,6 +281,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from cachibot.services.computer.service import get_computer_service
 
         await get_computer_service().stop()
+    except Exception:
+        pass
+    try:
+        from cachibot.services.faro.service import get_faro_service
+
+        await get_faro_service().stop()
     except Exception:
         pass
     await job_runner.stop()
@@ -361,6 +377,7 @@ def create_app(
     app.include_router(work.router, tags=["work"])
     app.include_router(side_tasks.router, tags=["side-tasks"])
     app.include_router(computer.router, tags=["computer"])
+    app.include_router(faro.router, tags=["faro"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])
     app.include_router(admin_executions.router, tags=["admin-executions"])

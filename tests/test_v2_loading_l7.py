@@ -118,7 +118,8 @@ def test_plugins_view_uses_page_loading_and_idle_refresh_icon() -> None:
     assert "PageLoading" in src
     # Same pattern as SettingsView/KnowledgeStats: RefreshCw idle, Spinner
     # while reloading.
-    assert '{loading ? <Spinner size="sm" delayMs={200} /> : <RefreshCw className="h-4 w-4" />}' in src
+    needle = '{loading ? <Spinner size="sm" delayMs={200} /> : <RefreshCw className="h-4 w-4" />}'
+    assert needle in src
 
 
 def test_marketplace_browser_grid_loaders_are_spinner_lg() -> None:

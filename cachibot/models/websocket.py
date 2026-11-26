@@ -26,6 +26,7 @@ class WSMessageType(str, Enum):
     JOB_UPDATE = "job_update"  # Job/work execution progress
     SIDE_TASK_UPDATE = "side_task_update"  # Side task state change (full record)
     COMPUTER_UPDATE = "computer_update"  # Bot computer state/build change (status payload)
+    FARO_UPDATE = "faro_update"  # Bot Faro connection/approvals change (status payload)
     MESSAGE_UPDATE = "message_update"  # A persisted chat message was created/updated in place
     EXECUTION_START = "execution_start"  # New execution began
     EXECUTION_LOG = "execution_log"  # Live log line
@@ -484,6 +485,15 @@ class WSMessage(BaseModel):
     def computer_update(cls, payload: dict[str, Any]) -> "WSMessage":
         """Create a bot computer update (status payload + botId)."""
         return cls(type=WSMessageType.COMPUTER_UPDATE, payload=payload)
+
+    @classmethod
+    def faro_update(cls, payload: dict[str, Any]) -> "WSMessage":
+        """Create a bot Faro update (per-bot status payload + botId).
+
+        Delivered only to sockets whose user can see the bot — approval
+        summaries can carry sensitive text.
+        """
+        return cls(type=WSMessageType.FARO_UPDATE, payload=payload)
 
     @classmethod
     def message_update(cls, chat_id: str, message: dict[str, Any]) -> "WSMessage":

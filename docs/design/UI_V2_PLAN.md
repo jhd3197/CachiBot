@@ -75,7 +75,7 @@ menu (14), voice mode (15), app settings (19), activity log (20).
 | 15 | Voice mode | `VoiceView` → chat | **Done (Phase C2)**. Mic in the composer switches the same chat to voice; `/:botId/voice` redirects to `?voice=1`. |
 | 16 | Runs | `/runs` (new) + `/:botId/work` | **Done (Phase D1)**. Cross-bot run list, quick-tasks checklist and automations timeline; operator+; Activity log link for admins. |
 | 17 | Routine editor | `/:botId/automations` | **Done (Phase D2)**. Routines list (plain-words rows) + `RoutineEditorView` over the Schedule API; scripts/functions under Advanced; `/automations` redirects. |
-| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Computer (C4, probe-gated) / Advanced, all from real APIs. |
+| 18 | Bot settings | `/:botId/settings` | **Done (Phase D3)**. One column with General / Knowledge / Skills / What it can use / Connections / Computer (C4, probe-gated) / Advanced, all from real APIs. The Connections section also carries the Faro card (Agent Bridge; bridge-detection-gated, Deny-only approvals line). |
 | 19 | App settings | `/settings` | **Done (Phase D5)**. General, Appearance, Models, Data, People, Advanced, About in one 640px column. |
 | 20 | Activity log | `/admin/logs` | **Done (Phase D5)**. Admins only; grid of every run with filters and expandable real error/output. |
 
@@ -278,8 +278,13 @@ sections (`#general` `#knowledge` `#skills` `#what-it-can-use` `#connections`
   platform adapters ("Not connected" → Connect, from the real platform registry),
   coding agents when the capability is on (Installed/Not installed → scroll to
   Advanced), configured provider keys (app-wide; "Key added" → `/settings/keys`),
-  and "Add connection". Manage/Connect open the existing `BotConnectionsPanel` in a
-  sheet. Section hidden when every source is empty/unreachable.
+  the Faro row (Agent Bridge integration; `GET /api/integrations/faro/status` +
+  per-bot state over the `faro_update` WS event — hidden entirely while the
+  bridge is unavailable and the bot is not connected, "Faro is not running" with
+  Disconnect when a connected bot's bridge went away) and "Add connection".
+  Manage/Connect open the existing `BotConnectionsPanel` in a sheet; Faro opens
+  the `FaroSection` card (Connect/Disconnect, bridge version, Deny-only pending
+  approvals). Section hidden when every source is empty/unreachable.
 - **Advanced**: grouped by 13px/600 subheads — **Model** (utility/image/audio
   models, generation toggles, voice settings, coding agents panel via
   `ModelsCapabilitiesSection`, `showDefault={false}` since General owns the default
