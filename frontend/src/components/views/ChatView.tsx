@@ -21,7 +21,6 @@ import {
   Monitor,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
-import { useArtifactsStore } from '../../stores/artifacts'
 import { useUIStore } from '../../stores/ui'
 import { useComputerStore } from '../../stores/computer'
 import { useAuthStore } from '../../stores/auth'
