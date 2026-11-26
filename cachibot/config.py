@@ -218,6 +218,13 @@ class ComputerConfig:
 
 
 @dataclass
+class VelaCompanionConfig:
+    """Vela companion registration (file-based protocol with a local Vela)."""
+
+    enabled: bool = True
+
+
+@dataclass
 class TelemetryConfig:
     """Anonymous telemetry configuration (opt-in, disabled by default)."""
 
@@ -255,6 +262,7 @@ class Config:
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
     computer: ComputerConfig = field(default_factory=ComputerConfig)
+    vela_companion: VelaCompanionConfig = field(default_factory=VelaCompanionConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     timezone: str = "UTC"
 
@@ -450,6 +458,10 @@ class Config:
         if os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes"):
             self.telemetry.enabled = False
 
+        # Vela companion — CACHIBOT_VELA_COMPANION=0/false/no turns it off
+        if vela_env := os.getenv("CACHIBOT_VELA_COMPANION"):
+            self.vela_companion.enabled = vela_env.strip().lower() not in ("0", "false", "no")
+
         # Timezone
         if tz := os.getenv("CACHIBOT_TIMEZONE"):
             self.timezone = tz
@@ -567,6 +579,10 @@ class Config:
                 self.computer.cpus = float(computer_data["cpus"])
             if "pids_limit" in computer_data:
                 self.computer.pids_limit = int(computer_data["pids_limit"])
+
+        if vela_data := data.get("vela_companion"):
+            if "enabled" in vela_data:
+                self.vela_companion.enabled = bool(vela_data["enabled"])
 
         if smtp_data := data.get("smtp"):
             if "host" in smtp_data:
@@ -686,6 +702,42 @@ class Config:
                 tomli_w.dump(data, f)
         except Exception as exc:
             logger.debug("Failed to write database config: %s", exc)
+
+    def save_vela_companion_config(self) -> None:
+        """Persist the Vela companion toggle to the user config file (~/.cachibot.toml).
+
+        The environment variable CACHIBOT_VELA_COMPANION=0/false/no still wins
+        over this file at runtime; this only stores the owner's in-app choice.
+        """
+        user_config = Path.home() / ".cachibot.toml"
+
+        try:
+            import tomli_w
+        except ImportError:
+            self._save_section_manual(
+                user_config,
+                "vela_companion",
+                {
+                    "enabled": self.vela_companion.enabled,
+                },
+            )
+            return
+
+        data: dict[str, Any] = {}
+        if user_config.exists() and tomllib is not None:
+            try:
+                with open(user_config, "rb") as f:
+                    data = tomllib.load(f)
+            except Exception:
+                pass
+
+        data["vela_companion"] = {"enabled": self.vela_companion.enabled}
+
+        try:
+            with open(user_config, "wb") as f:
+                tomli_w.dump(data, f)
+        except Exception as exc:
+            logger.debug("Failed to write vela_companion config: %s", exc)
 
     def save_smtp_config(self) -> None:
         """Persist SMTP settings to the user config file (~/.cachibot.toml)."""

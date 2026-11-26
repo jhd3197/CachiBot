@@ -57,6 +57,7 @@ from cachibot.api.routes import (
     skills,
     telemetry,
     update,
+    vela_companion,
     work,
 )
 from cachibot.api.routes.assets import chat_asset_router, room_asset_router
@@ -233,6 +234,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         startup_logger.debug("Terms checker start skipped: %s", exc)
 
+    # Start the Vela companion service (registers with a local Vela when one
+    # is present; never prevents startup on failure)
+    try:
+        from cachibot.services.vela_companion import get_vela_companion_service
+
+        await get_vela_companion_service().start()
+    except Exception as exc:
+        startup_logger.debug("Vela companion start skipped: %s", exc)
+
     yield
 
     # Shutdown
@@ -240,6 +250,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from cachibot.services.terms_checker import stop_terms_checker
 
         await stop_terms_checker()
+    except Exception:
+        pass
+    try:
+        from cachibot.services.vela_companion import get_vela_companion_service
+
+        await get_vela_companion_service().stop()
     except Exception:
         pass
     try:
@@ -350,6 +366,7 @@ def create_app(
     app.include_router(admin_executions.router, tags=["admin-executions"])
     app.include_router(setup.router, prefix="/api", tags=["setup"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
+    app.include_router(vela_companion.router, tags=["vela-companion"])
     app.include_router(rooms.router, tags=["rooms"])
     app.include_router(room_tasks.router, tags=["room-tasks"])
     app.include_router(room_asset_router, tags=["room-assets"])

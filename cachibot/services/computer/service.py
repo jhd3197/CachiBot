@@ -232,6 +232,17 @@ class NeedsYouInfo:
 
 
 @dataclass
+class NeedsYouItem:
+    """One bot computer waiting on a person, for read-only listings."""
+
+    bot_id: str
+    kind: str  # "attention" (needs-person pause) or "approval"
+    reason: str
+    run_id: str | None = None
+    request_id: str | None = None
+
+
+@dataclass
 class PreviewResult:
     """One preview/frame answer: image bytes, or 304 for a current ETag."""
 
@@ -1077,6 +1088,23 @@ class ComputerService:
         await self._clear_needs_you(bot_id)
         await self._broadcast(await self._get_or_create_record(bot_id))
         return await self.get_status(bot_id)
+
+    def list_needs_you(self) -> list[NeedsYouItem]:
+        """Read-only snapshot of every bot computer waiting on a person.
+
+        Purely in-memory (the events poller owns the mapping); listing never
+        wakes a computer, changes state or creates records.
+        """
+        return [
+            NeedsYouItem(
+                bot_id=bot_id,
+                kind=info.kind,
+                reason=info.reason,
+                run_id=info.run_id,
+                request_id=info.request_id,
+            )
+            for bot_id, info in self._needs_you.items()
+        ]
 
     # ------------------------------------------------------------------
     # Live surface internals
