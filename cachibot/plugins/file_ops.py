@@ -7,18 +7,21 @@ tools (the Docker volume is not the host workspace_path). When the computer
 feature is off, the tools keep their host workspace_path behavior.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
-from cachibot.services.computer.service import (
-    ComputerService,
-    ComputerStepOutcome,
-    get_computer_service,
-)
+
+if TYPE_CHECKING:
+    from cachibot.services.computer.service import (
+        ComputerService,
+        ComputerStepOutcome,
+    )
 
 _ENCODING_OPTIONS = ["utf-8", "ascii", "latin-1", "utf-16"]
 
@@ -54,6 +57,10 @@ class FileOpsPlugin(CachibotPlugin):
 
     def _service(self) -> ComputerService:
         if self._computer is None:
+            # Imported lazily: the service needs sqlalchemy (server extra),
+            # which the slim CLI install does not have.
+            from cachibot.services.computer.service import get_computer_service
+
             self._computer = get_computer_service()
         return self._computer
 

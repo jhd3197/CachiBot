@@ -251,13 +251,17 @@ class TestToolGate:
         from cachibot.services.plugin_manager import build_registry
 
         off = make_service(tmp_path, enabled=False)
-        monkeypatch.setattr("cachibot.plugins.computer.get_computer_service", lambda: off.svc)
+        monkeypatch.setattr(
+            "cachibot.services.computer.service.get_computer_service", lambda: off.svc
+        )
         registry = build_registry(make_ctx("bot-1"), capabilities={})
         assert not [name for name in registry.names if name.startswith("computer_")]
 
         on = make_service(tmp_path)
         await on.svc.get_docker_status()
-        monkeypatch.setattr("cachibot.plugins.computer.get_computer_service", lambda: on.svc)
+        monkeypatch.setattr(
+            "cachibot.services.computer.service.get_computer_service", lambda: on.svc
+        )
         registry = build_registry(make_ctx("bot-1"), capabilities={})
         assert "computer_terminal_run" in registry.names
         assert "computer_finish" in registry.names

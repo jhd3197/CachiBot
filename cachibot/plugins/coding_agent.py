@@ -9,6 +9,8 @@ terminal instead (in its /workspace, where PATH includes /workspace/.local);
 the host subprocess path is kept for when the computer feature is off.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import platform
@@ -18,16 +20,18 @@ import threading
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
-from cachibot.services.computer.service import (
-    ComputerCodingResult,
-    ComputerService,
-    get_computer_service,
-)
+
+if TYPE_CHECKING:
+    from cachibot.services.computer.service import (
+        ComputerCodingResult,
+        ComputerService,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -244,6 +248,10 @@ class CodingAgentPlugin(CachibotPlugin):
 
     def _service(self) -> ComputerService:
         if self._computer is None:
+            # Imported lazily: the service needs sqlalchemy (server extra),
+            # which the slim CLI install does not have.
+            from cachibot.services.computer.service import get_computer_service
+
             self._computer = get_computer_service()
         return self._computer
 
