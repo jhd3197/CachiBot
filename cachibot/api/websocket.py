@@ -46,6 +46,10 @@ class ConnectionManager:
         self.client_users: dict[str, User] = {}
         self.pending_approvals: dict[str, asyncio.Event] = {}
         self.approval_results: dict[str, bool] = {}
+        #: What a pending approval is about (tool, action text, bot, age) so
+        #: other surfaces (e.g. the Vela companion) can list it. Filled and
+        #: cleaned by the websocket handler's ``on_approval``.
+        self.approval_info: dict[str, dict[str, Any]] = {}
 
     async def connect(self, websocket: WebSocket, client_id: str, user: User) -> None:
         """Accept a new WebSocket connection (remembering its user)."""
@@ -59,6 +63,20 @@ class ConnectionManager:
         self.client_users.pop(client_id, None)
         # Clean up any pending approvals
         self.pending_approvals.pop(client_id, None)
+
+    def resolve_approval(self, approval_id: str, approved: bool) -> bool:
+        """Resolve one pending approval — the single code path used by the
+        websocket handler's ``approval`` message and by the Vela companion's
+        approve/deny buttons."""
+        if approval_id in self.pending_approvals:
+            self.approval_results[approval_id] = approved
+            self.pending_approvals[approval_id].set()
+            return True
+        return False
+
+    def list_pending_approvals(self) -> list[dict[str, Any]]:
+        """A snapshot of every approval currently waiting on a person."""
+        return [info for info in self.approval_info.values()]
 
     async def send(self, client_id: str, message: WSMessage) -> None:
         """Send a message to a specific client."""
@@ -180,12 +198,23 @@ async def websocket_endpoint(
 
     config = Config.load(workspace=workspace)
 
+    #: The bot the current message belongs to, so an approval raised while it
+    #: runs can be attributed (the Vela companion lists it per bot).
+    current_bot_id: str | None = None
+
     async def on_approval(tool_name: str, action: str, details: dict[str, Any]) -> bool:
         """Handle approval request - sends to client and waits for response."""
         approval_id = str(uuid.uuid4())
         event = asyncio.Event()
         manager.pending_approvals[approval_id] = event
         manager.approval_results[approval_id] = False
+        manager.approval_info[approval_id] = {
+            "id": approval_id,
+            "tool": tool_name,
+            "action": action,
+            "botId": current_bot_id,
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+        }
         await manager.send(
             client_id,
             WSMessage.approval_needed(approval_id, tool_name, action, details),
@@ -197,6 +226,7 @@ async def websocket_endpoint(
             return not config.agent.approve_actions
         finally:
             manager.pending_approvals.pop(approval_id, None)
+            manager.approval_info.pop(approval_id, None)
 
     agent: CachibotAgent | None = None
     current_task: asyncio.Task[None] | None = None
@@ -213,6 +243,7 @@ async def websocket_endpoint(
                 message = payload.get("message", "")
                 system_prompt = payload.get("systemPrompt")
                 bot_id = payload.get("botId")
+                current_bot_id = bot_id
                 chat_id = payload.get("chatId")
                 bot_models = payload.get("models")  # Multi-model slots dict
                 capabilities = payload.get("capabilities")  # Optional dict
@@ -408,9 +439,7 @@ async def websocket_endpoint(
                 approval_id = payload.get("id")
                 approved = payload.get("approved", False)
 
-                if approval_id in manager.pending_approvals:
-                    manager.approval_results[approval_id] = approved
-                    manager.pending_approvals[approval_id].set()
+                manager.resolve_approval(approval_id, approved)
 
     except WebSocketDisconnect:
         pass

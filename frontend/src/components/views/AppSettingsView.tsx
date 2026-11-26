@@ -75,6 +75,8 @@ import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
 import { Spinner } from '../common/Spinner'
 import { useDelayedFlag } from '../../hooks/useDelayedFlag'
+import { useVelaCompanionStatus } from '../../hooks/useVelaCompanion'
+import { updateVelaCompanionSettings } from '../../api/vela-companion'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
 
@@ -390,6 +392,7 @@ function GeneralSection() {
 
       <StartOnBootSection />
       <MobilePairingSection />
+      <VelaSection />
       <SetupWizardRow />
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
     </V2Section>
@@ -682,6 +685,59 @@ function QrCodeDisplay({ value, size }: { value: string; size: number }) {
   }
 
   return <img src={dataUrl} width={size} height={size} alt="QR Code" className="rounded" />
+}
+
+// =============================================================================
+// VELA (local Vela companion integration)
+// =============================================================================
+
+// Vela polls our loopback server every few seconds when connected; an answer
+// older than this reads as "not connected yet".
+const VELA_FRESH_MS = 60_000
+
+function VelaSection() {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
+  const { status, failed } = useVelaCompanionStatus()
+
+  // Feature-detect: no local Vela (or an unreachable server) means no section
+  // at all — never a disabled placeholder. Admin-only by design.
+  if (!isAdmin || failed) return null
+  if (!status || !status.detected) return null
+
+  const lastSeenMs = status.lastSeenAt ? parseApiDate(status.lastSeenAt).getTime() : null
+  const connected = lastSeenMs !== null && Date.now() - lastSeenMs <= VELA_FRESH_MS
+
+  let line: string
+  if (!status.enabled) {
+    line = 'Turned off'
+  } else if (connected) {
+    line = 'Connected to Vela'
+  } else if (status.registered) {
+    line = 'Waiting for you to connect CachiBot in Vela > Marketplace > Found on this computer'
+  } else {
+    line = 'Starting…'
+  }
+
+  const handleToggle = async (checked: boolean) => {
+    try {
+      await updateVelaCompanionSettings({ enabled: checked })
+    } catch {
+      toast.error('Failed to update the Vela setting')
+    }
+  }
+
+  return (
+    <>
+      <h3 className="v2-settings__sub">Vela</h3>
+      <V2Toggle
+        title="Show CachiBot on your Vela desk"
+        sub={line}
+        checked={status.enabled}
+        onChange={(v) => void handleToggle(v)}
+      />
+    </>
+  )
 }
 
 // =============================================================================
