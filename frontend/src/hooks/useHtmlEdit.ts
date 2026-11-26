@@ -7,14 +7,17 @@
  *   2. listens for the bridge's postMessage events, accepting only messages
  *      whose `event.source` is exactly the edit iframe's contentWindow,
  *   3. applies typed patches to the clean source and persists every accepted
- *      edit through the artifacts store, and
+ *      edit — immediately through the artifacts store (so the iframe stays
+ *      responsive) and then through the server-side artifact store, and
  *   4. keeps a bounded undo/redo history of clean source strings.
  *
- * Version policy: manual edits write `content` only and never bump
- * `artifact.version`. The version counter tracks agent/plugin revisions
- * (artifact_update payloads); bumping it locally would fake agent revisions
- * and collide with the next server-sent version. A later agent update
- * replaces content wholesale — that is the documented way edits are lost.
+ * Version policy: server PUTs are the only version bump. The local write
+ * keeps `artifact.version` untouched; when the PUT succeeds the response's
+ * content + bumped version are adopted into the store (confirmed by reading
+ * it back). Server saves are serialized through a one-slot queue that always
+ * carries the newest full source, so rapid edits coalesce and Done can await
+ * the in-flight save (flushSave). Without an active bot the edit stays
+ * local-only and the status says so — a server save is never faked.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -28,12 +31,14 @@ import {
   resolveTargetOrigin,
   type HtmlEditableFields,
 } from '../lib/htmlEdit'
+import { saveArtifact } from '../api/artifacts'
 import { useArtifactsStore } from '../stores/artifacts'
+import { useBotStore } from '../stores/bots'
 import type { Artifact } from '../types'
 
 const HISTORY_LIMIT = 50
 
-export type HtmlEditSaveStatus = 'idle' | 'saved' | 'error'
+export type HtmlEditSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export interface HtmlEditSelection extends HtmlEditableFields {
   breadcrumb: string[]
@@ -53,6 +58,28 @@ export interface HtmlEditApi {
   redo: () => void
   /** On iframe load: restores pre-reload scroll and the selection outline. */
   handlePreviewLoad: () => void
+  /**
+   * Await the in-flight server save, re-queueing the current source first
+   * when it changed since the last PUT. Done calls this before closing.
+   */
+  flushSave: () => Promise<void>
+}
+
+/** One queued server save — always the newest full source for one artifact. */
+interface PendingServerSave {
+  artifactId: string
+  botId: string
+  body: {
+    content: string
+    title?: string
+    type?: string
+    language?: string
+    plugin?: string
+    metadata?: Record<string, unknown>
+    chatId?: string
+    messageId?: string
+    version?: number
+  }
 }
 
 /** Field view + breadcrumb for one element, always derived from the clean source. */
@@ -79,6 +106,14 @@ export function useHtmlEdit(artifact: Artifact, active: boolean): HtmlEditApi {
   const futureRef = useRef<string[]>([])
   const scrollRef = useRef({ x: 0, y: 0 })
   const selectedIdRef = useRef<string | null>(null)
+  /** Newest unsent server save — one slot, a newer edit supersedes the older. */
+  const pendingPutRef = useRef<PendingServerSave | null>(null)
+  /** In-flight drain of the save queue; Done awaits it via flushSave. */
+  const drainPromiseRef = useRef<Promise<void> | null>(null)
+  /** Last source the server confirmed, per artifact — the flush baseline. */
+  const lastServerPutRef = useRef<{ artifactId: string; content: string } | null>(null)
+  /** True while the working source holds edits the server has not confirmed. */
+  const serverDirtyRef = useRef(false)
   const [targetOrigin] = useState(() => resolveTargetOrigin(window.location.origin))
 
   useEffect(() => {
@@ -90,6 +125,7 @@ export function useHtmlEdit(artifact: Artifact, active: boolean): HtmlEditApi {
     pastRef.current = []
     futureRef.current = []
     scrollRef.current = { x: 0, y: 0 }
+    serverDirtyRef.current = false
     setSelection(null)
     setError(null)
     setSaveStatus('idle')
@@ -128,17 +164,124 @@ export function useHtmlEdit(artifact: Artifact, active: boolean): HtmlEditApi {
   }, [active, artifact.content, targetOrigin])
 
   /**
-   * Persist one clean source: write through the store, verify the write by
-   * reading it back, rebuild the srcDoc and refresh the selected element's
-   * fields from the new source.
+   * Drain the one-slot save queue: PUT the newest pending source, adopt the
+   * server's content + bumped version, and keep going while newer edits
+   * queued behind. Never rejects — a failed PUT surfaces as the error
+   * status and the next queued save (full source) still converges.
+   */
+  const ensureDrain = useCallback((): Promise<void> => {
+    if (drainPromiseRef.current) return drainPromiseRef.current
+    const run = (async () => {
+      while (pendingPutRef.current) {
+        const job = pendingPutRef.current
+        pendingPutRef.current = null
+        try {
+          const saved = await saveArtifact(job.botId, job.artifactId, job.body)
+          lastServerPutRef.current = { artifactId: job.artifactId, content: job.body.content }
+          const store = useArtifactsStore.getState()
+          const local = store.getArtifact(job.artifactId)
+          if (local) {
+            if (local.content === job.body.content) {
+              // Nothing newer landed while the PUT was in flight — adopt the
+              // server's content and bumped version wholesale.
+              store.updateArtifact(job.artifactId, {
+                content: saved.content,
+                version: saved.version,
+              })
+              if (sourceRef.current === job.body.content) serverDirtyRef.current = false
+            } else if (saved.version > local.version) {
+              // A newer local edit is queued behind this job: take the
+              // version only when it does not shrink, content follows.
+              store.updateArtifact(job.artifactId, { version: saved.version })
+            }
+          }
+          // Confirm by reading the store back (a missing artifact was
+          // cleared locally — the server save still happened).
+          const after = useArtifactsStore.getState().getArtifact(job.artifactId)
+          const confirmed = after === undefined || after.version >= saved.version
+          setSaveStatus(pendingPutRef.current ? 'saving' : confirmed ? 'saved' : 'error')
+          if (!confirmed) setError('Could not confirm the save')
+        } catch (err) {
+          setSaveStatus('error')
+          setError(err instanceof Error ? err.message : 'Could not save to the server')
+        }
+      }
+    })().finally(() => {
+      drainPromiseRef.current = null
+    })
+    drainPromiseRef.current = run
+    return run
+  }, [])
+
+  /**
+   * Queue the newest full source for the server. The local store is already
+   * written; this is the durable half. Without an active bot the edit stays
+   * browser-local and the status says so — a server save is never faked.
+   */
+  const queueServerSave = useCallback(
+    (html: string) => {
+      const botId = artifact.botId ?? useBotStore.getState().activeBotId
+      if (!botId) {
+        setSaveStatus('error')
+        setError('No active bot — the edit is saved in this browser only')
+        return
+      }
+      const current = useArtifactsStore.getState().getArtifact(artifact.id)
+      pendingPutRef.current = {
+        artifactId: artifact.id,
+        botId,
+        body: {
+          content: html,
+          title: current?.title,
+          type: current?.type,
+          language: current?.language,
+          plugin: current?.plugin,
+          metadata: current?.metadata,
+          chatId: current?.chatId,
+          messageId: current?.messageId,
+          version: current?.version,
+        },
+      }
+      serverDirtyRef.current = true
+      setSaveStatus('saving')
+      void ensureDrain()
+    },
+    [artifact.botId, artifact.id, ensureDrain]
+  )
+
+  const flushSave = useCallback(async (): Promise<void> => {
+    // Done was clicked: if the working source still differs from what the
+    // server confirmed (e.g. the last PUT failed), send it again, then wait
+    // until every queued save has settled.
+    const current = sourceRef.current
+    if (serverDirtyRef.current && current) {
+      const lastPut = lastServerPutRef.current
+      if (!lastPut || lastPut.artifactId !== artifact.id || lastPut.content !== current) {
+        queueServerSave(current)
+      }
+    }
+    while (drainPromiseRef.current) {
+      await drainPromiseRef.current
+    }
+  }, [artifact.id, queueServerSave])
+
+  /**
+   * Persist one clean source: write through the local store immediately
+   * (content only — the server PUT owns the version bump), verify the write
+   * by reading it back, queue the server save, rebuild the srcDoc and
+   * refresh the selected element's fields from the new source.
    */
   const persist = useCallback(
     (html: string) => {
       useArtifactsStore.getState().updateArtifact(artifact.id, { content: html })
       const persisted = useArtifactsStore.getState().getArtifact(artifact.id)?.content === html
       lastStoreContentRef.current = html
-      setSaveStatus(persisted ? 'saved' : 'error')
-      if (!persisted) setError('Could not save the edit')
+      if (!persisted) {
+        setSaveStatus('error')
+        setError('Could not save the edit')
+      } else {
+        queueServerSave(html)
+      }
       const win = iframeRef.current?.contentWindow
       if (win) {
         try {
@@ -150,7 +293,7 @@ export function useHtmlEdit(artifact: Artifact, active: boolean): HtmlEditApi {
       setSrcDoc(buildEditableDoc(html, targetOrigin))
       setSelection((prev) => (prev ? buildSelection(html, prev.id) : null))
     },
-    [artifact.id, targetOrigin]
+    [artifact.id, queueServerSave, targetOrigin]
   )
 
   const applyEdit = useCallback(
@@ -259,5 +402,6 @@ export function useHtmlEdit(artifact: Artifact, active: boolean): HtmlEditApi {
     undo,
     redo,
     handlePreviewLoad,
+    flushSave,
   }
 }

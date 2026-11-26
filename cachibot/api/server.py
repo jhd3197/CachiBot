@@ -20,6 +20,7 @@ from cachibot import __version__
 from cachibot.api.room_websocket import router as room_ws_router
 from cachibot.api.routes import (
     admin_executions,
+    artifacts,
     auth,
     bot_env,
     bots,
@@ -325,6 +326,7 @@ def create_app(
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
     app.include_router(bots.router, tags=["bots"])
+    app.include_router(artifacts.router, tags=["artifacts"])
     app.include_router(groups.router, tags=["groups"])
     app.include_router(chats.router, tags=["chats"])
     app.include_router(contacts.router, tags=["contacts"])

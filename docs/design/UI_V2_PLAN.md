@@ -1706,16 +1706,55 @@ with the v2 UI; the inspector is a native v2 surface
   fallback when the origin is the string `'null'`, e.g. file:// desktop),
   turns `select` events into inspector state (fields re-read from the source
   string), turns `dblclick-text` inline edits into `set-text` patches, keeps
-  the undo/redo stacks, and persists every accepted patch through
-  `useArtifactsStore.updateArtifact` — verified by reading the store back
-  (that read-back is the Saved/Not saved status).
-- Manual edits write `content` only and **never bump `artifact.version`**:
-  the version counter tracks agent/plugin revisions (`artifact_update`
-  payloads), and faking one locally would collide with the next server-sent
-  version. The Edit toggle hides while a run is in flight
-  (`useChatStore.isLoading`) because agents replace artifact content
+  the undo/redo stacks, and persists every accepted patch twice: first
+  through `useArtifactsStore.updateArtifact` (optimistic, so the iframe
+  stays responsive), then through a PUT to the server-side artifact store
+  (`frontend/src/api/artifacts.ts` → `PUT /api/bots/{botId}/artifacts/{id}`).
+  Server saves are serialized through a one-slot queue that always carries
+  the newest full source, so rapid edits coalesce; Done awaits the in-flight
+  save (`flushSave`) before leaving edit mode, re-sending the source if it
+  changed since the last PUT. On success the response's content and bumped
+  version are adopted into the store (verified by reading it back — that
+  read-back plus the PUT result is the Saving/Saved/Not saved status); on
+  failure the status is a real error, never a faked save. Without an active
+  bot the edit stays browser-local and the status says so.
+- **Server-side artifact store.** Artifacts are durable rows
+  (`artifacts` table, migration 017) owned by a bot and optionally tied to a
+  chat/message; agent-emitted artifacts (`__artifact__` /
+  `__artifact_update__` tool results and proactive plugin emissions) are
+  written through on the WebSocket path, and Website Builder's markdown
+  results (project id + base64 preview) are promoted into a stored html
+  artifact with a stable id per bot+project+slug, so its pages enter the
+  same edit flow (the original markdown tool_end is still sent — the
+  transcript is unchanged). When a chat opens, the client lists the chat's
+  stored artifacts and merges them into the localStorage cache (adds ones
+  this browser never saw; a server version >= the local one wins).
+- **Version policy.** Manual edits bump `artifact.version` — but only via
+  the server: the local write touches `content` only, and the PUT response's
+  bumped version is what lands in the store. The server increments its
+  stored version on every saved edit (a missing row is upserted, seeded from
+  the client's version + 1) and never lets the stored version decrease, so a
+  stale client can never rewind it. The Edit toggle hides while a run is in
+  flight (`useChatStore.isLoading`) because agents replace artifact content
   wholesale; if content still changes underneath edit mode, local history is
   dropped and the editor re-syncs instead of patching stale source.
+- **Website write-back.** Saving an artifact whose `plugin` is
+  `website_builder` (or whose metadata says so) and whose metadata carries a
+  `project_id` overwrites the latest `pages/{slug}/v{N}/index.html` under
+  `~/.cachibot/websites/{project_id}/` (slug defaults to `index`), so the
+  plugin's own `iterate_website` / `load_website` read the edited HTML on
+  the next turn. The project must already exist on disk (`project.json` plus
+  a `v{N}` directory); project ids and slugs are validated as single safe
+  path segments and the target must resolve inside the project directory —
+  anything else saves the artifact without touching disk
+  (`websiteWritten: false`).
+- **The agent sees the edits.** The system prompt's knowledge context
+  includes a "## Current HTML artifacts" section with each html artifact's
+  id, title, version, plugin/project and full current source (newest few,
+  each capped ~100k chars), with an explicit instruction to start updates
+  (`update_preview`, `update_email_template`, `iterate_website`, …) from
+  that source rather than regenerating from memory — manual edits may not
+  appear in earlier conversation messages.
 - Round-trip fidelity: HTML comments (including conditional comments), the
   doctype, text and script/style bodies are preserved byte-for-byte. What
   the `node-html-parser` re-serialization normalizes on the first edit:
@@ -1727,16 +1766,17 @@ with the v2 UI; the inspector is a native v2 surface
 
 **Not backed yet (deliberately).**
 
-- Edits live in the browser's artifact store (localStorage) only. The
-  generator plugins' files on disk (e.g. `~/.cachibot/websites/...`) are NOT
-  rewritten, and there is no backend endpoint for saving edits.
-- The agent does not see manual edits unless it re-reads the artifact; its
-  next `artifact_update` replaces the content wholesale, discarding manual
-  tweaks.
+- The first edit may still normalize attribute quoting and void-tag slashes
+  (frontend htmlstudio applyPatch re-serialization, see above).
+- Website write-back is a no-op when the project is not on disk or the
+  artifact metadata has no `project_id`: plain `html_preview` /
+  `email_template` artifacts have no website files — they live only in the
+  (now server-side) artifact store, which is enough for the agent to see
+  them.
 - Only `HtmlRenderer` is covered — that includes html artifacts from all
   three generator plugins. The HTML preview tab of `code` artifacts does not
   get the toggle (it requires `artifact.type === 'html'`), and no other
-  renderer was touched.
+  renderer was touched. No mobile work.
 
 ## Known limitations / decisions
 

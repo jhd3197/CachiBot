@@ -327,6 +327,19 @@ async def websocket_endpoint(
                             message_id=a.message_id,
                         ),
                     )
+                    await _persist_artifact(
+                        bot_id,
+                        chat_id,
+                        a.message_id,
+                        artifact_id=a.id,
+                        artifact_type=a.type.value if hasattr(a.type, "value") else str(a.type),
+                        title=a.title,
+                        content=a.content,
+                        language=a.language,
+                        metadata=a.metadata,
+                        plugin=a.plugin,
+                        version=a.version,
+                    )
 
                 # Resolve workspace config when a workspace plugin is specified
                 resolved_ws_config = None
@@ -482,6 +495,180 @@ async def _run_passthrough_command(
     await manager.send(client_id, WSMessage.done())
 
 
+async def _persist_artifact(
+    bot_id: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    *,
+    artifact_id: str,
+    artifact_type: str,
+    title: str,
+    content: str,
+    language: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    plugin: str | None = None,
+    version: int = 1,
+) -> None:
+    """Best-effort upsert into the server-side artifact store.
+
+    Manual click-to-edit saves and the agent's next turn both read from the
+    store, so every artifact the agent emits is written through. Failures
+    are logged and never break the WS stream.
+    """
+    if not bot_id:
+        return
+    try:
+        from cachibot.models.artifact import Artifact as ArtifactEntity
+        from cachibot.models.artifact import ArtifactType
+        from cachibot.storage.artifact_repository import ArtifactRepository
+
+        try:
+            parsed_type = ArtifactType(artifact_type)
+        except ValueError:
+            parsed_type = ArtifactType.CUSTOM
+        await ArtifactRepository().upsert(
+            ArtifactEntity(
+                id=artifact_id,
+                type=parsed_type,
+                title=title,
+                content=content,
+                language=language,
+                metadata=metadata or {},
+                plugin=plugin,
+                version=version,
+                bot_id=bot_id,
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+        )
+    except Exception:
+        logger.warning(
+            "Could not persist artifact %s for bot %s", artifact_id, bot_id, exc_info=True
+        )
+
+
+async def _persist_artifact_update(
+    bot_id: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    *,
+    artifact_id: str,
+    content: str | None = None,
+    title: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    version: int | None = None,
+) -> None:
+    """Best-effort partial update in the server-side artifact store.
+
+    When the row is missing (the artifact predates the store) but the update
+    carries full content, the row is created from what the update knows.
+    Failures are logged and never break the WS stream.
+    """
+    if not bot_id or not artifact_id:
+        return
+    try:
+        from cachibot.models.artifact import Artifact as ArtifactEntity
+        from cachibot.models.artifact import ArtifactType
+        from cachibot.storage.artifact_repository import ArtifactRepository
+
+        repo = ArtifactRepository()
+        updated = await repo.apply_update(
+            artifact_id, content=content, title=title, metadata=metadata, version=version
+        )
+        if updated is None and content is not None:
+            await repo.upsert(
+                ArtifactEntity(
+                    id=artifact_id,
+                    type=ArtifactType.HTML,
+                    title=title or "Untitled",
+                    content=content,
+                    metadata=metadata or {},
+                    version=version or 1,
+                    bot_id=bot_id,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                )
+            )
+    except Exception:
+        logger.warning(
+            "Could not persist artifact update %s for bot %s", artifact_id, bot_id, exc_info=True
+        )
+
+
+async def _promote_website_preview(
+    client_id: str,
+    bot_id: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    result: Any,
+) -> None:
+    """Promote a Website Builder markdown result into an editable artifact.
+
+    The plugin returns markdown with the project id and a base64 HTML
+    preview instead of an artifact dict, which left its pages outside the
+    click-to-edit flow. Decoding the preview into a stored html artifact
+    (stable id per bot+project+slug) makes it editable and writable back to
+    disk. The original markdown tool_end is still sent by the caller, so the
+    chat transcript is unchanged. Failures are logged, never raised.
+    """
+    if not bot_id or not isinstance(result, str):
+        return
+    try:
+        from cachibot.services import website_files
+
+        preview = website_files.parse_website_preview(result)
+        if preview is None:
+            return
+        from cachibot.storage.artifact_repository import ArtifactRepository
+
+        repo = ArtifactRepository()
+        artifact_id = website_files.website_preview_artifact_id(
+            bot_id, preview.project_id, preview.slug
+        )
+        metadata = {"project_id": preview.project_id, "slug": preview.slug}
+        existing = await repo.get(artifact_id)
+        if existing is None:
+            await _persist_artifact(
+                bot_id,
+                chat_id,
+                message_id,
+                artifact_id=artifact_id,
+                artifact_type="html",
+                title="Website Preview",
+                content=preview.html,
+                metadata=metadata,
+                plugin="website_builder",
+                version=1,
+            )
+            await manager.send(
+                client_id,
+                WSMessage.artifact(
+                    artifact_id=artifact_id,
+                    artifact_type="html",
+                    title="Website Preview",
+                    content=preview.html,
+                    metadata=metadata,
+                    plugin="website_builder",
+                    version=1,
+                    message_id=message_id,
+                ),
+            )
+        else:
+            updated = await repo.apply_update(artifact_id, content=preview.html)
+            if updated is None:
+                return
+            await manager.send(
+                client_id,
+                WSMessage.artifact_update(
+                    artifact_id=artifact_id,
+                    content=preview.html,
+                    version=updated.version,
+                ),
+            )
+    except Exception:
+        logger.warning("Could not promote website preview for bot %s", bot_id, exc_info=True)
+
+
 async def run_agent(
     agent: CachibotAgent,
     message: str,
@@ -567,6 +754,19 @@ async def run_agent(
                                 message_id=response_msg_id,
                             ),
                         )
+                        await _persist_artifact(
+                            bot_id,
+                            chat_id,
+                            response_msg_id,
+                            artifact_id=artifact_id,
+                            artifact_type=artifact_type,
+                            title=result.get("title", "Untitled"),
+                            content=result.get("content", ""),
+                            language=result.get("language"),
+                            metadata=result.get("metadata"),
+                            plugin=result.get("plugin"),
+                            version=result.get("version", 1),
+                        )
                         # Also send as normal tool_end with a summary
                         await manager.send(
                             client_id,
@@ -585,6 +785,16 @@ async def run_agent(
                                 metadata=result.get("metadata"),
                                 version=result.get("version"),
                             ),
+                        )
+                        await _persist_artifact_update(
+                            bot_id,
+                            chat_id,
+                            response_msg_id,
+                            artifact_id=result.get("id", ""),
+                            content=result.get("content"),
+                            title=result.get("title"),
+                            metadata=result.get("metadata"),
+                            version=result.get("version"),
                         )
                         await manager.send(
                             client_id,
@@ -612,6 +822,13 @@ async def run_agent(
                             ),
                         )
                     else:
+                        # Website Builder returns markdown with a base64 HTML
+                        # preview instead of an artifact dict — promote it to
+                        # an editable artifact (the markdown tool_end below is
+                        # still sent, so the transcript is unchanged).
+                        await _promote_website_preview(
+                            client_id, bot_id, chat_id, response_msg_id, result
+                        )
                         await manager.send(
                             client_id,
                             WSMessage.tool_end(

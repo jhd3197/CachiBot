@@ -18,6 +18,12 @@ from cachibot.storage.repository import (
 
 logger = logging.getLogger(__name__)
 
+# Caps for the "## Current HTML artifacts" prompt section: the newest few
+# artifacts, each truncated past a sane size so one huge page cannot crowd
+# out the rest of the prompt.
+MAX_HTML_ARTIFACTS_IN_PROMPT = 5
+MAX_HTML_ARTIFACT_CHARS = 100_000
+
 
 @dataclass
 class KnowledgeContext:
@@ -29,6 +35,7 @@ class KnowledgeContext:
     contacts: str | None
     skills: str | None
     notes: str | None = None
+    html_artifacts: str | None = None
 
     def to_prompt_section(self) -> str:
         """Convert to prompt-ready string."""
@@ -43,6 +50,9 @@ class KnowledgeContext:
 
         if self.notes:
             sections.append(f"## Notes\n{self.notes}")
+
+        if self.html_artifacts:
+            sections.append(f"## Current HTML artifacts\n{self.html_artifacts}")
 
         if self.contacts:
             sections.append(f"## Known Contacts\n{self.contacts}")
@@ -136,10 +146,13 @@ class ContextBuilder:
         # 4. Get relevant notes
         notes = await self._get_relevant_notes(bot_id, user_message)
 
-        # 5. Get relevant document chunks
+        # 5. Get current HTML artifacts (may carry manual user edits)
+        html_artifacts = await self._get_html_artifacts(bot_id, chat_id)
+
+        # 6. Get relevant document chunks
         relevant_docs = await self._get_relevant_docs(bot_id, user_message)
 
-        # 6. Get recent conversation history
+        # 7. Get recent conversation history
         recent_history = await self._get_recent_history(bot_id, chat_id)
 
         return KnowledgeContext(
@@ -149,6 +162,7 @@ class ContextBuilder:
             contacts=contacts,
             skills=skills,
             notes=notes,
+            html_artifacts=html_artifacts,
         )
 
     async def _get_skills_instructions(
@@ -249,6 +263,61 @@ class ContextBuilder:
 
         except Exception as e:
             logger.warning(f"Notes retrieval failed: {e}")
+            return None
+
+    async def _get_html_artifacts(self, bot_id: str, chat_id: str | None) -> str | None:
+        """Current source of the bot's HTML artifacts, for the system prompt.
+
+        Manual click-to-edit saves land in the artifact store without a chat
+        message, so without this section the agent would regenerate from
+        stale conversation memory and overwrite those edits. Reads only the
+        SQL artifact store (no vector store / PG needed); any failure omits
+        the section rather than failing context building.
+        """
+        try:
+            from cachibot.storage.artifact_repository import ArtifactRepository
+
+            artifacts = await ArtifactRepository().list_for_bot(
+                bot_id,
+                chat_id=chat_id,
+                artifact_type="html",
+                limit=MAX_HTML_ARTIFACTS_IN_PROMPT,
+            )
+            if not artifacts:
+                return None
+
+            parts = [
+                "The artifacts below hold the CURRENT source of HTML pages/templates you "
+                "generated. The user may have edited them manually since they were created, "
+                "so they can differ from earlier conversation messages. If you update one of "
+                "these artifacts (update_preview, update_email_template, iterate_website, or "
+                "any artifact update), you MUST start from the source below — do not "
+                "regenerate from memory."
+            ]
+            for artifact in artifacts:
+                header = (
+                    f'### Artifact "{artifact.title}" '
+                    f"(id: {artifact.id}, version: {artifact.version}"
+                )
+                if artifact.plugin:
+                    header += f", plugin: {artifact.plugin}"
+                project_id = artifact.metadata.get("project_id") or artifact.metadata.get(
+                    "projectId"
+                )
+                if project_id:
+                    header += f", project_id: {project_id}"
+                header += ")"
+                content = artifact.content
+                if len(content) > MAX_HTML_ARTIFACT_CHARS:
+                    content = (
+                        content[:MAX_HTML_ARTIFACT_CHARS]
+                        + f"\n... [truncated — {len(artifact.content)} chars total]"
+                    )
+                parts.append(f"{header}\n```html\n{content}\n```")
+            return "\n\n".join(parts)
+
+        except Exception as e:
+            logger.warning(f"HTML artifacts retrieval failed: {e}")
             return None
 
     async def _get_relevant_docs(self, bot_id: str, query: str) -> str | None:
