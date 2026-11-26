@@ -151,6 +151,7 @@ Use TOML's array-of-tables syntax (`[[plugin.config]]`) to declare user-configur
 | `type`         | `string`                   | `"text"` | Input type (see table below)      |
 | `default`      | `string\|int\|float\|bool` | `null`  | Default value                      |
 | `description`  | `string`                   | `""`    | Help text shown below the input    |
+| `options`      | `list[string]`             | `[]`    | Dropdown choices for `select` type |
 
 #### Supported config `type` values
 

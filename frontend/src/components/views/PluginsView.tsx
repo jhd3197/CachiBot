@@ -505,6 +505,18 @@ export function PluginDetailPanel({ plugin }: { plugin: ExternalPluginInfo }) {
                       onChange={(e) => handleConfigChange(param.name, Number(e.target.value))}
                       className="input input--sm w-full"
                     />
+                  ) : param.type === 'select' ? (
+                    <select
+                      value={typeof value === 'string' ? value : String(value ?? '')}
+                      onChange={(e) => handleConfigChange(param.name, e.target.value)}
+                      className="input input--sm w-full"
+                    >
+                      {(param.options ?? []).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   ) : param.type === 'boolean' ? (
                     <button
                       type="button"

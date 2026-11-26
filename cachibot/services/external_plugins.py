@@ -92,8 +92,8 @@ _INJECTED_PLUGIN_KEYS: set[str] = set()
 # Official plugin names (all official plugins, even ones skipped due to missing deps)
 OFFICIAL_PLUGIN_NAMES: set[str] = set()
 
-REGISTRY_URL = "https://cachibot.ai/plugins/registry"
-ARCHIVE_URL = "https://cachibot.ai/plugins/{name}/archive"
+REGISTRY_URL = "https://cachibot.ai/api/plugins/registry"
+ARCHIVE_URL = "https://cachibot.ai/api/plugins/{name}/archive"
 FALLBACK_REGISTRY_URL = (
     "https://raw.githubusercontent.com/jhd3197/CachiBot-Plugins/main/registry.json"
 )
