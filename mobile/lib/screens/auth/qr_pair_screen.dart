@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../models/auth.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/service_providers.dart';
+import '../../widgets/common/loading.dart';
 
 /// QR code scanner screen for mobile device pairing.
 ///
@@ -188,7 +189,7 @@ class _QrPairScreenState extends ConsumerState<QrPairScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(),
+                        const CachiSpinner(size: CachiSpinnerSize.lg),
                         const SizedBox(height: 16),
                         Text(
                           _status ?? 'Pairing...',

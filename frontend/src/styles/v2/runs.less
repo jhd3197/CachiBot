@@ -251,16 +251,6 @@
   }
 }
 
-.runs__spin {
-  animation: runs-spin 1s linear infinite;
-}
-
-@keyframes runs-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 // ── Expanded detail card ─────────────────────────────────────────────────────
 
 .runs__detail {
@@ -352,6 +342,10 @@
   p {
     margin: 0;
   }
+}
+
+.runs__loading {
+  padding: 16px 4px;
 }
 
 // ── Quick tasks checklist ────────────────────────────────────────────────────
@@ -499,4 +493,50 @@
   margin-left: 8px;
   font-weight: @font-normal;
   color: var(--v2-text-tertiary);
+}
+
+// ── Side-task sections (E6): runs grouped under their parent chat ───────────
+
+.runs__side-section {
+  margin: 4px 0 10px;
+  padding-left: 12px;
+  border-left: 2px solid var(--v2-border);
+}
+
+.runs__side-heading {
+  margin: 10px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: @font-semibold;
+  color: var(--v2-text-secondary);
+
+  svg {
+    color: var(--v2-text-tertiary);
+    flex: none;
+  }
+}
+
+.runs__side-cluster {
+  margin: 2px 0 6px 12px;
+}
+
+.runs__side-subheading {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-weight: @font-medium;
+  color: var(--v2-text-tertiary);
+}
+
+.runs__row--side {
+  margin-left: 12px;
+}
+
+.runs__detail--side {
+  margin-left: 70px;
+
+  @media (max-width: (@screen-md - 1px)) {
+    margin-left: 24px;
+  }
 }

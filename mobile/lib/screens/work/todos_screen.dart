@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/time_utils.dart';
 import '../../models/work.dart';
 import '../../providers/todos_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class TodosScreen extends ConsumerStatefulWidget {
   const TodosScreen({required this.botId, super.key});
@@ -78,7 +79,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
 
   Widget _buildContent(ThemeData theme, TodosState state) {
     if (state.isLoading && state.todos.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiSkeletonList();
     }
 
     if (state.errorMessage != null && state.todos.isEmpty) {

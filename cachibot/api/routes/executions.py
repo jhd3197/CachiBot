@@ -58,9 +58,14 @@ class ExecutionLogResponse(BaseModel):
     llmCalls: int
     workId: str | None
     workJobId: str | None
+    sideTaskId: str | None = None
+    sideTaskChatId: str | None = None
+    sideTaskGroupId: str | None = None
+    sideTaskGroupTitle: str | None = None
 
     @classmethod
     def from_log(cls, log: ExecutionLog) -> "ExecutionLogResponse":
+        metadata = log.metadata_json or {}
         return cls(
             id=log.id,
             executionType=log.execution_type,
@@ -85,6 +90,10 @@ class ExecutionLogResponse(BaseModel):
             llmCalls=log.llm_calls,
             workId=log.work_id,
             workJobId=log.work_job_id,
+            sideTaskId=metadata.get("side_task_id"),
+            sideTaskChatId=metadata.get("side_task_chat_id"),
+            sideTaskGroupId=metadata.get("side_task_group_id"),
+            sideTaskGroupTitle=metadata.get("side_task_group_title"),
         )
 
 

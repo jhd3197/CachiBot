@@ -204,6 +204,27 @@ class SmtpConfig:
 
 
 @dataclass
+class ComputerConfig:
+    """Bot computer (per-bot Vela container) configuration."""
+
+    enabled: bool = True
+    idle_minutes: int = 10  # sleep the computer after this many minutes without activity
+    # Resource caps passed to docker run (--memory/--cpus/--pids-limit). The
+    # shipped defaults are conservative for a desktop + browser workload; set
+    # memory to "" or a numeric cap to 0 to run that cap uncapped.
+    memory: str = "2g"
+    cpus: float = 2.0
+    pids_limit: int = 1024
+
+
+@dataclass
+class VelaCompanionConfig:
+    """Vela companion registration (file-based protocol with a local Vela)."""
+
+    enabled: bool = True
+
+
+@dataclass
 class TelemetryConfig:
     """Anonymous telemetry configuration (opt-in, disabled by default)."""
 
@@ -240,6 +261,8 @@ class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     smtp: SmtpConfig = field(default_factory=SmtpConfig)
     platform: PlatformConfig = field(default_factory=PlatformConfig)
+    computer: ComputerConfig = field(default_factory=ComputerConfig)
+    vela_companion: VelaCompanionConfig = field(default_factory=VelaCompanionConfig)
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     timezone: str = "UTC"
 
@@ -393,6 +416,27 @@ class Config:
         if website_url := os.getenv("CACHIBOT_WEBSITE_URL"):
             self.platform.website_url = website_url
 
+        # Computer settings
+        if computer_enabled := os.getenv("CACHIBOT_COMPUTER_ENABLED"):
+            self.computer.enabled = computer_enabled.lower() in ("1", "true", "yes")
+        if idle_minutes := os.getenv("CACHIBOT_COMPUTER_IDLE_MINUTES"):
+            try:
+                self.computer.idle_minutes = int(idle_minutes)
+            except ValueError:
+                pass
+        if memory := os.getenv("CACHIBOT_COMPUTER_MEMORY"):
+            self.computer.memory = memory
+        if cpus := os.getenv("CACHIBOT_COMPUTER_CPUS"):
+            try:
+                self.computer.cpus = float(cpus)
+            except ValueError:
+                pass
+        if pids_limit := os.getenv("CACHIBOT_COMPUTER_PIDS_LIMIT"):
+            try:
+                self.computer.pids_limit = int(pids_limit)
+            except ValueError:
+                pass
+
         # SMTP settings
         if smtp_host := os.getenv("CACHIBOT_SMTP_HOST"):
             self.smtp.host = smtp_host
@@ -413,6 +457,10 @@ class Config:
         # Telemetry override — CACHIBOT_TELEMETRY_DISABLED=1 force-disables
         if os.getenv("CACHIBOT_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes"):
             self.telemetry.enabled = False
+
+        # Vela companion — CACHIBOT_VELA_COMPANION=0/false/no turns it off
+        if vela_env := os.getenv("CACHIBOT_VELA_COMPANION"):
+            self.vela_companion.enabled = vela_env.strip().lower() not in ("0", "false", "no")
 
         # Timezone
         if tz := os.getenv("CACHIBOT_TIMEZONE"):
@@ -519,6 +567,22 @@ class Config:
                 self.platform.website_jwt_secret = platform_data["website_jwt_secret"]
             if "website_url" in platform_data:
                 self.platform.website_url = platform_data["website_url"]
+
+        if computer_data := data.get("computer"):
+            if "enabled" in computer_data:
+                self.computer.enabled = computer_data["enabled"]
+            if "idle_minutes" in computer_data:
+                self.computer.idle_minutes = computer_data["idle_minutes"]
+            if "memory" in computer_data:
+                self.computer.memory = str(computer_data["memory"])
+            if "cpus" in computer_data:
+                self.computer.cpus = float(computer_data["cpus"])
+            if "pids_limit" in computer_data:
+                self.computer.pids_limit = int(computer_data["pids_limit"])
+
+        if vela_data := data.get("vela_companion"):
+            if "enabled" in vela_data:
+                self.vela_companion.enabled = bool(vela_data["enabled"])
 
         if smtp_data := data.get("smtp"):
             if "host" in smtp_data:
@@ -638,6 +702,42 @@ class Config:
                 tomli_w.dump(data, f)
         except Exception as exc:
             logger.debug("Failed to write database config: %s", exc)
+
+    def save_vela_companion_config(self) -> None:
+        """Persist the Vela companion toggle to the user config file (~/.cachibot.toml).
+
+        The environment variable CACHIBOT_VELA_COMPANION=0/false/no still wins
+        over this file at runtime; this only stores the owner's in-app choice.
+        """
+        user_config = Path.home() / ".cachibot.toml"
+
+        try:
+            import tomli_w
+        except ImportError:
+            self._save_section_manual(
+                user_config,
+                "vela_companion",
+                {
+                    "enabled": self.vela_companion.enabled,
+                },
+            )
+            return
+
+        data: dict[str, Any] = {}
+        if user_config.exists() and tomllib is not None:
+            try:
+                with open(user_config, "rb") as f:
+                    data = tomllib.load(f)
+            except Exception:
+                pass
+
+        data["vela_companion"] = {"enabled": self.vela_companion.enabled}
+
+        try:
+            with open(user_config, "wb") as f:
+                tomli_w.dump(data, f)
+        except Exception as exc:
+            logger.debug("Failed to write vela_companion config: %s", exc)
 
     def save_smtp_config(self) -> None:
         """Persist SMTP settings to the user config file (~/.cachibot.toml)."""

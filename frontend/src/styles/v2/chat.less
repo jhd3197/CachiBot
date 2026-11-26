@@ -343,6 +343,14 @@
     font-size: 14px;
     font-weight: @font-semibold;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    svg {
+      flex: none;
+    }
 
     &:hover {
       background: var(--v2-bg-hover);
@@ -472,11 +480,34 @@
       flex: none;
     }
 
+    // Small bot-colored mark (L3 "grey status line + bot-colored dot");
+    // rendered only when the caller passes a markColor, inline style wins.
+    &__mark {
+      width: 8px;
+      height: 8px;
+      border-radius: @radius-full;
+      background: var(--v2-text-tertiary);
+      flex: none;
+    }
+
     &__actions {
       margin-left: auto;
       display: flex;
       gap: 2px;
     }
+
+    &--needs-you {
+      color: var(--v2-text);
+
+      .v2-status-line__icon {
+        color: var(--v2-amber);
+      }
+    }
+  }
+
+  // Computer needs-you card (design 08): amber accent, same panel card
+  .v2-card--needs-you {
+    border-color: var(--v2-amber);
   }
 
   // ---------------------------------------------------------------------------
@@ -804,6 +835,32 @@
       color: var(--v2-text-secondary);
     }
 
+    // Status icons (L3): the v2 Spinner while running, token colors when done
+    &__status {
+      width: 14px;
+      height: 14px;
+      flex: none;
+
+      &--success {
+        color: var(--v2-green);
+      }
+
+      &--error {
+        color: var(--v2-red);
+      }
+    }
+
+    &__chevron {
+      width: 14px;
+      height: 14px;
+      flex: none;
+      transition: transform @transition-fast;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+
     &__body {
       border-top: 0;
       background: var(--v2-bg-panel);
@@ -837,6 +894,32 @@
       color: var(--v2-text-secondary);
     }
 
+    // Status icons (L3): token colors, no palette literals
+    &__status {
+      width: 12px;
+      height: 12px;
+      flex: none;
+
+      &--success {
+        color: var(--v2-green);
+      }
+
+      &--error {
+        color: var(--v2-red);
+      }
+    }
+
+    &__chevron {
+      width: 12px;
+      height: 12px;
+      flex: none;
+      transition: transform @transition-fast;
+
+      &--open {
+        transform: rotate(180deg);
+      }
+    }
+
     &__body {
       border-top-color: var(--v2-border);
     }
@@ -847,22 +930,22 @@
     }
   }
 
-  // Typing / thinking — quiet muted lines
-  .chat-typing,
-  .chat-thinking {
-    background: transparent;
-    border: 0;
-    padding: 0;
-    color: var(--v2-text-tertiary);
-
-    &__text,
-    &__label {
-      color: var(--v2-text-tertiary);
-      font-size: 13px;
-    }
+  // Live thinking (L3): quiet status line + the streaming thought text.
+  // The text sits outside the role="status" line, so screen readers are
+  // not re-announced on every streamed token.
+  .v2-thinking {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 
     &__content {
+      margin: 0;
+      font-size: 13px;
+      font-style: italic;
+      line-height: 1.6;
       color: var(--v2-text-tertiary);
+      white-space: pre-wrap;
+      word-break: break-word;
     }
   }
 

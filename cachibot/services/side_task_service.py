@@ -37,10 +37,17 @@ only a quiet live indicator (from ``side_task_update``). When it settles
 (merged / done / failed / stopped / needs_you), ONE assistant reply message
 is persisted in the parent chat — quoting the source message, with the
 outcome and the merge details in its metadata — and every later state
-change (needs_you -> merged after Retry merge, discard, resume) updates
-that same message in place. Bot-started helpers share ONE group reply that
-updates as helpers progress. Clients are pushed the create/update via the
-scoped ``message_update`` WebSocket event.
+change (needs_you -> merged after Retry merge, discard, resume, a reply
+that runs again) updates that same message in place. Bot-started helpers
+share ONE group reply that updates as helpers progress. Clients are pushed
+the create/update via the scoped ``message_update`` WebSocket event.
+
+Replies (E6): an operator can answer inside the side task's own chat. The
+reply is persisted there and the side task runs again in the same worktree
+(a settled one is reused, recreated from its branch, or restarted on a
+fresh branch from the parent's current HEAD), then merges back only the new
+changes. Every turn also writes one execution-log row (trigger
+``side_task``) with key step lines, so side tasks show up in Runs.
 """
 
 from __future__ import annotations
@@ -66,6 +73,10 @@ from cachibot.models.side_task import (
 )
 from cachibot.models.work import Work, WorkStatus
 from cachibot.services import side_task_worktrees as worktrees
+from cachibot.storage.automations_repository import (
+    ExecutionLogLineRepository,
+    ExecutionLogRepository,
+)
 from cachibot.storage.repository import ChatRepository, KnowledgeRepository
 from cachibot.storage.side_task_repository import SideTaskRepository
 from cachibot.storage.work_repository import WorkRepository
@@ -110,6 +121,10 @@ class SideTaskStartError(ValueError):
     """Starting a side task failed (recoverable, maps to HTTP 400)."""
 
 
+class SideTaskReplyError(ValueError):
+    """Replying inside a side task is not possible right now (HTTP 409)."""
+
+
 class SideTaskService:
     """Starts, queues, stops and resumes side tasks."""
 
@@ -118,6 +133,8 @@ class SideTaskService:
         self._chat_repo = ChatRepository()
         self._knowledge_repo = KnowledgeRepository()
         self._work_repo = WorkRepository()
+        self._exec_log_repo = ExecutionLogRepository()
+        self._exec_line_repo = ExecutionLogLineRepository()
 
         # side_task_id -> asyncio.Task for running turns
         self._running: dict[str, asyncio.Task[None]] = {}
@@ -420,19 +437,35 @@ class SideTaskService:
             SideTaskStatus.STOPPED,
         ):
             return  # already terminal
-        if side_task.status == SideTaskStatus.RUNNING:
-            task = self._running.get(side_task.id)
-            if task is not None:
-                # The cancelled turn settles the record in _run()
-                task.cancel()
-            else:
-                # Running in the DB but not in memory (e.g. lost handle) —
-                # mark it stopped directly so it isn't resumed on restart.
-                await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
-                await self._promote(side_task.parent_chat_id)
-        else:
-            await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
-            await self._promote(side_task.parent_chat_id)
+        task = (
+            self._running.get(side_task.id) if side_task.status == SideTaskStatus.RUNNING else None
+        )
+        if task is not None:
+            # The cancelled turn settles the record in _run() — but only when
+            # it lives to run that path: a turn already settling from an
+            # earlier cancel (needs_you, or a finish mid-merge) is aborted by
+            # this second cancel, and a handle whose done-callback has not
+            # fired yet makes cancel() a no-op. Wait for the turn to end,
+            # then settle whatever is still active so the stop is never lost.
+            task.cancel()
+            if task is not asyncio.current_task():
+                await asyncio.gather(task, return_exceptions=True)
+            latest = await self._repo.get(side_task.id)
+            if latest is None:
+                return
+            side_task = latest
+            if side_task.status in (
+                SideTaskStatus.DONE,
+                SideTaskStatus.MERGED,
+                SideTaskStatus.FAILED,
+                SideTaskStatus.STOPPED,
+            ):
+                return  # the turn's own settle path got there first
+        # No live turn settled the record (no handle, or the handle's turn
+        # was already gone) — mark it stopped directly so it isn't resumed
+        # on restart.
+        await self._transition(side_task, SideTaskStatus.STOPPED, finished=True)
+        await self._promote(side_task.parent_chat_id)
 
     # ------------------------------------------------------------------
     # Needs you / resume
@@ -600,6 +633,143 @@ class SideTaskService:
         return await self._repo.get(side_task_id)
 
     # ------------------------------------------------------------------
+    # Replies inside the side task's own chat (E6)
+    # ------------------------------------------------------------------
+
+    async def reply(self, side_task_id: str, content: str) -> SideTask | None:
+        """Reply inside a side task's own chat and continue its turn.
+
+        The message is persisted into the side chat and the side task runs
+        again in its own worktree (same tool/file sandboxing as the original
+        run); when the turn settles its work is merged back automatically —
+        only the changes since the previous bring-in — and the parent chat's
+        thread reply is updated in place. The per-parent limit still
+        applies: when 4 side tasks of the parent are running, the replied
+        one waits for a slot.
+
+        Allowed once the side task is settled: ``done``/``merged`` (a fresh
+        branch is started from the parent's current HEAD, so only new work
+        comes back), ``failed``/``stopped``/``needs_you`` (non-conflict)
+        while the worktree or branch still exists (the existing work
+        continues). A ``needs_you`` merge conflict must be resolved with
+        retry-merge or discard first; running/waiting side tasks get
+        ``SideTaskReplyError``.
+
+        Raises:
+            SideTaskReplyError: The side task cannot take a reply right now.
+            SideTaskStartError: The workspace/branch needed to continue is
+                gone for good (not a git repo, parent branch missing...).
+        """
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None:
+            return None
+        content = content.strip()
+        if not content:
+            raise SideTaskReplyError("Reply content must not be empty")
+        if side_task.status in (
+            SideTaskStatus.RUNNING,
+            SideTaskStatus.WAITING_FOR_SLOT,
+        ):
+            raise SideTaskReplyError(
+                f'"{side_task.title}" is still working — reply once it settles'
+            )
+        if (
+            side_task.status == SideTaskStatus.NEEDS_YOU
+            and side_task.needs_you_reason == NEEDS_YOU_MERGE_CONFLICT
+        ):
+            raise SideTaskReplyError(
+                "Resolve the merge conflict first (Retry merge or Discard), then reply"
+            )
+        if side_task.status not in (
+            SideTaskStatus.DONE,
+            SideTaskStatus.MERGED,
+            SideTaskStatus.FAILED,
+            SideTaskStatus.STOPPED,
+            SideTaskStatus.NEEDS_YOU,
+        ):
+            raise SideTaskReplyError(f'"{side_task.title}" cannot take a reply right now')
+
+        # Make sure there is a worktree to continue in: reuse the existing
+        # one, recreate it from the surviving branch, or start a fresh
+        # branch from the parent's current HEAD (done/merged/discarded).
+        await self._prepare_worktree_for_reply(side_task)
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None:
+            return None
+
+        # Persist the reply into the side task's own chat; _execute_turn
+        # picks the newest user message as the input for the continued turn.
+        await self._persist_message(side_task, role="user", content=content)
+
+        async with self._lock:
+            running = await self._repo.get_running_for_parent(side_task.parent_chat_id)
+            side_task.finished_at = None
+            side_task.error = None
+            side_task.needs_you_reason = None
+            if len(running) < MAX_RUNNING_PER_PARENT:
+                side_task.status = SideTaskStatus.RUNNING
+                side_task.started_at = datetime.now(timezone.utc)
+            else:
+                side_task.status = SideTaskStatus.WAITING_FOR_SLOT
+            await self._repo.update(side_task)
+            await self._sync_work_status(side_task)
+
+        await self._broadcast(side_task)
+        if side_task.status == SideTaskStatus.RUNNING:
+            self._launch(side_task)
+        # The parent reply must not keep offering the old settled state while
+        # the continued turn runs (or waits for a slot): update it in place.
+        await self._reply_in_parent_chat(side_task)
+        return await self._repo.get(side_task_id)
+
+    async def _prepare_worktree_for_reply(self, side_task: SideTask) -> None:
+        """Ensure a settled side task has a worktree to continue in.
+
+        - Worktree dir still there: continue in it (uncommitted work intact).
+        - Worktree gone but the branch lives: recreate the checkout from it.
+        - Neither (merged and cleaned up, or discarded): clear the recorded
+          branch/base so a fresh ``side/<slug>-<short id>`` branch is created
+          from the parent's current HEAD — the previous work already came
+          back (or was thrown away), so only new changes may merge.
+
+        Raises SideTaskStartError when the workspace is no longer a git repo
+        or git cannot create the worktree.
+        """
+        if side_task.worktree_path and worktrees.worktree_exists(Path(side_task.worktree_path)):
+            return
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+        if side_task.branch:
+            try:
+                branch_tip = await asyncio.to_thread(
+                    worktrees.branch_sha, workspace, side_task.branch
+                )
+            except worktrees.WorktreeError:
+                # The workspace itself is gone/unreadable — let the fresh
+                # worktree attempt below surface the real error.
+                branch_tip = None
+            if branch_tip:
+                await self._prepare_worktree(side_task)
+                return
+        side_task.worktree_path = None
+        side_task.branch = None
+        side_task.base_commit = None
+        await self._prepare_worktree(side_task)
+
+    async def diff(self, side_task_id: str) -> worktrees.SideTaskDiff | None:
+        """The unified diff + per-file stats behind "View changes".
+
+        None when the side task does not exist. Read-only: never creates a
+        worktree and never touches the repository.
+        """
+        side_task = await self._repo.get(side_task_id)
+        if side_task is None:
+            return None
+        config = Config.load()
+        workspace = Path(config.workspace_path)
+        return await asyncio.to_thread(worktrees.compute_diff, workspace, side_task)
+
+    # ------------------------------------------------------------------
     # Restart resume
     # ------------------------------------------------------------------
 
@@ -641,27 +811,59 @@ class SideTaskService:
     def _launch(self, side_task: SideTask) -> None:
         """Start the background turn for a running side task."""
         task = asyncio.create_task(self._run(side_task.id))
+
+        def _done(t: asyncio.Task[None], side_task_id: str = side_task.id) -> None:
+            # Only drop the handle when it is still THIS turn: a resume or a
+            # reply can launch the next turn before the cancelled previous
+            # one finishes, and its done-callback must not evict the new
+            # handle (Stop would then lose the running turn and fall back to
+            # the direct-transition path while it keeps working).
+            if self._running.get(side_task_id) is t:
+                self._running.pop(side_task_id, None)
+
         self._running[side_task.id] = task
-        task.add_done_callback(lambda _t: self._running.pop(side_task.id, None))
+        task.add_done_callback(_done)
 
     async def _run(self, side_task_id: str) -> None:
-        """Run one side task turn and move it to its terminal state."""
-        side_task = await self._repo.get(side_task_id)
-        if side_task is None:
-            return
+        """Run one side task turn and move it to its terminal state.
+
+        Every turn (first run, resume, continuation after a reply) writes one
+        execution-log row — with key step lines — so the side task shows up
+        in Runs like any other background run. The whole body runs inside
+        the cancellation handler: a turn cancelled at ANY point (including
+        before its first database read) must still settle the record, or it
+        would stay ``running`` forever.
+        """
+        exec_log_id: str | None = None
         try:
+            side_task = await self._repo.get(side_task_id)
+            if side_task is None:
+                return
+            exec_log_id = await self._start_execution_log(side_task)
             await self._prepare_worktree(side_task)
             # Re-fetch: _prepare_worktree persisted worktree_path/branch/base_commit
             latest = await self._repo.get(side_task_id)
             if latest is None:
                 return
+            if latest.worktree_path:
+                await self._exec_line(
+                    exec_log_id,
+                    "info",
+                    f"Worktree ready at {latest.worktree_path}"
+                    + (f" on {latest.branch}" if latest.branch else ""),
+                )
             await self._execute_turn(latest)
+            await self._exec_line(exec_log_id, "info", "Turn finished")
 
             # The turn finished successfully: commit and merge the work back
             latest = await self._repo.get(side_task_id)
             if latest is not None and latest.status == SideTaskStatus.RUNNING:
                 await self._finish_and_merge(latest)
                 await self._promote(latest.parent_chat_id)
+                settled = await self._repo.get(side_task_id)
+                if settled is not None:
+                    await self._exec_line(exec_log_id, "info", _settle_line(settled))
+                    await self._finish_execution_log(exec_log_id, settled)
         except asyncio.CancelledError:
             needs_you_reason = self._pending_needs_you.pop(side_task_id, None)
             latest = await self._repo.get(side_task_id)
@@ -673,6 +875,10 @@ class SideTaskService:
                     await self._transition(latest, SideTaskStatus.STOPPED, finished=True)
                 await self._sync_work_status(latest)
                 await self._promote(latest.parent_chat_id)
+                settled = await self._repo.get(side_task_id)
+                if settled is not None:
+                    await self._exec_line(exec_log_id, "info", _settle_line(settled))
+                    await self._finish_execution_log(exec_log_id, settled)
             # If the record is no longer RUNNING someone else settled it.
             # If cancellation came from server shutdown the record stays
             # RUNNING so resume_on_startup picks it back up. The worktree
@@ -686,7 +892,83 @@ class SideTaskService:
                 await self._transition(latest, SideTaskStatus.FAILED, finished=True)
                 await self._sync_work_status(latest)
                 await self._promote(latest.parent_chat_id)
+                await self._exec_line(exec_log_id, "error", f"Failed: {_one_line(str(exc), 300)}")
+                await self._finish_execution_log(exec_log_id, latest)
+
+    # ------------------------------------------------------------------
+    # Execution logs (Runs)
+    # ------------------------------------------------------------------
+
+    async def _start_execution_log(self, side_task: SideTask) -> str | None:
+        """Open the Runs row for one turn of a side task.
+
+        The row links the parent chat (``chat_id``) and records both the
+        side task and its own chat id in the metadata, so Runs can group the
+        run under the parent chat and link straight into the side chat.
+        """
+        try:
+            from cachibot.models.automations import ExecutionLog, TriggerType
+
+            log = ExecutionLog(
+                id=str(uuid.uuid4()),
+                execution_type="side_task",
+                source_type="side_task",
+                source_id=side_task.id,
+                source_name=side_task.title,
+                bot_id=side_task.bot_id,
+                chat_id=side_task.parent_chat_id,
+                trigger=TriggerType.SIDE_TASK,
+                work_id=side_task.work_id,
+                metadata_json={
+                    "side_task_id": side_task.id,
+                    "side_task_chat_id": side_task.chat_id,
+                    "side_task_kind": side_task.kind.value,
+                    "side_task_group_id": side_task.group_id,
+                    "side_task_group_title": side_task.group_title,
+                    "parent_chat_id": side_task.parent_chat_id,
+                },
+            )
+            await self._exec_log_repo.save(log)
+            return log.id
+        except Exception:
+            logger.debug("Could not create side-task execution log", exc_info=True)
+            return None
+
+    async def _exec_line(
+        self,
+        exec_log_id: str | None,
+        level: str,
+        content: str,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        """Append one step line to a run row (best effort, never raises)."""
+        if not exec_log_id:
             return
+        try:
+            await self._exec_line_repo.append(exec_log_id, level, content, data)
+        except Exception:
+            logger.debug("Could not append side-task execution line", exc_info=True)
+
+    async def _finish_execution_log(self, exec_log_id: str | None, settled: SideTask) -> None:
+        """Close the run row with the settled side task's real outcome."""
+        if not exec_log_id:
+            return
+        status = "success"
+        if settled.status == SideTaskStatus.FAILED:
+            status = "error"
+        elif settled.status in (
+            SideTaskStatus.STOPPED,
+            SideTaskStatus.NEEDS_YOU,
+        ):
+            status = "cancelled"
+        try:
+            await self._exec_log_repo.complete(
+                exec_log_id,
+                status=status,
+                output=_settle_line(settled),
+            )
+        except Exception:
+            logger.debug("Could not complete side-task execution log", exc_info=True)
 
     async def _prepare_worktree(self, side_task: SideTask) -> None:
         """Create the side task's worktree on first run, reuse it after.
@@ -759,31 +1041,39 @@ class SideTaskService:
             # the branch and merged it (e.g. cancelled mid-merge), record
             # the merge instead of reporting "nothing happened". A fresh
             # branch with no commits of its own is trivially an ancestor of
-            # HEAD and must not trigger this: that means "no changes".
+            # HEAD: that means "no changes" -> done. But a branch that has
+            # commits of its own and is NOT merged yet carries work from a
+            # stopped or failed turn the user continued with a reply — fall
+            # through and merge it back instead of leaving it behind.
             tip = await asyncio.to_thread(worktrees.branch_sha, workspace, side_task.branch)
-            base_commit = side_task.base_commit
-            if (
+            recorded_base = side_task.base_commit
+            already_merged = (
                 tip is not None
-                and base_commit is not None
-                and tip != base_commit
+                and recorded_base is not None
+                and tip != recorded_base
                 and await asyncio.to_thread(worktrees.is_branch_merged, workspace, side_task.branch)
-            ):
+            )
+            nothing_to_merge = tip is None or recorded_base is None or tip == recorded_base
+            if already_merged and recorded_base is not None:
                 side_task.merged_commit = await asyncio.to_thread(worktrees.head_sha, workspace)
                 side_task.merged_files = await asyncio.to_thread(
                     worktrees.changed_files_vs_base,
                     workspace,
-                    base_commit,
+                    recorded_base,
                     side_task.branch,
                 )
                 side_task.conflict_files = []
                 await self._cleanup_after_merge(workspace, side_task)
                 await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
-            else:
+                await self._sync_work_status(side_task)
+                return
+            if nothing_to_merge:
                 await self._cleanup_after_merge(workspace, side_task)
                 side_task.merged_files = []
                 await self._transition(side_task, SideTaskStatus.DONE, finished=True)
-            await self._sync_work_status(side_task)
-            return
+                await self._sync_work_status(side_task)
+                return
+            # else: unmerged commits on the branch — merge them back below.
 
         async with await _repo_git_lock_for(workspace):
             outcome = await asyncio.to_thread(worktrees.merge_side_branch, workspace, side_task)
@@ -792,6 +1082,7 @@ class SideTaskService:
             side_task.merged_commit = outcome.merged_commit
             side_task.merged_files = outcome.merged_files
             side_task.conflict_files = []
+            side_task.needs_you_reason = None
             await self._cleanup_after_merge(workspace, side_task)
             await self._transition(side_task, SideTaskStatus.MERGED, finished=True)
             await self._sync_work_status(side_task)
@@ -840,7 +1131,11 @@ class SideTaskService:
         """Run the side task's turn through the agent, persisting messages.
 
         History already in the side task's chat is seeded into the agent's
-        conversation so a resumed turn continues where it left off.
+        conversation so a resumed turn continues where it left off. The
+        newest user message drives the turn: the original prompt on a first
+        run, or — after a reply inside the side chat (``reply`` persists it
+        before launching) — that reply, so the continued turn answers it in
+        the same worktree.
         """
         from cachibot.services.agent_factory import build_bot_agent
 
@@ -854,32 +1149,42 @@ class SideTaskService:
             on_approval_needed=self._make_approval_handler(config, side_task.bot_id),
         )
 
-        # Seed persisted history (already oldest-first). A trailing copy of
-        # the prompt is dropped so it isn't replayed twice.
+        # Seed persisted history (already oldest-first).
         history = await self._knowledge_repo.get_bot_messages(
             side_task.bot_id, side_task.chat_id, limit=_RESUME_HISTORY_LIMIT
         )
-        prompt_already_persisted = False
+        last_user = next((m for m in reversed(history) if m.role == "user"), None)
+        # A reply the user sent while the task waited settles the continued
+        # turn; it is already persisted, so it must not be replayed twice.
+        continuation = (
+            last_user.content
+            if last_user is not None and last_user.content != side_task.prompt
+            else None
+        )
+        prompt_already_persisted = last_user is not None and last_user.content == side_task.prompt
+
+        # Drop the message that drives this turn from the seeded context:
+        # the prompt is replayed via run_message, a reply stays persisted.
+        seeded = list(history)
+        if (
+            seeded
+            and seeded[-1].role == "user"
+            and (continuation is not None or seeded[-1].content == side_task.prompt)
+        ):
+            seeded = seeded[:-1]
         seeded_turns = False
-        if history:
-            # The prompt was persisted by a previous (interrupted) turn
-            first_user = next((m for m in history if m.role == "user"), None)
-            prompt_already_persisted = (
-                first_user is not None and first_user.content == side_task.prompt
-            )
-            # Drop a trailing copy of the prompt so it isn't replayed twice
-            if history[-1].role == "user" and history[-1].content == side_task.prompt:
-                history = history[:-1]
-            for msg in history:
-                if msg.role in ("user", "assistant", "system"):
-                    agent.conversation.add_context(msg.role, msg.content)
-            seeded_turns = bool(history)
+        for msg in seeded:
+            if msg.role in ("user", "assistant", "system"):
+                agent.conversation.add_context(msg.role, msg.content)
+                seeded_turns = True
 
         # Persist the user prompt (skip on resume: the chat already has it)
-        if not prompt_already_persisted:
+        if not prompt_already_persisted and continuation is None:
             await self._persist_message(side_task, role="user", content=side_task.prompt)
 
-        if seeded_turns:
+        if continuation is not None:
+            run_message = continuation
+        elif seeded_turns:
             # Resumed mid-conversation (e.g. after needs_you): continue
             # from the seeded history instead of repeating the prompt cold.
             run_message = (
@@ -1010,9 +1315,7 @@ class SideTaskService:
                 if side_task.group_id:
                     await self._sync_group_reply(side_task.group_id)
                     return
-                if side_task.status in _SINGLE_REPLY_STATUSES or (
-                    side_task.status == SideTaskStatus.RUNNING and side_task.reply_message_id
-                ):
+                if side_task.status in _SINGLE_REPLY_STATUSES or side_task.reply_message_id:
                     await self._sync_single_reply(side_task)
         except Exception:
             logger.debug(
@@ -1262,10 +1565,29 @@ def _one_line(text: str, limit: int = 200) -> str:
     return " ".join(text.split())[:limit]
 
 
+def _settle_line(side_task: SideTask) -> str:
+    """One line describing a settled side task (run output / step line)."""
+    if side_task.status == SideTaskStatus.MERGED:
+        count = len(side_task.merged_files)
+        suffix = f" · {_files_label(count)}" if count else ""
+        commit = side_task.merged_commit
+        tail = f" as {commit[:7]}" if commit else ""
+        return f"Merged back{tail}{suffix}"
+    if side_task.status == SideTaskStatus.DONE:
+        return "Finished with no changes to bring back"
+    if side_task.status == SideTaskStatus.FAILED:
+        return f"Failed: {_one_line(side_task.error or 'unknown error', 300)}"
+    if side_task.status == SideTaskStatus.NEEDS_YOU:
+        reason = side_task.needs_you_reason or "see the side task"
+        return f"Needs you: {_one_line(reason, 300)}"
+    return "Stopped"
+
+
 # States that get a persisted parent-chat reply for a single (ungrouped)
-# side task. Waiting/running show the quiet live indicator instead; a
-# resumed side task (RUNNING with an existing reply) updates it in place so
-# a stale needs-you reply never keeps offering actions.
+# side task. Waiting/running show the quiet live indicator instead — except
+# when a reply already exists (a settled side task that resumes or gets a
+# reply runs again): it is updated in place so a stale needs-you reply never
+# keeps offering actions.
 _SINGLE_REPLY_STATUSES = (
     SideTaskStatus.NEEDS_YOU,
     SideTaskStatus.DONE,
@@ -1297,6 +1619,8 @@ def _single_reply_content(side_task: SideTask, summary: str | None) -> str:
     if side_task.status == SideTaskStatus.NEEDS_YOU:
         reason = side_task.needs_you_reason or "see the side task"
         return f'"{title}" needs you: {_one_line(reason, 120)}'
+    if side_task.status == SideTaskStatus.WAITING_FOR_SLOT:
+        return f'"{title}" is waiting for a slot'
     return f'"{title}" is working again'
 
 
@@ -1338,6 +1662,7 @@ def get_side_task_service() -> SideTaskService:
 
 __all__ = [
     "MAX_RUNNING_PER_PARENT",
+    "SideTaskReplyError",
     "SideTaskService",
     "SideTaskStartError",
     "get_side_task_service",

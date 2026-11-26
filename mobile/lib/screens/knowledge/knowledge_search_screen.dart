@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/knowledge.dart';
 import '../../providers/knowledge_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class KnowledgeSearchScreen extends ConsumerStatefulWidget {
   const KnowledgeSearchScreen({required this.botId, super.key});
@@ -69,7 +70,7 @@ class _KnowledgeSearchScreenState
 
   Widget _buildResults(ThemeData theme, KnowledgeState state) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiPageLoading();
     }
 
     if (state.searchQuery.isEmpty) {

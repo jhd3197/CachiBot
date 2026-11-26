@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Loader2 } from 'lucide-react'
 import { useBotStore } from '../../stores/bots'
 import { useRoomStore } from '../../stores/rooms'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { MarkdownRenderer } from '../common/MarkdownRenderer'
+import { Spinner } from '../common/Spinner'
 import type { RoomMessage, RoomBot } from '../../types'
 
 interface DashboardCardsViewProps {
@@ -60,7 +60,7 @@ export function DashboardCardsView({ roomId, messages, roomBots }: DashboardCard
               <span className="room-card-bot__name">{rb.botName}</span>
               <span className="room-card-bot__role">{rb.role}</span>
               {isActive && (
-                <Loader2 size={12} className="animate-spin" style={{ marginLeft: 'auto', color: 'var(--accent-500)' }} />
+                <Spinner size="sm" label="" aria-hidden="true" style={{ marginLeft: 'auto' }} />
               )}
             </div>
 

@@ -6,11 +6,11 @@ import {
   AlertCircle,
   Clock,
   ArrowRight,
-  Loader2,
   CalendarClock,
 } from 'lucide-react'
 import { CronExpressionParser } from 'cron-parser'
 import { getBotTimeline, type TimelineEvent } from '../../api/automations'
+import { PageLoading } from '../common/PageLoading'
 import type { Schedule } from '../../types'
 
 interface ScheduleTimelineProps {
@@ -217,11 +217,7 @@ export function ScheduleTimeline({ botId, schedules, timezone }: ScheduleTimelin
   }, [pastEntries, upcomingEntries])
 
   if (loading) {
-    return (
-      <div className="timeline__loading">
-        <Loader2 size={20} className="animate-spin" style={{ color: 'var(--color-text-tertiary)' }} />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading timeline..." />
   }
 
   if (allEntries.length === 0 || (allEntries.length === 1 && allEntries[0] === 'now')) {

@@ -6,11 +6,8 @@ import {
   Plus,
   Sparkles,
   ChevronDown,
-  Code,
-  Zap,
-  CheckCircle,
+  Check,
   XCircle,
-  Loader2,
   Reply,
   X,
   Cpu,
@@ -21,9 +18,13 @@ import {
   FolderOpen,
   GitBranch,
   Paperclip,
+  Monitor,
 } from 'lucide-react'
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
+import { useComputerStore } from '../../stores/computer'
+import { useFaroStore } from '../../stores/faro'
+import { useAuthStore } from '../../stores/auth'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
 import { useApprovalsStore } from '../../stores/approvals'
@@ -46,6 +47,7 @@ import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
+import { listArtifacts } from '../../api/artifacts'
 import { uploadChatAsset } from '../../api/assets'
 import { getChatMessages } from '../../api/side-tasks'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
@@ -54,7 +56,10 @@ import { wsClient } from '../../api/websocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubbleV2, isMediaResult } from '../chat/MessageBubble'
-import { ErrorCard, ApprovalCard, StoppedLine } from '../chat/ChatCards'
+import { ErrorCard, ApprovalCard, StoppedLine, ComputerNeedsYouCard, ComputerDrivingLine, FaroNeedsYouCard } from '../chat/ChatCards'
+import { ThinkingIndicator } from '../chat/ThinkingIndicator'
+import { StatusLine } from '../common/StatusLine'
+import { Spinner } from '../common/Spinner'
 import { ChatMoreMenu } from '../chat/ChatMoreMenu'
 import { VoiceMode } from '../chat/VoiceMode'
 import { FindInChatBar } from '../chat/FindInChatBar'
@@ -141,6 +146,33 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
   const { isCommand, isPrefixedCommand, handleCommand, remoteCommands } = useCommands()
   const { canOperate, canEdit: canEditBot } = useBotAccess(activeBotId)
   const { activeWorkspace, workspaceConfig, taskProgress, availableWorkspaces, setActiveWorkspace, clearWorkspace, setAvailableWorkspaces } = useWorkspaceStore()
+  // Computer surfaces (C4): the Docker probe decides whether any of it may
+  // appear; the per-bot record is live from GET + `computer_update` WS.
+  const computerAvailable = useComputerStore((s) => s.status?.available === true)
+  const inspectorOpen = useUIStore((s) => s.inspectorOpen)
+  const botComputer = useComputerStore((s) => (activeBotId ? s.byBot[activeBotId] : undefined))
+  const currentUserId = useAuthStore((s) => s.user?.id)
+  const botDriver = botComputer?.driver
+
+  useEffect(() => {
+    if (!computerAvailable || !activeBotId) return
+    void useComputerStore.getState().ensureForBot(activeBotId)
+    void useComputerStore.getState().fetchViews(activeBotId)
+  }, [computerAvailable, activeBotId])
+
+  // Faro needs-you (real `faro_update` state): only a connected bot can be
+  // waiting on Faro; the global status tells whether the card may exist at
+  // all. Hidden entirely when nothing is pending and no call is in flight.
+  const faroStatusLoaded = useFaroStore((s) => s.statusLoaded)
+  const botFaro = useFaroStore((s) => (activeBotId ? s.byBot[activeBotId] : undefined))
+  useEffect(() => {
+    if (!activeBotId || !faroStatusLoaded) return
+    const status = useFaroStore.getState().status
+    const known = useFaroStore.getState().byBot[activeBotId]
+    if (status?.available || known?.connected) {
+      void useFaroStore.getState().ensureForBot(activeBotId)
+    }
+  }, [faroStatusLoaded, activeBotId])
 
   // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
   // owns the in-flight run — the connection lives at the app level now.
@@ -215,6 +247,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
       cancelled = true
     }
   }, [activeBotId, activeChatId, upsertMessage])
+
+  // Server-side artifacts are the source of truth once edits are saved
+  // there: merge this chat's stored artifacts into the local cache (adds
+  // ones this browser never saw, lets a >= server version win). A failed
+  // fetch leaves the local cache as-is — it is only a cache.
+  useEffect(() => {
+    if (!activeBotId || !activeChatId) return
+    let cancelled = false
+    listArtifacts(activeBotId, activeChatId)
+      .then((rows) => {
+        if (cancelled) return
+        useArtifactsStore.getState().mergeServerArtifacts(rows)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [activeBotId, activeChatId])
 
   // @mention coding agent autocomplete state
   const [showAgentMentions, setShowAgentMentions] = useState(false)
@@ -1629,6 +1679,19 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
         </div>
         {activeBot && (
           <div className="chat-header__actions">
+            {computerAvailable && (
+              <button
+                type="button"
+                className="v2-files-btn"
+                aria-label="Computer"
+                title="Computer"
+                aria-pressed={inspectorOpen}
+                onClick={() => useUIStore.getState().toggleInspector()}
+              >
+                <Monitor size={15} strokeWidth={1.8} />
+                Computer
+              </button>
+            )}
             <button
               type="button"
               className="v2-files-btn"
@@ -1864,6 +1927,53 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
             <ApprovalCard key={approval.id} approval={approval} onAnswer={answerApproval} />
           ))}
 
+          {/* The bot's computer needs a person (design 08) — real C2 state */}
+          {computerAvailable && activeBot && botComputer?.state === 'needs_you' && (
+            <ComputerNeedsYouCard
+              reason={botComputer.needsYou || `${activeBot.name} needs you on its computer.`}
+              onTakeOver={
+                canOperate
+                  ? () => void useComputerStore.getState().respondNeedsYou(activeBot.id, 'takeover')
+                  : undefined
+              }
+              onSkip={
+                canOperate
+                  ? () => void useComputerStore.getState().respondNeedsYou(activeBot.id, 'skip')
+                  : undefined
+              }
+            />
+          )}
+
+          {/* Faro is waiting on the human — real `faro_update` state. Deny
+              only: approving happens in Faro, never here. Hidden when
+              nothing is pending and no call is in flight. */}
+          {activeBot && botFaro?.connected && botFaro.callInFlight && (
+            <FaroNeedsYouCard
+              botId={activeBot.id}
+              approvals={(botFaro.pendingApprovals ?? []).map((approval) => ({
+                requestId: approval.requestId,
+                line: [
+                  approval.kind ? `${approval.kind}: ` : '',
+                  approval.summary || 'an action',
+                  approval.sessionName ? ` on ${approval.sessionName}` : '',
+                ].join(''),
+              }))}
+              plainWaiting={!botFaro.supportsApprovals}
+              canOperate={canOperate}
+              onDeny={(botId, requestId) =>
+                void useFaroStore.getState().denyApproval(botId, requestId)
+              }
+            />
+          )}
+
+          {/* You hold the take-over — the hand-back line (design 08) */}
+          {computerAvailable && activeBot && botDriver && botDriver.userId === currentUserId && (
+            <ComputerDrivingLine
+              since={botDriver.since}
+              onHandBack={() => void useComputerStore.getState().handback(activeBot.id)}
+            />
+          )}
+
           {/* Failed-turn card from the real WS error event */}
           {showErrorCard && (
             <ErrorCard
@@ -1888,17 +1998,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
             </div>
           )}
 
-          {/* Typing indicator (when loading but no thinking content) */}
+          {/* Typing indicator (when loading but no thinking content) — quiet
+              v2 status line with the bot's real color as the small mark */}
           {isLoading && !thinking && toolCalls.length === 0 && runVisibleHere && (
             <div className="mt-6">
-              <TypingIndicator botColor={activeBot?.color} botName={activeBot?.name} />
+              <StatusLine pending markColor={activeBot?.color}>
+                {activeBot?.name ? `${activeBot.name} is working` : 'Generating response'}
+              </StatusLine>
             </div>
           )}
 
           {/* Thinking indicator */}
           {thinking && showThinking && runVisibleHere && (
             <div className="mt-6">
-              <ThinkingIndicator content={thinking} />
+              <ThinkingIndicator
+                content={thinking}
+                label={activeBot?.name ? `${activeBot.name} is thinking` : 'Thinking'}
+                markColor={activeBot?.color}
+              />
             </div>
           )}
 
@@ -1982,7 +2099,7 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
             <div className="chat-creation-flow">
               {creationFlow.isLoadingNames ? (
                 <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Spinner size="sm" label="" aria-hidden="true" />
                   <span>Generating name suggestions...</span>
                 </>
               ) : (
@@ -2043,6 +2160,15 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
   const isSuccess = call.success === true
   const toolModel = getToolModel(call.tool)
 
+  // Live elapsed while the tool runs, measured from the call's real
+  // startTime (design 03 work line "… · 0:42"); stops when the call ends.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (isComplete) return
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [isComplete])
+
   // Auto-expand when media result arrives
   useEffect(() => {
     if (hasMedia && !expanded) setExpanded(true)
@@ -2053,17 +2179,19 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
       <button
         onClick={() => setExpanded(!expanded)}
         className="chat-tool-call__header"
+        aria-expanded={expanded}
       >
         {!isComplete ? (
-          <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+          <Spinner size="sm" label="" aria-hidden="true" />
         ) : isSuccess ? (
-          <CheckCircle className="h-4 w-4 text-green-400" />
+          <Check className="chat-tool-call__status chat-tool-call__status--success" />
         ) : (
-          <XCircle className="h-4 w-4 text-red-400" />
+          <XCircle className="chat-tool-call__status chat-tool-call__status--error" />
         )}
 
-        <Code className="h-4 w-4 text-[var(--color-text-secondary)]" />
-        <span className="chat-tool-call__name">{call.tool}</span>
+        <span className="chat-tool-call__name">
+          {isComplete ? call.tool : `Running ${call.tool} · ${formatToolElapsed(call.startTime, now)}`}
+        </span>
         {toolModel && (
           <span className="chat-tool-call__model">
             {toolModel}
@@ -2072,8 +2200,8 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
 
         <ChevronDown
           className={cn(
-            'h-4 w-4 text-[var(--color-text-secondary)] transition-transform',
-            expanded && 'rotate-180'
+            'chat-tool-call__chevron',
+            expanded && 'chat-tool-call__chevron--open'
           )}
         />
       </button>
@@ -2108,47 +2236,8 @@ function ToolCallDisplay({ call }: { call: ToolCall }) {
   )
 }
 
-// =============================================================================
-// THINKING INDICATOR
-// =============================================================================
-
-function ThinkingIndicator({ content }: { content: string }) {
-  return (
-    <div className="chat-thinking">
-      <div className="chat-thinking__icon">
-        <Zap className="h-5 w-5 animate-pulse text-purple-400" />
-      </div>
-      <div className="chat-thinking__body">
-        <div className="chat-thinking__label">Thinking...</div>
-        <div className="chat-thinking__content">{content}</div>
-      </div>
-    </div>
-  )
-}
-
-// =============================================================================
-// TYPING INDICATOR (Clean loading state)
-// =============================================================================
-
-function TypingIndicator({ botColor, botName }: { botColor?: string; botName?: string }) {
-  return (
-    <div className="chat-typing">
-      <div
-        className="chat-typing__icon"
-        style={{ backgroundColor: (botColor || '#22c55e') + '30' }}
-      >
-        <Loader2 className="h-5 w-5 animate-spin" style={{ color: botColor || '#22c55e' }} />
-      </div>
-      <div className="chat-typing__body">
-        <div className="chat-typing__text">
-          <span>{botName ? `${botName} is working` : 'Generating response'}</span>
-          <span className="chat-typing__dots">
-            <span className="animate-pulse" style={{ animationDelay: '0ms' }}>.</span>
-            <span className="animate-pulse" style={{ animationDelay: '200ms' }}>.</span>
-            <span className="animate-pulse" style={{ animationDelay: '400ms' }}>.</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  )
+/** "0:42" / "1:52" elapsed, measured from a real start timestamp (ms). */
+function formatToolElapsed(startTime: number, now: number): string {
+  const secs = Math.max(0, Math.floor((now - startTime) / 1000))
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
 }

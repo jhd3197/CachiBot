@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DoorOpen, Plus, Loader2, Store } from 'lucide-react'
+import { DoorOpen, Plus, Store } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useBotStore } from '../../stores/bots'
 import { getRooms } from '../../api/rooms'
@@ -7,6 +7,7 @@ import { RoomPanel } from '../rooms/RoomPanel'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
 import { MarketplaceBrowser } from '../marketplace/MarketplaceBrowser'
 import { BotIconRenderer } from '../common/BotIconRenderer'
+import { PageLoading } from '../common/PageLoading'
 
 export function RoomsView() {
   const { activeBotId } = useBotStore()
@@ -45,7 +46,7 @@ export function RoomsView() {
       <div className="flex flex-1 items-center justify-center p-8">
         <div className="max-w-md text-center">
           {loading ? (
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[var(--color-text-secondary)]" />
+            <PageLoading pending={loading} label="Loading rooms..." />
           ) : (
             <>
               <div

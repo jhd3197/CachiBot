@@ -9,7 +9,6 @@ import {
   Check,
   X,
   ArrowLeft,
-  Loader2,
   Mail,
   AtSign,
 } from 'lucide-react'
@@ -17,6 +16,8 @@ import { toast } from 'sonner'
 import { listUsers, createUser, updateUser, deactivateUser } from '../../api/auth'
 import { useAuthStore } from '../../stores/auth'
 import { Button } from '../common/Button'
+import { PageLoading } from '../common/PageLoading'
+import { Spinner } from '../common/Spinner'
 import type { User, UserRole } from '../../types'
 
 export function UsersView() {
@@ -137,7 +138,7 @@ export function UsersView() {
   if (loading) {
     return (
       <div className="users-loading">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <PageLoading />
       </div>
     )
   }
@@ -357,7 +358,7 @@ export function UsersView() {
                 </Button>
                 <Button type="submit" className="flex-1" disabled={creating}>
                   {creating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size="sm" delayMs={200} />
                   ) : (
                     'Create User'
                   )}
@@ -434,7 +435,7 @@ export function UsersView() {
                 </Button>
                 <Button type="submit" className="flex-1" disabled={updating}>
                   {updating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size="sm" delayMs={200} />
                   ) : (
                     'Save Changes'
                   )}

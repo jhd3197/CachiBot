@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Star, Download, Wrench, MessageSquare, Loader2, CircleCheck, AlertTriangle, CircleAlert } from 'lucide-react'
+import { Star, Download, Wrench, MessageSquare, CircleCheck, AlertTriangle, CircleAlert } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
@@ -7,6 +7,7 @@ import {
   DialogFooter,
   DialogButton,
 } from '../common/Dialog'
+import { Spinner } from '../common/Spinner'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installMarketplaceTemplate, type MarketplaceTemplate } from '../../api/client'
 import { useBotStore } from '../../stores/bots'
@@ -208,7 +209,7 @@ export function BotDetailDialog({ template, onClose, onInstalled }: BotDetailDia
         >
           {isInstalling ? (
             <>
-              <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem' }} />
+              <Spinner size="sm" label="" aria-hidden="true" delayMs={200} style={{ marginRight: '0.5rem' }} />
               Installing...
             </>
           ) : (

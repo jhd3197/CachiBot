@@ -18,7 +18,6 @@ import {
   MoreVertical,
   Check,
   X,
-  Loader2,
   ChevronRight,
   ChevronDown,
   Bot,
@@ -74,6 +73,10 @@ import {
 } from '../../api/client'
 import { ModelSelect } from '../common/ModelSelect'
 import { Button } from '../common/Button'
+import { Spinner } from '../common/Spinner'
+import { useDelayedFlag } from '../../hooks/useDelayedFlag'
+import { useVelaCompanionStatus } from '../../hooks/useVelaCompanion'
+import { updateVelaCompanionSettings } from '../../api/vela-companion'
 import { cn, parseApiDate } from '../../lib/utils'
 import type { Group, GroupWithMembers, GroupMember, GroupRole } from '../../types'
 
@@ -389,6 +392,7 @@ function GeneralSection() {
 
       <StartOnBootSection />
       <MobilePairingSection />
+      <VelaSection />
       <SetupWizardRow />
       {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
     </V2Section>
@@ -470,8 +474,8 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
             <Button type="button" variant="ghost" className="flex-1" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Change password'}
+            <Button type="submit" className="flex-1" pending={saving}>
+              Change password
             </Button>
           </div>
         </form>
@@ -611,7 +615,7 @@ function MobilePairingSection() {
               disabled={loading}
               onClick={() => void fetchToken()}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Pair'}
+              {loading ? <Spinner size="sm" delayMs={200} /> : 'Pair'}
             </button>
           }
         />
@@ -626,7 +630,7 @@ function MobilePairingSection() {
                 disabled={firewallLoading}
                 onClick={() => void handleEnableFirewall()}
               >
-                {firewallLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Allow'}
+                {firewallLoading ? <Spinner size="sm" delayMs={200} /> : 'Allow'}
               </button>
             }
           />
@@ -675,12 +679,65 @@ function QrCodeDisplay({ value, size }: { value: string; size: number }) {
   if (!dataUrl) {
     return (
       <div style={{ width: size, height: size }} className="flex items-center justify-center">
-        <div className="animate-spin h-6 w-6 border-2 border-current border-t-transparent rounded-full" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }
 
   return <img src={dataUrl} width={size} height={size} alt="QR Code" className="rounded" />
+}
+
+// =============================================================================
+// VELA (local Vela companion integration)
+// =============================================================================
+
+// Vela polls our loopback server every few seconds when connected; an answer
+// older than this reads as "not connected yet".
+const VELA_FRESH_MS = 60_000
+
+function VelaSection() {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
+  const { status, failed } = useVelaCompanionStatus()
+
+  // Feature-detect: no local Vela (or an unreachable server) means no section
+  // at all — never a disabled placeholder. Admin-only by design.
+  if (!isAdmin || failed) return null
+  if (!status || !status.detected) return null
+
+  const lastSeenMs = status.lastSeenAt ? parseApiDate(status.lastSeenAt).getTime() : null
+  const connected = lastSeenMs !== null && Date.now() - lastSeenMs <= VELA_FRESH_MS
+
+  let line: string
+  if (!status.enabled) {
+    line = 'Turned off'
+  } else if (connected) {
+    line = 'Connected to Vela'
+  } else if (status.registered) {
+    line = 'Waiting for you to connect CachiBot in Vela > Marketplace > Found on this computer'
+  } else {
+    line = 'Starting…'
+  }
+
+  const handleToggle = async (checked: boolean) => {
+    try {
+      await updateVelaCompanionSettings({ enabled: checked })
+    } catch {
+      toast.error('Failed to update the Vela setting')
+    }
+  }
+
+  return (
+    <>
+      <h3 className="v2-settings__sub">Vela</h3>
+      <V2Toggle
+        title="Show CachiBot on your Vela desk"
+        sub={line}
+        checked={status.enabled}
+        onChange={(v) => void handleToggle(v)}
+      />
+    </>
+  )
 }
 
 // =============================================================================
@@ -963,7 +1020,7 @@ function ModelsSection() {
       </p>
       {loading && (
         <div className="flex items-center justify-center gap-2 py-6 text-[var(--color-text-secondary)]">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" delayMs={200} />
           Discovering models...
         </div>
       )}
@@ -1188,7 +1245,7 @@ function ProvidersList() {
   if (loading && providers.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-accent-500" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -1265,7 +1322,7 @@ function ProvidersList() {
               disabled={!state.value.trim() || state.saving}
               onClick={() => void handleSave(provider.name)}
             >
-              {state.saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+              {state.saving ? <Spinner size="sm" delayMs={200} /> : 'Save'}
             </button>
             <button type="button" className="v2-settings__action" onClick={cancelEdit}>
               <X className="h-3.5 w-3.5" />
@@ -1352,7 +1409,7 @@ function ProvidersList() {
                             disabled={!state.extraValue.trim() || state.extraSaving}
                             onClick={() => void handleExtraSave(provider.name, ek)}
                           >
-                            {state.extraSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save'}
+                            {state.extraSaving ? <Spinner size="sm" delayMs={200} /> : 'Save'}
                           </button>
                           <button type="button" className="v2-settings__action" onClick={cancelExtraEdit}>
                             <X className="h-3.5 w-3.5" />
@@ -2095,7 +2152,7 @@ function BotDataManager() {
               <button onClick={() => void handleClearSelected()} disabled={clearing} className="settings-modal__confirm-btn--danger flex items-center gap-2">
                 {clearing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size="sm" delayMs={200} />
                     Clearing...
                   </>
                 ) : (
@@ -2352,7 +2409,7 @@ function GroupsManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -2426,7 +2483,7 @@ function GroupsManager() {
         <div className="border border-[var(--color-border-primary)] rounded-xl p-4">
           {loadingDetail ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+              <Spinner size="lg" />
             </div>
           ) : activeGroup ? (
             <div className="space-y-4">
@@ -2521,8 +2578,8 @@ function GroupsManager() {
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={creating}>
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Group'}
+                <Button type="submit" className="flex-1" pending={creating}>
+                  Create Group
                 </Button>
               </div>
             </form>
@@ -2561,8 +2618,8 @@ function GroupsManager() {
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setShowAddMemberModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1" disabled={addingMember}>
-                  {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Member'}
+                <Button type="submit" className="flex-1" pending={addingMember}>
+                  Add Member
                 </Button>
               </div>
             </form>
@@ -2742,6 +2799,7 @@ function UpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
 
 function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const [checking, setChecking] = useState(false)
+  const showChecking = useDelayedFlag(checking)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null)
@@ -2816,8 +2874,14 @@ function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) 
                 {downloadProgress ? `${Math.round(downloadProgress.percent)}%` : 'Downloading…'}
               </span>
             ) : (
-              <button type="button" className="v2-settings__action" disabled={checking} onClick={() => void handleCheck()}>
-                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+              <button
+                type="button"
+                className="v2-settings__action"
+                disabled={checking}
+                aria-busy={checking || undefined}
+                onClick={() => void handleCheck()}
+              >
+                {showChecking ? <Spinner size="sm" /> : 'Check again'}
               </button>
             )
           }
@@ -2836,6 +2900,7 @@ function ElectronUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) 
 
 function PipUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
   const { checkResult, isChecking, checkForUpdate } = useUpdateStore()
+  const showChecking = useDelayedFlag(isChecking)
 
   useEffect(() => {
     checkForUpdate()
@@ -2857,8 +2922,14 @@ function PipUpdatesRows({ healthInfo }: { healthInfo: HealthInfo | null }) {
         title="Version"
         sub={versionSub}
         action={
-          <button type="button" className="v2-settings__action" disabled={isChecking} onClick={() => checkForUpdate(true)}>
-            {isChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Check again'}
+          <button
+            type="button"
+            className="v2-settings__action"
+            disabled={isChecking}
+            aria-busy={isChecking || undefined}
+            onClick={() => checkForUpdate(true)}
+          >
+            {showChecking ? <Spinner size="sm" /> : 'Check again'}
           </button>
         }
       />

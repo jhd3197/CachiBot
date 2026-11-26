@@ -79,6 +79,7 @@ What was built (E3):
 - Start points: More › Do this on the side (message actions), + › Side task (composer), plus bot-started.
 
 ### E5, side-task replies: thread-reply model (about 2 days) — BUILT
+
 Juan's reaction to the E4 card stack ("humans reply to threads"): the parent
 chat renders side tasks as thread replies, not cards.
 
@@ -137,6 +138,81 @@ What was built (E5):
   terminal state with in-place updates (retry-merge, discard, resume), no
   duplicate with the old note, group reply created once and updated across
   concurrent settles, `message_update` scoped by bot access.
+
+### E6, reply inside a side task, "View changes" and Runs — BUILT
+The side-task follow-ups: the opened side task becomes a real conversation,
+its changes become inspectable, and its turns show up in Runs.
+
+What was built (E6):
+- **Reply inside a side task** (`POST /api/bots/{id}/side-tasks/{sideTaskId}/messages`,
+  operator+): the reply is persisted into the side task's own chat and the
+  task runs again **in its own worktree** — same tool/file sandboxing as the
+  original run (the per-run config copy points at the worktree). The
+  4-per-parent limit still applies: a reply on a settled task queues it in
+  `waiting_for_slot` when the parent is full (promoted FIFO as before).
+  Allowed once settled: `done`/`merged` (the worktree/branch were cleaned up,
+  so a **fresh `side/<slug>-<short id>` branch is created from the parent's
+  current HEAD** — only new work comes back), `failed`/`stopped`/`needs_you`
+  (non-conflict) while the worktree or branch still exists (reused as-is, or
+  recreated from the surviving branch). A merge conflict must be resolved
+  with retry-merge/discard first (409 with a clear reason otherwise);
+  running/waiting tasks reject replies too. When the continued turn settles
+  it merges back automatically — only what is not in the parent yet — and
+  the SAME parent-chat thread reply is updated in place (`reply_message_id`
+  stays sticky). `_execute_turn` now takes its input from the newest user
+  message in the side chat: a reply drives the continued turn instead of a
+  generic "continue" prompt (the prompt itself is still persisted exactly
+  once). The UI composer mirrors the server rules: operator+ only, disabled
+  with the reason while the task works or waits on a conflict.
+- **"View changes"** (`GET /api/bots/{id}/side-tasks/{sideTaskId}/diff`,
+  viewers allowed — read-only): the unified diff + per-file stats. Unmerged
+  (running/needs_you/failed/stopped): the worktree against its base commit,
+  **including uncommitted changes** — untracked files (invisible to plain
+  `git diff`) are rendered individually via `git diff --no-index`; when the
+  worktree dir is gone but the branch lives, the committed `base..branch`
+  range is used. Merged: the merged commit range (`base..mergedCommit` —
+  for a continuation on a fresh branch that is exactly the latest bring-in).
+  The diff text is capped at 512 KB (`truncated: true` flags a cut); binary
+  files are listed without line stats and never blow up the response. UI: a
+  "View changes" action in the side-task chat header and on settled thread
+  replies, opening a diff dialog (file list with +/− stats, per-file hunks,
+  v2 styling, mobile layout). Hidden whenever the record points at no work
+  (no worktree, branch, merge or conflict).
+- **Runs**: every side-task turn (first run, resume, continuation) writes one
+  execution-log row — `execution_type`/`source_type` "side_task", trigger
+  `side_task`, `chat_id` = the parent chat, the side task and side-chat ids
+  in the metadata — so the existing executions APIs return them, with output
+  lines for the key steps (worktree ready, turn finished, merged back /
+  conflict / no changes / stopped / failed). In RunsView side-task rows are
+  grouped under their parent chat (title fetched once per chat) — helpers
+  under their group — with an "Open side chat" link into the side chat.
+- **Follow-up fix**: the per-task `_running` done-callback only drops the
+  handle when it is still the same task object, so a resume/reply launched
+  before the cancelled previous turn exits can no longer lose its handle
+  (Stop then reached the direct-transition fallback and left the record
+  `running` while the new turn kept working). Related hardening: `_run`
+  wraps its WHOLE body in the cancellation handler (a turn cancelled before
+  its first database read still settles the record), and a finish with no
+  new commits but unmerged commits on the branch (a stopped/failed turn the
+  user continued) merges the branch back instead of reporting "done".
+- Also: a successful merge no longer races the branch tip for the diff base
+  (the base stays the mainline commit the branch started from; continuations
+  branch off fresh from the merge commit, so ranges stay correct naturally),
+  and `ExecutionLogRepository.complete()` treats SQLite's naive datetimes as
+  UTC so run durations compute on SQLite too.
+- **Tests** (`tests/test_side_task_e6.py`, SQLite + real git in tmp dirs,
+  mocked agent, hermetic like the rest): reply continues in the worktree and
+  re-merges only new changes (same parent reply updated in place), reply on
+  a cleaned-up `done` task (fresh branch from current HEAD), reply on
+  needs_you keeps the worktree, reply with the worktree dir deleted
+  (recreated from the branch), 4-per-parent limit on replies, 409s (running,
+  queued, merge conflict), viewer 403, empty-content 422; diff for
+  unmerged (committed + uncommitted + untracked), merged (latest range
+  only), worktree-gone branch range, truncation, binary, empty; execution
+  rows (two turns = two `side_task` rows with the right links and step
+  lines, cancelled/error outcomes); the done-callback eviction regression
+  (both the deterministic handle-identity case and the end-to-end
+  needs_you → resume → stop flow).
 
 ### Estimate
 **About 7–10 working days** (E1 2, E2 2–3, E3 1–1.5, E4 2–3), as 4–5 PRs into dev, each green on its own. E2 builds on the decisions above (worktrees only, automatic merge with conflict → needs_you). Computer-related parts of 11c (labeled windows, preview counts) stay out until the computer backend exists.

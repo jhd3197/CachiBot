@@ -786,17 +786,6 @@
   background: var(--color-bg-primary);
   min-width: 0;
 
-  // Status-colored border variants
-  &--running {
-    border-color: color-mix(in srgb, @blue-500 25%, transparent);
-  }
-  &--success {
-    border-color: color-mix(in srgb, @green-500 20%, transparent);
-  }
-  &--error {
-    border-color: color-mix(in srgb, @red-500 20%, transparent);
-  }
-
   &__header {
     display: flex;
     width: 100%;
@@ -915,13 +904,13 @@
 
 // -----------------------------------------------------------------------------
 // Message Thinking (Persisted thinking in message bubble)
+// Layout only — colors come from the v2 override (styles/v2/chat.less);
+// this component renders only inside the .ui-v2 shell.
 // -----------------------------------------------------------------------------
 
 .chat-msg-thinking {
   margin-top: @sp-2;
   border-radius: @radius-lg;
-  border: 1px solid color-mix(in srgb, @purple-500 20%, transparent);
-  background: color-mix(in srgb, @purple-500 6%, transparent);
   min-width: 0;
 
   &__header {
@@ -931,11 +920,6 @@
     padding: @sp-1-5 @sp-3;
     font-size: @text-xs;
     font-weight: @font-medium;
-    color: @purple-600;
-
-    .dark & {
-      color: @purple-400;
-    }
   }
 
   &__content {
@@ -945,13 +929,8 @@
     .scrollbar-thin();
     font-size: @text-sm;
     font-style: italic;
-    color: @purple-500;
     white-space: pre-wrap;
     word-break: break-word;
-
-    .dark & {
-      color: @purple-300;
-    }
   }
 }
 
@@ -1118,84 +1097,6 @@
   }
 }
 
-// -----------------------------------------------------------------------------
-// Typing Indicator — dots animation
-// -----------------------------------------------------------------------------
-
-.chat-typing {
-  display: flex;
-  align-items: flex-start;
-  gap: @sp-4;
-
-  &__icon {
-    .flex-center();
-    height: 2.25rem;
-    width: 2.25rem;
-    border-radius: @radius-full;
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  &__body {
-    flex: 1;
-    border-radius: @radius-3xl;
-    background: var(--color-bg-primary);
-    border: 1px solid var(--color-border-primary);
-    padding: @sp-3 @sp-4;
-  }
-
-  &__text {
-    display: flex;
-    align-items: center;
-    gap: @sp-2;
-    font-size: @text-sm;
-    color: var(--color-text-secondary);
-  }
-
-  &__dots {
-    display: flex;
-    gap: @sp-1;
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Typing Dots — bouncing dots inside message bubble
-// -----------------------------------------------------------------------------
-
-.chat-typing-dots {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: @sp-1 @sp-0-5;
-
-  &__dot {
-    width: 7px;
-    height: 7px;
-    border-radius: @radius-full;
-    background: var(--color-text-secondary);
-    opacity: 0.4;
-    animation: typing-bounce 1.4s ease-in-out infinite;
-
-    &:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    &:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-  }
-}
-
-@keyframes typing-bounce {
-  0%, 60%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-6px);
-    opacity: 1;
-  }
-}
-
 // Existing input enrichment classes -------
 
 .chat-input-wrap {
@@ -1264,59 +1165,6 @@
 
   &--selected {
     background: var(--color-hover-bg);
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Thinking Indicator
-// -----------------------------------------------------------------------------
-
-.chat-thinking {
-  display: flex;
-  align-items: flex-start;
-  gap: @sp-4;
-
-  &__icon {
-    .flex-center();
-    height: 2.5rem;
-    width: 2.5rem;
-    flex-shrink: 0;
-    border-radius: @radius-full;
-    background: color-mix(in srgb, @purple-500 12%, transparent);
-    color: @purple-500;
-    animation: thinking 1.5s ease-in-out infinite;
-
-    .dark & {
-      color: @purple-400;
-    }
-  }
-
-  &__body {
-    flex: 1;
-    border-radius: @radius-3xl;
-    background: color-mix(in srgb, @purple-500 6%, transparent);
-    padding: @sp-3 @sp-4;
-  }
-
-  &__label {
-    margin-bottom: @sp-1;
-    font-size: @text-xs;
-    font-weight: @font-medium;
-    color: @purple-600;
-
-    .dark & {
-      color: @purple-400;
-    }
-  }
-
-  &__content {
-    font-size: @text-sm;
-    font-style: italic;
-    color: @purple-500;
-
-    .dark & {
-      color: @purple-300;
-    }
   }
 }
 
@@ -1732,10 +1580,6 @@
 
   &--in-progress {
     color: var(--color-text-primary);
-
-    .task-item__icon {
-      color: @blue-500;
-    }
   }
 
   &--done {

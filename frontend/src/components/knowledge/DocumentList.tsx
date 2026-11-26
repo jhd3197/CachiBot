@@ -5,8 +5,10 @@
  */
 
 import { useEffect, useState } from 'react'
-import { FileText, Trash2, Clock, CheckCircle, XCircle, RefreshCw, RotateCcw, Eye } from 'lucide-react'
+import { FileText, Trash2, Clock, CheckCircle, XCircle, RotateCcw, Eye } from 'lucide-react'
 import { useKnowledgeStore, type DocumentResponse } from '../../stores/knowledge'
+import { Skeleton } from '../common/Skeleton'
+import { Spinner } from '../common/Spinner'
 
 interface DocumentListProps {
   botId: string
@@ -88,8 +90,9 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
 
   if (isLoading && documents.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+      <div role="status">
+        <span className="sr-only">Loading documents...</span>
+        <Skeleton variant="list" />
       </div>
     )
   }
@@ -148,7 +151,7 @@ export function DocumentList({ botId, onViewChunks }: DocumentListProps) {
                 className="p-1.5 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-yellow-400 transition-colors disabled:opacity-50"
                 title="Retry processing"
               >
-                <RotateCcw className={`h-4 w-4 ${retrying === doc.id ? 'animate-spin' : ''}`} />
+                {retrying === doc.id ? <Spinner size="md" delayMs={200} /> : <RotateCcw className="h-4 w-4" />}
               </button>
             )}
 

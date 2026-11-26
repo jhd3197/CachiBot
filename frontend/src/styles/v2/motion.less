@@ -1,0 +1,27 @@
+// =============================================================================
+// UI v2 motion — styles/v2/motion.less
+// Global reduced-motion kill switch for loading animation. Imported last so
+// these rules win the cascade at equal specificity; later phases (L2 boot
+// screens) inherit this file.
+// =============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  // v2 primitives: spinner ring, skeleton pulse, status mark
+  .spinner,
+  .v2-skeleton,
+  .v2-status-line__mark,
+
+  // Existing animations: pulse, spin-slow,
+  // and the app-loader set (restyled in L2, same class names — the motion
+  // kill-switch still applies)
+  .reply-highlight,
+  .app-loader__ring,
+  .app-loader__core-dot,
+  .app-loader__bar,
+
+  // Tailwind-driven animation utilities (Loader2 spinners etc.)
+  [class*='animate-spin'],
+  [class*='animate-pulse'] {
+    animation: none !important;
+  }
+}

@@ -12,7 +12,6 @@ import {
   LogOut,
   GitBranch,
   Check,
-  Loader2,
   Square,
   XCircle,
   Hand,
@@ -27,6 +26,7 @@ import { useAuthStore } from '../../stores/auth'
 import { getRooms } from '../../api/rooms'
 import { listUsers } from '../../api/auth'
 import { BotAvatar } from '../common/Avatar'
+import { Spinner } from '../common/Spinner'
 import { V2Menu, V2MenuItem, V2MenuLabel, V2MenuDivider } from '../common/V2Menu'
 import { CreateRoomDialog } from '../rooms/CreateRoomDialog'
 import { cn, parseApiDate } from '../../lib/utils'
@@ -405,7 +405,7 @@ function SideTreeStatusIcon({ status }: { status: SideTaskStatus }) {
   const cls = 'side-tree__row-icon'
   switch (status) {
     case 'running':
-      return <Loader2 className={cn(cls, 'animate-spin')} strokeWidth={1.8} />
+      return <Spinner size="sm" label="" aria-hidden="true" className={cls} />
     case 'needs_you':
       return <Hand className={cn(cls, 'side-tree__row-icon--needs-you')} strokeWidth={1.8} />
     case 'failed':

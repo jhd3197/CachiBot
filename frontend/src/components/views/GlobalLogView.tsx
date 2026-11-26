@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Copy,
-  Loader2,
   MessageSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -23,6 +22,7 @@ import {
 } from '../../api/execution-log'
 import { useBotStore } from '../../stores/bots'
 import { BotAvatar } from '../common/Avatar'
+import { Spinner } from '../common/Spinner'
 import { cn, parseApiDate } from '../../lib/utils'
 
 /**
@@ -332,7 +332,7 @@ export function GlobalLogView() {
 
           {loading ? (
             <div className="v2-log__loading">
-              <Loader2 size={18} strokeWidth={1.8} className="runs__spin" aria-hidden="true" />
+              <Spinner size="lg" label="Loading activity..." />
             </div>
           ) : loadError ? (
             <div className="v2-log__empty">
@@ -379,7 +379,7 @@ export function GlobalLogView() {
                     </span>
                     <span className={cn('v2-log__cell--result', STATUS_META[status].className)}>
                       {status === 'running' && (
-                        <Loader2 size={12} strokeWidth={1.8} className="runs__spin" aria-hidden="true" />
+                        <Spinner size="sm" label="" aria-hidden="true" />
                       )}
                       {STATUS_META[status].label}
                     </span>

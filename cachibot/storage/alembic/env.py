@@ -19,9 +19,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from cachibot.storage.db import Base
 from cachibot.storage.models import (  # noqa: F401
     Bot,
+    BotComputer,
     BotConnection,
     BotContact,
     BotDocument,
+    BotFaroConnection,
     BotInstruction,
     BotMessage,
     BotNote,

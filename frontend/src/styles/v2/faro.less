@@ -1,0 +1,136 @@
+// =============================================================================
+// UI v2 Faro — the Faro Agent Bridge integration card (bot settings ›
+// Connections) and its needs-you rows. Values follow the same v2 tokens as
+// the computer settings (styles/v2/computer.less); no new color literals.
+// =============================================================================
+
+.faro-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__statusrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--v2-text-secondary);
+
+    svg {
+      flex: none;
+    }
+  }
+
+  &__state {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--v2-text);
+
+    &[data-state='off'] {
+      color: var(--v2-text-secondary);
+    }
+  }
+
+  &__sub {
+    font-size: 13px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__guidance {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--v2-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+
+    .faro-settings__btn {
+      height: 32px;
+    }
+  }
+
+  &__btn {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 0;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--v2-bg-button);
+    color: var(--v2-text);
+
+    &--primary {
+      background: var(--v2-text);
+      color: var(--v2-bg-inset);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+}
+
+// --- The approvals line (one row per pending approval, Deny only) ---
+
+.faro-approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--v2-text);
+  }
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--v2-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--v2-bg-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--v2-text-secondary);
+  }
+}

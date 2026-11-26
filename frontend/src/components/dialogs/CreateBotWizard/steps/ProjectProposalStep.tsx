@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Loader2,
   Sparkles,
   AlertTriangle,
   Settings,
@@ -13,6 +12,7 @@ import {
   Layers,
   Pencil,
 } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import {
   useCreationStore,
   PURPOSE_CATEGORIES,
@@ -223,7 +223,7 @@ export function ProjectProposalStep() {
           <p className="text-lg font-medium text-[var(--color-text-primary)]">{msg.title}</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{msg.sub}</p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
       </div>
     )
   }

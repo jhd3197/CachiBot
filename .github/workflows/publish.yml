@@ -332,7 +332,10 @@ jobs:
           - os: windows-latest
             artifact: cachi-win-x64
             archive_name: cachi-win-x64.zip
-            archive_cmd: zip -r
+            # Git Bash on windows-latest has no zip; 7-Zip is preinstalled and
+            # on PATH. `7z a -tzip <archive> <dir>` matches the tar argument
+            # order below, so the same run block works for every OS.
+            archive_cmd: 7z a -tzip
 
     runs-on: ${{ matrix.os }}
 
@@ -380,11 +383,7 @@ jobs:
         shell: bash
         run: |
           cd dist
-          if [[ "${{ matrix.archive_name }}" == *.zip ]]; then
-            ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
-          else
-            ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
-          fi
+          ${{ matrix.archive_cmd }} "${{ matrix.archive_name }}" cachi/
 
       - name: Upload CLI archive to GitHub Release
         shell: bash
@@ -638,6 +637,9 @@ jobs:
   # =========================================================================
   update-release:
     needs: [release, build-cli, build-server-mini, build-desktop, build-mobile]
+    # Run even if a build job failed (e.g. one platform's archive/upload) so
+    # sizes are still filled in for whatever assets made it to the release.
+    if: always() && needs.release.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -682,7 +684,7 @@ jobs:
             }
 
             // Remove the "downloads become available" note since they're ready now
-            body = body.replace(/\n> Desktop downloads become available[^\n]*\n?/, '\n');
+            body = body.replace(/\n> Downloads become available[^\n]*\n?/, '\n');
 
             await github.rest.repos.updateRelease({
               owner: context.repo.owner,

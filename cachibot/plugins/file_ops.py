@@ -1,13 +1,27 @@
 """
 File operations plugin — workspace-scoped file_read, file_write, file_list, file_edit, file_info.
+
+When the bot's computer is usable, the tools operate on the bot's
+/workspace volume in its Vela container through the workspace_* driven
+tools (the Docker volume is not the host workspace_path). When the computer
+feature is off, the tools keep their host workspace_path behavior.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from tukuy.manifest import PluginManifest, PluginRequirements
 from tukuy.skill import ConfigParam, RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
+
+if TYPE_CHECKING:
+    from cachibot.services.computer.service import (
+        ComputerService,
+        ComputerStepOutcome,
+    )
 
 _ENCODING_OPTIONS = ["utf-8", "ascii", "latin-1", "utf-16"]
 
@@ -15,8 +29,9 @@ _ENCODING_OPTIONS = ["utf-8", "ascii", "latin-1", "utf-16"]
 class FileOpsPlugin(CachibotPlugin):
     """Provides workspace-restricted file operation tools."""
 
-    def __init__(self, ctx: PluginContext) -> None:
+    def __init__(self, ctx: PluginContext, computer_service: ComputerService | None = None) -> None:
         super().__init__("file_ops", ctx)
+        self._computer = computer_service
         self._skills_map = self._build_skills()
 
     @property
@@ -35,6 +50,173 @@ class FileOpsPlugin(CachibotPlugin):
         if p.is_absolute():
             return p
         return self.ctx.config.workspace_path / p
+
+    # ------------------------------------------------------------------
+    # Computer routing (C3): the bot's /workspace volume via driven tools
+    # ------------------------------------------------------------------
+
+    def _service(self) -> ComputerService:
+        if self._computer is None:
+            # Imported lazily: the service needs sqlalchemy (server extra),
+            # which the slim CLI install does not have.
+            from cachibot.services.computer.service import get_computer_service
+
+            self._computer = get_computer_service()
+        return self._computer
+
+    def _use_computer(self) -> bool:
+        """Whether this bot's file tools operate on its computer's /workspace."""
+        return self.ctx.bot_id is not None and self._service().computer_tools_available()
+
+    @staticmethod
+    def _computer_path(path: str) -> str | None:
+        """A workspace-relative path for the computer, or None when it escapes."""
+        p = path.strip()
+        if p.startswith("/workspace/"):
+            p = p[len("/workspace/") :]
+        elif p.startswith("/"):
+            p = p[1:]
+        if p.startswith("./"):
+            p = p[2:]
+        if p in ("", "."):
+            return ""
+        if ".." in p.split("/"):
+            return None
+        return p
+
+    async def _computer_step(self, tool: str, arguments: dict[str, Any]) -> ComputerStepOutcome:
+        return await self._service().run_tool_step(
+            self.ctx.bot_id or "",
+            tool=tool,
+            arguments=arguments,
+            chat_id=self.ctx.chat_id,
+        )
+
+    async def _computer_read(self, path: str) -> str:
+        rel = self._computer_path(path)
+        if rel is None:
+            return f"Error: Path '{path}' is outside the workspace"
+        outcome = await self._computer_step("workspace_read", {"path": rel})
+        if outcome.status != "result":
+            return f"Error: {outcome.message}"
+        result = outcome.result or {}
+        content = str(result.get("content") or "")
+        if result.get("truncated"):
+            content += (
+                "\n\n... (truncated by the computer; "
+                "read in slices with computer_workspace_read offset/limit)"
+            )
+        return content
+
+    async def _computer_write(self, path: str, content: str) -> str:
+        rel = self._computer_path(path)
+        if rel is None:
+            return f"Error: Path '{path}' is outside the workspace"
+        cfg = self.ctx.tool_configs.get("file_write", {})
+        allowed_ext: list[str] = cfg.get("allowedExtensions", [])
+        suffix = Path(rel).suffix
+        if allowed_ext and suffix not in allowed_ext:
+            return f"Error: Extension '{suffix}' is not allowed. Allowed: {', '.join(allowed_ext)}"
+        outcome = await self._computer_step("workspace_write", {"path": rel, "content": content})
+        if outcome.status != "result":
+            return f"Error: {outcome.message}"
+        return f"Successfully wrote to {path}"
+
+    async def _computer_list(self, path: str, pattern: str, recursive: bool) -> str:
+        import fnmatch
+
+        root = self._computer_path(path)
+        if root is None:
+            return f"Error: Path '{path}' is outside the workspace"
+        results: list[str] = []
+        folders = [root]
+        first_error: str | None = None
+        while folders and len(results) < 100:
+            current = folders.pop(0)
+            outcome = await self._computer_step(
+                "workspace_list", {"path": current} if current else {}
+            )
+            if outcome.status != "result":
+                if first_error is None and not results:
+                    first_error = outcome.message
+                break
+            for entry in (outcome.result or {}).get("entries") or []:
+                name = str(entry.get("name") or "")
+                is_dir = entry.get("kind") == "folder"
+                rel_path = f"{current}/{name}" if current else name
+                if is_dir and recursive and len(folders) < 20:
+                    folders.append(rel_path)
+                if not fnmatch.fnmatch(name, pattern):
+                    continue
+                prefix = "\U0001f4c1 " if is_dir else "\U0001f4c4 "
+                results.append(f"{prefix}{rel_path}")
+                if len(results) >= 100:
+                    break
+        if first_error is not None:
+            return f"Error: {first_error}"
+        if not results:
+            return "No files found matching the pattern"
+        output = "\n".join(results)
+        if folders or len(results) >= 100:
+            output += "\n\n... (more entries not listed)"
+        return output
+
+    async def _computer_edit(self, path: str, old_text: str, new_text: str) -> str:
+        rel = self._computer_path(path)
+        if rel is None:
+            return f"Error: Path '{path}' is outside the workspace"
+        cfg = self.ctx.tool_configs.get("file_edit", {})
+        allowed_ext: list[str] = cfg.get("allowedExtensions", [])
+        suffix = Path(rel).suffix
+        if allowed_ext and suffix not in allowed_ext:
+            return f"Error: Extension '{suffix}' is not allowed. Allowed: {', '.join(allowed_ext)}"
+        read = await self._computer_step("workspace_read", {"path": rel})
+        if read.status != "result":
+            return f"Error: {read.message}"
+        result = read.result or {}
+        if result.get("truncated"):
+            return f"Error: '{path}' is too large to edit safely in the computer"
+        content = str(result.get("content") or "")
+        if old_text not in content:
+            return f"Error: Could not find the specified text in {path}"
+        count = content.count(old_text)
+        new_content = content.replace(old_text, new_text)
+        write = await self._computer_step(
+            "workspace_write",
+            {
+                "path": rel,
+                "content": new_content,
+                "expectedRevision": str(result.get("revision") or ""),
+            },
+        )
+        if write.status != "result":
+            return f"Error: {write.message}"
+        return f"Successfully edited {path} ({count} replacement{'s' if count > 1 else ''})"
+
+    async def _computer_info(self, path: str) -> str:
+        rel = self._computer_path(path)
+        if rel is None:
+            return f"Error: Path '{path}' is outside the workspace"
+        if not rel:
+            return f"Path: {path}\nType: directory"
+        parent, _, name = rel.rpartition("/")
+        outcome = await self._computer_step("workspace_list", {"path": parent} if parent else {})
+        if outcome.status != "result":
+            return f"Error: {outcome.message}"
+        entry = next(
+            (e for e in (outcome.result or {}).get("entries") or [] if e.get("name") == name),
+            None,
+        )
+        if entry is None:
+            return f"Error: '{path}' does not exist"
+        is_dir = entry.get("kind") == "folder"
+        lines = [f"Path: {path}", f"Type: {'directory' if is_dir else 'file'}"]
+        if not is_dir:
+            lines.append(f"Size: {entry.get('size')} bytes")
+            if entry.get("modified"):
+                lines.append(f"Modified: {entry['modified']}")
+            lines.append(f"Extension: {Path(name).suffix or '(none)'}")
+        return "\n".join(lines)
 
     def _build_skills(self) -> dict[str, Skill]:
         ctx = self.ctx
@@ -71,7 +253,7 @@ class FileOpsPlugin(CachibotPlugin):
                 ),
             ],
         )
-        def file_read(path: str) -> str:
+        async def file_read(path: str) -> str:
             """Read the contents of a file.
 
             Args:
@@ -80,6 +262,8 @@ class FileOpsPlugin(CachibotPlugin):
             Returns:
                 File contents as string
             """
+            if self._use_computer():
+                return await self._computer_read(path)
             full_path = resolve(path)
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
@@ -128,7 +312,7 @@ class FileOpsPlugin(CachibotPlugin):
                 ),
             ],
         )
-        def file_write(path: str, content: str) -> str:
+        async def file_write(path: str, content: str) -> str:
             """Write content to a file. Creates the file if it doesn't exist.
 
             Args:
@@ -138,6 +322,8 @@ class FileOpsPlugin(CachibotPlugin):
             Returns:
                 Success message or error
             """
+            if self._use_computer():
+                return await self._computer_write(path, content)
             full_path = resolve(path)
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
@@ -169,7 +355,7 @@ class FileOpsPlugin(CachibotPlugin):
             icon="folder-open",
             risk_level=RiskLevel.SAFE,
         )
-        def file_list(path: str = ".", pattern: str = "*", recursive: bool = False) -> str:
+        async def file_list(path: str = ".", pattern: str = "*", recursive: bool = False) -> str:
             """List files in a directory.
 
             Args:
@@ -180,6 +366,8 @@ class FileOpsPlugin(CachibotPlugin):
             Returns:
                 List of files matching the pattern
             """
+            if self._use_computer():
+                return await self._computer_list(path, pattern, recursive)
             full_path = resolve(path)
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
@@ -236,7 +424,7 @@ class FileOpsPlugin(CachibotPlugin):
                 ),
             ],
         )
-        def file_edit(path: str, old_text: str, new_text: str) -> str:
+        async def file_edit(path: str, old_text: str, new_text: str) -> str:
             """Edit a file by replacing a specific string with new content.
 
             Args:
@@ -247,6 +435,8 @@ class FileOpsPlugin(CachibotPlugin):
             Returns:
                 Success message or error
             """
+            if self._use_computer():
+                return await self._computer_edit(path, old_text, new_text)
             full_path = resolve(path)
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"
@@ -289,7 +479,7 @@ class FileOpsPlugin(CachibotPlugin):
             icon="file-scan",
             risk_level=RiskLevel.SAFE,
         )
-        def file_info(path: str) -> str:
+        async def file_info(path: str) -> str:
             """Get metadata about a file.
 
             Args:
@@ -298,6 +488,8 @@ class FileOpsPlugin(CachibotPlugin):
             Returns:
                 File metadata as formatted string
             """
+            if self._use_computer():
+                return await self._computer_info(path)
             full_path = resolve(path)
             if not ctx.config.is_path_allowed(full_path):
                 return f"Error: Path '{path}' is outside the workspace"

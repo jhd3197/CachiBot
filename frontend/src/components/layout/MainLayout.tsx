@@ -22,6 +22,8 @@ import {
   PluginsView,
   ExternalPluginView,
 } from '../views'
+import { ComputerOpenView } from '../computer/ComputerOpenView'
+import { BotInspectorPanel } from '../inspector/BotInspectorPanel'
 import { CreateBotDialog } from '../dialogs/CreateBotDialog'
 import { SettingsDialog } from '../dialogs/SettingsDialog'
 import { ApprovalDialog } from '../dialogs/ApprovalDialog'
@@ -40,6 +42,8 @@ import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { useOnboardingStore } from '../../stores/onboarding'
 import { useApprovalsStore } from '../../stores/approvals'
+import { useComputerStore } from '../../stores/computer'
+import { useFaroStore } from '../../stores/faro'
 import { useWebSocket, setPendingApproval } from '../../hooks/useWebSocket'
 import { wsClient } from '../../api/websocket'
 import { getChat } from '../../api/side-tasks'
@@ -119,6 +123,7 @@ export function MainLayout() {
     plugins: 'plugins',
     developer: 'developer',
     settings: 'settings',
+    computer: 'computer',
   }
   const botView = viewSegment ? viewMap[viewSegment] : null
 
@@ -270,6 +275,16 @@ export function MainLayout() {
     }
   }, [])
 
+  // Docker probe: decides whether any computer surface may appear (C1).
+  useEffect(() => {
+    void useComputerStore.getState().fetchStatus()
+  }, [])
+
+  // Faro bridge detection: decides whether any Faro surface may appear.
+  useEffect(() => {
+    void useFaroStore.getState().fetchStatus()
+  }, [])
+
   // Mobile drawer: Escape closes it, focus moves into the drawer when opened
   const navRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -363,6 +378,8 @@ export function MainLayout() {
         return <SettingsView />
       case 'settings':
         return <BotSettingsView />
+      case 'computer':
+        return <ComputerOpenView />
       default:
         return renderChatView()
     }
@@ -382,6 +399,29 @@ export function MainLayout() {
   const [showMobileChats, setShowMobileChats] = useState(false)
   const [showMobileMore, setShowMobileMore] = useState(false)
   const [showMobileFiles, setShowMobileFiles] = useState(false)
+
+  // Right-hand bot inspector (chat/workspace with a bot selected). It never
+  // covers the left bot list — it is a column of the shell's flex row — and
+  // it unmounts on narrow layouts where it would squeeze the chat.
+  const inspectorOpen = useUIStore((s) => s.inspectorOpen)
+  const [wideViewport, setWideViewport] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1200px)').matches
+  )
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1200px)')
+    const onChange = (e: MediaQueryListEvent) => setWideViewport(e.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+  const inspectorBotId =
+    appView === 'dashboard'
+      ? (activeBotId ?? null)
+      : urlBotId && (botView === 'chats' || botView === 'computer' || !botView)
+        ? urlBotId
+        : null
+  const inspectorBot = inspectorBotId ? bots.find((b) => b.id === inspectorBotId) : undefined
+  const showInspector =
+    inspectorOpen && wideViewport && !!inspectorBot && botView !== 'computer'
 
   return (
     <div className="app-shell ui-v2">
@@ -475,6 +515,9 @@ export function MainLayout() {
         <UpdateBanner />
         {renderActiveView()}
       </main>
+
+      {/* Right-hand bot inspector (design 04 sidebar + the assistant panel) */}
+      {showInspector && inspectorBot && <BotInspectorPanel bot={inspectorBot} />}
 
       </div>
 

@@ -7,6 +7,7 @@ import '../screens/auth/biometric_lock_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/qr_pair_screen.dart';
 import '../screens/bot/bot_detail_screen.dart';
+import '../screens/bot/computer_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/chat/recent_chats_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -16,6 +17,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/work/todos_screen.dart';
 import '../screens/work/work_detail_screen.dart';
 import '../widgets/common/app_shell.dart';
+import '../widgets/common/boot_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -27,8 +29,17 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     redirect: (context, state) {
-      final isAuthenticated = authState.isAuthenticated;
       final location = state.uri.toString();
+      final isOnBoot = location == '/boot';
+
+      // Hold on the boot screen while the saved session is being restored,
+      // so the login screen never flashes on cold start. restoreSession
+      // always clears isRestoring (including on errors), so this redirect
+      // cannot deadlock.
+      if (authState.isRestoring) return isOnBoot ? null : '/boot';
+      if (isOnBoot) return '/';
+
+      final isAuthenticated = authState.isAuthenticated;
       final isOnLogin = location == '/login';
       final isOnQrPair = location == '/qr-pair';
       final isOnBiometric = location == '/biometric-lock';
@@ -48,6 +59,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/boot',
+        builder: (context, state) =>
+            const BootScreen(status: 'Restoring session...'),
       ),
       GoRoute(
         path: '/qr-pair',
@@ -112,6 +128,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'todos',
                 parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => TodosScreen(
+                  botId: state.pathParameters['botId']!,
+                ),
+              ),
+              // The bot's computer, full screen (gated on the Docker probe)
+              GoRoute(
+                path: 'computer',
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (context, state) => ComputerScreen(
                   botId: state.pathParameters['botId']!,
                 ),
               ),

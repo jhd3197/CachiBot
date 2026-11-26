@@ -670,6 +670,58 @@ class TestSingleReply:
 
 
 # ---------------------------------------------------------------------------
+# Stop racing an in-flight settle
+# ---------------------------------------------------------------------------
+
+
+class TestStopDuringSettle:
+    async def test_stop_during_needs_you_settle_is_not_lost(self, service, monkeypatch):
+        """A stop that lands while a previous cancel's settle is still in
+        flight must not be lost: the second cancel aborts that settle, so
+        stop() itself has to finish the job. Regression test for the record
+        staying ``running`` forever (and being resumed on restart) when the
+        settle was trusted to complete on its own.
+        """
+        bot_id = await make_bot()
+        parent = await make_chat(bot_id)
+
+        gate = asyncio.Event()
+        entered = asyncio.Event()
+
+        async def turn(st: SideTask) -> None:
+            entered.set()
+            await gate.wait()
+
+        service.svc._execute_turn = turn
+        st = await service.svc.start(parent_chat_id=parent.id, bot_id=bot_id, prompt="Task")
+        await wait_for(lambda: entered.is_set())
+
+        # Park the needs_you settle just before its status write: the record
+        # still reads running and the turn's handle is still registered when
+        # stop() arrives — the exact window that lost the stop.
+        settle_parked = asyncio.Event()
+        release_settle = asyncio.Event()
+        real_transition = service.svc._transition
+
+        async def parking_transition(side_task, status, **kwargs):
+            if status == SideTaskStatus.NEEDS_YOU and not settle_parked.is_set():
+                settle_parked.set()
+                await release_settle.wait()
+            await real_transition(side_task, status, **kwargs)
+
+        monkeypatch.setattr(service.svc, "_transition", parking_transition)
+
+        await service.svc.mark_needs_you(st.id, "Which version?")
+        await wait_for(settle_parked.is_set)
+
+        await service.svc.stop(st.id)
+        release_settle.set()
+
+        latest = await SideTaskRepository().get(st.id)
+        assert latest.status == SideTaskStatus.STOPPED
+
+
+# ---------------------------------------------------------------------------
 # Helper groups: one reply, updated in place
 # ---------------------------------------------------------------------------
 

@@ -13,6 +13,7 @@ class AuthState {
     this.setupRequired,
     this.errorMessage,
     this.requiresBiometric = false,
+    this.isRestoring = true,
   });
 
   final User? user;
@@ -21,6 +22,12 @@ class AuthState {
   final bool? setupRequired;
   final String? errorMessage;
   final bool requiresBiometric;
+
+  /// Whether the saved session is still being restored on cold start. The
+  /// router holds on the boot screen while this is true; every restore path
+  /// (success, error, no saved token) sets it to false so the redirect can
+  /// never deadlock.
+  final bool isRestoring;
 
   AuthState copyWith({
     User? user,
@@ -32,6 +39,7 @@ class AuthState {
     bool clearUser = false,
     bool clearSetupRequired = false,
     bool? requiresBiometric,
+    bool? isRestoring,
   }) {
     return AuthState(
       user: clearUser ? null : (user ?? this.user),
@@ -41,6 +49,7 @@ class AuthState {
           clearSetupRequired ? null : (setupRequired ?? this.setupRequired),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       requiresBiometric: requiresBiometric ?? this.requiresBiometric,
+      isRestoring: isRestoring ?? this.isRestoring,
     );
   }
 }
@@ -82,6 +91,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(
         user: result.user,
         isAuthenticated: true,
+        isRestoring: false,
       );
     } on DioException catch (e) {
       final message = _extractError(e);
@@ -125,6 +135,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(
         user: result.user,
         isAuthenticated: true,
+        isRestoring: false,
       );
     } on DioException catch (e) {
       final message = _extractError(e);
@@ -166,14 +177,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Restore session from stored tokens.
   Future<void> restoreSession() async {
     final storage = _ref.read(secureStorageProvider);
-    final token = await storage.getAccessToken();
-    final serverUrl = storage.getServerUrl();
-
-    if (token == null || serverUrl == null) return;
-
-    state = state.copyWith(isLoading: true);
 
     try {
+      final token = await storage.getAccessToken();
+      final serverUrl = storage.getServerUrl();
+
+      if (token == null || serverUrl == null) {
+        state = state.copyWith(isRestoring: false);
+        return;
+      }
+
+      state = state.copyWith(isLoading: true);
+
       final client = _ref.read(apiClientProvider);
       client.setBaseUrl(serverUrl);
 
@@ -188,11 +203,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: user,
         isAuthenticated: true,
         requiresBiometric: biometricEnabled,
+        isRestoring: false,
       );
     } catch (_) {
       // Token invalid or server unreachable — stay logged out
       await storage.clearTokens();
-      state = const AuthState();
+      state = const AuthState(isRestoring: false);
     }
   }
 
@@ -216,7 +232,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     final storage = _ref.read(secureStorageProvider);
     await storage.clearTokens();
-    state = const AuthState();
+    state = const AuthState(isRestoring: false);
   }
 
   void clearError() {

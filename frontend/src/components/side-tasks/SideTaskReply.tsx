@@ -14,16 +14,18 @@ import {
   Check,
   ChevronDown,
   Clock,
+  FileDiff,
   GitBranch,
   Hand,
-  Loader2,
   Reply,
   Square,
   XCircle,
 } from 'lucide-react'
-import { useSideTasksStore } from '../../stores/side-tasks'
+import { useSideTasksStore, sideTaskMayHaveDiff } from '../../stores/side-tasks'
 import { useChatStore } from '../../stores/bots'
 import { scrollToMessage } from '../chat/MessageBubble'
+import { SideTaskDiffDialog } from './SideTaskDiffDialog'
+import { Spinner } from '../common/Spinner'
 import { cn } from '../../lib/utils'
 import { sideTaskStatusLine } from './SideTaskCard'
 import type {
@@ -62,7 +64,7 @@ function ReplyStatusIcon({ status }: { status: SideTaskStatus | 'settled' }) {
   const cls = 'side-reply__icon'
   switch (status) {
     case 'running':
-      return <Loader2 className={cn(cls, 'animate-spin')} strokeWidth={1.8} />
+      return <Spinner size="sm" label="" aria-hidden="true" className={cls} />
     case 'needs_you':
       return <Hand className={cn(cls, 'side-reply__icon--amber')} strokeWidth={1.8} />
     case 'failed':
@@ -159,6 +161,8 @@ export function SideTaskReplyView({
 }: SideTaskReplyViewProps) {
   const retryMerge = useSideTasksStore((s) => s.retryMerge)
   const discard = useSideTasksStore((s) => s.discard)
+  const task = useSideTasksStore((s) => s.byId[metadata.sideTaskId])
+  const [diffOpen, setDiffOpen] = useState(false)
   const retry = useRun(() => retryMerge(botId, metadata.sideTaskId), 'Merge retried')
   const drop = useRun(() => discard(botId, metadata.sideTaskId), 'Side task discarded')
 
@@ -166,6 +170,16 @@ export function SideTaskReplyView({
   const isNeedsYou = status === 'needs_you'
   const isMergeConflict = isNeedsYou && metadata.needsYouReason === 'merge_conflict'
   const canDiscard = status === 'stopped' || status === 'failed' || isMergeConflict
+
+  // "View changes" opens the real diff for this side task. The record (in
+  // the side-tasks store) knows whether a worktree/branch/merge exists; the
+  // reply metadata alone covers merged/commit/conflict results. Hidden when
+  // neither has anything to diff.
+  const mayHaveDiff = task
+    ? sideTaskMayHaveDiff(task)
+    : Boolean(
+        metadata.mergedCommit || metadata.mergedFiles?.length || metadata.conflictFiles?.length
+      )
 
   const commit = shortSha(metadata.mergedCommit)
   const fileCount = metadata.mergedFiles?.length ?? 0
@@ -213,6 +227,12 @@ export function SideTaskReplyView({
 
       <div className="side-reply__actions">
         <ViewThreadLink botId={botId} chatId={metadata.chatId} />
+        {mayHaveDiff && (
+          <button type="button" className="v2-mini-btn" onClick={() => setDiffOpen(true)}>
+            <FileDiff size={13} strokeWidth={1.8} />
+            View changes
+          </button>
+        )}
         {canOperate && isMergeConflict && (
           <button
             type="button"
@@ -234,6 +254,15 @@ export function SideTaskReplyView({
           </button>
         )}
       </div>
+
+      {diffOpen && (
+        <SideTaskDiffDialog
+          botId={botId}
+          sideTaskId={metadata.sideTaskId}
+          title={metadata.title}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -367,7 +396,7 @@ function IndicatorRow({ task }: { task: SideTask }) {
       onClick={() => navigate(`/${task.botId}/chats/${task.chatId}`)}
     >
       {task.status === 'running' ? (
-        <Loader2 className="side-indicator__icon animate-spin" strokeWidth={1.8} />
+        <Spinner size="sm" label="" aria-hidden="true" className="side-indicator__icon" />
       ) : (
         <Clock className="side-indicator__icon" strokeWidth={1.8} />
       )}

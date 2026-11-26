@@ -207,6 +207,46 @@
       color: var(--v2-text-tertiary);
       font-size: 14px;
     }
+
+    // "On its computer": the bot's /workspace (design 10's footer block).
+    // Sits under the file list; the list keeps the scroll.
+    &__workspace {
+      flex: none;
+      border-top: 1px solid var(--v2-border);
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      max-height: 40%;
+      overflow-y: auto;
+      .scrollbar-thin();
+
+      h3 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: @font-semibold;
+        color: var(--v2-text-secondary);
+      }
+    }
+
+    &__workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    &__workspace-up {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    &__workspace-path {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+      font-family: @font-mono;
+    }
   }
 
   // Row hover reveals the delete button (room rows)
@@ -234,6 +274,12 @@
 
     &:hover {
       background: var(--v2-bg-hover);
+    }
+
+    // Pressed state (the chat-header Computer toggle, design 04)
+    &[aria-pressed='true'] {
+      background: var(--v2-bg-hover);
+      border-color: var(--v2-border-strong);
     }
   }
 }

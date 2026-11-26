@@ -5,8 +5,9 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Save, RefreshCw } from 'lucide-react'
+import { Save } from 'lucide-react'
 import { useKnowledgeStore } from '../../stores/knowledge'
+import { PageLoading } from '../common/PageLoading'
 
 interface InstructionsEditorProps {
   botId: string
@@ -65,11 +66,7 @@ export function InstructionsEditor({ botId }: InstructionsEditorProps) {
   }, [content, hasChanges, handleSave])
 
   if (isLoading && !savedContent) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
-      </div>
-    )
+    return <PageLoading pending={isLoading} label="Loading instructions..." />
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Send, Loader2, User, Bot, MessageCircle } from 'lucide-react'
+import { Send, User, Bot, MessageCircle } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { previewBot } from '../../../../api/client'
 import { cn } from '../../../../lib/utils'
@@ -107,7 +108,7 @@ export function PreviewStep() {
               <Bot className="h-4 w-4 text-cachi-400" />
             </div>
             <div className="rounded-2xl bg-[var(--color-bg-secondary)] px-4 py-2.5">
-              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+              <Spinner size="lg" delayMs={200} />
             </div>
           </div>
         )}

@@ -22,6 +22,7 @@ reference the unified User model (String PK) defined here.
 from __future__ import annotations
 
 from cachibot.storage.db import Base
+from cachibot.storage.models.artifact import Artifact
 from cachibot.storage.models.asset import Asset
 
 # Automation system
@@ -35,6 +36,7 @@ from cachibot.storage.models.automations import (
 )
 from cachibot.storage.models.bot import Bot, BotOwnership
 from cachibot.storage.models.chat import Chat
+from cachibot.storage.models.computer import BotComputer
 from cachibot.storage.models.connection import BotConnection
 from cachibot.storage.models.contact import BotContact
 from cachibot.storage.models.developer import BotApiKey, BotWebhook
@@ -44,6 +46,7 @@ from cachibot.storage.models.env_var import (
     EnvAuditLog,
     PlatformEnvironment,
 )
+from cachibot.storage.models.faro import BotFaroConnection
 from cachibot.storage.models.group import BotGroupAccess, Group, GroupMember
 
 # Custom instructions
@@ -103,6 +106,10 @@ __all__ = [
     "Todo",
     # Side tasks
     "SideTask",
+    # Bot computers
+    "BotComputer",
+    # Faro bridge connections
+    "BotFaroConnection",
     # Groups & access
     "Group",
     "GroupMember",
@@ -117,6 +124,8 @@ __all__ = [
     "RoomTaskEvent",
     # Assets
     "Asset",
+    # Artifacts
+    "Artifact",
     # Automation system
     "Script",
     "ScriptVersion",

@@ -394,6 +394,185 @@ export interface SideTask {
   updatedAt: string
 }
 
+// =============================================================================
+// FARO AGENT BRIDGE — the local Faro bridge detection plus the per-bot
+// connection. Nothing here ever carries the bridge token; the pending
+// approvals may carry sensitive command summaries and are delivered only to
+// users who can see the bot. Every surface stays hidden while the bridge is
+// unavailable and the bot is not connected.
+// =============================================================================
+
+/** GET /api/integrations/faro/status — the global bridge detection. */
+export interface FaroIntegrationStatus {
+  available: boolean
+  reason: string | null
+  version: string | null
+  supportsApprovals: boolean
+}
+
+/** One approval Faro is waiting for (GET /approvals shape, summary-mapped). */
+export interface FaroApproval {
+  requestId: string
+  sessionId: string | null
+  sessionName: string | null
+  kind: string | null
+  summary: string | null
+}
+
+/** GET /api/bots/{id}/faro — one bot's Faro connection status. */
+export interface BotFaroStatus {
+  connected: boolean
+  available: boolean
+  reason: string | null
+  version: string | null
+  supportsApprovals: boolean
+  /** One of this bot's faro tools is running right now. */
+  callInFlight: boolean
+  /** Approvals Faro is waiting on during the current call. */
+  pendingApprovals: FaroApproval[]
+}
+
+/** `faro_update` WebSocket payload: the per-bot status plus the bot it
+ * belongs to. Delivered only to sockets that can see the bot. */
+export interface FaroUpdatePayload extends BotFaroStatus {
+  botId: string
+}
+
+// =============================================================================
+// BOT COMPUTER (Mini Vela) — status/state (C1) plus the live surface (C2):
+// preview revision, activity, windows, watchers, driver and needs-you. The
+// views land in C4 and stay hidden while the Docker probe says unavailable.
+// =============================================================================
+
+/** Lifecycle of a bot's computer, as reported by the backend. */
+export type ComputerState =
+  | 'unavailable'
+  | 'off'
+  | 'building'
+  | 'starting'
+  | 'awake'
+  | 'asleep'
+  | 'needs_you'
+
+/** Progress of the first-use Vela image build (global, single-flight). */
+export interface ComputerBuildProgress {
+  status: 'building' | 'idle' | 'failed'
+  step?: number | null
+  total?: number | null
+  line?: string
+  error?: string | null
+}
+
+/** GET /api/computer/status — the Docker probe summary. */
+export interface DockerProbeSummary {
+  available: boolean
+  reason: string | null
+  docker_version: string | null
+  server_os: string | null
+  arch: string | null
+}
+
+/** GET /api/bots/{id}/computer — one bot's computer status. Never carries
+ * the controller token or the container's host port. */export interface BotComputer {
+  available: boolean
+  reason: string | null
+  state: ComputerState
+  build: ComputerBuildProgress | null
+  velaVersion: string
+  lastActiveAt: string | null
+  lastError: string | null
+  /** The desktop's one-line "what it is doing" (null when idle). */
+  activity: ComputerActivity | null
+  /** Open windows on the desktop. */
+  windowsCount: number
+  /** Live watchers CachiBot counts (heartbeats + preview fetches). */
+  watchers: number
+  /** Who is driving right now (a person holding the take-over), or null. */
+  driver: ComputerDriver | null
+  /** Why the computer needs a person (state needs_you), or null. */
+  needsYou: string | null
+  /** Content revision of the preview; refetch the preview when it changes. */
+  previewRevision: string | null
+}
+
+/** The desktop's one-line activity, derived by Vela from the running step. */
+export interface ComputerActivity {
+  text: string
+  at: number
+  viewId?: string | null
+}
+
+/** Who is driving the computer right now. */
+export interface ComputerDriver {
+  userId: string
+  name: string
+  since: string
+}
+
+/** One open window on the bot's desktop (a Vela view). */
+export interface ComputerWindow {
+  id: string
+  kind: string
+  title: string
+  app: string
+  url?: string | null
+}
+
+/** GET /api/bots/{id}/computer/views — windows plus the activity line. */
+export interface ComputerViewsResponse {
+  windows: ComputerWindow[]
+  activity: ComputerActivity | null
+}
+
+/** One entry in the bot's /workspace (GET .../computer/workspace). */
+export interface ComputerWorkspaceEntry {
+  name: string
+  path: string
+  kind: string
+  size: number | null
+  modified: string | null
+}
+
+/** GET /api/bots/{id}/computer/workspace — one folder of the workspace. */
+export interface ComputerWorkspaceResponse {
+  path: string
+  entries: ComputerWorkspaceEntry[]
+}
+
+/** POST /api/bots/{id}/computer/watch — the watcher is counted. */
+export interface ComputerWatchResponse {
+  watching: boolean
+  watchers: number
+  expiresInSeconds: number
+}
+
+/** POST /api/bots/{id}/computer/input — one piece of person input.
+ * click (button left/right/middle), scroll (wheel deltas), type, key. */
+export interface ComputerInput {
+  kind: 'click' | 'scroll' | 'type' | 'key'
+  viewId?: string
+  point?: { x: number; y: number }
+  button?: 'left' | 'right' | 'middle'
+  clickCount?: 1 | 2
+  dx?: number
+  dy?: number
+  key?: string
+  text?: string
+  frameAt?: number
+}
+
+/** A fetched preview/frame: image bytes named by their ETag revision. */
+export interface ComputerFrame {
+  blob: Blob
+  etag: string | null
+  revision: string | null
+}
+
+/** `computer_update` WebSocket payload: the status plus the bot it belongs to. */
+export interface ComputerUpdatePayload extends BotComputer {
+  botId: string
+}
+
 /** Aggregate view of one helper group (GET /side-task-groups/{groupId}). */
 export interface SideTaskGroupSummary {
   groupId: string
@@ -405,6 +584,32 @@ export interface SideTaskGroupSummary {
   waiting: number
   needsYou: number
   items: SideTask[]
+}
+
+/** One changed file in a side-task diff (GET /side-tasks/{id}/diff). */
+export interface SideTaskDiffFile {
+  path: string
+  /** added | modified | deleted */
+  status: string
+  /** null when the file is binary */
+  additions: number | null
+  deletions: number | null
+  binary: boolean
+}
+
+/**
+ * Unified diff + per-file stats behind "View changes". Unmerged: the
+ * worktree against its base (incl. uncommitted). Merged: the merged commit
+ * range. `truncated` flags a diff cut at the size cap.
+ */
+export interface SideTaskDiff {
+  sideTaskId: string
+  status: string
+  base: string | null
+  head: string | null
+  truncated: boolean
+  files: SideTaskDiffFile[]
+  diff: string
 }
 
 /** Chat row as returned by GET /api/bots/{id}/chats (includes side-task chats). */
@@ -603,6 +808,7 @@ export interface Artifact {
   metadata?: Record<string, unknown>
   plugin?: string
   version: number
+  botId?: string
   chatId?: string
   messageId?: string
 }
@@ -643,6 +849,8 @@ export type WSMessageType =
   | 'message_update'
   | 'task_update'
   | 'side_task_update'
+  | 'computer_update'
+  | 'faro_update'
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType
@@ -790,7 +998,7 @@ export interface UsageStats {
 // NAVIGATION TYPES
 // =============================================================================
 
-export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings'
+export type BotView = 'chats' | 'rooms' | 'work' | 'automations' | 'routines' | 'voice' | 'tools' | 'plugins' | 'developer' | 'settings' | 'computer'
 export type WorkSection = 'overview' | 'active' | 'completed' | 'history' | 'quick-tasks'
 export type AutomationSection = 'routines' | 'advanced'
 export type AppView = 'dashboard' | 'dashboard-usage' | 'runs' | 'admin-logs' | 'settings'
@@ -965,6 +1173,7 @@ export interface ExternalPluginInfo {
     type: string
     default: unknown
     description: string
+    options?: string[]
   }[]
   view: {
     route: string

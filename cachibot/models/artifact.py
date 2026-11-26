@@ -47,6 +47,14 @@ class Artifact(BaseModel):
         default=1,
         description="Increments when artifact is updated by the agent",
     )
+    bot_id: str | None = Field(
+        default=None,
+        description="Bot that owns the artifact (set for server-side stored artifacts)",
+    )
+    chat_id: str | None = Field(
+        default=None,
+        description="Chat the artifact belongs to",
+    )
     message_id: str | None = Field(
         default=None,
         description="Associated chat message ID",

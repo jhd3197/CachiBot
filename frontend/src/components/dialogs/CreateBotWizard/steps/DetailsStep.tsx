@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, HelpCircle, Sparkles, Settings, AlertTriangle } from 'lucide-react'
+import { HelpCircle, Sparkles, Settings, AlertTriangle } from 'lucide-react'
+import { Spinner } from '../../../common/Spinner'
 import { useCreationStore, PURPOSE_CATEGORIES } from '../../../../stores/creation'
 import { useModelsStore } from '../../../../stores/models'
 import { useUIStore } from '../../../../stores/ui'
@@ -139,7 +140,7 @@ export function DetailsStep() {
           <p className="text-lg font-medium text-[var(--color-text-primary)]">{msg.title}</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{msg.sub}</p>
         </div>
-        <Loader2 className="h-5 w-5 animate-spin text-cachi-400" />
+        <Spinner size="lg" delayMs={200} />
         {!hasUtilityModel && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--color-text-tertiary)]">
             <Settings className="h-3 w-3" />
@@ -261,7 +262,7 @@ export function DetailsStep() {
         {/* Placeholder while streaming */}
         {isGenerating && form.followUpQuestions.length < 3 && (
           <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--color-text-tertiary)]" />
+            <Spinner size="lg" delayMs={200} />
           </div>
         )}
       </div>

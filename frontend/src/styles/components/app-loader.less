@@ -1,38 +1,48 @@
 // =============================================================================
-// App Loader — full-screen overlay with sci-fi orbital rings animation
-// Mirrors the Electron splash screen for visual continuity.
+// App Loader — full-viewport in-app boot screen (v2 palette)
+// Shown after React mounts while the app checks the server, session and
+// config. Deliberately a different composition from the Electron splash:
+// the mark, wordmark, status and progress stack centered on the full
+// canvas — no card chrome, no version/progress bottom bar. Light by default,
+// dark under the app's `.dark` class.
 // =============================================================================
 
 .app-loader {
+  --loader-bg: #f4f4f5;
+  --loader-well: #ffffff;
+  --loader-text: #1a1a1a;
+  --loader-text-secondary: #5a5a66;
+  --loader-text-tertiary: #8b8b93;
+  --loader-green: #16a34a;
+  --loader-track: rgba(0, 0, 0, 0.08);
+  --loader-ring-track: rgba(22, 163, 74, 0.18);
+
+  .dark & {
+    --loader-bg: #0b0c0e;
+    --loader-well: #131417;
+    --loader-text: #ececec;
+    --loader-text-secondary: #a3a3a3;
+    --loader-text-tertiary: #8b8b8b;
+    --loader-green: #4ade80;
+    --loader-track: rgba(255, 255, 255, 0.08);
+    --loader-ring-track: rgba(74, 222, 128, 0.18);
+  }
+
   position: fixed;
   inset: 0;
   z-index: 99999;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #1C1E2B, #0E1019);
+  background: var(--loader-bg);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
   opacity: 1;
-  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.4s ease;
   overflow: hidden;
 
   &--fade {
     opacity: 0;
-    transform: scale(1.02);
     pointer-events: none;
-  }
-
-  // Scanline overlay
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-      linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-    background-size: 100% 4px, 3px 100%;
-    pointer-events: none;
-    z-index: 1;
   }
 }
 
@@ -41,122 +51,96 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  z-index: 2;
 }
 
-.app-loader__logo {
-  font-size: 3.5rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 2px;
-  margin-bottom: 40px;
-  text-transform: uppercase;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  animation: app-loader-glow 2.5s infinite alternate;
-}
-
-.app-loader__accent {
-  color: #00E676;
-  text-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
-}
-
+// Quiet two-ring mark on a soft well disc
 .app-loader__rings {
   position: relative;
-  width: 100px;
-  height: 100px;
-  margin-bottom: 40px;
+  width: 104px;
+  height: 104px;
+  margin-bottom: 30px;
   display: flex;
   justify-content: center;
   align-items: center;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--loader-well);
+  }
 }
 
 .app-loader__ring {
   position: absolute;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 2px solid var(--loader-ring-track);
 
   &--1 {
-    width: 100px;
-    height: 100px;
-    border-top: 2px solid #00E676;
-    border-left: 2px solid rgba(0, 230, 118, 0.3);
-    animation: app-loader-spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    width: 60px;
+    height: 60px;
+    border-top-color: var(--loader-green);
+    animation: app-loader-spin 2.4s linear infinite;
   }
 
   &--2 {
-    width: 75px;
-    height: 75px;
-    border-bottom: 2px solid #ffffff;
-    border-right: 2px solid rgba(255, 255, 255, 0.2);
-    animation: app-loader-spin-reverse 2s linear infinite;
-  }
-
-  &--3 {
-    width: 50px;
-    height: 50px;
-    border-top: 2px solid #00E676;
-    animation: app-loader-spin 1s linear infinite;
+    width: 42px;
+    height: 42px;
+    border-bottom-color: var(--loader-text-secondary);
+    animation: app-loader-spin-reverse 3.2s linear infinite;
   }
 }
 
 .app-loader__core-dot {
-  width: 15px;
-  height: 15px;
-  background-color: #00E676;
+  position: relative;
+  width: 9px;
+  height: 9px;
+  background-color: var(--loader-green);
   border-radius: 50%;
-  box-shadow: 0 0 20px #00E676, 0 0 40px #00E676;
-  animation: app-loader-pulse-core 1.2s ease-in-out infinite alternate;
+  animation: app-loader-pulse-core 2.4s ease-in-out infinite alternate;
 }
 
-.app-loader__bottom {
-  position: absolute;
-  bottom: 32px;
-  left: 0;
-  right: 0;
-  padding: 0 48px;
+.app-loader__logo {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--loader-text);
+  margin-bottom: 12px;
+}
+
+.app-loader__accent {
+  color: var(--loader-green);
+}
+
+.app-loader__status-container {
+  height: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 2;
-  animation: app-loader-fadeIn 0.6s ease-out 0.3s both;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.app-loader__status {
+  font-size: 13px;
+  color: var(--loader-text-secondary);
 }
 
 .app-loader__track {
-  width: 100%;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 1px;
+  width: 200px;
+  height: 3px;
+  background: var(--loader-track);
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .app-loader__bar {
   height: 100%;
   width: 40%;
-  background: linear-gradient(90deg, transparent, #00E676, transparent);
-  border-radius: 1px;
-  animation: app-loader-progress 1.8s ease-in-out infinite;
-}
-
-.app-loader__status-container {
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.app-loader__status {
-  font-size: 13px;
-  color: #8892b0;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  font-weight: 500;
-  text-align: center;
-}
-
-@keyframes app-loader-glow {
-  0%   { text-shadow: 0 0 10px rgba(255, 255, 255, 0.05); }
-  100% { text-shadow: 0 0 25px rgba(0, 230, 118, 0.5); }
+  background: linear-gradient(90deg, transparent, var(--loader-green), transparent);
+  border-radius: 999px;
+  animation: app-loader-progress 2.2s ease-in-out infinite;
 }
 
 @keyframes app-loader-spin {
@@ -170,16 +154,11 @@
 }
 
 @keyframes app-loader-pulse-core {
-  0%   { transform: scale(0.8); opacity: 0.6; }
-  100% { transform: scale(1.2); opacity: 1; }
+  0%   { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.1); opacity: 1; }
 }
 
 @keyframes app-loader-progress {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(350%); }
-}
-
-@keyframes app-loader-fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
 }

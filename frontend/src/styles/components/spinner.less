@@ -1,10 +1,12 @@
 // =============================================================================
 // Spinner — components/spinner.less
-// Animated loading spinner with size variants
+// Single CSS-ring loading spinner (v2 primitive, also used on legacy surfaces).
+// Color is currentColor; see the :where() defaults at the bottom.
 // =============================================================================
 
 .spinner {
   display: inline-block;
+  flex: none;
   border-radius: @radius-full;
   border: 2px solid currentColor;
   border-top-color: transparent;
@@ -14,17 +16,34 @@
   // Sizes
   // ---------------------------------------------------------------------------
   &--sm {
-    width: 1rem;
-    height: 1rem;
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
   }
 
   &--md {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 14px;
+    height: 14px;
   }
 
   &--lg {
-    width: 2rem;
-    height: 2rem;
+    width: 18px;
+    height: 18px;
   }
+}
+
+// -----------------------------------------------------------------------------
+// Color defaults
+//
+// Zero-specificity (:where) so a utility/color className always wins — e.g.
+// UpdateDialog's Tailwind `text-accent-500`. Inside .ui-v2 the ring defaults
+// to the muted v2 tertiary tone; elsewhere it falls back to the legacy muted
+// text tone. The ring itself is always currentColor.
+// -----------------------------------------------------------------------------
+:where(.spinner) {
+  color: var(--color-text-secondary);
+}
+
+.ui-v2 :where(.spinner) {
+  color: var(--v2-text-tertiary);
 }

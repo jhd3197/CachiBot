@@ -6,7 +6,6 @@ import {
   Search,
   ToggleLeft,
   ToggleRight,
-  Loader2,
   FileText,
   Code,
   GitBranch,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../common/Button'
 import { ModelSelect } from '../common/ModelSelect'
+import { Spinner } from '../common/Spinner'
 import { useUIStore } from '../../stores/ui'
 import { useConfigStore } from '../../stores/config'
 import { useModelsStore } from '../../stores/models'
@@ -227,7 +227,7 @@ function PlatformToolsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin text-[var(--color-text-secondary)]" />
+        <Spinner size="md" delayMs={200} className="mr-2" />
         <span className="text-sm text-[var(--color-text-secondary)]">Loading platform tools...</span>
       </div>
     )
@@ -304,7 +304,7 @@ function PlatformToolsTab() {
 
         {skillsLoading ? (
           <div className="flex items-center py-4 text-sm text-[var(--color-text-secondary)]">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Spinner size="md" delayMs={200} className="mr-2" />
             Loading skills...
           </div>
         ) : allSkills.length === 0 ? (

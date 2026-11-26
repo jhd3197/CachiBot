@@ -192,14 +192,22 @@ class CodingAgentDispatcher:
             return PlatformResponse(text=f"Unknown agent '{agent_name}'. Available: {available}")
 
         ca_config = self._config.coding_agents
-        path_map = {
-            CodingCLI.CLAUDE: ca_config.claude_path,
-            CodingCLI.CODEX: ca_config.codex_path,
-            CodingCLI.GEMINI: ca_config.gemini_path,
-        }
-        binary = path_map.get(cli, "") or _resolve_binary(cli.value)
-        if not binary:
-            return PlatformResponse(text=f"{cli.value} is not installed or not on PATH.")
+        # With the bot's computer on, the CLI runs inside the computer's
+        # terminal; the host binary is not needed (and may not exist).
+        from cachibot.services.computer.service import get_computer_service
+
+        computer = get_computer_service()
+        use_computer = computer.computer_tools_available()
+        binary = ""
+        if not use_computer:
+            path_map = {
+                CodingCLI.CLAUDE: ca_config.claude_path,
+                CodingCLI.CODEX: ca_config.codex_path,
+                CodingCLI.GEMINI: ca_config.gemini_path,
+            }
+            binary = path_map.get(cli, "") or _resolve_binary(cli.value) or ""
+            if not binary:
+                return PlatformResponse(text=f"{cli.value} is not installed or not on PATH.")
 
         # --- Session guard ---
         key = self._key(connection_id, chat_id)
@@ -254,7 +262,9 @@ class CodingAgentDispatcher:
         live_id = await adapter.send_and_get_id(chat_id, status_text)
 
         # --- Run CLI with streaming ---
-        result = await self._run_session(session, binary, display, adapter, live_id)
+        result = await self._run_session(
+            session, binary, display, adapter, live_id, computer if use_computer else None
+        )
 
         # --- Finalize ---
         if session.status == SessionStatus.RUNNING:
@@ -319,11 +329,14 @@ class CodingAgentDispatcher:
         display: str,
         adapter: Any,
         live_id: str | None,
+        computer: Any | None = None,
     ) -> str:
-        """Run the coding CLI subprocess with live output streaming.
+        """Run the coding CLI with live output streaming.
 
-        Spawns the CLI in a thread, collects stdout line-by-line, and
-        periodically edits the live status message on the platform.
+        With ``computer`` set, the CLI runs inside the bot's computer
+        terminal; otherwise it is spawned as a host subprocess in a thread.
+        Either way stdout is collected line-by-line and the live status
+        message on the platform is edited periodically.
 
         Returns:
             The CLI output text.
@@ -334,7 +347,7 @@ class CodingAgentDispatcher:
         args = build_args(session.task, ca.max_turns)  # type: ignore[operator]
         cwd = str(self._config.workspace_path.resolve())
 
-        if not Path(cwd).is_dir():
+        if computer is None and not Path(cwd).is_dir():
             session.status = SessionStatus.ERROR
             return f"Workspace directory not found: {cwd}"
 
@@ -414,7 +427,10 @@ class CodingAgentDispatcher:
             return proc.returncode or 0, session.full_output
 
         try:
-            returncode, output = await asyncio.to_thread(_run_sync)
+            if computer is not None:
+                returncode, output = await self._run_cli_in_computer(session, computer, args, ca)
+            else:
+                returncode, output = await asyncio.to_thread(_run_sync)
         except Exception as exc:
             session.status = SessionStatus.ERROR
             returncode, output = -1, f"Error: {type(exc).__name__}: {exc}"
@@ -437,6 +453,39 @@ class CodingAgentDispatcher:
             session.status = SessionStatus.ERROR
 
         return output or f"{display} completed (no output)."
+
+    async def _run_cli_in_computer(
+        self,
+        session: CodingSession,
+        computer: Any,
+        args: list[str],
+        ca: Any,
+    ) -> tuple[int, str]:
+        """Run the CLI inside the bot's computer terminal (C3).
+
+        Mirrors the subprocess path's (returncode, output) contract; live
+        output flows into session.output_lines, so the live-edit loop works
+        unchanged. A missing CLI comes back as the shell's own error.
+        """
+        result = await computer.run_coding_agent(
+            session.bot_id,
+            argv=[session.cli.value, *args],
+            task=session.task,
+            timeout_seconds=ca.timeout_seconds,
+            max_output=ca.max_output_length,
+            chat_id=session.internal_chat_id,
+            on_output=session.output_lines.append,
+            should_cancel=session._cancel.is_set,
+        )
+        if result.cancelled:
+            session.status = SessionStatus.CANCELLED
+            return -1, result.output
+        if result.error:
+            session.status = SessionStatus.ERROR
+            return -1, f"Error: {result.error}"
+        if result.timed_out:
+            return -1, f"Timed out after {ca.timeout_seconds}s.\n\n{result.output}"
+        return result.exit_code or 0, result.output
 
     async def _ws_broadcast(
         self,

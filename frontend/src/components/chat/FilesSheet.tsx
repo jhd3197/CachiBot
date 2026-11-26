@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Upload, Trash2 } from 'lucide-react'
+import { X, Upload, Trash2, Folder, ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { getBotAssets, downloadChatAsset, getRoomAssets, uploadRoomAsset, downloadRoomAsset, deleteRoomAsset } from '../../api/assets'
+import { getComputerWorkspace } from '../../api/computer'
 import { getBotChats } from '../../api/client'
 import { useChatStore } from '../../stores/bots'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useComputerStore } from '../../stores/computer'
+import { useBotAccess } from '../../hooks/useBotAccess'
 import { parseApiDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
-import type { Artifact, Asset, Bot } from '../../types'
+import type { Artifact, Asset, Bot, ComputerWorkspaceEntry } from '../../types'
 
 interface FilesSheetProps {
   /** Bot scope (chat header): files from all of the bot's chats known to
@@ -87,6 +90,35 @@ export function FilesSheet({ bot, roomId, roomTitle, onClose }: FilesSheetProps)
   const [filter, setFilter] = useState<SheetFilter>('all')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // "On its computer": the bot's /workspace, listed live from the computer
+  // (C4). Shown only while the computer feature is available AND the bot's
+  // computer is awake; browsing never wakes it — asleep just hides this.
+  const computerAvailable = useComputerStore((s) => s.status?.available === true)
+  const computerState = useComputerStore((s) => (bot ? s.byBot[bot.id]?.state : undefined))
+  const { canOperate } = useBotAccess(bot?.id ?? null)
+  const [wsPath, setWsPath] = useState('')
+  const [wsEntries, setWsEntries] = useState<ComputerWorkspaceEntry[] | null>(null)
+
+  const computerLive = computerState === 'awake' || computerState === 'needs_you'
+
+  useEffect(() => {
+    if (!bot || roomId || !computerAvailable || !computerLive) {
+      setWsEntries(null)
+      return
+    }
+    let cancelled = false
+    getComputerWorkspace(bot.id, wsPath)
+      .then((res) => {
+        if (!cancelled) setWsEntries(res.entries)
+      })
+      .catch(() => {
+        if (!cancelled) setWsEntries(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [bot, roomId, computerAvailable, computerLive, wsPath])
 
   useEffect(() => {
     document.addEventListener('keydown', handler)
@@ -317,6 +349,74 @@ export function FilesSheet({ bot, roomId, roomTitle, onClose }: FilesSheetProps)
             </div>
           ))}
         </div>
+
+        {/* The bot's /workspace on its computer (design 10 "Open on
+            computer"). Real listing from the computer; hidden entirely when
+            the computer is off/asleep or the feature is unavailable. */}
+        {wsEntries !== null && bot && (
+          <div className="v2-files__workspace">
+            <div className="v2-files__workspace-head">
+              <h3>On its computer</h3>
+              {wsPath && (
+                <button
+                  type="button"
+                  className="v2-files__action v2-files__workspace-up"
+                  onClick={() => setWsPath(wsPath.split('/').slice(0, -1).join('/'))}
+                >
+                  <ChevronLeft size={13} strokeWidth={1.8} />
+                  Back
+                </button>
+              )}
+            </div>
+            {wsPath && <p className="v2-files__workspace-path">/{wsPath}</p>}
+            {wsEntries.length === 0 ? (
+              <p className="v2-files__empty">No files here yet.</p>
+            ) : (
+              wsEntries.map((entry) => (
+                <div key={`${entry.kind}:${entry.path}`} className="v2-files__row">
+                  <span className="v2-files__tile" aria-hidden="true">
+                    {entry.kind === 'folder' ? <Folder size={14} strokeWidth={1.8} /> : tileLabel(entry.name)}
+                  </span>
+                  <span className="v2-files__main">
+                    <span className="v2-files__name" title={entry.name}>
+                      {entry.name}
+                    </span>
+                    {entry.size !== null && (
+                      <span className="v2-files__meta">{formatBytes(entry.size)}</span>
+                    )}
+                  </span>
+                  {entry.kind === 'folder' ? (
+                    <button
+                      type="button"
+                      className="v2-files__action"
+                      onClick={() => setWsPath(entry.path)}
+                    >
+                      Open
+                    </button>
+                  ) : (
+                    canOperate && (
+                      <button
+                        type="button"
+                        className="v2-files__action"
+                        onClick={() =>
+                          void useComputerStore
+                            .getState()
+                            .openEditor(bot.id, entry.path)
+                            .then(() => toast.success(`Opened ${entry.name} on its computer`))
+                            .catch((err) =>
+                              toast.error(err instanceof Error ? err.message : 'Could not open it')
+                            )
+                        }
+                      >
+                        Open on computer
+                      </button>
+                    )
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </section>
     </div>
   )

@@ -17,6 +17,7 @@
     "clsx": "^2.1.1",
     "cron-parser": "^5.5.0",
     "dompurify": "^3.3.1",
+    "htmlstudio": "^0.4.1",
     "lucide-react": "^0.460.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",

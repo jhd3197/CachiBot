@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Settings, Users, Bot, Loader2, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, FolderOpen, MoreHorizontal } from 'lucide-react'
+import { Settings, Users, Bot, MessageSquare, LayoutGrid, Clock, Download, CheckSquare, FolderOpen, MoreHorizontal } from 'lucide-react'
 import { useRoomStore } from '../../stores/rooms'
 import { useBotStore } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
@@ -8,6 +8,8 @@ import { getRoomMessages, getRoom } from '../../api/rooms'
 import { RoomMessageList } from '../chat/MessageList'
 import { ToolCallList } from '../chat/ToolCallList'
 import { ThinkingIndicator } from '../chat/ThinkingIndicator'
+import { Spinner } from '../common/Spinner'
+import { PageLoading } from '../common/PageLoading'
 import { InputArea } from '../chat/InputArea'
 import { RoomSettingsDialog } from './RoomSettingsDialog'
 import { PinnedMessagesBar } from './PinnedMessagesBar'
@@ -102,11 +104,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
   )
 
   if (loading) {
-    return (
-      <div className="room-panel__loading">
-        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
-      </div>
-    )
+    return <PageLoading pending={loading} label="Loading room..." className="room-panel__loading" />
   }
 
   if (!room) {
@@ -271,7 +269,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
       {/* Consensus status indicator */}
       {consensusState[roomId] && (
         <div className="room-panel__consensus-status">
-          <Loader2 size={12} className="animate-spin" />
+          <Spinner size="sm" label="" aria-hidden="true" />
           {consensusState[roomId].phase === 'collecting'
             ? `Collecting responses: ${consensusState[roomId].collected}/${consensusState[roomId].total} bots`
             : `${consensusState[roomId].synthesizerName} is synthesizing...`}
@@ -304,7 +302,7 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
                 key={botId}
                 className={`room-panel__bot-status room-panel__bot-status--${state === 'thinking' ? 'thinking' : 'responding'}`}
               >
-                <Loader2 size={12} className="animate-spin" />
+                <Spinner size="sm" label="" aria-hidden="true" />
                 {bot?.botName || botId} is {statusText}...
               </span>
             )
@@ -334,9 +332,10 @@ export function RoomPanel({ roomId }: RoomPanelProps) {
           {showThinking && thinkingBots.map(([botId, text]) => {
             const bot = room?.bots.find((b) => b.botId === botId)
             const label = bot?.botName || botId
+            const markColor = bots.find((b) => b.id === botId)?.color
             return (
               <div key={botId} className="mt-4">
-                <ThinkingIndicator content={text} label={`${label} is thinking...`} />
+                <ThinkingIndicator content={text} label={`${label} is thinking`} markColor={markColor} />
               </div>
             )
           })}

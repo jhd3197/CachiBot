@@ -116,6 +116,7 @@
 
     &__actions {
       display: flex;
+      align-items: center;
       gap: 8px;
       margin-top: 8px;
     }
@@ -213,10 +214,6 @@
         height: 14px;
         flex: none;
         color: var(--v2-text-tertiary);
-
-        &--running {
-          color: #60a5fa;
-        }
 
         &--needs-you {
           color: #fbbf24;
@@ -750,10 +747,6 @@
         flex: none;
         color: var(--v2-text-tertiary);
 
-        &--running {
-          color: #60a5fa;
-        }
-
         &--needs-you {
           color: #fbbf24;
         }
@@ -895,6 +888,350 @@
     left: 7px;
     z-index: 30;
     width: 220px;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Side-task chat (11b): composer + "View changes" (E6)
+  // ---------------------------------------------------------------------------
+
+  .side-chat {
+    &__diff {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--v2-border);
+      border-radius: 7px;
+      background: transparent;
+      color: var(--v2-text-secondary);
+      font: inherit;
+      font-size: 13px;
+      font-weight: @font-medium;
+      cursor: pointer;
+      flex: none;
+
+      &:hover {
+        color: var(--v2-text);
+        background: var(--v2-bg-hover);
+      }
+    }
+
+    &__composer {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--v2-border);
+
+      &-note {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &__pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 820px;
+      margin: 0 auto;
+      border: 1px solid var(--v2-border);
+      background: var(--v2-bg-input, #0e0f11);
+      border-radius: 26px;
+      padding: 6px 6px 6px 16px;
+
+      input {
+        flex: 1;
+        min-width: 0;
+        height: 34px;
+        background: transparent;
+        border: 0;
+        color: var(--v2-text);
+        font: inherit;
+        font-size: 15px;
+        outline: none;
+
+        &::placeholder {
+          color: var(--v2-text-tertiary);
+        }
+
+        &:disabled {
+          cursor: not-allowed;
+        }
+      }
+
+      &--disabled {
+        opacity: 0.6;
+      }
+    }
+
+    &__send {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--v2-text);
+      color: var(--v2-bg-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // "View changes" diff dialog (E6): file list + hunks, mobile friendly
+  // ---------------------------------------------------------------------------
+
+  .side-diff {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(920px, calc(100vw - 32px));
+    max-height: min(720px, calc(100vh - 48px));
+    background: var(--v2-bg-panel, #131417);
+    border: 1px solid var(--v2-border);
+    border-radius: 14px;
+    overflow: hidden;
+
+    &__backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    &__header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 52px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--v2-border);
+      flex: none;
+    }
+
+    &__header-icon {
+      color: var(--v2-text-secondary);
+      flex: none;
+    }
+
+    &__title {
+      font-size: 14px;
+      font-weight: @font-semibold;
+      color: var(--v2-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    &__range {
+      font-family: @font-mono;
+      font-size: 11px;
+      color: var(--v2-text-tertiary);
+      flex: none;
+    }
+
+    &__truncated {
+      font-size: 11px;
+      font-weight: @font-medium;
+      color: #fbbf24;
+      border: 1px solid fade(#fbbf24, 40%);
+      border-radius: 6px;
+      padding: 1px 6px;
+      flex: none;
+    }
+
+    &__close {
+      margin-left: auto;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--v2-text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+
+      &:hover {
+        background: var(--v2-bg-hover);
+        color: var(--v2-text);
+      }
+    }
+
+    &__body {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+    }
+
+    &__files {
+      flex: 0 0 264px;
+      overflow-y: auto;
+      border-right: 1px solid var(--v2-border);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    &__file {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--v2-text);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      min-width: 0;
+
+      &:hover {
+        background: var(--v2-bg-hover);
+      }
+
+      &--active {
+        background: var(--v2-bg-hover);
+      }
+    }
+
+    &__file-status {
+      flex: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: @font-semibold;
+      background: var(--v2-bg-hover);
+      color: var(--v2-text-secondary);
+
+      &--added {
+        color: #4ade80;
+      }
+
+      &--deleted {
+        color: #f87171;
+      }
+    }
+
+    &__file-path {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: @font-mono;
+      font-size: 12px;
+    }
+
+    &__file-stats {
+      flex: none;
+      font-size: 12px;
+      display: flex;
+      gap: 6px;
+      font-variant-numeric: tabular-nums;
+
+      &--binary {
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &__add {
+      color: #4ade80;
+    }
+
+    &__del {
+      color: #f87171;
+    }
+
+    &__hunks {
+      flex: 1;
+      min-width: 0;
+      overflow: auto;
+      padding: 12px 16px;
+    }
+
+    &__pre {
+      margin: 0;
+      font-family: @font-mono;
+      font-size: 12px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      min-width: max-content;
+    }
+
+    &__line {
+      white-space: pre;
+
+      &--add {
+        color: #4ade80;
+        background: fade(#4ade80, 7%);
+      }
+
+      &--del {
+        color: #f87171;
+        background: fade(#f87171, 7%);
+      }
+
+      &--hunk {
+        color: #93c5fd;
+      }
+
+      &--meta {
+        color: var(--v2-text-tertiary);
+      }
+    }
+
+    &__truncated-note,
+    &__binary-note {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: var(--v2-text-tertiary);
+    }
+
+    @media (max-width: (@screen-lg - 1px)) {
+      width: 100%;
+      max-height: calc(100vh - 24px);
+
+      &__body {
+        flex-direction: column;
+      }
+
+      &__files {
+        flex: none;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--v2-border);
+      }
+
+      &__file {
+        flex: none;
+      }
+    }
   }
 
   // Message hover "More" menu (design 11c). Default anchors to the right of

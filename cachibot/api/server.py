@@ -20,6 +20,7 @@ from cachibot import __version__
 from cachibot.api.room_websocket import router as room_ws_router
 from cachibot.api.routes import (
     admin_executions,
+    artifacts,
     auth,
     bot_env,
     bots,
@@ -27,6 +28,7 @@ from cachibot.api.routes import (
     chats,
     coding_agents,
     commands,
+    computer,
     config,
     connections,
     contacts,
@@ -36,6 +38,7 @@ from cachibot.api.routes import (
     documents,
     executions,
     external_plugins,
+    faro,
     groups,
     health,
     instructions,
@@ -56,6 +59,7 @@ from cachibot.api.routes import (
     skills,
     telemetry,
     update,
+    vela_companion,
     work,
 )
 from cachibot.api.routes.assets import chat_asset_router, room_asset_router
@@ -207,6 +211,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log_retention = get_log_retention_service()
     await log_retention.start()
 
+    # Start the computer service (restart-safe reconcile + idle sleep loop).
+    # No containers are started here; it only reconciles rows with reality.
+    try:
+        from cachibot.services.computer.service import get_computer_service
+
+        await get_computer_service().start()
+    except Exception as exc:
+        startup_logger.warning("Computer service start skipped: %s", exc)
+
+    # Warm the Faro bridge service (connection flags + first detection). No
+    # loops: detection is on demand, approvals only polled during bot calls.
+    try:
+        from cachibot.services.faro.service import get_faro_service
+
+        await get_faro_service().start()
+    except Exception as exc:
+        startup_logger.warning("Faro service start skipped: %s", exc)
+
     # Start telemetry scheduler (opt-in, non-blocking, silent on failure)
     try:
         from cachibot.telemetry.scheduler import start_telemetry_scheduler
@@ -223,6 +245,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         startup_logger.debug("Terms checker start skipped: %s", exc)
 
+    # Start the Vela companion service (registers with a local Vela when one
+    # is present; never prevents startup on failure)
+    try:
+        from cachibot.services.vela_companion import get_vela_companion_service
+
+        await get_vela_companion_service().start()
+    except Exception as exc:
+        startup_logger.debug("Vela companion start skipped: %s", exc)
+
     yield
 
     # Shutdown
@@ -233,12 +264,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception:
         pass
     try:
+        from cachibot.services.vela_companion import get_vela_companion_service
+
+        await get_vela_companion_service().stop()
+    except Exception:
+        pass
+    try:
         from cachibot.telemetry.scheduler import stop_telemetry_scheduler
 
         await stop_telemetry_scheduler()
     except Exception:
         pass
     await log_retention.stop()
+    # Stop the computer service's loops (containers keep running; the idle
+    # loop re-evaluates them on the next start).
+    try:
+        from cachibot.services.computer.service import get_computer_service
+
+        await get_computer_service().stop()
+    except Exception:
+        pass
+    try:
+        from cachibot.services.faro.service import get_faro_service
+
+        await get_faro_service().stop()
+    except Exception:
+        pass
     await job_runner.stop()
     await scheduler.stop()
     await platform_manager.stop_health_monitor()
@@ -307,6 +358,7 @@ def create_app(
     app.include_router(chat.router, prefix="/api", tags=["chat"])
     app.include_router(creation.router, prefix="/api", tags=["creation"])
     app.include_router(bots.router, tags=["bots"])
+    app.include_router(artifacts.router, tags=["artifacts"])
     app.include_router(groups.router, tags=["groups"])
     app.include_router(chats.router, tags=["chats"])
     app.include_router(contacts.router, tags=["contacts"])
@@ -326,11 +378,14 @@ def create_app(
     app.include_router(platform_tools.router, tags=["platform-tools"])
     app.include_router(work.router, tags=["work"])
     app.include_router(side_tasks.router, tags=["side-tasks"])
+    app.include_router(computer.router, tags=["computer"])
+    app.include_router(faro.router, tags=["faro"])
     app.include_router(scripts.router, tags=["scripts"])
     app.include_router(executions.router, tags=["executions"])
     app.include_router(admin_executions.router, tags=["admin-executions"])
     app.include_router(setup.router, prefix="/api", tags=["setup"])
     app.include_router(telemetry.router, prefix="/api", tags=["telemetry"])
+    app.include_router(vela_companion.router, tags=["vela-companion"])
     app.include_router(rooms.router, tags=["rooms"])
     app.include_router(room_tasks.router, tags=["room-tasks"])
     app.include_router(room_asset_router, tags=["room-assets"])

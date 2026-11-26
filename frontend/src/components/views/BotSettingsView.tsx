@@ -15,6 +15,7 @@ import { useModelsStore } from '../../stores/models'
 import { useProvidersStore } from '../../stores/providers'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { usePluginsStore } from '../../stores/plugins'
+import { useComputerStore } from '../../stores/computer'
 import { useKnowledgeStore, type DocumentResponse } from '../../stores/knowledge'
 import { getCodingAgents, exportBot, clearBotPlatformData } from '../../api/client'
 import { getConnections, getPlatforms, type Connection } from '../../api/connections'
@@ -23,6 +24,10 @@ import * as skillsApi from '../../api/skills'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { BotAvatar } from '../common/Avatar'
 import { ModelSelect } from '../common/ModelSelect'
+import { Spinner } from '../common/Spinner'
+import { BotSettingsComputerSection } from '../computer/BotSettingsComputerSection'
+import { FaroSection } from '../faro/FaroSection'
+import { useFaroStore } from '../../stores/faro'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
@@ -48,9 +53,8 @@ import type { Bot as BotType, CodingAgentInfo, SkillDefinition, ExternalPluginIn
 /**
  * Bot settings page (design view 18) — one column of anchored sections:
  * General, Knowledge, Skills, What it can use (capability switches + plugins),
- * Connections, Advanced (models, environment, API & webhooks, danger zone).
- * The design's "Computer" section is omitted entirely: the computer backend
- * does not exist (see UI_V2_PLAN.md "Phase D3 - not backed yet").
+ * Connections, Computer (only while the Docker probe is available), Advanced
+ * (models, environment, API & webhooks, danger zone).
  *
  * Everything is real data:
  * - Knowledge rows: documents/notes from the knowledge API (full management
@@ -100,17 +104,18 @@ const CAPABILITY_ROWS: { key: string; label: string; description: string }[] = [
 ]
 
 // Section anchors — nav chip targets and deep-link hashes.
-// "Computer" is intentionally absent (no computer backend).
+// "Computer" is added only while the computer feature is available (C4).
 const SECTIONS = [
   { id: 'general', label: 'General' },
   { id: 'knowledge', label: 'Knowledge' },
   { id: 'skills', label: 'Skills' },
   { id: 'what-it-can-use', label: 'What it can use' },
   { id: 'connections', label: 'Connections' },
+  { id: 'computer', label: 'Computer' },
   { id: 'advanced', label: 'Advanced' },
 ] as const
 
-type SheetKind = 'docs' | 'notes' | 'connections' | 'plugin' | null
+type SheetKind = 'docs' | 'notes' | 'connections' | 'plugin' | 'faro' | null
 
 // Stable fallback for the document selector (never[] shared reference —
 // the store's getDocuments() returns a fresh `[]` per call, which must not
@@ -294,6 +299,19 @@ export function BotSettingsView() {
   const activeBot = getActiveBot()
   const botId = activeBot?.id ?? null
   const { canEdit } = useBotAccess(botId)
+  // The Docker probe gates the Computer section + nav chip (C4).
+  const computerAvailable = useComputerStore((s) => s.status?.available === true)
+  // The Faro bridge detection gates the Faro card: hidden entirely while the
+  // bridge is unavailable and the bot is not connected.
+  const faroStatus = useFaroStore((s) => s.status)
+  const faroStatusLoaded = useFaroStore((s) => s.statusLoaded)
+  const faroByBot = useFaroStore((s) => (botId ? s.byBot[botId] : undefined))
+  useEffect(() => {
+    void useFaroStore.getState().fetchStatus()
+    if (botId) void useFaroStore.getState().ensureForBot(botId)
+  }, [botId])
+  const faroVisible =
+    faroStatusLoaded === true && (faroStatus?.available === true || faroByBot?.connected === true)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -640,7 +658,7 @@ export function BotSettingsView() {
     ([id]) => !(connections ?? []).some((c) => c.platform === id)
   )
   const showConnectionsSection =
-    connections !== null || codingAgents.length > 0 || configuredProviders.length > 0
+    connections !== null || codingAgents.length > 0 || configuredProviders.length > 0 || faroVisible
 
   return (
     <div className="bot-settings">
@@ -668,9 +686,10 @@ export function BotSettingsView() {
           </button>
         </div>
 
-        {/* Section nav (design chips; Computer omitted — no computer backend) */}
+        {/* Section nav (design chips; Computer appears only when the Docker
+            probe says the computer feature is available) */}
         <nav className="bot-settings__sections-nav" aria-label="Sections">
-          {SECTIONS.map((s) => (
+          {SECTIONS.filter((s) => s.id !== 'computer' || computerAvailable).map((s) => (
             <a key={s.id} href={`#${s.id}`}>
               {s.label}
             </a>
@@ -832,7 +851,7 @@ export function BotSettingsView() {
               disabled={refreshingSkills}
               title="Rescan skill directories"
             >
-              <RefreshCw size={15} strokeWidth={1.8} className={cn(refreshingSkills && 'animate-spin')} />
+              {refreshingSkills ? <Spinner size="md" delayMs={200} /> : <RefreshCw size={15} strokeWidth={1.8} />}
               Refresh
             </button>
           </div>
@@ -954,6 +973,23 @@ export function BotSettingsView() {
                 action={<RowAction onClick={() => navigate('/settings/keys')}>Change</RowAction>}
               />
             ))}
+            {faroVisible && (
+              <Row
+                title="Faro"
+                sub={
+                  faroByBot?.connected
+                    ? faroByBot.available
+                      ? `Connected · bridge running${faroByBot.version ? ` (v${faroByBot.version})` : ''}`
+                      : 'Faro is not running'
+                    : 'Not connected'
+                }
+                action={
+                  <RowAction onClick={() => setSheet('faro')}>
+                    {faroByBot?.connected ? 'Manage' : 'Connect'}
+                  </RowAction>
+                }
+              />
+            )}
             <GhostButton onClick={() => setSheet('connections')}>
               <Plus size={15} strokeWidth={1.8} />
               Add connection
@@ -961,8 +997,13 @@ export function BotSettingsView() {
           </Section>
         )}
 
-        {/* Computer section omitted — the computer backend does not exist
-            (UI_V2_PLAN.md "Phase D3 - not backed yet"). */}
+        {/* Computer (C4): real status, facts and controls — hidden entirely
+            while the Docker probe says the feature is unavailable. */}
+        {computerAvailable && (
+          <Section id="computer" title="Computer">
+            <BotSettingsComputerSection bot={activeBot} />
+          </Section>
+        )}
 
         {/* Advanced */}
         <Section id="advanced" title="Advanced">
@@ -1065,6 +1106,13 @@ export function BotSettingsView() {
       {sheet === 'connections' && (
         <Sheet title="Connections" onClose={() => setSheet(null)}>
           <BotConnectionsPanel botId={activeBot.id} />
+        </Sheet>
+      )}
+
+      {/* Faro integration card (Agent Bridge) */}
+      {sheet === 'faro' && (
+        <Sheet title="Faro" onClose={() => setSheet(null)}>
+          <FaroSection bot={activeBot} />
         </Sheet>
       )}
 

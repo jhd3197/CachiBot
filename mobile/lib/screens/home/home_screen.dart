@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../models/bot.dart';
 import '../../providers/bots_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildBody(ThemeData theme, BotsState state) {
     if (state.isLoading && state.bots.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiSkeletonList();
     }
 
     if (state.errorMessage != null && state.bots.isEmpty) {

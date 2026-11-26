@@ -13,7 +13,6 @@ import {
   Plus,
   Check,
   X,
-  Loader2,
   Eye,
   EyeOff,
   RotateCcw,
@@ -24,6 +23,7 @@ import {
 import * as botEnvApi from '../../api/bot-env'
 import type { EnvVar, ResolvedEnv } from '../../api/bot-env'
 import { useModelsStore } from '../../stores/models'
+import { Spinner } from '../common/Spinner'
 
 // Well-known provider env key names (matches backend PROVIDERS dict)
 const PROVIDER_KEYS = [
@@ -188,7 +188,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
   if (loading) {
     return (
       <div className="bot-env-loading">
-        <Loader2 className="h-5 w-5 animate-spin" />
+        <Spinner size="md" delayMs={200} />
         <span>Loading environment...</span>
       </div>
     )
@@ -265,7 +265,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                           disabled={!editValue.trim() || saving}
                           className="bot-env-edit__save-btn"
                         >
-                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          {saving ? <Spinner size="sm" delayMs={200} /> : <Check className="h-3 w-3" />}
                           Save
                         </button>
                         <button onClick={cancelEdit} className="bot-env-edit__cancel-btn">
@@ -369,7 +369,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                           disabled={!editValue.trim() || saving}
                           className="bot-env-edit__save-btn"
                         >
-                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          {saving ? <Spinner size="sm" delayMs={200} /> : <Check className="h-3 w-3" />}
                           Save
                         </button>
                         <button onClick={cancelEdit} className="bot-env-edit__cancel-btn">
@@ -432,7 +432,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                     disabled={!customKeyName.trim() || !customKeyValue.trim() || saving}
                     className="bot-env-edit__save-btn"
                   >
-                    {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                    {saving ? <Spinner size="sm" delayMs={200} /> : <Plus className="h-3 w-3" />}
                     Add
                   </button>
                   <button
@@ -470,7 +470,7 @@ export function BotEnvironmentPanel({ botId }: BotEnvironmentPanelProps) {
                   disabled={resetting}
                   className="bot-env-danger__confirm-btn"
                 >
-                  {resetting ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                  {resetting ? <Spinner size="sm" delayMs={200} /> : <RotateCcw className="h-3 w-3" />}
                   Confirm Reset
                 </button>
                 <button

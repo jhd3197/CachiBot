@@ -1088,9 +1088,10 @@ class TestResumePromptPersistence:
         await svc._execute_turn(st)
 
         assert await _prompt_copies(st) == 1
-        # The answer is seeded and the run continues the conversation
-        assert ("user", "Use version 2.0") in fake_agent_factory.conversation.seeded
-        assert fake_agent_factory.run_messages[0].startswith("Continue this side task")
+        # The answer drives the continued turn (E6): already persisted, it is
+        # not replayed into the seeded conversation — it IS the run input.
+        assert ("user", "Use version 2.0") not in fake_agent_factory.conversation.seeded
+        assert fake_agent_factory.run_messages[0] == "Use version 2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -1347,13 +1348,13 @@ class TestPathIsolation:
         plugin = FileOpsPlugin(PluginContext(config=config, sandbox=sandbox))
         write = plugin._skills_map["file_write"].fn
 
-        result = write("notes.txt", "side notes\n")
+        result = await write("notes.txt", "side notes\n")
         assert result == "Successfully wrote to notes.txt"
         assert (wt / "notes.txt").read_text() == "side notes\n"
         assert not (service.workspace / "notes.txt").exists()
 
         # The parent workspace is outside the side task's workspace: refused
-        denied = write(str(service.workspace / "evil.txt"), "nope")
+        denied = await write(str(service.workspace / "evil.txt"), "nope")
         assert "outside the workspace" in denied
         assert not (service.workspace / "evil.txt").exists()
 

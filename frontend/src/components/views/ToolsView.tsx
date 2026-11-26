@@ -15,13 +15,13 @@ import {
   ToggleRight,
   Info,
   Settings,
-  Loader2,
   AlertCircle,
   X,
 } from 'lucide-react'
 import { useBotStore } from '../../stores/bots'
 import { usePlatformToolsStore } from '../../stores/platform-tools'
 import { ToolIconRenderer, resolveIconName } from '../common/ToolIconRenderer'
+import { Spinner } from '../common/Spinner'
 import { ToolConfigDialog } from '../dialogs/ToolConfigDialog'
 import { cn } from '../../lib/utils'
 import { getPlugins } from '../../api/plugins'
@@ -318,7 +318,7 @@ export function ToolsView() {
         <div className="tools-content">
           {loading && (
             <div className="tools-content__loading">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              <Spinner size="lg" delayMs={200} />
               Loading plugins...
             </div>
           )}

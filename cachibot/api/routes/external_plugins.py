@@ -65,6 +65,7 @@ async def list_external_plugins() -> dict[str, Any]:
                         "type": p.type,
                         "default": p.default,
                         "description": p.description,
+                        "options": p.options,
                     }
                     for p in manifest.config
                 ],

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search,
-  Loader2,
   AlertCircle,
   ToggleLeft,
   ToggleRight,
@@ -20,6 +19,8 @@ import { toast } from 'sonner'
 import { useBotStore } from '../../stores/bots'
 import { usePluginsStore } from '../../stores/plugins'
 import { ToolIconRenderer } from '../common/ToolIconRenderer'
+import { PageLoading } from '../common/PageLoading'
+import { Spinner } from '../common/Spinner'
 import { cn } from '../../lib/utils'
 import type { ExternalPluginInfo, ToolConfigs } from '../../types'
 
@@ -101,7 +102,7 @@ export function PluginsView() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+        <PageLoading />
       </div>
     )
   }
@@ -136,7 +137,7 @@ export function PluginsView() {
               className="btn btn--ghost btn--sm"
               title="Reload all plugins"
             >
-              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+              {loading ? <Spinner size="sm" delayMs={200} /> : <RefreshCw className="h-4 w-4" />}
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -504,6 +505,18 @@ export function PluginDetailPanel({ plugin }: { plugin: ExternalPluginInfo }) {
                       onChange={(e) => handleConfigChange(param.name, Number(e.target.value))}
                       className="input input--sm w-full"
                     />
+                  ) : param.type === 'select' ? (
+                    <select
+                      value={typeof value === 'string' ? value : String(value ?? '')}
+                      onChange={(e) => handleConfigChange(param.name, e.target.value)}
+                      className="input input--sm w-full"
+                    >
+                      {(param.options ?? []).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   ) : param.type === 'boolean' ? (
                     <button
                       type="button"

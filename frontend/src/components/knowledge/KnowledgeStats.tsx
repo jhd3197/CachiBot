@@ -7,21 +7,11 @@
 import { useEffect, useState } from 'react'
 import { FileText, Puzzle, StickyNote, BookOpen, RefreshCw, RotateCcw } from 'lucide-react'
 import { useKnowledgeStore, type KnowledgeStats as KnowledgeStatsType } from '../../stores/knowledge'
+import { Skeleton } from '../common/Skeleton'
+import { Spinner } from '../common/Spinner'
 
 interface KnowledgeStatsProps {
   botId: string
-}
-
-function SkeletonCard() {
-  return (
-    <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 animate-pulse">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="h-5 w-5 rounded bg-[var(--color-hover-bg)]" />
-        <div className="h-3 w-16 rounded bg-[var(--color-hover-bg)]" />
-      </div>
-      <div className="h-6 w-10 rounded bg-[var(--color-hover-bg)]" />
-    </div>
-  )
 }
 
 function StatCard({
@@ -80,11 +70,12 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
 
   if (isLoading && !botStats) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" role="status">
+        <span className="sr-only">Loading knowledge stats...</span>
+        <Skeleton variant="card" />
+        <Skeleton variant="card" />
+        <Skeleton variant="card" />
+        <Skeleton variant="card" />
       </div>
     )
   }
@@ -107,7 +98,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
               className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
               title="Re-index all documents"
             >
-              <RotateCcw className={`h-3.5 w-3.5 ${reindexing ? 'animate-spin' : ''}`} />
+              {reindexing ? <Spinner size="sm" delayMs={200} /> : <RotateCcw className="h-3.5 w-3.5" />}
               {reindexing ? 'Re-indexing...' : 'Re-index'}
             </button>
           )}
@@ -134,7 +125,7 @@ export function KnowledgeStats({ botId }: KnowledgeStatsProps) {
             className="p-1 rounded hover:bg-[var(--color-hover-bg)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
             title="Refresh stats"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? <Spinner size="sm" delayMs={200} /> : <RefreshCw className="h-3.5 w-3.5" />}
           </button>
         </div>
       </div>
