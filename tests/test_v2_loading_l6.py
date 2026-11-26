@@ -21,15 +21,10 @@ BASE_LESS = FRONTEND / "src" / "styles" / "base.less"
 SPLASH = REPO_ROOT / "desktop" / "splash.html"
 INDEX_HTML = FRONTEND / "index.html"
 
-# Legacy surfaces that keep their own loaders until their v2 redesign. They
+# Auth surfaces keep their own loaders while sign-in work is on hold. They
 # may still contain Loader2 / animate-spin — nothing here may fail on that.
+# (Users, Plugins and the Marketplace left this list in L7.)
 LEAVE_ALONE_FILES = [
-    "views/UsersView.tsx",
-    "views/PluginsView.tsx",
-    "marketplace/MarketplaceBrowser.tsx",
-    "marketplace/BotDetailPanel.tsx",
-    "marketplace/BotDetailDialog.tsx",
-    "marketplace/RoomDetailPanel.tsx",
     "auth/LoginPage.tsx",
     "auth/SetupPage.tsx",
     "auth/ConsentPage.tsx",
@@ -130,7 +125,7 @@ def test_dead_pulse_slow_keyframes_removed() -> None:
 
 
 def test_leave_alone_files_may_keep_loader2() -> None:
-    """Legacy pages keep Loader2 until their own v2 redesign — their presence
+    """Auth pages keep Loader2 while sign-in work is on hold — their presence
     here must not fail, and the motion kill-switch still covers their
     animate-spin/animate-pulse utilities."""
     for rel in LEAVE_ALONE_FILES:

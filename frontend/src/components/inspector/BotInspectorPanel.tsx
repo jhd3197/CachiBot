@@ -21,7 +21,6 @@ import {
   PanelRightClose,
   CheckCircle2,
   XCircle,
-  Loader2,
   Ban,
   Hand,
   ListTodo,
@@ -37,6 +36,7 @@ import { getExecutions } from '../../api/execution-log'
 import { getOpenTodos } from '../../api/client'
 import { parseApiDate } from '../../lib/utils'
 import { BotAvatar } from '../common/Avatar'
+import { Spinner } from '../common/Spinner'
 import { ComputerSection } from '../computer/ComputerSection'
 import { COMPUTER_FACTS } from '../computer/utils'
 import type { Bot } from '../../types'
@@ -151,7 +151,7 @@ export function BotInspectorPanel({ bot }: { bot: Bot }) {
           <div className="inspector__tabbody">
             {activityText && (
               <p className="inspector__activity-line">
-                <Loader2 size={13} strokeWidth={1.8} className="inspector__activity-spin" />
+                <Spinner size="sm" label="" aria-hidden="true" />
                 {activityText}
               </p>
             )}
@@ -280,24 +280,25 @@ function RunRow({ run }: { run: ExecutionLog }) {
   const Icon =
     run.status === 'success'
       ? CheckCircle2
-      : run.status === 'running'
-        ? Loader2
-        : run.status === 'cancelled'
-          ? Ban
-          : XCircle
+      : run.status === 'cancelled'
+        ? Ban
+        : XCircle
   const when = parseApiDate(run.startedAt)
   return (
     <li className="inspector__run" data-status={run.status}>
-      <Icon
-        size={14}
-        strokeWidth={1.8}
-        className={cn(
-          'inspector__run-icon',
-          run.status === 'success' && 'inspector__run-icon--ok',
-          run.status === 'running' && 'inspector__run-icon--running',
-          (run.status === 'error' || run.status === 'timeout') && 'inspector__run-icon--error'
-        )}
-      />
+      {run.status === 'running' ? (
+        <Spinner size="sm" label="" aria-hidden="true" />
+      ) : (
+        <Icon
+          size={14}
+          strokeWidth={1.8}
+          className={cn(
+            'inspector__run-icon',
+            run.status === 'success' && 'inspector__run-icon--ok',
+            (run.status === 'error' || run.status === 'timeout') && 'inspector__run-icon--error'
+          )}
+        />
+      )}
       <span className="inspector__run-main">
         <span className="inspector__run-name" title={run.sourceName}>
           {run.sourceName || run.executionType}
