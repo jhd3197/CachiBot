@@ -1289,7 +1289,9 @@ scanlines and neon glow.
 The Electron splash and the in-app AppLoader intentionally stay two
 different screens — the splash is a compact card about the desktop app
 starting the server / installing an update, AppLoader is the full-canvas
-boot checking server, session and config.
+boot checking server, session and config. Update (L8): on Electron the
+AppLoader is now suppressed and the splash hands off straight to the app;
+AppLoader remains the web boot screen.
 
 ## L3: chat status lines
 
@@ -1511,6 +1513,37 @@ everywhere, reduced-motion coverage re-verified, leftovers cleaned up.
   ring; it stays (kill-switch covers it).
 - mobile/, virtual-computer views, the L2 boot screens' visuals and the L3
   chat treatment are untouched.
+
+## L8: single boot screen on desktop
+
+On Electron the boot used to show two screens back to back: the splash card
+while the server started, then the in-app AppLoader once the main window
+appeared. There is now one boot screen — the splash — which hands off
+straight to the app; AppLoader remains the web boot screen.
+
+- `desktop/preload.js` exposes `appReady()` (sends the `app:ready` IPC) on
+  `electronAPI`; typed in `frontend/src/vite-env.d.ts`.
+- `desktop/main.js` keeps the main window `show: false` and no longer shows
+  it on `ready-to-show` when a splash exists. The renderer's `app:ready`
+  triggers the reveal: show the window, close the splash. Reveal is
+  idempotent (guards `isDestroyed` / `isVisible`, clears the fallback timer)
+  and a ~12s timer after `ready-to-show` reveals the window anyway, so a
+  frontend failure never strands the user on the splash; `did-fail-load`
+  and `render-process-gone` reveal early for the same reason. With no
+  splash (macOS activate re-create) `ready-to-show` shows the window as
+  before. The dev-mode path (`ELECTRON_DEV_URL` / Vite) uses the same IPC.
+- `AppLoader` renders nothing while initializing when
+  `window.electronAPI?.isDesktop` is set (the splash covers the hidden
+  window); once `ready` flips, children mount underneath and the effect
+  calls `appReady()` directly — the children are already committed and the
+  window show triggers the first paint (a `requestAnimationFrame` would
+  never fire in the hidden window) — so the window is only shown with the
+  real UI on screen, including the setup / legacy-db / login paths, whose
+  `finish()` still runs. Web behavior is unchanged. The `index.html`
+  first-paint stand-in is irrelevant on desktop (the window is hidden
+  then).
+- Tests: `tests/test_v2_desktop_single_boot.py` (hermetic source
+  assertions).
 
 ## Known limitations / decisions
 

@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     node: process.versions.node,
     chrome: process.versions.chrome,
   },
+  // Boot handoff: the renderer's first real app frame is on screen, so the
+  // main process can show the window and close the splash
+  appReady: () => ipcRenderer.send('app:ready'),
   // Window controls for custom title bar
   windowMinimize: () => ipcRenderer.send('window:minimize'),
   windowMaximize: () => ipcRenderer.send('window:maximize'),
