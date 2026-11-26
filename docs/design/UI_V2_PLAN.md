@@ -1662,6 +1662,82 @@ layout; no redesign.
 - `motion.less` keeps the `animate-spin` / `animate-pulse` selectors for the
   auth pages.
 
+## HTML artifacts: click-to-edit (htmlstudio)
+
+HTML artifacts (`website_builder`, `html_preview` and `email_template` all
+emit `type: 'html'`, rendered by
+`frontend/src/components/artifacts/renderers/HtmlRenderer.tsx`) get an Edit
+toggle in the artifact toolbar. In edit mode the user clicks an element in
+the preview, edits it in a small inspector (text, link href/label, image
+src/alt, color/background, font size, bold, text align), and every change is
+applied as a typed patch to the artifact's HTML string. Undo/redo (50 steps)
+and a Done button round out the mode.
+
+**Dependency.** [`htmlstudio`](https://www.npmjs.com/package/htmlstudio)
+`^0.4.1` (MIT), pinned in `frontend/package.json` / `package-lock.json`.
+Only the framework-free core entry is used (`tagHtml`,
+`applyPatch`, `injectBridge`, `getParent` from the package root, which
+resolves to `dist/index.js` and pulls in nothing but `node-html-parser`).
+The `htmlstudio/react` entry and `htmlstudio/styles.css` are deliberately
+unused — they ship their own `hs-*` styling and phosphor icons that clash
+with the v2 UI; the inspector is a native v2 surface
+(`components/artifacts/HtmlEditInspector.tsx`, `styles/v2/html-edit.less`).
+
+**How it works.**
+
+- `frontend/src/lib/htmlEdit.ts` wraps the core. `buildEditableDoc` tags the
+  clean HTML and injects the postMessage bridge for the edit iframe's
+  srcDoc (a full document stays a full document); `applyHtmlPatch` re-tags
+  the clean source, applies one typed patch and untags again with our own
+  `untag` — a regex that removes exactly the `data-ve-id="p-…"` attributes
+  the tagger stamped and nothing else. htmlstudio's `untagHtml` is
+  deliberately not used for the stored source: it re-parses without
+  comments and would silently drop every HTML comment, including the
+  Outlook `<!--[if mso]>` conditionals email templates rely on. Because
+  comments survive the round trip, the tree `tagHtml` sees is identical on
+  every pass and the positional `data-ve-id`s stay stable across edits,
+  undo and redo with no normalization step — the artifact is never
+  rewritten on entering edit mode, only by real edits. The bridge/ids never
+  reach `artifact.content`: everything is serialized from the string, never
+  from the iframe DOM.
+- `frontend/src/hooks/useHtmlEdit.ts` owns the round-trip: it listens for
+  bridge `message` events (only from the edit iframe's `contentWindow`,
+  `channel: 've'`, target origin `window.location.origin` with a `'*'`
+  fallback when the origin is the string `'null'`, e.g. file:// desktop),
+  turns `select` events into inspector state (fields re-read from the source
+  string), turns `dblclick-text` inline edits into `set-text` patches, keeps
+  the undo/redo stacks, and persists every accepted patch through
+  `useArtifactsStore.updateArtifact` — verified by reading the store back
+  (that read-back is the Saved/Not saved status).
+- Manual edits write `content` only and **never bump `artifact.version`**:
+  the version counter tracks agent/plugin revisions (`artifact_update`
+  payloads), and faking one locally would collide with the next server-sent
+  version. The Edit toggle hides while a run is in flight
+  (`useChatStore.isLoading`) because agents replace artifact content
+  wholesale; if content still changes underneath edit mode, local history is
+  dropped and the editor re-syncs instead of patching stale source.
+- Round-trip fidelity: HTML comments (including conditional comments), the
+  doctype, text and script/style bodies are preserved byte-for-byte. What
+  the `node-html-parser` re-serialization normalizes on the first edit:
+  attribute values on tagger-stamped (editable) elements become
+  double-quoted, and void-tag closing slashes are dropped (`<br/>` → `<br>`,
+  the parser's default form). Rendering is unaffected and the serialized
+  form is a fixed point — later edits change nothing but the patched
+  element.
+
+**Not backed yet (deliberately).**
+
+- Edits live in the browser's artifact store (localStorage) only. The
+  generator plugins' files on disk (e.g. `~/.cachibot/websites/...`) are NOT
+  rewritten, and there is no backend endpoint for saving edits.
+- The agent does not see manual edits unless it re-reads the artifact; its
+  next `artifact_update` replaces the content wholesale, discarding manual
+  tweaks.
+- Only `HtmlRenderer` is covered — that includes html artifacts from all
+  three generator plugins. The HTML preview tab of `code` artifacts does not
+  get the toggle (it requires `artifact.type === 'html'`), and no other
+  renderer was touched.
+
 ## Known limitations / decisions
 
 - Views 04–09 and 11 shipped in C4 on the C1–C3 backend (see
