@@ -3,9 +3,10 @@
 L4 moved the remaining desktop/web loading call sites onto the v2 primitives
 (Spinner, PageLoading, Skeleton, Button ``pending``, useDelayedFlag). The repo
 has no frontend unit-test runner, so these tests read the frontend sources and
-assert the in-scope files no longer carry the old loaders. Legacy pages
-(Users, Plugins, Marketplace, auth) keep ``Loader2`` until their own v2
-redesign and are deliberately not asserted on. No server, no network.
+assert the in-scope files no longer carry the old loaders. Auth pages keep
+``Loader2`` while sign-in work is on hold and are deliberately not asserted
+on; Users, Plugins and the Marketplace were migrated in L7 (see
+test_v2_loading_l7.py). No server, no network.
 """
 
 from pathlib import Path
@@ -18,8 +19,10 @@ SPINNER = COMPONENTS / "common" / "Spinner.tsx"
 WORKSPACE_LESS = REPO_ROOT / "frontend" / "src" / "styles" / "v2" / "workspace.less"
 RUNS_LESS = REPO_ROOT / "frontend" / "src" / "styles" / "v2" / "runs.less"
 
-# Desktop/web call sites migrated in L4. Legacy pages are intentionally
+# Desktop/web call sites migrated in L4. Auth pages are intentionally
 # absent — they may still contain Loader2 and must not fail this suite.
+# (Users, Plugins and the Marketplace were migrated in L7 and are asserted
+# on in test_v2_loading_l7.py.)
 MIGRATED_FILES = [
     "views/RoutineEditorView.tsx",
     "views/RoomsView.tsx",
@@ -60,14 +63,9 @@ MIGRATED_FILES = [
     "chat/ModelPill.tsx",
 ]
 
-# Legacy surfaces that keep their own loaders until their v2 redesign.
+# Auth surfaces keep their own loaders while sign-in work is on hold.
+# Users, Plugins and the Marketplace left this list in L7.
 LEAVE_ALONE_FILES = [
-    "views/UsersView.tsx",
-    "views/PluginsView.tsx",
-    "marketplace/MarketplaceBrowser.tsx",
-    "marketplace/BotDetailPanel.tsx",
-    "marketplace/BotDetailDialog.tsx",
-    "marketplace/RoomDetailPanel.tsx",
     "auth/LoginPage.tsx",
     "auth/SetupPage.tsx",
     "auth/ConsentPage.tsx",
@@ -101,7 +99,8 @@ def test_migrated_file_has_no_css_spin_loaders(rel: str) -> None:
 
 
 def test_leave_alone_files_still_exist_and_are_not_asserted_on() -> None:
-    """Legacy pages keep Loader2 for now — presence here must not fail."""
+    """Auth pages keep Loader2 while sign-in work is on hold — presence here
+    must not fail."""
     for rel in LEAVE_ALONE_FILES:
         assert (COMPONENTS / rel).is_file(), f"missing file: {rel}"
 

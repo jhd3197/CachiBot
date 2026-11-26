@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { ArrowLeft, Star, Download, Loader2, Users, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Star, Download, Users, AlertTriangle } from 'lucide-react'
 import { DialogButton } from '../common/Dialog'
+import { Spinner } from '../common/Spinner'
 import { BotIconRenderer } from '../common/BotIconRenderer'
 import { installRoomMarketplaceTemplate, getBackendBot } from '../../api/client'
 import { getRooms } from '../../api/rooms'
@@ -273,7 +274,7 @@ export function RoomDetailPanel({ template, onBack, onInstalled }: RoomDetailPan
         >
           {isInstalling ? (
             <>
-              <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem' }} />
+              <Spinner size="sm" label="" aria-hidden="true" delayMs={200} style={{ marginRight: '0.5rem' }} />
               Installing...
             </>
           ) : (

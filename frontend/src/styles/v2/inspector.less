@@ -93,12 +93,6 @@
     min-width: 0;
   }
 
-  &__activity-spin {
-    color: var(--v2-blue);
-    flex: none;
-    animation: inspector-spin 1.2s linear infinite;
-  }
-
   &__empty {
     margin: 0;
     font-size: 13px;
@@ -132,11 +126,6 @@
 
     &--ok {
       color: var(--v2-green);
-    }
-
-    &--running {
-      color: var(--v2-blue);
-      animation: inspector-spin 1.2s linear infinite;
     }
 
     &--error {
@@ -307,21 +296,5 @@
 @media (max-width: 1199px) {
   .inspector {
     display: none;
-  }
-}
-
-@keyframes inspector-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .inspector__activity-spin,
-  .inspector__run-icon--running {
-    animation: none;
   }
 }

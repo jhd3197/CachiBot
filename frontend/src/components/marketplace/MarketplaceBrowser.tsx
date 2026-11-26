@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Search, Store, Loader2, X, Users } from 'lucide-react'
+import { Search, Store, X, Users } from 'lucide-react'
 import {
   Dialog,
   DialogHeader,
   DialogContent,
 } from '../common/Dialog'
+import { Spinner } from '../common/Spinner'
 import { BotCard } from './BotCard'
 import { BotDetailPanel } from './BotDetailPanel'
 import { RoomCard } from './RoomCard'
@@ -244,7 +245,7 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, onRoomInstalled
                   <div className="marketplace__grid">
                     {loading ? (
                       <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
+                        <Spinner size="lg" />
                       </div>
                     ) : error ? (
                       <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
@@ -283,7 +284,7 @@ export function MarketplaceBrowser({ open, onClose, onInstalled, onRoomInstalled
                   <div className="marketplace__grid">
                     {roomLoading ? (
                       <div className="marketplace__loading" style={{ gridColumn: '1 / -1' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-text-secondary)' }} />
+                        <Spinner size="lg" />
                       </div>
                     ) : roomError ? (
                       <div className="marketplace__error" style={{ gridColumn: '1 / -1' }}>
