@@ -23,6 +23,7 @@ from cachibot.storage.models import (  # noqa: F401
     BotConnection,
     BotContact,
     BotDocument,
+    BotFaroConnection,
     BotInstruction,
     BotMessage,
     BotNote,

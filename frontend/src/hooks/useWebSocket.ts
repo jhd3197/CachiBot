@@ -12,6 +12,7 @@ import { useArtifactsStore } from '../stores/artifacts'
 import { useWorkspaceStore } from '../stores/workspace'
 import { useSideTasksStore } from '../stores/side-tasks'
 import { useComputerStore } from '../stores/computer'
+import { useFaroStore } from '../stores/faro'
 import type {
   WSMessage,
   ThinkingPayload,
@@ -30,6 +31,7 @@ import type {
   ArtifactUpdatePayload,
   SideTask,
   ComputerUpdatePayload,
+  FaroUpdatePayload,
   ToolCall,
   ToolConfigs,
   BotCapabilities,
@@ -436,6 +438,17 @@ export function useWebSocket() {
           // while the Docker probe says unavailable.
           const payload = msg.payload as ComputerUpdatePayload
           useComputerStore.getState().applyUpdate(payload)
+          break
+        }
+
+        case 'faro_update': {
+          // Bot Faro connection/approvals change: status payload + botId,
+          // delivered only to sockets that can see the bot (approval
+          // summaries can carry sensitive text). The store feeds the
+          // settings card and the needs-you lines; everything stays hidden
+          // while there is nothing pending and no call in flight.
+          const payload = msg.payload as FaroUpdatePayload
+          useFaroStore.getState().applyUpdate(payload)
           break
         }
 

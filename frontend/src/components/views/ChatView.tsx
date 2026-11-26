@@ -23,6 +23,7 @@ import {
 import { useChatStore, useBotStore, getBotDefaultModel } from '../../stores/bots'
 import { useUIStore } from '../../stores/ui'
 import { useComputerStore } from '../../stores/computer'
+import { useFaroStore } from '../../stores/faro'
 import { useAuthStore } from '../../stores/auth'
 import { useCreationFlowStore } from '../../stores/creation-flow'
 import { useModelsStore } from '../../stores/models'
@@ -54,7 +55,7 @@ import { wsClient } from '../../api/websocket'
 import { useCommands } from '../../hooks/useCommands'
 import { useBotAccess } from '../../hooks/useBotAccess'
 import { MessageBubbleV2, isMediaResult } from '../chat/MessageBubble'
-import { ErrorCard, ApprovalCard, StoppedLine, ComputerNeedsYouCard, ComputerDrivingLine } from '../chat/ChatCards'
+import { ErrorCard, ApprovalCard, StoppedLine, ComputerNeedsYouCard, ComputerDrivingLine, FaroNeedsYouCard } from '../chat/ChatCards'
 import { ThinkingIndicator } from '../chat/ThinkingIndicator'
 import { StatusLine } from '../common/StatusLine'
 import { Spinner } from '../common/Spinner'
@@ -157,6 +158,20 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
     void useComputerStore.getState().ensureForBot(activeBotId)
     void useComputerStore.getState().fetchViews(activeBotId)
   }, [computerAvailable, activeBotId])
+
+  // Faro needs-you (real `faro_update` state): only a connected bot can be
+  // waiting on Faro; the global status tells whether the card may exist at
+  // all. Hidden entirely when nothing is pending and no call is in flight.
+  const faroStatusLoaded = useFaroStore((s) => s.statusLoaded)
+  const botFaro = useFaroStore((s) => (activeBotId ? s.byBot[activeBotId] : undefined))
+  useEffect(() => {
+    if (!activeBotId || !faroStatusLoaded) return
+    const status = useFaroStore.getState().status
+    const known = useFaroStore.getState().byBot[activeBotId]
+    if (status?.available || known?.connected) {
+      void useFaroStore.getState().ensureForBot(activeBotId)
+    }
+  }, [faroStatusLoaded, activeBotId])
 
   // Run-scoped UI (typing/thinking/tool calls) only shows in the chat that
   // owns the in-flight run — the connection lives at the app level now.
@@ -1906,6 +1921,28 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
                 canOperate
                   ? () => void useComputerStore.getState().respondNeedsYou(activeBot.id, 'skip')
                   : undefined
+              }
+            />
+          )}
+
+          {/* Faro is waiting on the human — real `faro_update` state. Deny
+              only: approving happens in Faro, never here. Hidden when
+              nothing is pending and no call is in flight. */}
+          {activeBot && botFaro?.connected && botFaro.callInFlight && (
+            <FaroNeedsYouCard
+              botId={activeBot.id}
+              approvals={(botFaro.pendingApprovals ?? []).map((approval) => ({
+                requestId: approval.requestId,
+                line: [
+                  approval.kind ? `${approval.kind}: ` : '',
+                  approval.summary || 'an action',
+                  approval.sessionName ? ` on ${approval.sessionName}` : '',
+                ].join(''),
+              }))}
+              plainWaiting={!botFaro.supportsApprovals}
+              canOperate={canOperate}
+              onDeny={(botId, requestId) =>
+                void useFaroStore.getState().denyApproval(botId, requestId)
               }
             />
           )}

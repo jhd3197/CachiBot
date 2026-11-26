@@ -110,9 +110,7 @@ class TestLaunchBackgrounds:
             assert "@color/boot_background" in text, variant
 
     def test_android_boot_colors_defined(self) -> None:
-        text = read(
-            MOBILE / "android" / "app" / "src" / "main" / "res" / "values" / "colors.xml"
-        )
+        text = read(MOBILE / "android" / "app" / "src" / "main" / "res" / "values" / "colors.xml")
         assert "#F4F4F5" in text
         assert "#0B0C0E" in text
 
@@ -130,9 +128,7 @@ class TestLaunchBackgrounds:
         assert "@color/boot_background_dark" in text
 
     def test_ios_launch_background_not_white(self) -> None:
-        storyboard = read(
-            MOBILE / "ios" / "Runner" / "Base.lproj" / "LaunchScreen.storyboard"
-        )
+        storyboard = read(MOBILE / "ios" / "Runner" / "Base.lproj" / "LaunchScreen.storyboard")
         assert 'red="1" green="1" blue="1"' not in storyboard
         assert 'name="BootBackground"' in storyboard
         # The existing launch image is kept.

@@ -395,6 +395,50 @@ export interface SideTask {
 }
 
 // =============================================================================
+// FARO AGENT BRIDGE — the local Faro bridge detection plus the per-bot
+// connection. Nothing here ever carries the bridge token; the pending
+// approvals may carry sensitive command summaries and are delivered only to
+// users who can see the bot. Every surface stays hidden while the bridge is
+// unavailable and the bot is not connected.
+// =============================================================================
+
+/** GET /api/integrations/faro/status — the global bridge detection. */
+export interface FaroIntegrationStatus {
+  available: boolean
+  reason: string | null
+  version: string | null
+  supportsApprovals: boolean
+}
+
+/** One approval Faro is waiting for (GET /approvals shape, summary-mapped). */
+export interface FaroApproval {
+  requestId: string
+  sessionId: string | null
+  sessionName: string | null
+  kind: string | null
+  summary: string | null
+}
+
+/** GET /api/bots/{id}/faro — one bot's Faro connection status. */
+export interface BotFaroStatus {
+  connected: boolean
+  available: boolean
+  reason: string | null
+  version: string | null
+  supportsApprovals: boolean
+  /** One of this bot's faro tools is running right now. */
+  callInFlight: boolean
+  /** Approvals Faro is waiting on during the current call. */
+  pendingApprovals: FaroApproval[]
+}
+
+/** `faro_update` WebSocket payload: the per-bot status plus the bot it
+ * belongs to. Delivered only to sockets that can see the bot. */
+export interface FaroUpdatePayload extends BotFaroStatus {
+  botId: string
+}
+
+// =============================================================================
 // BOT COMPUTER (Mini Vela) — status/state (C1) plus the live surface (C2):
 // preview revision, activity, windows, watchers, driver and needs-you. The
 // views land in C4 and stay hidden while the Docker probe says unavailable.
@@ -429,8 +473,7 @@ export interface DockerProbeSummary {
 }
 
 /** GET /api/bots/{id}/computer — one bot's computer status. Never carries
- * the controller token or the container's host port. */
-export interface BotComputer {
+ * the controller token or the container's host port. */export interface BotComputer {
   available: boolean
   reason: string | null
   state: ComputerState
@@ -806,6 +849,7 @@ export type WSMessageType =
   | 'task_update'
   | 'side_task_update'
   | 'computer_update'
+  | 'faro_update'
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType

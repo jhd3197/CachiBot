@@ -26,6 +26,8 @@ import { BotAvatar } from '../common/Avatar'
 import { ModelSelect } from '../common/ModelSelect'
 import { Spinner } from '../common/Spinner'
 import { BotSettingsComputerSection } from '../computer/BotSettingsComputerSection'
+import { FaroSection } from '../faro/FaroSection'
+import { useFaroStore } from '../../stores/faro'
 import { BotEnvironmentPanel } from '../settings/BotEnvironmentPanel'
 import { DeveloperPanel } from '../settings/DeveloperPanel'
 import { BotConnectionsPanel } from '../settings/BotConnectionsPanel'
@@ -113,7 +115,7 @@ const SECTIONS = [
   { id: 'advanced', label: 'Advanced' },
 ] as const
 
-type SheetKind = 'docs' | 'notes' | 'connections' | 'plugin' | null
+type SheetKind = 'docs' | 'notes' | 'connections' | 'plugin' | 'faro' | null
 
 // Stable fallback for the document selector (never[] shared reference —
 // the store's getDocuments() returns a fresh `[]` per call, which must not
@@ -299,6 +301,17 @@ export function BotSettingsView() {
   const { canEdit } = useBotAccess(botId)
   // The Docker probe gates the Computer section + nav chip (C4).
   const computerAvailable = useComputerStore((s) => s.status?.available === true)
+  // The Faro bridge detection gates the Faro card: hidden entirely while the
+  // bridge is unavailable and the bot is not connected.
+  const faroStatus = useFaroStore((s) => s.status)
+  const faroStatusLoaded = useFaroStore((s) => s.statusLoaded)
+  const faroByBot = useFaroStore((s) => (botId ? s.byBot[botId] : undefined))
+  useEffect(() => {
+    void useFaroStore.getState().fetchStatus()
+    if (botId) void useFaroStore.getState().ensureForBot(botId)
+  }, [botId])
+  const faroVisible =
+    faroStatusLoaded === true && (faroStatus?.available === true || faroByBot?.connected === true)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -645,7 +658,7 @@ export function BotSettingsView() {
     ([id]) => !(connections ?? []).some((c) => c.platform === id)
   )
   const showConnectionsSection =
-    connections !== null || codingAgents.length > 0 || configuredProviders.length > 0
+    connections !== null || codingAgents.length > 0 || configuredProviders.length > 0 || faroVisible
 
   return (
     <div className="bot-settings">
@@ -960,6 +973,23 @@ export function BotSettingsView() {
                 action={<RowAction onClick={() => navigate('/settings/keys')}>Change</RowAction>}
               />
             ))}
+            {faroVisible && (
+              <Row
+                title="Faro"
+                sub={
+                  faroByBot?.connected
+                    ? faroByBot.available
+                      ? `Connected · bridge running${faroByBot.version ? ` (v${faroByBot.version})` : ''}`
+                      : 'Faro is not running'
+                    : 'Not connected'
+                }
+                action={
+                  <RowAction onClick={() => setSheet('faro')}>
+                    {faroByBot?.connected ? 'Manage' : 'Connect'}
+                  </RowAction>
+                }
+              />
+            )}
             <GhostButton onClick={() => setSheet('connections')}>
               <Plus size={15} strokeWidth={1.8} />
               Add connection
@@ -1076,6 +1106,13 @@ export function BotSettingsView() {
       {sheet === 'connections' && (
         <Sheet title="Connections" onClose={() => setSheet(null)}>
           <BotConnectionsPanel botId={activeBot.id} />
+        </Sheet>
+      )}
+
+      {/* Faro integration card (Agent Bridge) */}
+      {sheet === 'faro' && (
+        <Sheet title="Faro" onClose={() => setSheet(null)}>
+          <FaroSection bot={activeBot} />
         </Sheet>
       )}
 

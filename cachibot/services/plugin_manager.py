@@ -30,6 +30,7 @@ from cachibot.plugins import (
     CachibotPlugin,
     CodingAgentPlugin,
     ComputerPlugin,
+    FaroPlugin,
     FileOpsPlugin,
     ImageGenerationPlugin,
     InstructionManagementPlugin,
@@ -70,8 +71,15 @@ CAPABILITY_PLUGINS: dict[str, list[PluginClass]] = {
     ],
 }
 
-# Plugins that are always enabled regardless of capabilities
-ALWAYS_ENABLED: list[PluginClass] = [TaskPlugin, NotesPlugin, KnowledgePlugin, ComputerPlugin]
+# Plugins that are always enabled regardless of capabilities. The computer
+# and faro plugins gate their own skills on their feature being usable.
+ALWAYS_ENABLED: list[PluginClass] = [
+    TaskPlugin,
+    NotesPlugin,
+    KnowledgePlugin,
+    ComputerPlugin,
+    FaroPlugin,
+]
 
 
 def plugins_to_registry(

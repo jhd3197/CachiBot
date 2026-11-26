@@ -45,6 +45,7 @@ from cachibot.storage.models.env_var import (
     EnvAuditLog,
     PlatformEnvironment,
 )
+from cachibot.storage.models.faro import BotFaroConnection
 from cachibot.storage.models.group import BotGroupAccess, Group, GroupMember
 
 # Custom instructions
@@ -106,6 +107,8 @@ __all__ = [
     "SideTask",
     # Bot computers
     "BotComputer",
+    # Faro bridge connections
+    "BotFaroConnection",
     # Groups & access
     "Group",
     "GroupMember",
