@@ -6,6 +6,7 @@ import '../../core/utils/time_utils.dart';
 import '../../models/work.dart';
 import '../../providers/tasks_provider.dart';
 import '../../providers/work_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class WorkDetailScreen extends ConsumerStatefulWidget {
   const WorkDetailScreen({
@@ -44,7 +45,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     if (work == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const CachiPageLoading(),
       );
     }
 
@@ -104,7 +105,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
             if (tasksState.isLoading && tasksState.tasks.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(32),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: CachiSpinner()),
               )
             else if (tasksState.tasks.isEmpty)
               Center(
@@ -313,14 +314,9 @@ class _WorkHeader extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: work.progress,
-                        minHeight: 6,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHigh,
-                      ),
+                    child: CachiProgressBar(
+                      value: work.progress,
+                      height: 6,
                     ),
                   ),
                   const SizedBox(width: 8),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/time_utils.dart';
 import '../../models/work.dart';
 import '../../providers/work_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class WorkListScreen extends ConsumerStatefulWidget {
   const WorkListScreen({required this.botId, super.key});
@@ -92,7 +93,7 @@ class _WorkListScreenState extends ConsumerState<WorkListScreen>
 
   Widget _buildContent(ThemeData theme, WorkState state) {
     if (state.isLoading && state.workItems.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiSkeletonList();
     }
 
     if (state.errorMessage != null && state.workItems.isEmpty) {
@@ -363,14 +364,7 @@ class _WorkCard extends StatelessWidget {
 
               // Progress bar
               if (work.progress > 0 || work.isActive)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: work.progress,
-                    minHeight: 4,
-                    backgroundColor: theme.colorScheme.surfaceContainerHigh,
-                  ),
-                ),
+                CachiProgressBar(value: work.progress),
 
               const SizedBox(height: 6),
 

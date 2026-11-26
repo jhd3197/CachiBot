@@ -68,6 +68,14 @@ class AppColors {
   static const darkInfoBg = Color(0x1F64B5F6); // rgba(100,181,246,0.12)
 
   // ---------------------------------------------------------------------------
+  // v2 boot palette (docs/design/UI_V2_PLAN.md "L2: v2 boot screens")
+  // ---------------------------------------------------------------------------
+  static const v2BootBackgroundDark = Color(0xFF0B0C0E);
+  static const v2BootBackgroundLight = Color(0xFFF4F4F5);
+  static const v2BootGreenDark = Color(0xFF4ADE80);
+  static const v2BootGreenLight = Color(0xFF16A34A);
+
+  // ---------------------------------------------------------------------------
   // Zinc neutral palette (from variables.less)
   // ---------------------------------------------------------------------------
   static const zinc50 = Color(0xFFFAFAFA);

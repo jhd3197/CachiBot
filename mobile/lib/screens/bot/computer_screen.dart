@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/bots_provider.dart';
 import '../../providers/computer_provider.dart';
 import '../../providers/service_providers.dart';
+import '../../widgets/common/loading.dart';
 
 /// Watch heartbeats keep the computer awake (~30 s server TTL); the frame
 /// poll follows the selected window at ~1 fps (Vela's watching rate) and the
@@ -740,10 +741,9 @@ class _StageMessage extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (pending)
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+            const CachiSpinner(
+              size: CachiSpinnerSize.lg,
+              color: Colors.white70,
             )
           else
             const Icon(Icons.desktop_windows_outlined, color: Colors.white38, size: 40),
@@ -778,10 +778,9 @@ class _BuildProgress extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+            const CachiSpinner(
+              size: CachiSpinnerSize.lg,
+              color: Colors.white70,
             ),
             const SizedBox(height: 12),
             const Text('Building the computer…', style: TextStyle(color: Colors.white70)),
