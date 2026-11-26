@@ -69,6 +69,7 @@ class PluginConfigParam(BaseModel):
     type: str = "text"
     default: str | int | float | bool | None = None
     description: str = ""
+    options: list[str] = Field(default_factory=list)
 
 
 class ExternalPluginManifest(BaseModel):

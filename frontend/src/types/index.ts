@@ -1128,6 +1128,7 @@ export interface ExternalPluginInfo {
     type: string
     default: unknown
     description: string
+    options?: string[]
   }[]
   view: {
     route: string
