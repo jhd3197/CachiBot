@@ -28,13 +28,15 @@ CachiBot can only watch the pending approvals and offer Deny.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
-from cachibot.services.faro.service import FaroService, get_faro_service
+
+if TYPE_CHECKING:
+    from cachibot.services.faro.service import FaroService
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,10 @@ class FaroPlugin(CachibotPlugin):
 
     def _service(self) -> FaroService:
         if self._faro is None:
+            # Imported lazily: the service needs aiohttp (server extra),
+            # which the slim CLI install does not have.
+            from cachibot.services.faro.service import get_faro_service
+
             self._faro = get_faro_service()
         return self._faro
 

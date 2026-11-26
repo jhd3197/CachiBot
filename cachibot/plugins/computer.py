@@ -20,17 +20,18 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tukuy.manifest import PluginManifest
 from tukuy.skill import RiskLevel, Skill, skill
 
 from cachibot.plugins.base import CachibotPlugin, PluginContext, skill_of
-from cachibot.services.computer.service import (
-    ComputerService,
-    ComputerStepOutcome,
-    get_computer_service,
-)
+
+if TYPE_CHECKING:
+    from cachibot.services.computer.service import (
+        ComputerService,
+        ComputerStepOutcome,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,10 @@ class ComputerPlugin(CachibotPlugin):
 
     def _service(self) -> ComputerService:
         if self._computer is None:
+            # Imported lazily: the service needs sqlalchemy (server extra),
+            # which the slim CLI install does not have.
+            from cachibot.services.computer.service import get_computer_service
+
             self._computer = get_computer_service()
         return self._computer
 
