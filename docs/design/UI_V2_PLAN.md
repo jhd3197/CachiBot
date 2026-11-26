@@ -1246,8 +1246,9 @@ sites only — no mass migration.
 - L3 done below: chat `TypingIndicator` / `ThinkingIndicator` /
   `ToolCallDisplay` migrated onto `StatusLine`/`Spinner` (see "L3: chat
   status lines").
-- L5: legacy pages (Users, Plugins, Marketplace, auth) keep their own
-  patterns for now.
+- L5/L7: legacy pages — Users, Plugins and the Marketplace migrated in L7
+  (see "L7: remaining spinner migration"); auth keeps its own patterns while
+  sign-in work is on hold.
 
 ## L2: v2 boot screens
 
@@ -1544,6 +1545,57 @@ straight to the app; AppLoader remains the web boot screen.
   then).
 - Tests: `tests/test_v2_desktop_single_boot.py` (hermetic source
   assertions).
+
+## L7: remaining spinner migration
+
+The last one-off `Loader2` / `animate-spin` call sites outside auth moved
+onto the L1 primitives. Simple swaps only — the legacy pages keep their
+layout; no redesign.
+
+### What was migrated
+
+- **Marketplace**: the install buttons in `BotDetailDialog`,
+  `BotDetailPanel` and `RoomDetailPanel` (`DialogButton`, not the shared
+  `Button`, so no `pending` prop) swap their inline `Loader2` for a delayed
+  `Spinner sm` next to the unchanged "Installing..." text;
+  `MarketplaceBrowser`'s two 32px grid loaders are now `Spinner lg` inside
+  the existing centered `.marketplace__loading` wrapper (the inline color
+  style is gone — the ring uses the token default).
+- **UsersView** (legacy page, simple swaps): the full-page `text-blue-500`
+  loader is `PageLoading` inside the existing `.users-loading` wrapper; the
+  create/update submit spinners are `Spinner sm` (`delayMs={200}`, default
+  sr-only label so the pending button keeps an accessible name).
+- **PluginsView**: the initial-load `Loader2` is `PageLoading`; the reload
+  button keeps `RefreshCw` idle and swaps to a delayed `Spinner sm` while
+  reloading — the same pattern as SettingsView/KnowledgeStats.
+- **ComputerSection**: the activity line's `computer-activity__spin`
+  `Loader2` is a `Spinner sm` (decorative — the activity text is the label;
+  ongoing state, so immediate).
+- **BotInspectorPanel**: the activity line's `inspector__activity-spin`
+  `Loader2` is a `Spinner sm`; `RunRow` renders a `Spinner sm` in the icon
+  slot when `status === 'running'` and keeps the other status icons
+  (success/cancelled/error).
+
+### Removed (grep-verified unused first)
+
+- `computer.less`: `.computer-activity__spin` (the `--v2-blue` rule),
+  `@keyframes computer-activity-spin` and its reduced-motion entry.
+- `inspector.less`: `.inspector__activity-spin`, the
+  `.inspector__run-icon--running` spin rule, `@keyframes inspector-spin` and
+  the reduced-motion block that named the two classes.
+- Reduced motion for the migrated sites is unchanged: the shared `Spinner`
+  is covered by the `motion.less` kill-switch.
+
+### Deliberately left
+
+- `components/auth/*` (Login, Setup, Consent, AuthCallback, Upgrade,
+  ProtectedRoute) keep `Loader2` — the sign-in surfaces are on hold and out
+  of scope; their `animate-spin` stays covered by the `motion.less`
+  kill-switch.
+- `desktop/splash.html`, `frontend/index.html` first paint and `AppLoader`
+  are the boot screens (L2), not spinners — untouched.
+- `motion.less` keeps the `animate-spin` / `animate-pulse` selectors for the
+  auth pages.
 
 ## Known limitations / decisions
 
