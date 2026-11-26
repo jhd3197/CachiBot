@@ -808,6 +808,7 @@ export interface Artifact {
   metadata?: Record<string, unknown>
   plugin?: string
   version: number
+  botId?: string
   chatId?: string
   messageId?: string
 }

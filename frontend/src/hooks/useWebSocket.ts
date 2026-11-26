@@ -400,6 +400,7 @@ export function useWebSocket() {
             metadata: payload.metadata,
             plugin: payload.plugin,
             version: payload.version ?? 1,
+            botId: useBotStore.getState().activeBotId ?? undefined,
             chatId: artifactChatId || undefined,
             messageId: payload.messageId,
           })

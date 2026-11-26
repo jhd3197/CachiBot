@@ -47,6 +47,7 @@ import { ModelPill } from '../chat/ModelPill'
 import { cn } from '../../lib/utils'
 import { detectLanguage } from '../../lib/language-detector'
 import { generateBotNames, getCodingAgents } from '../../api/client'
+import { listArtifacts } from '../../api/artifacts'
 import { uploadChatAsset } from '../../api/assets'
 import { getChatMessages } from '../../api/side-tasks'
 import { generateSystemPrompt } from '../../lib/prompt-generator'
@@ -246,6 +247,24 @@ export function ChatView({ onSendMessage, onCancel, isConnected, runChatId }: Ch
       cancelled = true
     }
   }, [activeBotId, activeChatId, upsertMessage])
+
+  // Server-side artifacts are the source of truth once edits are saved
+  // there: merge this chat's stored artifacts into the local cache (adds
+  // ones this browser never saw, lets a >= server version win). A failed
+  // fetch leaves the local cache as-is — it is only a cache.
+  useEffect(() => {
+    if (!activeBotId || !activeChatId) return
+    let cancelled = false
+    listArtifacts(activeBotId, activeChatId)
+      .then((rows) => {
+        if (cancelled) return
+        useArtifactsStore.getState().mergeServerArtifacts(rows)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [activeBotId, activeChatId])
 
   // @mention coding agent autocomplete state
   const [showAgentMentions, setShowAgentMentions] = useState(false)

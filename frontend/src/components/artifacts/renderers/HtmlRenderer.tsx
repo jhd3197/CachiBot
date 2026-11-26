@@ -3,7 +3,8 @@
  *
  * Optionally enters click-to-edit mode (html artifacts only): the preview
  * swaps to a srcDoc iframe carrying the htmlstudio bridge, and every edit is
- * patched into the clean source and saved through the artifacts store.
+ * patched into the clean source and saved through the artifacts store and
+ * the server-side artifact store (which bumps the version).
  */
 
 import { useRef, useEffect, useState } from 'react'
@@ -47,7 +48,15 @@ export function HtmlRenderer({ artifact }: HtmlRendererProps) {
 
   const handleRefresh = () => setKey((k) => k + 1)
 
-  const handleToggleEdit = () => setEditingId(editing ? null : artifact.id)
+  const handleToggleEdit = () => {
+    if (editing) {
+      // Leaving edit mode: let the in-flight server save settle first (and
+      // re-send the source if it changed since the last PUT), then close.
+      void edit.flushSave().finally(() => setEditingId(null))
+    } else {
+      setEditingId(artifact.id)
+    }
+  }
 
   const handleOpenExternal = () => {
     const blob = new Blob([artifact.content], { type: 'text/html' })
@@ -134,7 +143,7 @@ export function HtmlRenderer({ artifact }: HtmlRendererProps) {
             onPatch={edit.applyEdit}
             onUndo={edit.undo}
             onRedo={edit.redo}
-            onDone={() => setEditingId(null)}
+            onDone={handleToggleEdit}
           />
         </div>
       ) : (

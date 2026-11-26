@@ -22,6 +22,7 @@ reference the unified User model (String PK) defined here.
 from __future__ import annotations
 
 from cachibot.storage.db import Base
+from cachibot.storage.models.artifact import Artifact
 from cachibot.storage.models.asset import Asset
 
 # Automation system
@@ -123,6 +124,8 @@ __all__ = [
     "RoomTaskEvent",
     # Assets
     "Asset",
+    # Artifacts
+    "Artifact",
     # Automation system
     "Script",
     "ScriptVersion",

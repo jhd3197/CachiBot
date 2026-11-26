@@ -26,6 +26,13 @@ interface ArtifactsState {
   updateArtifact: (id: string, updates: Partial<Artifact>) => void
   /** Apply an artifact update payload from WS */
   applyArtifactUpdate: (update: ArtifactUpdatePayload) => void
+  /**
+   * Merge server-fetched artifacts into the cache without touching panel
+   * state. The server is the source of truth after a save, so its copy wins
+   * when its version is >= the local one; unrelated local artifacts and
+   * newer local edits are left alone.
+   */
+  mergeServerArtifacts: (incoming: Artifact[]) => void
   /** Set the active artifact and open the panel */
   setActive: (id: string | null) => void
   /** Close the panel */
@@ -84,6 +91,25 @@ export const useArtifactsStore = create<ArtifactsState>()(
           return {
             artifacts: { ...state.artifacts, [update.id]: updated },
           }
+        }),
+
+      mergeServerArtifacts: (incoming) =>
+        set((state) => {
+          const artifacts = { ...state.artifacts }
+          for (const server of incoming) {
+            const local = artifacts[server.id]
+            if (local && (server.version ?? 1) < (local.version ?? 1)) continue
+            artifacts[server.id] = {
+              ...local,
+              ...server,
+              language: server.language ?? local?.language,
+              plugin: server.plugin ?? local?.plugin,
+              metadata: server.metadata ?? local?.metadata,
+              chatId: server.chatId ?? local?.chatId,
+              messageId: server.messageId ?? local?.messageId,
+            }
+          }
+          return { artifacts }
         }),
 
       setActive: (id) =>

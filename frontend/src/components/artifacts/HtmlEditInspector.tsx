@@ -211,7 +211,7 @@ export function HtmlEditInspector({
       <div className="html-edit__foot">
         {saveStatus !== 'idle' && (
           <span className={cn('html-edit__status', saveStatus === 'error' && 'html-edit__status--error')}>
-            {saveStatus === 'saved' ? 'Saved' : 'Not saved'}
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving…' : 'Not saved'}
           </span>
         )}
         <button type="button" className="v2-btn v2-btn--secondary" onClick={onDone}>
