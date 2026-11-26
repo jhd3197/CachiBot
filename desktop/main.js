@@ -16,6 +16,8 @@ let mainWindow = null;
 let backendProcess = null;
 let tray = null;
 let backendStderr = ''; // Capture stderr for error reporting
+let splashWindow = null; // Boot splash, closed once the app UI is on screen
+let revealFallbackTimer = null; // Safety net if the renderer never sends app:ready
 
 const isDev = !app.isPackaged;
 const BACKEND_PORT = 5870;
@@ -241,7 +243,25 @@ function killProcessOnPort(port) {
 // Window creation
 // ---------------------------------------------------------------------------
 
+// Show the main window and dismiss the boot splash. Idempotent — the
+// renderer's app:ready, the fallback timer and the failure handlers may all
+// fire; only the first call does anything.
+function revealMainWindow() {
+  if (revealFallbackTimer) {
+    clearTimeout(revealFallbackTimer);
+    revealFallbackTimer = null;
+  }
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+  }
+  splashWindow = null;
+}
+
 function createWindow(splash = null) {
+  splashWindow = splash;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -278,8 +298,33 @@ function createWindow(splash = null) {
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-    if (splash && !splash.isDestroyed()) splash.close();
+    // With no splash (e.g. macOS activate re-create) show the window as soon
+    // as it can paint; otherwise the renderer's 'app:ready' does the reveal.
+    if (!splashWindow) {
+      revealMainWindow();
+      return;
+    }
+    if (mainWindow.isDestroyed() || mainWindow.isVisible()) return;
+    // Safety net: if the renderer never reports app:ready (frontend
+    // failure), show the window anyway so the user isn't left with only the
+    // splash.
+    revealFallbackTimer = setTimeout(revealMainWindow, 12000);
+  });
+
+  // Never leave a hidden window on failure — show it so the user sees the
+  // error instead of a stuck splash.
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode) => {
+    if (errorCode !== -3) revealMainWindow(); // -3 = aborted (redirect), not a failure
+  });
+  mainWindow.webContents.on('render-process-gone', () => {
+    revealMainWindow();
+  });
+
+  mainWindow.on('closed', () => {
+    if (revealFallbackTimer) {
+      clearTimeout(revealFallbackTimer);
+      revealFallbackTimer = null;
+    }
   });
 
   // Forward maximize state changes to the renderer for title bar icon updates
@@ -294,6 +339,13 @@ function createWindow(splash = null) {
     mainWindow.webContents.openDevTools();
   }
 }
+
+// The renderer sends 'app:ready' once its first real frame is on screen;
+// only then does the window replace the splash (single boot screen on
+// desktop). Same handoff in dev mode (ELECTRON_DEV_URL / Vite).
+ipcMain.on('app:ready', () => {
+  revealMainWindow();
+});
 
 // ---------------------------------------------------------------------------
 // Splash / loading screen while backend starts

@@ -32,6 +32,9 @@ interface ElectronAPI {
   windowClose: () => void
   windowIsMaximized: () => Promise<boolean>
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void
+  // Boot handoff: first real app frame is on screen; main shows the window
+  // and closes the splash
+  appReady?: () => void
   // Update management
   checkForUpdate: () => Promise<UpdateCheckResult>
   downloadUpdate: () => Promise<{ success: boolean }>
