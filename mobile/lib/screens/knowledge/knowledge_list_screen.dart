@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/time_utils.dart';
 import '../../models/knowledge.dart';
 import '../../providers/knowledge_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class KnowledgeListScreen extends ConsumerStatefulWidget {
   const KnowledgeListScreen({required this.botId, super.key});
@@ -184,7 +185,7 @@ class _KnowledgeListScreenState extends ConsumerState<KnowledgeListScreen>
 
   Widget _buildContent(ThemeData theme, KnowledgeState state) {
     if (state.isLoading && state.notes.isEmpty && state.documents.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiSkeletonList();
     }
 
     if (state.errorMessage != null &&

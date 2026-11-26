@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#050505</color>
+    <!-- v2 boot background (docs/design/UI_V2_PLAN.md "L2: v2 boot screens") -->
+    <color name="boot_background">#F4F4F5</color>
+    <color name="boot_background_dark">#0B0C0E</color>
 </resources>

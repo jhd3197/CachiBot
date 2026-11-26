@@ -7,6 +7,7 @@ import '../../core/utils/time_utils.dart';
 import '../../models/chat.dart';
 import '../../models/usage.dart';
 import '../../models/ws_message.dart';
+import '../common/loading.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
@@ -172,13 +173,9 @@ class _ToolChipWithResult extends StatelessWidget {
                       ? theme.colorScheme.primary
                       : theme.colorScheme.error,
                 )
-              : SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.primary,
-                  ),
+              : CachiSpinner(
+                  size: CachiSpinnerSize.md,
+                  color: theme.colorScheme.primary,
                 ),
           label: Text(
             call.tool,

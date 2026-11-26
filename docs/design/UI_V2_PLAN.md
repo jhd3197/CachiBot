@@ -1246,8 +1246,8 @@ sites only — no mass migration.
 - L3 done below: chat `TypingIndicator` / `ThinkingIndicator` /
   `ToolCallDisplay` migrated onto `StatusLine`/`Spinner` (see "L3: chat
   status lines").
-- L5: legacy pages (Users, Plugins, Marketplace, auth) keep their own
-  patterns for now.
+- Legacy pages (Users, Plugins, Marketplace, auth) keep their own
+  patterns for now (mobile loading is the L5 section below).
 
 ## L2: v2 boot screens
 
@@ -1432,12 +1432,77 @@ redesign.
   Setup, Consent, AuthCallback, Upgrade, ProtectedRoute). The
   `motion.less` reduced-motion kill-switch still covers their
   `animate-spin`/`animate-pulse` utilities.
-- mobile/, virtual-computer views, chat Typing/Thinking/ToolCallDisplay
-  (done in L3), AppLoader / desktop splash / `index.html` (done in L2).
+- mobile/ (done in L5 below), virtual-computer views, chat
+  Typing/Thinking/ToolCallDisplay (done in L3), AppLoader / desktop splash /
+  `index.html` (done in L2).
 - Static `RefreshCw`/`RotateCcw` icons that are not loaders (regenerate,
   reset, replace, refresh-preview actions) are unchanged; icon buttons with
   a pending state keep the idle icon and swap to `Spinner` only while
   pending.
+
+## L5: mobile loading
+
+Mobile (mobile/, Flutter + Riverpod + go_router) adopts the L1 primitives
+and the L2 quiet boot, replacing the 20+ stock Material progress indicators
+and fixing the login-screen flash on cold start (the router redirected to
+`/login` before `restoreSession` finished).
+
+### Built
+
+- `mobile/lib/widgets/common/loading.dart` — the shared widgets:
+  - `CachiSpinner` — one thin ring (stroke ~2, sizes sm 12 / md 14 / lg 18,
+    0.75s linear) defaulting to the AppColors tertiary text tone for the
+    current brightness (optional color override). `delayMs` keeps the ring
+    hidden-but-space-holding until the delay passes (Timer cancelled in
+    dispose); `MediaQuery.disableAnimationsOf` renders a static arc instead
+    of spinning; Semantics label "Loading".
+  - `CachiPageLoading` — centered `CachiSpinner` (lg) with a 200ms default
+    delay and an optional muted status label.
+  - `CachiSkeleton` / `CachiSkeletonList` — rounded gray blocks pulsing
+    between the AppColors hover/inset tones (static under
+    disableAnimations); generic shapes only — no fake counts or labels.
+  - `CachiProgressBar` — thin, rounded, real-value bar with the green
+    accent from the existing palette (green shade600 in light / shade400 in
+    dark — the v2 boot greens); track keeps the old surface tone.
+- Migration — every `CircularProgressIndicator` / `LinearProgressIndicator`
+  under mobile/lib now goes through these widgets (raw Material indicators
+  remain only inside loading.dart): list screens (home, chat list, recent
+  chats, knowledge list, work list, todos) show `CachiSkeletonList` on the
+  first load; page-level waits (work detail, knowledge search) use
+  `CachiPageLoading`; inline button/tool-chip/banner/computer-preview
+  spinners (login, QR pair, biometric lock, note editor save, chat send /
+  thinking / tool chips / offline banner, message tool chips, computer
+  preview) use `CachiSpinner` — an explicit color only where the background
+  is fixed (white on the login button and the amber offline banner,
+  `white70` on the dark computer preview); the two real work-progress bars
+  (work list, work detail) keep their values via `CachiProgressBar`. Only
+  the spinner widget changed on the auth screens — no auth behavior.
+- Quiet boot — `BootScreen` (mobile/lib/widgets/common/boot_screen.dart):
+  "Cachi" + green "Bot" wordmark, a small ring, and an optional status
+  line, on the v2 boot background for the current brightness (exact v2
+  colors are named constants in `AppColors`: `v2BootBackgroundLight/Dark`,
+  `v2BootGreenLight/Dark`). `AuthState.isRestoring` starts true and is set
+  false on every `restoreSession` path (success, error, no saved token —
+  any error resolves to logged-out), so the router's hold on a `/boot`
+  route while restoring can never deadlock and the user never sees the
+  login screen flash.
+- Native launch screens — Android `launch_background.xml` (base + v21) now
+  uses `@color/boot_background` (`#F4F4F5`), with a `drawable-night`
+  variant at `@color/boot_background_dark` (`#0B0C0E`); the iOS
+  `LaunchScreen.storyboard` background uses the new `BootBackground` color
+  asset (light `#F4F4F5`, dark `#0B0C0E` via the dark appearance). The
+  existing launch image is kept; no new binary assets.
+- `mobile/test/loading_widgets_test.dart` — widget tests for the spinner
+  (renders, delay hides then shows), skeletons, and the boot wordmark.
+  `tests/test_v2_loading_l5_mobile.py` guards the pass hermetically (no raw
+  Material indicators outside widgets/common/loading.dart, boot route +
+  `isRestoring` exist, launch backgrounds no longer plain white).
+
+### Rules kept
+
+- No fake data: skeletons are generic shapes, the boot status line is real
+  state ("Restoring session..."), spinners carry real Semantics labels,
+  and the work progress bars keep their real values.
 
 ## L6: loading hardening
 
@@ -1509,8 +1574,8 @@ everywhere, reduced-motion coverage re-verified, leftovers cleaned up.
   second delay on that Spinner.
 - `DocumentList`'s pulsing processing `Clock` is a state icon, not a spinner
   ring; it stays (kill-switch covers it).
-- mobile/, virtual-computer views, the L2 boot screens' visuals and the L3
-  chat treatment are untouched.
+- mobile/ is covered by L5; virtual-computer views, the L2 boot screens'
+  visuals and the L3 chat treatment are untouched.
 
 ## Known limitations / decisions
 

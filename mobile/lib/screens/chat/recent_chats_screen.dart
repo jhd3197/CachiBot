@@ -7,6 +7,7 @@ import '../../models/bot.dart';
 import '../../models/chat.dart';
 import '../../providers/bots_provider.dart';
 import '../../providers/service_providers.dart';
+import '../../widgets/common/loading.dart';
 
 /// Entry for a chat combined with its parent bot info.
 class _RecentChatEntry {
@@ -109,7 +110,7 @@ class _RecentChatsScreenState extends ConsumerState<RecentChatsScreen> {
       body: RefreshIndicator(
         onRefresh: _loadAll,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const CachiSkeletonList()
             : _error != null
                 ? _ErrorView(
                     message: _error!,

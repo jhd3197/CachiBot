@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../models/knowledge.dart';
 import '../../providers/knowledge_provider.dart';
+import '../../widgets/common/loading.dart';
 
 class NoteEditorScreen extends ConsumerStatefulWidget {
   const NoteEditorScreen({
@@ -153,11 +154,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
             ),
           IconButton(
             icon: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const CachiSpinner(size: CachiSpinnerSize.lg)
                 : const Icon(Icons.check),
             onPressed: _isLoading ? null : _save,
           ),

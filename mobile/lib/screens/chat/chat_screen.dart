@@ -8,6 +8,7 @@ import '../../providers/chat_provider.dart';
 import '../../providers/computer_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../widgets/chat/approval_dialog.dart';
+import '../../widgets/common/loading.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/common/connection_indicator.dart';
 
@@ -228,14 +229,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color:
-                      theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
+              CachiSpinner(
+                size: CachiSpinnerSize.md,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
               ),
               const SizedBox(width: 8),
               Text(
@@ -266,13 +262,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: state.activeToolCalls.map((call) {
                   return Chip(
                     avatar: call.isRunning
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.primary,
-                            ),
+                        ? CachiSpinner(
+                            size: CachiSpinnerSize.md,
+                            color: theme.colorScheme.primary,
                           )
                         : Icon(
                             (call.success ?? true)
@@ -478,13 +470,9 @@ class _OfflineBanner extends ConsumerWidget {
       color: Colors.amber.shade700,
       child: Row(
         children: [
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
+          CachiSpinner(
+            size: CachiSpinnerSize.md,
+            color: Colors.white.withValues(alpha: 0.9),
           ),
           const SizedBox(width: 10),
           Text(

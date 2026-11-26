@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/time_utils.dart';
 import '../../models/chat.dart';
 import '../../providers/chats_provider.dart';
+import '../../widgets/common/loading.dart';
 
 /// Standalone screen with its own Scaffold/AppBar (used for direct routes).
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -159,7 +160,7 @@ class _ChatListContentState extends ConsumerState<ChatListContent> {
 
   Widget _buildBody(ThemeData theme, ChatsState state) {
     if (state.isLoading && state.chats.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const CachiSkeletonList();
     }
 
     if (state.errorMessage != null && state.chats.isEmpty) {

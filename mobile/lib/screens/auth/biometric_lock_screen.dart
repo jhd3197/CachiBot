@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/loading.dart';
 
 /// Shown on app launch when biometric lock is enabled.
 class BiometricLockScreen extends ConsumerStatefulWidget {
@@ -101,7 +102,7 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                 ),
                 const SizedBox(height: 40),
                 if (_isAuthenticating)
-                  const CircularProgressIndicator()
+                  const CachiSpinner(size: CachiSpinnerSize.lg)
                 else ...[
                   if (_error != null) ...[
                     Text(
