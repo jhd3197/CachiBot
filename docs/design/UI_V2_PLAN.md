@@ -1246,8 +1246,9 @@ sites only — no mass migration.
 - L3 done below: chat `TypingIndicator` / `ThinkingIndicator` /
   `ToolCallDisplay` migrated onto `StatusLine`/`Spinner` (see "L3: chat
   status lines").
-- Legacy pages (Users, Plugins, Marketplace, auth) keep their own
-  patterns for now (mobile loading is the L5 section below).
+- Legacy pages: Users, Plugins and the Marketplace migrated in L7 (see "L7:
+  remaining spinner migration"); auth keeps its own patterns while sign-in
+  work is on hold. Mobile loading is the L5 section below.
 
 ## L2: v2 boot screens
 
@@ -1289,7 +1290,9 @@ scanlines and neon glow.
 The Electron splash and the in-app AppLoader intentionally stay two
 different screens — the splash is a compact card about the desktop app
 starting the server / installing an update, AppLoader is the full-canvas
-boot checking server, session and config.
+boot checking server, session and config. Update (L8): on Electron the
+AppLoader is now suppressed and the splash hands off straight to the app;
+AppLoader remains the web boot screen.
 
 ## L3: chat status lines
 
@@ -1576,6 +1579,88 @@ everywhere, reduced-motion coverage re-verified, leftovers cleaned up.
   ring; it stays (kill-switch covers it).
 - mobile/ is covered by L5; virtual-computer views, the L2 boot screens'
   visuals and the L3 chat treatment are untouched.
+
+## L8: single boot screen on desktop
+
+On Electron the boot used to show two screens back to back: the splash card
+while the server started, then the in-app AppLoader once the main window
+appeared. There is now one boot screen — the splash — which hands off
+straight to the app; AppLoader remains the web boot screen.
+
+- `desktop/preload.js` exposes `appReady()` (sends the `app:ready` IPC) on
+  `electronAPI`; typed in `frontend/src/vite-env.d.ts`.
+- `desktop/main.js` keeps the main window `show: false` and no longer shows
+  it on `ready-to-show` when a splash exists. The renderer's `app:ready`
+  triggers the reveal: show the window, close the splash. Reveal is
+  idempotent (guards `isDestroyed` / `isVisible`, clears the fallback timer)
+  and a ~12s timer after `ready-to-show` reveals the window anyway, so a
+  frontend failure never strands the user on the splash; `did-fail-load`
+  and `render-process-gone` reveal early for the same reason. With no
+  splash (macOS activate re-create) `ready-to-show` shows the window as
+  before. The dev-mode path (`ELECTRON_DEV_URL` / Vite) uses the same IPC.
+- `AppLoader` renders nothing while initializing when
+  `window.electronAPI?.isDesktop` is set (the splash covers the hidden
+  window); once `ready` flips, children mount underneath and the effect
+  calls `appReady()` directly — the children are already committed and the
+  window show triggers the first paint (a `requestAnimationFrame` would
+  never fire in the hidden window) — so the window is only shown with the
+  real UI on screen, including the setup / legacy-db / login paths, whose
+  `finish()` still runs. Web behavior is unchanged. The `index.html`
+  first-paint stand-in is irrelevant on desktop (the window is hidden
+  then).
+- Tests: `tests/test_v2_desktop_single_boot.py` (hermetic source
+  assertions).
+
+## L7: remaining spinner migration
+
+The last one-off `Loader2` / `animate-spin` call sites outside auth moved
+onto the L1 primitives. Simple swaps only — the legacy pages keep their
+layout; no redesign.
+
+### What was migrated
+
+- **Marketplace**: the install buttons in `BotDetailDialog`,
+  `BotDetailPanel` and `RoomDetailPanel` (`DialogButton`, not the shared
+  `Button`, so no `pending` prop) swap their inline `Loader2` for a delayed
+  `Spinner sm` next to the unchanged "Installing..." text;
+  `MarketplaceBrowser`'s two 32px grid loaders are now `Spinner lg` inside
+  the existing centered `.marketplace__loading` wrapper (the inline color
+  style is gone — the ring uses the token default).
+- **UsersView** (legacy page, simple swaps): the full-page `text-blue-500`
+  loader is `PageLoading` inside the existing `.users-loading` wrapper; the
+  create/update submit spinners are `Spinner sm` (`delayMs={200}`, default
+  sr-only label so the pending button keeps an accessible name).
+- **PluginsView**: the initial-load `Loader2` is `PageLoading`; the reload
+  button keeps `RefreshCw` idle and swaps to a delayed `Spinner sm` while
+  reloading — the same pattern as SettingsView/KnowledgeStats.
+- **ComputerSection**: the activity line's `computer-activity__spin`
+  `Loader2` is a `Spinner sm` (decorative — the activity text is the label;
+  ongoing state, so immediate).
+- **BotInspectorPanel**: the activity line's `inspector__activity-spin`
+  `Loader2` is a `Spinner sm`; `RunRow` renders a `Spinner sm` in the icon
+  slot when `status === 'running'` and keeps the other status icons
+  (success/cancelled/error).
+
+### Removed (grep-verified unused first)
+
+- `computer.less`: `.computer-activity__spin` (the `--v2-blue` rule),
+  `@keyframes computer-activity-spin` and its reduced-motion entry.
+- `inspector.less`: `.inspector__activity-spin`, the
+  `.inspector__run-icon--running` spin rule, `@keyframes inspector-spin` and
+  the reduced-motion block that named the two classes.
+- Reduced motion for the migrated sites is unchanged: the shared `Spinner`
+  is covered by the `motion.less` kill-switch.
+
+### Deliberately left
+
+- `components/auth/*` (Login, Setup, Consent, AuthCallback, Upgrade,
+  ProtectedRoute) keep `Loader2` — the sign-in surfaces are on hold and out
+  of scope; their `animate-spin` stays covered by the `motion.less`
+  kill-switch.
+- `desktop/splash.html`, `frontend/index.html` first paint and `AppLoader`
+  are the boot screens (L2), not spinners — untouched.
+- `motion.less` keeps the `animate-spin` / `animate-pulse` selectors for the
+  auth pages.
 
 ## Known limitations / decisions
 

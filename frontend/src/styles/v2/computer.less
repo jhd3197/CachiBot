@@ -189,11 +189,6 @@
   color: var(--v2-text-secondary);
   min-width: 0;
 
-  &__spin {
-    color: var(--v2-blue); // design 04's working spinner
-    animation: computer-activity-spin 1.2s linear infinite;
-  }
-
   &__text {
     flex: 1;
     min-width: 0;
@@ -529,15 +524,6 @@
   }
 }
 
-@keyframes computer-activity-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 // --- Bot settings › Computer (design view 18's hidden section) ---
 
 .computer-settings {
@@ -591,11 +577,5 @@
     .computer-card__btn {
       height: 32px;
     }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .computer-activity__spin {
-    animation: none;
   }
 }

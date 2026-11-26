@@ -17,13 +17,13 @@ import {
   Hand,
   Terminal as TerminalIcon,
   FileText,
-  Loader2,
   Square,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useComputerStore } from '../../stores/computer'
 import { useComputerPreview } from '../../hooks/useComputerPreview'
 import { ComputerStateCard } from './ComputerStateCard'
+import { Spinner } from '../common/Spinner'
 import type { Bot, BotComputer, ComputerWindow } from '../../types'
 import { cn } from '../../lib/utils'
 
@@ -168,7 +168,7 @@ function ActivityRow({
   if (computer?.activity?.text) {
     return (
       <div className="computer-activity">
-        <Loader2 size={14} strokeWidth={1.8} className="computer-activity__spin" />
+        <Spinner size="sm" label="" aria-hidden="true" />
         <span className="computer-activity__text">{computer.activity.text}</span>
         {canOperate && (
           <button

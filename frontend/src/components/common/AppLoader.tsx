@@ -36,6 +36,8 @@ export function AppLoader({ children }: AppLoaderProps) {
   const [status, setStatus] = useState('Initializing...')
   const ran = useRef(false)
   const waitedRef = useRef(false)
+  const api = window.electronAPI
+  const isDesktop = !!api?.isDesktop
 
   useEffect(() => {
     if (ran.current) return
@@ -154,6 +156,23 @@ export function AppLoader({ children }: AppLoaderProps) {
 
     run()
   }, [])
+
+  // On Electron the splash covers boot while the window stays hidden. Once
+  // init is done, tell the main process to show the window and close the
+  // splash. Children committed with `ready` are already in the DOM at this
+  // point, and showing the window triggers the first paint — frame
+  // callbacks never fire in a hidden window, so this must not wait on one.
+  useEffect(() => {
+    if (!isDesktop || !ready) return
+    api?.appReady?.()
+  }, [api, isDesktop, ready])
+
+  // Desktop renders no in-app boot screen: the hidden window is covered by
+  // the splash until app:ready, so there is nothing to show while
+  // initializing; children mount underneath as soon as init is done.
+  if (isDesktop) {
+    return ready ? <>{children}</> : null
+  }
 
   if (!visible) return <>{children}</>
 
